@@ -12,6 +12,7 @@ alternative to GNU Stow, let me know on
 [twitter](http://twitter.com/peterhajas)
 2. Clone this repository into your home directory
 2. `cd` into the `dotfiles` directory
-3. Run `stow APPNAME` to install the configuration files for that app
+3. Run `sh update.sh`. You may need to `chmod a+x update.sh`
+4. Run `stow APPNAME` to install the configuration files for that app
 
 Questions? Comments? I'm [@peterhajas](http://twitter.com/peterhajas).
