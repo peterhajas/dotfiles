@@ -1,0 +1,10 @@
+# OS X
+## DS_Store
+*.DS_Store
+
+# vim
+
+## undo files
+*.un~
+## netrwhistory
+*.netrwhist
