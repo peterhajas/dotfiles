@@ -1,3 +1,5 @@
 [user]
 	name = Peter Hajas
 	email = peterhajas@gmail.com
+[core]
+	editor = /usr/bin/vim
