@@ -133,7 +133,7 @@ set guioptions=
 
 call pathogen#infect()
 call pathogen#helptags()
-call pathogen#incubate()
+call pathogen#infect('bundle/{}')
 
 " Commentary
 
