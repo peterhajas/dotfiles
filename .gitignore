@@ -1,0 +1,5 @@
+pathogen.vim
+*.DS_Store
+*.un~
+*.swp
+*.netrwhist
