@@ -6,13 +6,10 @@ they will be useful to others crafting their own setups.
 
 ## Install
 
-1. First, install [GNU Stow](https://www.gnu.org/software/stow/stow.html).
-I do this via [homebrew](http://brew.sh). If you know of a BSD-licensed
-alternative to GNU Stow, let me know on
-[twitter](http://twitter.com/peterhajas)
-2. Clone this repository into your home directory
+1. Clone this repository into your home directory
 2. `cd` into the `dotfiles` directory
 3. Run `sh update.sh`. You may need to `chmod a+x update.sh`
-4. Run `stow APPNAME` to install the configuration files for that app
+
+That's it! If you had any configuration files, `stow` should leave them alone and not stomp on them. If you'd like to uninstall specific apps, you can do so by running `stow -D APPNAME` in the `dotfiles` directory. To install them again, run `stow APPNAME`.
 
 Questions? Comments? I'm [@peterhajas](http://twitter.com/peterhajas).
