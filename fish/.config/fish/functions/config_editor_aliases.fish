@@ -1,6 +1,6 @@
 function config_editor_aliases
     set editor "vim"
-    if test ~/bin/mvim
+    if test -f ~/bin/mvim
         set editor "mvim"
     end
     
