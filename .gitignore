@@ -1,5 +1,11 @@
-pathogen.vim
+# don't track .DS_Store
+
 *.DS_Store
+
+# vim related
+
+pathogen.vim
 *.un~
 *.swp
 *.netrwhist
+
