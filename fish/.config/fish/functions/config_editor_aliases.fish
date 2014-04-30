@@ -7,6 +7,6 @@ function config_editor_aliases
     # Muscle memory is strong
 
     alias mate $editor
-    alias vim $editor
     alias subl $editor
+    alias mvim $editor
 end
