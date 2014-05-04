@@ -7,9 +7,8 @@ else
     ruby -e "$(curl -fsSL https://raw.github.com/Homebrew/homebrew/go/install)"
 fi
 
-echo "Installing brewfile contents and updating homebrew..."
+echo "Executing brewfile..."
 brew bundle homebrew/.brewfile
-brew update
 
 echo "Updating pathogen..."
 curl -Sso vim/.vim/autoload/pathogen.vim \

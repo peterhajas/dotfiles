@@ -58,3 +58,7 @@ cask install sketch
 
 ### Kaleidoscope
 cask install kaleidoscope
+
+## Finally, update & doctor
+update
+doctor
