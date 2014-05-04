@@ -1,0 +1,8 @@
+# Brewfile
+# Written by Peter Hajas, first authored May 4, 2014
+
+# stow, the utility used for dotfiles
+install stow
+
+# tmux, for window management in the terminal
+install tmux
