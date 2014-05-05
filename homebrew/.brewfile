@@ -62,6 +62,9 @@ cask install sketch
 ### Kaleidoscope
 cask install kaleidoscope
 
+### XQuartz
+cask install xquartz
+
 ## Finally, update & doctor
 update
 doctor
