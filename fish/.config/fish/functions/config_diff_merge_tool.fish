@@ -8,6 +8,12 @@ function config_diff_merge_tool
         set PATH $PATH /Applications/Kaleidoscope.app/Contents/Resources/bin;
         set diffMergeTool "Kaleidoscope"
     end
+    
+    if test -d ~/Applications/Kaleidoscope.app
+        ## Kaleidoscope may be in ~/Applications if coming from Cask
+        set PATH $PATH ~/Applications/Kaleidoscope.app/Contents/Resources/bin;
+        set diffMergeTool "Kaleidoscope"
+    end
 
     git config --global diff.tool $diffMergeTool
     git config --global merge.tool $diffMergeTool
