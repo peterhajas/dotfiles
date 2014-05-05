@@ -9,6 +9,9 @@ install stow
 ### tmux, for window management in the terminal
 install tmux
 
+### wine, for Windows apps
+install wine
+
 ## UI apps
 
 ### First, we need Cask. Cask is a way to install .apps using homebrew
