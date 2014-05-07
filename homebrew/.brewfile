@@ -65,6 +65,9 @@ cask install kaleidoscope
 ### XQuartz
 cask install xquartz
 
+## Clean up Cask temporary files
+cask cleanup
+
 ## Finally, update & doctor
 update
 doctor
