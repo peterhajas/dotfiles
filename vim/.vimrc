@@ -176,6 +176,12 @@ nmap <silent> <C-CR> :QuickRun<CR>
 
 nmap <silent> <C-u> :GundoToggle<CR>
 
+" Sneak
+
+" Enable s and S for subsequent searches forward and back
+
+let g:sneak#s_next = 1
+
 " Misc.
 
 " Leader-. to reload .vimrc
