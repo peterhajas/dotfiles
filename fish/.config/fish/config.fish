@@ -20,10 +20,6 @@ alias mate mvim
 
 alias confedit "mate ~/.config/fish/config.fish"
 
-# Set a greeting
-
-set fish_greeting hello
-
 # Tool configuration
 
 config_editor_aliases

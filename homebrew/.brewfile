@@ -19,6 +19,9 @@ install tig
 # wget, a utility for downloading content
 install wget
 
+# fortune, it tells you a fortune!
+install fortune
+
 # wine, for Windows apps
 install wine
 
