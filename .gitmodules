@@ -28,9 +28,6 @@
 [submodule "vim/.vim/bundle/vim-fish"]
 	path = vim/.vim/bundle/vim-fish
 	url = https://github.com/dag/vim-fish.git
-[submodule "vim/.vim/bundle/vim-lldb"]
-	path = vim/.vim/bundle/vim-lldb
-	url = https://github.com/gilligan/vim-lldb.git
 [submodule "vim/.vim/bundle/vim-markdown"]
 	path = vim/.vim/bundle/vim-markdown
 	url = https://github.com/plasticboy/vim-markdown.git
