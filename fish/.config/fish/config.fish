@@ -1,6 +1,12 @@
 # Shell
 
+## ~/bin is where personal executables are stored
+
 set PATH $PATH ~/bin;
+
+## /usr/local/bin is where brew installs stuff
+
+set PATH /usr/local/bin $PATH;
 
 # Editor
 

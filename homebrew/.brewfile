@@ -9,6 +9,9 @@ install stow
 ### tmux, for window management in the terminal
 install tmux
 
+### ctags, for code navigation
+install ctags --HEAD
+
 ### wine, for Windows apps
 install wine
 
