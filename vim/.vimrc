@@ -69,6 +69,10 @@ set formatoptions=qrn1
 
 " TODO: we need a way to do 80-char column indication
 
+" Filetypes
+
+filetype on
+
 " Visual styling
 
 " Font
@@ -175,6 +179,59 @@ nmap <silent> <C-CR> :QuickRun<CR>
 " Map control-u to toggle gundo
 
 nmap <silent> <C-u> :GundoToggle<CR>
+
+" Tagbar
+
+" Map control-n to toggle Tagbar
+
+nnoremap <silent> <C-n> :TagbarToggle<CR>
+
+" Automatically jump to the tagbar window when it's opened
+
+let g:tagbar_autofocus = 1
+
+" Automatically close the tagbar when jumping to a tag
+
+let g:tagbar_autoclose = 1
+
+" Sort tags by their occurence in the file, not alphabetically
+
+let g:tagbar_sort = 0
+
+" add a definition for Objective-C to tagbar
+let g:tagbar_type_objc = {
+    \ 'ctagstype' : 'ObjectiveC',
+    \ 'kinds'     : [
+        \ 'i:interface',
+        \ 'I:implementation',
+        \ 'p:Protocol',
+        \ 'm:Object_method',
+        \ 'c:Class_method',
+        \ 'v:Global_variable',
+        \ 'F:Object field',
+        \ 'f:function',
+        \ 'p:property',
+        \ 't:type_alias',
+        \ 's:type_structure',
+        \ 'e:enumeration',
+        \ 'M:preprocessor_macro',
+    \ ],
+    \ 'sro'        : ' ',
+    \ 'kind2scope' : {
+        \ 'i' : 'interface',
+        \ 'I' : 'implementation',
+        \ 'p' : 'Protocol',
+        \ 's' : 'type_structure',
+        \ 'e' : 'enumeration'
+    \ },
+    \ 'scope2kind' : {
+        \ 'interface'      : 'i',
+        \ 'implementation' : 'I',
+        \ 'Protocol'       : 'p',
+        \ 'type_structure' : 's',
+        \ 'enumeration'    : 'e'
+    \ }
+\ }
 
 " Misc.
 
