@@ -12,6 +12,15 @@ install tmux
 ### ctags, for code navigation
 install ctags --HEAD
 
+### lighttpd, for git instaweb
+install lighttpd
+
+### tig, a git navigator
+install tig
+
+### wget, a utility for downloading content
+install wget
+
 ### wine, for Windows apps
 install wine
 
