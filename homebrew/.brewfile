@@ -1,6 +1,9 @@
 # Brewfile
 # Written by Peter Hajas, first authored May 4, 2014
 
+# fish, the friendly interactive shell
+install fish
+
 # stow, the utility used for dotfiles
 install stow
 
@@ -9,6 +12,9 @@ install tmux
 
 # ctags, for code navigation
 install ctags --HEAD
+
+# hg, a distributed version control system
+install hg
 
 # lighttpd, for git instaweb
 install lighttpd
