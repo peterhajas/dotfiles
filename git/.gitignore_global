@@ -1,6 +1,15 @@
 # OS X
+
 ## DS_Store
 *.DS_Store
+
+# Scratch files
+
+## diffs
+*.diff
+
+# tags
+tags
 
 # vim
 
