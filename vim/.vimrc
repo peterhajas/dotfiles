@@ -69,6 +69,10 @@ set formatoptions=qrn1
 
 " TODO: we need a way to do 80-char column indication
 
+" Filetypes
+
+filetype on
+
 " Visual styling
 
 " Font

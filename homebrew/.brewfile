@@ -1,73 +1,36 @@
 # Brewfile
 # Written by Peter Hajas, first authored May 4, 2014
 
-## Command-line utilities
+# fish, the friendly interactive shell
+install fish
 
-### stow, the utility used for dotfiles
+# stow, the utility used for dotfiles
 install stow
 
-### tmux, for window management in the terminal
+# tmux, for window management in the terminal
 install tmux
 
-### wine, for Windows apps
+# ctags, for code navigation
+install ctags --HEAD
+
+# hg, a distributed version control system
+install hg
+
+# lighttpd, for git instaweb
+install lighttpd
+
+# tig, a git navigator
+install tig
+
+# wget, a utility for downloading content
+install wget
+
+# fortune, it tells you a fortune!
+install fortune
+
+# wine, for Windows apps
 install wine
 
-## UI apps
-
-### First, we need Cask. Cask is a way to install .apps using homebrew
-install caskroom/cask/brew-cask
-
-### Google Chrome
-cask install google-chrome
-
-### MacVim
-cask install macvim
-
-### Spotify
-cask install spotify
-
-### Bartender
-cask install bartender
-
-### f.lux
-cask install flux
-
-### Keyboard Maestro
-cask install keyboard-maestro
-
-### KeyRemap4Macbook
-cask install keyremap4macbook
-
-### Dropbox
-cask install dropbox
-
-### Slate
-cask install slate
-
-### Steam
-cask install steam
-
-### VLC
-cask install vlc
-
-### Audacity
-cask install audacity
-
-### TextExpander
-cask install textexpander
-
-### Sketch
-cask install sketch
-
-### Kaleidoscope
-cask install kaleidoscope
-
-### XQuartz
-cask install xquartz
-
-## Clean up Cask temporary files
-cask cleanup
-
-## Finally, update & doctor
+# Finally, update & doctor
 update
 doctor
