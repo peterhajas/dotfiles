@@ -3,6 +3,7 @@
 	email = peterhajas@gmail.com
 [core]
 	editor = /usr/bin/vim
+	excludesfile = /Users/phajas/.gitignore_global
 [difftool "Kaleidoscope"]
 	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
 [diff]
