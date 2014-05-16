@@ -63,6 +63,11 @@ nnoremap <down> <C-w>j
 nnoremap <up> <C-w>k
 nnoremap <right> <C-w>l
 
+" Map ctrl-] and ctrl-[ to go to the next/previous error
+
+nnoremap <silent> <C-]> :cnext <CR>
+nnoremap <silent> <C-[> :cprevious <CR>
+
 " Line handling
 
 set formatoptions=qrn1
