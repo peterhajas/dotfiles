@@ -65,8 +65,8 @@ nnoremap <right> <C-w>l
 
 " Map ctrl-] and ctrl-[ to go to the next/previous error
 
-nnoremap <silent> <leader><]> :cnext <CR>
-nnoremap <silent> <leader><[> :cprevious <CR>
+nnoremap <silent> <leader>] :cnext <CR>
+nnoremap <silent> <leader>[ :cprevious <CR>
 
 " Line handling
 
