@@ -31,9 +31,6 @@ cask install dropbox
 # Slate
 cask install slate
 
-# Steam
-cask install steam
-
 # VLC
 cask install vlc
 

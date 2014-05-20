@@ -15,6 +15,9 @@ brew bundle homebrew/.brewfile
 echo "Brewfile: Installing Cask apps..."
 brew bundle homebrew/.caskfile
 
+echo "Brewfile: Installing "fun" Cask apps..."
+brew bundle homebrew/.caskfile_fun
+
 echo "Updating pathogen..."
 curl -Sso vim/.vim/autoload/pathogen.vim \
     https://raw.github.com/tpope/vim-pathogen/master/autoload/pathogen.vim
