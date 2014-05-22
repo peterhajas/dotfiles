@@ -22,6 +22,10 @@ echo "Updating pathogen..."
 curl -Sso vim/.vim/autoload/pathogen.vim \
     https://raw.github.com/tpope/vim-pathogen/master/autoload/pathogen.vim
 
+echo "Configuring stow..."
+stow -D stow
+stow stow
+
 echo "Restowing all apps..."
 for dir in */
 do
