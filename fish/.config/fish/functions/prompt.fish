@@ -1,5 +1,5 @@
 function prompt
-    echo -n (prompt_current_user) at (prompt_current_hostname) in (prompt_current_directory)
+    echo (prompt_current_user) at (prompt_current_hostname) in (prompt_current_directory) on 
 
     echo '> '
 end
