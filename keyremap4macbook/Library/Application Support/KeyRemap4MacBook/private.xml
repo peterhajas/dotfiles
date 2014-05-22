@@ -1,0 +1,177 @@
+<?xml version="1.0"?>
+<root>
+    <item>
+        <name>Disable arrows</name>
+        <identifier>remap.drop_arrows</identifier>
+ 
+        <autogen>__KeyToKey__ KeyCode::CURSOR_LEFT, KeyCode::VK_NONE</autogen>
+        <autogen>__KeyToKey__ KeyCode::CURSOR_RIGHT, KeyCode::VK_NONE</autogen>
+        <autogen>__KeyToKey__ KeyCode::CURSOR_UP, KeyCode::VK_NONE</autogen>
+        <autogen>__KeyToKey__ KeyCode::CURSOR_DOWN, KeyCode::VK_NONE</autogen>
+    </item>
+ 
+    <item>
+        <name>Use the correct shift keys.</name>
+        <identifier>private.correct_shift_keys</identifier>
+ 
+        <autogen>--KeyToKey-- KeyCode::Q, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::W, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::E, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::R, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::T, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::A, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::S, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::D, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::F, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::G, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::Z, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::X, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::C, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::V, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+ 
+        <autogen>--KeyToKey-- KeyCode::Y,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::U,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::I,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::O,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::P,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::H,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::J,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::K,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::L,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::SEMICOLON, ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::N,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::M,         ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::COMMA,     ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::DOT,       ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+        <autogen>--KeyToKey-- KeyCode::QUOTE,     ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::VK_NONE</autogen>
+    </item>
+    <item>
+        <name>Remap Left Control to Hyper</name>
+        <appendix>OS X doesn't have a Hyper. This maps Left Control to Control + Shift + Option + Command.</appendix>
+ 
+        <identifier>space_cadet.left_control_to_hyper</identifier>
+ 
+        <autogen>
+            --KeyToKey--
+            KeyCode::F19,
+ 
+            KeyCode::COMMAND_L,
+            ModifierFlag::OPTION_L | ModifierFlag::SHIFT_L | ModifierFlag::CONTROL_L
+        </autogen>
+    </item>
+ 
+    <item>
+        <name>Shifts to Parentheses</name>
+        <appendix>Shifts, when pressed alone, type parentheses.  When used with other keys they're normal shifts.</appendix>
+ 
+        <identifier>private.shifts_to_parens</identifier>
+ 
+        <!-- This is the basic mapping. -->
+        <autogen>--KeyOverlaidModifier-- KeyCode::SHIFT_R, ModifierFlag::SHIFT_R | ModifierFlag::NONE, KeyCode::SHIFT_R, KeyCode::KEY_0, ModifierFlag::SHIFT_L</autogen>
+        <autogen>--KeyOverlaidModifier-- KeyCode::SHIFT_L, ModifierFlag::SHIFT_L | ModifierFlag::NONE, KeyCode::SHIFT_L, KeyCode::KEY_9, ModifierFlag::SHIFT_R</autogen>
+        <!--
+            Remap the "rolls" of () and )( because it's too easy to hit one
+            before finishing the other, and there's no other reason to be
+            pressing both shift keys at once anyway
+        -->
+        <autogen>--KeyToKey-- KeyCode::SHIFT_L, ModifierFlag::SHIFT_R, KeyCode::KEY_0, ModifierFlag::SHIFT_L, KeyCode::KEY_9, ModifierFlag::SHIFT_L</autogen>
+        <autogen>--KeyToKey-- KeyCode::SHIFT_R, ModifierFlag::SHIFT_L, KeyCode::KEY_9, ModifierFlag::SHIFT_L, KeyCode::KEY_0, ModifierFlag::SHIFT_L</autogen>
+ 
+        <!--
+            Remap Rshift+Space to ') ', because when typing an end paren and
+            then a space I tend to hit space before I let go of rshift.
+        -->
+        <autogen>--KeyToKey-- KeyCode::SPACE, ModifierFlag::SHIFT_R, KeyCode::KEY_0, ModifierFlag::SHIFT_L, KeyCode::SPACE</autogen>
+    </item>
+ 
+ 
+    <item>
+        <name>Vim layer additions</name>
+        <identifier>vimmode.additions</name>
+                    <!-- o, O -->
+        <autogen>
+          __KeyToKey__
+          KeyCode::O, 
+          ModifierFlag::CONTROL_L | ModifierFlag::NONE,
+          KeyCode::CURSOR_RIGHT, ModifierFlag::COMMAND_L,
+          KeyCode::RETURN
+        </autogen>
+        <autogen>
+          __KeyToKey__
+          KeyCode::O, ModifierFlag::CONTROL_L | ModifierFlag::SHIFT_L | ModifierFlag::NONE,
+          KeyCode::CURSOR_LEFT, ModifierFlag::COMMAND_L,
+          KeyCode::RETURN,
+          KeyCode::CURSOR_UP,
+        </autogen>
+        <autogen>
+          __KeyToKey__
+          KeyCode::X, ModifierFlag::CONTROL_L | ModifierFlag::NONE,
+          KeyCode::FORWARD_DELETE,
+      </autogen>
+ 
+        <autogen>
+          __KeyToKey__
+          KeyCode::U, ModifierFlag::CONTROL_L | ModifierFlag::NONE,
+          KeyCode::Z, ModifierFlag::COMMAND_L,
+        </autogen>
+        <autogen>
+          __KeyToKey__
+          KeyCode::J, ModifierFlag::CONTROL_L | ModifierFlag::SHIFT_L | ModifierFlag::NONE,
+          KeyCode::CURSOR_DOWN,
+          KeyCode::CURSOR_LEFT, ModifierFlag::COMMAND_L,
+          KeyCode::RETURN,
+          KeyCode::CURSOR_UP,
+        </autogen>
+ 
+        <autogen>--DoublePressModifier-- KeyCode::D, ModifierFlag::CONTROL_L,
+           KeyCode::D, ModifierFlag::CONTROL_L,
+           KeyCode::VK_NONE,
+            KeyCode::CURSOR_LEFT, ModifierFlag::COMMAND_L,
+            KeyCode::CURSOR_DOWN, ModifierFlag::SHIFT_L,
+            KeyCode::X, ModifierFlag::COMMAND_L,
+       </autogen>
+      <autogen>
+            __KeyToKey__
+            KeyCode::D, ModifierFlag::CONTROL_L,
+            KeyCode::VK_NONE,
+        </autogen>
+<!--         <autogen>--HoldingKeyToKey-- KeyCode::D, ModifierFlag::CONTROL_L,
+           KeyCode::D, ModifierFlag::CONTROL_L,
+           KeyCode::VK_NONE,
+           KeyCode::VK_NONE,
+       </autogen>
+ -->
+    </item>
+ 
+    <item>
+        <name>Command/Option + arrows to navigate in Terminal</name>
+        <identifier>terminalarrows.private.appdef</identifier>
+        <only>TERMINAL</only>
+        <autogen>--KeyToKey-- KeyCode::H, ModifierFlag::COMMAND_L  | ModifierFlag::CONTROL_L | ModifierFlag::NONE,  KeyCode::A, VK_CONTROL</autogen>
+        <autogen>--KeyToKey-- KeyCode::L, ModifierFlag::COMMAND_L | ModifierFlag::CONTROL_L | ModifierFlag::NONE, KeyCode::E, VK_CONTROL</autogen>
+        <autogen>--KeyToKey-- KeyCode::H, ModifierFlag::OPTION_L  | ModifierFlag::CONTROL_L | ModifierFlag::NONE,  KeyCode::ESCAPE, KeyCode::B</autogen>
+        <autogen>--KeyToKey-- KeyCode::L, ModifierFlag::OPTION_L | ModifierFlag::CONTROL_L | ModifierFlag::NONE, KeyCode::ESCAPE, KeyCode::F</autogen>
+    </item>
+ 
+    <item>
+      <name>Next pane in terminal</name>
+      <identifier>nextpane.private.appdef</identifier>
+      <only>TERMINAL</only>
+      <autogen>--KeyToKey-- KeyCode::F, ModifierFlag::CONTROL_L | ModifierFlag::NONE,  KeyCode::BRACKET_RIGHT, ModifierFlag::COMMAND_L</autogen>
+    </item>
+ 
+    <item>
+      <name>Tab to Hyper</name>
+      <appendix>(+ When you type Tab only, send Tab)</appendix>
+      <identifier>remap.tab2hyper_tab</identifier>
+      <autogen>__KeyOverlaidModifier__ KeyCode::TAB, KeyCode::COMMAND_L, ModifierFlag::OPTION_L | ModifierFlag::SHIFT_L | ModifierFlag::CONTROL_L, KeyCode::TAB</autogen>
+    </item>
+
+    <item>
+      <name>Tab to Hyper without cmd</name>
+      <appendix>(+ When you type Tab only, send Tab)</appendix>
+      <identifier>remap.tab2hyperwithoutcmd</identifier>
+      <autogen>__KeyOverlaidModifier__ KeyCode::TAB, KeyCode::OPTION_L, ModifierFlag::SHIFT_L | ModifierFlag::CONTROL_L, KeyCode::TAB</autogen>
+    </item>
+ 
+</root>
