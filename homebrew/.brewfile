@@ -19,11 +19,11 @@ install hg
 # lighttpd, for git instaweb
 install lighttpd
 
-# tig, a git navigator
-install tig
-
 # wget, a utility for downloading content
 install wget
+
+# htop, a cool activity monitor
+install htop
 
 # fortune, it tells you a fortune!
 install fortune
