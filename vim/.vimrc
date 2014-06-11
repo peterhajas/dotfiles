@@ -63,11 +63,6 @@ nnoremap <down> <C-w>j
 nnoremap <up> <C-w>k
 nnoremap <right> <C-w>l
 
-" Map ctrl-] and ctrl-[ to go to the next/previous error
-
-nnoremap <silent> <leader>] :cnext <CR>
-nnoremap <silent> <leader>[ :cprevious <CR>
-
 " Line handling
 
 set formatoptions=qrn1
@@ -190,26 +185,6 @@ nmap <silent> <C-u> :GundoToggle<CR>
 " Leader-. to reload .vimrc
 
 nmap <silent> <leader>. :so $MYVIMRC<CR>
-
-" Leader-o to open a file
-
-nmap <silent> <leader>o :e 
-
-" Leader-s to save a file
-
-nmap <silent> <leader>s :w <CR>
-
-" Leader-> to redraw the screen
-
-nmap <silent> <leader>> :redraw! <CR>
-
-" Leader-q to open up a netrw session
-
-nmap <silent> <leader>q :e. <CR>
-
-" Leader-Q to open up a netrw session in the file's path
-
-nmap <silent> <leader>Q :Explore <CR>
 
 " Remap <BS> to % to easily jump to matching character
 
