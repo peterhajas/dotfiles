@@ -49,6 +49,9 @@ cask install kaleidoscope
 # XQuartz
 cask install xquartz
 
+# Hazel
+cask install hazel
+
 # Clean up Cask temporary files
 cask cleanup
 
