@@ -90,8 +90,56 @@ colorscheme molokai
 set background=dark
 
 " Status Line
+" Divided into two sides:
 
-set statusline+=%{fugitive#statusline()}
+" Left:
+
+" Branch
+
+set statusline+=%{fugitive#head()}
+
+" Path
+
+set statusline+=\ %F
+
+" Modified state
+
+set statusline+=\ %m
+
+" Right:
+
+" Delimeter character
+
+set statusline+=%=
+
+" File kind
+
+set statusline+=%y
+
+" Encoding
+
+set statusline+=\ %{strlen(&fenc)?&fenc:'none'}
+
+" File type
+
+set statusline+=[%{&ff}]
+
+" Total lines
+
+set statusline+=\ (%L)
+
+" Percentage
+
+set statusline+=\ %P\ :
+
+" Line
+
+set statusline+=\ %l:
+
+" Column
+
+set statusline+=\ %c\ 
+
 
 " Cursor visualization
 
