@@ -301,3 +301,9 @@ set noswapfile
 
 set autowriteall
 au WinLeave,FocusLost,BufLeave,InsertLeave,CursorHold * wall
+
+" If a file has changed outside of vim, reload it (it seems MacVim may do this
+" automatically, but terminal vim does not)
+
+set autoread
+
