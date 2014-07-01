@@ -195,7 +195,6 @@ xmap <leader>/ <Plug>Commentary
 " Ctrl-P
 
 set runtimepath^=~/.vim/bundle/ctrlp.vim
-let g:ctrlp_map = '<c-p>'
 let g:ctrlp_cmd = 'CtrlPMixed'
 let g:ctrlp_map = '<leader>,'
 let g:ctrlp_switch_buffer = 0
