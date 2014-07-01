@@ -10,6 +10,9 @@ install stow
 # tmux, for window management in the terminal
 install tmux
 
+# reattach-to-user-namespace, for tmux clipboard integration
+install reattach-to-user-namespace
+
 # ctags, for code navigation
 install ctags --HEAD
 
