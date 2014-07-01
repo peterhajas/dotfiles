@@ -31,6 +31,9 @@ install fortune
 # wine, for Windows apps
 install wine
 
+# sloccount, for lines of code
+install sloccount
+
 # Finally, update & doctor
 update
 doctor
