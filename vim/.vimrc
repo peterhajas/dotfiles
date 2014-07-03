@@ -63,6 +63,17 @@ nnoremap <down> <C-w>j
 nnoremap <up> <C-w>k
 nnoremap <right> <C-w>l
 
+" Tabs
+
+" Remap leader-t to make a new tab
+
+nmap <silent> <leader>t :tabnew <CR>
+
+" Remap ]w to next tab
+
+nmap <silent> ]w :tabnext <CR>
+nmap <silent> [w :tabprevious <CR>
+
 " Line handling
 
 set formatoptions=qrn1
