@@ -96,8 +96,20 @@ endif
 
 " Theme and coloring
 
+" Turn on syntax highlighting
+
 syntax on
+
+" Advertise that our terminal supports 256 colors
+
+set t_Co=256
+
+" Use the Molokai colorscheme
+
 colorscheme molokai
+
+" and a dark background
+
 set background=dark
 
 " Status Line
