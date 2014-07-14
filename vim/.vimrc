@@ -173,24 +173,9 @@ au WinLeave * set nocursorline
 au WinEnter * set cursorline
 
 " Line numbers
-
-" Enable relative line numbers
-
-set relativenumber
-
-" ...but also have absolute line numbers
+" These are mostly handled by numbers.vim
 
 set number
-
-" When leaving a window or losing focus, turn off relative line numbers
-
-au WinLeave * set norelativenumber
-au FocusLost * set norelativenumber
-
-" When re-entering a window or gaining focus, turn back on relative line numbers
-
-au WinEnter * set relativenumber
-au FocusGained * set relativenumber
 
 " Invisible characters
 
@@ -227,6 +212,7 @@ NeoBundle 'dag/vim-fish'
 NeoBundle 'ervandew/supertab'
 NeoBundle 'junegunn/vim-easy-align'
 NeoBundle 'kien/ctrlp.vim'
+NeoBundle 'myusuf3/numbers.vim'
 NeoBundle 'plasticboy/vim-markdown'
 NeoBundle 'rizzatti/dash.vim'
 NeoBundle 'rizzatti/funcoo.vim'
