@@ -4,7 +4,13 @@
 
 # vim related
 
+## Plugins
+
 pathogen.vim
+vim/.vim/bundle/*/
+
+## Temp files
+
 *.un~
 *.swp
 *.netrwhist

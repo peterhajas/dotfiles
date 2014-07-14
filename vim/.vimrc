@@ -83,6 +83,7 @@ set formatoptions=qrn1
 " Filetypes
 
 filetype on
+filetype plugin indent on
 
 " Visual styling
 
@@ -202,13 +203,49 @@ set listchars=tab:▸\ ,eol:¬
 
 set guioptions=
 
+" Shell
+
+set shell=/bin/sh
+
 " Plugins
 
-" Pathogen
+" neobundle
 
-call pathogen#infect()
-call pathogen#helptags()
-call pathogen#infect('bundle/{}')
+if has('vim_starting')
+    set runtimepath+=~/.vim/bundle/neobundle.vim/
+endif
+
+call neobundle#begin(expand('~/.vim/bundle/'))
+
+" Let NeoBundle manage NeoBundle
+NeoBundleFetch 'Shougo/neobundle.vim'
+
+" List of plugins:
+
+NeoBundle 'dag/vim-fish'
+NeoBundle 'ervandew/supertab'
+NeoBundle 'junegunn/vim-easy-align'
+NeoBundle 'kien/ctrlp.vim'
+NeoBundle 'plasticboy/vim-markdown'
+NeoBundle 'rizzatti/dash.vim'
+NeoBundle 'rizzatti/funcoo.vim'
+NeoBundle 'sjl/gundo.vim'
+NeoBundle 't9md/vim-tryit'
+NeoBundle 'thinca/vim-quickrun'
+NeoBundle 'tpope/vim-commentary'
+NeoBundle 'tpope/vim-fugitive'
+NeoBundle 'tpope/vim-repeat'
+NeoBundle 'tpope/vim-sensible'
+NeoBundle 'tpope/vim-surround'
+NeoBundle 'tpope/vim-unimpaired'
+NeoBundle 'tpope/vim-vinegar'
+NeoBundle 'vimwiki/vimwiki'
+
+call neobundle#end()
+
+" filetype plugin indent on
+
+NeoBundleCheck
 
 " Commentary
 
