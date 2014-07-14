@@ -222,6 +222,7 @@ NeoBundleFetch 'Shougo/neobundle.vim'
 
 " List of plugins:
 
+NeoBundle 'Keithbsmiley/swift.vim'
 NeoBundle 'dag/vim-fish'
 NeoBundle 'ervandew/supertab'
 NeoBundle 'junegunn/vim-easy-align'
