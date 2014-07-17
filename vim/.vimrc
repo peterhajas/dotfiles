@@ -211,7 +211,9 @@ NeoBundle 'Keithbsmiley/swift.vim'
 NeoBundle 'dag/vim-fish'
 NeoBundle 'ervandew/supertab'
 NeoBundle 'junegunn/vim-easy-align'
+NeoBundle 'justinmk/vim-sneak'
 NeoBundle 'kien/ctrlp.vim'
+NeoBundle 'mattn/flappyvird-vim'
 NeoBundle 'myusuf3/numbers.vim'
 NeoBundle 'plasticboy/vim-markdown'
 NeoBundle 'rizzatti/dash.vim'
@@ -221,6 +223,7 @@ NeoBundle 't9md/vim-tryit'
 NeoBundle 'thinca/vim-quickrun'
 NeoBundle 'tpope/vim-commentary'
 NeoBundle 'tpope/vim-fugitive'
+NeoBundle 'tpope/vim-obsession'
 NeoBundle 'tpope/vim-repeat'
 NeoBundle 'tpope/vim-sensible'
 NeoBundle 'tpope/vim-surround'
@@ -229,8 +232,6 @@ NeoBundle 'tpope/vim-vinegar'
 NeoBundle 'vimwiki/vimwiki'
 
 call neobundle#end()
-
-" filetype plugin indent on
 
 NeoBundleCheck
 
@@ -273,6 +274,12 @@ nmap <silent> <C-CR> :QuickRun<CR>
 " Map control-u to toggle gundo
 
 nmap <silent> <C-u> :GundoToggle<CR>
+
+" Sneak
+
+" Turn on s_next
+
+let g:sneak#s_next = 1
 
 " Misc.
 
