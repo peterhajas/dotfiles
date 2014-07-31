@@ -287,7 +287,11 @@ let g:sneak#s_next = 1
 
 nmap <silent> <leader>. :so $MYVIMRC<CR>
 
-" Remap <BS> to % to easily jump to matching character
+" Enable matchit, which has smarter matching support (HTML tags, etc.)
+
+runtime macros/matchit.vim
+
+" Remap <BS> to % to easily jump to matching identifier (bracket, paren, tag)
 
 nmap <BS> %
 
