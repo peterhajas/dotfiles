@@ -23,3 +23,7 @@
 	templatedir = ~/.git_template
 [alias]
 	ctags = !.git/hooks/ctags
+
+    s = status
+    st = status
+    stat = status
