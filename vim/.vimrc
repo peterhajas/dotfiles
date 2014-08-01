@@ -63,6 +63,10 @@ nnoremap <down> <C-w>j
 nnoremap <up> <C-w>k
 nnoremap <right> <C-w>l
 
+" Resize splits when resizing vim
+
+au VimResized * :wincmd =
+
 " Tabs
 
 " Remap leader-t to make a new tab
