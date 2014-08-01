@@ -105,13 +105,13 @@ syntax on
 
 set t_Co=256
 
+" Use a dark background
+
+set background=dark
+
 " Use the Molokai colorscheme
 
 colorscheme molokai
-
-" and a dark background
-
-set background=dark
 
 " Status Line
 " Divided into two sides:
