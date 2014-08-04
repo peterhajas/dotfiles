@@ -23,6 +23,7 @@ brew install htop
 brew install fortune
 brew install wine
 brew install sloccount
+brew install datamash
 
 echo "Homebrew: Installing Cask apps..."
 
