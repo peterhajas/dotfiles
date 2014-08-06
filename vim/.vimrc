@@ -168,14 +168,6 @@ set statusline+=\ %l:
 
 set statusline+=\ %c\ 
 
-
-" Cursor visualization
-
-set cursorline
-
-au WinLeave * set nocursorline
-au WinEnter * set cursorline
-
 " Line numbers
 " These are mostly handled by numbers.vim
 
@@ -332,10 +324,6 @@ set wildmode=list:longest
 " Instead of beeping, use the visual bell
 
 set visualbell
-
-" Indicate that we're on a fast terminal connection
-
-set ttyfast
 
 " Show the current line & column number of the cursor position
 
