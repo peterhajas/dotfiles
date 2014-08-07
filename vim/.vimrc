@@ -78,6 +78,12 @@ nmap <silent> <leader>t :tabnew <CR>
 nmap <silent> ]w :tabnext <CR>
 nmap <silent> [w :tabprevious <CR>
 
+" Finding the cursor
+
+" I tried to live without it, but I couldn't. Give me my cursorline
+
+set cursorline
+
 " Line handling
 
 set formatoptions=qrn1
