@@ -277,6 +277,13 @@ nmap <silent> <C-u> :GundoToggle<CR>
 
 let g:sneak#s_next = 1
 
+" Vimwiki
+
+" Remap the VimwikiIndex action to something that won't delay my new split
+" mapping (leader-w)
+
+nmap <Leader>q <Plug>VimwikiIndex
+
 " Misc.
 
 " Leader-. to reload .vimrc
