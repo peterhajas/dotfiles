@@ -212,8 +212,8 @@ NeoBundleFetch 'Shougo/neobundle.vim'
 NeoBundle 'Keithbsmiley/swift.vim'
 NeoBundle 'dag/vim-fish'
 NeoBundle 'ervandew/supertab'
+NeoBundle 'godlygeek/tabular'
 NeoBundle 'junegunn/goyo.vim'
-NeoBundle 'junegunn/vim-easy-align'
 NeoBundle 'justinmk/vim-sneak'
 NeoBundle 'kien/ctrlp.vim'
 NeoBundle 'mattn/flappyvird-vim'
@@ -255,12 +255,6 @@ let g:ctrlp_switch_buffer = 0
 " Map leader-b to blame
 
 nmap <silent> <leader>b :Gblame <CR>
-
-" Easy Align
-
-" Map enter to align in VISUAL mode
-
-vmap <Enter> <Plug>(EasyAlign)
 
 " QuickRun
 
