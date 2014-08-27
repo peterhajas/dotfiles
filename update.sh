@@ -44,6 +44,7 @@ brew cask install sketch
 brew cask install kaleidoscope
 brew cask install xquartz
 brew cask install hazel
+brew cask install hex-fiend
 
 echo "Homebrew: Installing "fun" Cask apps..."
 
