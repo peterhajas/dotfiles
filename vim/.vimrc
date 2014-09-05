@@ -30,7 +30,16 @@ set showmatch
 " Highlight all the matches for the current search query
 
 set hlsearch
+
+" Clear the current query when hitting leader-<space>
+
 nnoremap <silent> <leader><space> :noh<cr>
+
+" When searching for things, keep the current match in the middle of the
+" window and pulse the line when moving to them
+
+nnoremap n nzzzv
+nnoremap N Nzzzv
 
 inoremap <up> <nop>
 inoremap <down> <nop>
