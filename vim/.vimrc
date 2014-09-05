@@ -97,6 +97,10 @@ set cursorline
 
 set formatoptions=qrn1
 
+" Split lines (opposite of [J]oining lines)
+
+nnoremap S i<cr><esc><right>
+
 " Filetypes
 
 filetype on
