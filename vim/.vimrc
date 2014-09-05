@@ -361,7 +361,7 @@ set noswapfile
 " Save all the time, automatically. It's 2014, computers should do this.
 
 set autowriteall
-au WinLeave,FocusLost,BufLeave,InsertLeave,CursorHold * wall
+au WinLeave,FocusLost,BufLeave,InsertLeave,CursorHold :wa
 
 " If a file has changed outside of vim, reload it (it seems MacVim may do this
 " automatically, but terminal vim does not)
