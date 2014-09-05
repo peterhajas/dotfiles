@@ -88,8 +88,6 @@ set cursorline
 
 set formatoptions=qrn1
 
-" TODO: we need a way to do 80-char column indication
-
 " Filetypes
 
 filetype on
@@ -122,6 +120,12 @@ set background=dark
 " Use the Molokai colorscheme
 
 colorscheme molokai
+
+" When a line exceeds 80 characters, color the 81st character red
+
+highlight OverLength ctermbg=darkred ctermfg=white guibg=#FFD9D9
+match OverLength /\%81v/
+
 
 " Status Line
 " Divided into two sides:
