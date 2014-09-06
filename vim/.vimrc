@@ -203,10 +203,6 @@ set listchars=tab:▸\ ,eol:¬
 
 set guioptions=
 
-" Shell
-
-set shell=/bin/sh
-
 " Plugins
 
 " NeoBundle
