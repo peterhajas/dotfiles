@@ -41,10 +41,6 @@ nnoremap <silent> <leader><space> :noh<cr>
 nnoremap n nzzzv
 nnoremap N Nzzzv
 
-inoremap <up> <nop>
-inoremap <down> <nop>
-inoremap <left> <nop>
-inoremap <right> <nop>
 nnoremap j gj
 nnoremap k gk
 
