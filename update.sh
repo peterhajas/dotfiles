@@ -73,3 +73,6 @@ done
 echo "Updating submodules..."
 git submodule init
 git submodule update
+
+echo "Configuring OS X settings..."
+bash .osx.bash
