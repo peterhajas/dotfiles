@@ -24,8 +24,3 @@ alias confedit "mate ~/.config/fish/config.fish"
 
 config_editor_aliases
 config_diff_merge_tool
-
-# Jump into a tmux session
-
-tmux attach
-
