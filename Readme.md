@@ -1,8 +1,10 @@
-# dotfiles
+# phajas dotfiles
 
-These are the configuration files I use on my computer. I've collected them
-here to make it easier to sync them between machines. Additionally, I think
-they will be useful to others crafting their own setups.
+## If you see a setting, they blew it
+
+A "dotfile" is a configuration file for a computer program.
+
+I have a bunch of these. They all live here.
 
 ## Install
 
@@ -12,4 +14,4 @@ they will be useful to others crafting their own setups.
 
 That's it! If you had any configuration files, `stow` should leave them alone and not stomp on them. If you'd like to uninstall specific apps, you can do so by running `stow -D APPNAME` in the `dotfiles` directory. To install them again, run `stow APPNAME`.
 
-Questions? Comments? I'm [@peterhajas](http://twitter.com/peterhajas).
+Questions? Comments? `emacs`? I'm [@peterhajas](http://twitter.com/peterhajas).
