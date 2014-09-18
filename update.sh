@@ -53,9 +53,12 @@ brew cask install steam
 brew cask install origin
 brew cask install teamspeak-client
 
-echo "Finalizing Homebrew installation..."
-brew cask cleanup
+echo "Finalizing Homebrew configuration..."
+
 brew update
+brew upgrade
+brew cleanup
+brew cask cleanup
 brew doctor
 
 echo "Configuring stow..."
