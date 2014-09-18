@@ -74,5 +74,9 @@ echo "Updating submodules..."
 git submodule init
 git submodule update
 
+echo "Cleaning and updating vim plugins..."
+vim -c "NeoBundleClean" -c q
+vim -c "NeoBundleUpdate" -c q
+
 echo "Configuring OS X settings..."
 bash .osx.bash
