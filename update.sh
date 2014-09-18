@@ -12,6 +12,7 @@ echo "Installing Homebrew software..."
 echo "Homebrew: Installing utilities..."
 
 brew install fish
+brew install vim
 brew install stow
 brew install tmux
 brew install reattach-to-user-namespace
