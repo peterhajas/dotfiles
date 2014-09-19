@@ -78,12 +78,5 @@ echo "Updating submodules..."
 git submodule init
 git submodule update
 
-echo "Cleaning and updating vim plugins..."
-vim -c "NeoBundleClean" -c q
-vim -c "NeoBundleUpdate" -c q
-
-echo "Installing YCM..."
-sh ~/.vim/bundle/YouCompleteMe/install.sh
-
 echo "Configuring OS X settings..."
 bash .osx.bash
