@@ -122,13 +122,33 @@ syntax on
 
 set t_Co=256
 
-" Use a dark background
 
-set background=dark
+" Because it's nice to switch between dark and light themes, let's use
+" functions for this
 
-" Use the Molokai colorscheme
+function DarkMode()
+    " Use a dark background
 
-colorscheme molokai
+    set background=dark
+
+    " Use the Molokai colorscheme
+
+    colorscheme molokai
+endfunction
+
+function LightMode()
+    " Why is this reversed from DarkMode()?
+    " Good question! I think there's some side effects from setting background
+    " and colorscheme
+
+    colorscheme default
+    set background=light
+endfunction
+
+call DarkMode()
+
+nmap <silent> ]c :call DarkMode() <CR>
+nmap <silent> [c :call LightMode() <CR>
 
 " When a line exceeds 80 characters, color the 81st character red
 
