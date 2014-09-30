@@ -25,6 +25,8 @@ brew install fortune
 brew install wine
 brew install sloccount
 brew install datamash
+brew install lua
+brew install luarocks
 
 echo "Homebrew: Installing Cask apps..."
 
@@ -46,6 +48,7 @@ brew cask install kaleidoscope
 brew cask install xquartz
 brew cask install hazel
 brew cask install hex-fiend
+brew cask install mjolnir
 
 echo "Homebrew: Installing "fun" Cask apps..."
 
@@ -59,6 +62,11 @@ brew update
 brew upgrade
 brew cleanup
 brew cask cleanup
+
+echo "Installing Mjolnir dependencies..."
+
+luarocks install mjolnir.hotkey
+luarocks install mjolnir.application
 
 echo "Clearing KeyRemap4MacBook Preferences..."
 rm ~/Library/Preferences/org.pqrs.KeyRemap4MacBook.plist
