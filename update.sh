@@ -61,7 +61,7 @@ brew cleanup
 brew cask cleanup
 brew doctor
 
-echo "Clearing KeyRemap4Macbook Preferences..."
+echo "Clearing KeyRemap4MacBook Preferences..."
 rm ~/Library/Preferences/org.pqrs.KeyRemap4MacBook.plist
 
 echo "Configuring stow..."
