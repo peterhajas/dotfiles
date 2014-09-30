@@ -59,7 +59,6 @@ brew update
 brew upgrade
 brew cleanup
 brew cask cleanup
-brew doctor
 
 echo "Clearing KeyRemap4MacBook Preferences..."
 rm ~/Library/Preferences/org.pqrs.KeyRemap4MacBook.plist
