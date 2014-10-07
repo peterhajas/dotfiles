@@ -258,6 +258,7 @@ NeoBundle 'tpope/vim-sensible'
 NeoBundle 'tpope/vim-surround'
 NeoBundle 'tpope/vim-unimpaired'
 NeoBundle 'tpope/vim-vinegar'
+NeoBundle 'vim-scripts/scratch.vim'
 NeoBundle 'vimwiki/vimwiki'
 
 call neobundle#end()
