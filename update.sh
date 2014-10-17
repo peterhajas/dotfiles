@@ -37,7 +37,7 @@ brew cask install spotify
 brew cask install bartender
 brew cask install flux
 brew cask install keyboard-maestro
-brew cask install keyremap4macbook
+brew cask install karabiner
 brew cask install dropbox
 brew cask install slate
 brew cask install vlc
