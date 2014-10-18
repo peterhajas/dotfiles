@@ -39,7 +39,6 @@ brew cask install flux
 brew cask install keyboard-maestro
 brew cask install karabiner
 brew cask install dropbox
-brew cask install slate
 brew cask install vlc
 brew cask install audacity
 brew cask install textexpander
