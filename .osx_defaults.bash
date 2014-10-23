@@ -1,6 +1,9 @@
 # Set highlight color to orange
 defaults write NSGlobalDomain AppleHighlightColor -string "1.0 0.448 0.0"
 
+# Use Dark Mode
+defaults write NSGlobalDomain AppleInterfaceStyle -string "Dark"
+
 # Expand save panel by default
 defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode -bool true
 defaults write NSGlobalDomain NSNavPanelExpandedStateForSaveMode2 -bool true
