@@ -48,6 +48,7 @@ brew cask install xquartz
 brew cask install hazel
 brew cask install hex-fiend
 brew cask install mjolnir
+brew cask install appcleaner
 
 echo "Homebrew: Installing "fun" Cask apps..."
 
