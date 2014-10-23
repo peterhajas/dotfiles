@@ -1,3 +1,6 @@
 [submodule "vim/.vim/bundle/neobundle.vim"]
 	path = vim/.vim/bundle/neobundle.vim
 	url = https://github.com/Shougo/neobundle.vim.git
+[submodule "dockutil/bin/dockutil"]
+	path = dockutil/bin/dockutil
+	url = https://github.com/kcrawford/dockutil.git
