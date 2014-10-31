@@ -54,7 +54,8 @@ echo "Homebrew: Installing "fun" Cask apps..."
 
 brew cask install steam
 brew cask install origin
-brew cask install teamspeak-client
+brew cask install openemu
+brew cask install xbox360-controller-driver
 
 echo "Finalizing Homebrew configuration..."
 
