@@ -27,6 +27,7 @@ brew install sloccount
 brew install datamash
 brew install lua
 brew install luarocks
+brew install python
 
 echo "Homebrew: Installing Cask apps..."
 
@@ -63,6 +64,10 @@ brew update
 brew upgrade
 brew cleanup
 brew cask cleanup
+
+echo "Installing python libraries..."
+
+sh python_dependencies.sh
 
 echo "Installing Mjolnir dependencies..."
 
