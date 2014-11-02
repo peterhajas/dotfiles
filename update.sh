@@ -11,53 +11,15 @@ echo "Installing Homebrew software..."
 
 echo "Homebrew: Installing utilities..."
 
-brew install fish
-brew install vim
-brew install stow
-brew install tmux
-brew install reattach-to-user-namespace
-brew install ctags --HEAD
-brew install hg
-brew install lighttpd
-brew install wget
-brew install htop
-brew install fortune
-brew install wine
-brew install sloccount
-brew install datamash
-brew install lua
-brew install luarocks
-brew install python
-brew install postgresql
+bash .osx_homebrew.bash
 
 echo "Homebrew: Installing Cask apps..."
 
-brew install caskroom/cask/brew-cask
-brew cask install google-chrome
-brew cask install macvim
-brew cask install spotify
-brew cask install bartender
-brew cask install flux
-brew cask install keyboard-maestro
-brew cask install karabiner
-brew cask install dropbox
-brew cask install vlc
-brew cask install audacity
-brew cask install textexpander
-brew cask install sketch
-brew cask install kaleidoscope
-brew cask install xquartz
-brew cask install hazel
-brew cask install hex-fiend
-brew cask install mjolnir
-brew cask install appcleaner
+bash .osx_cask.bash
 
 echo "Homebrew: Installing "fun" Cask apps..."
 
-brew cask install steam
-brew cask install origin
-brew cask install openemu
-brew cask install xbox360-controller-driver
+bash .osx_cask_fun.bash
 
 echo "Finalizing Homebrew configuration..."
 
