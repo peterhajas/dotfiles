@@ -28,6 +28,7 @@ brew install datamash
 brew install lua
 brew install luarocks
 brew install python
+brew install postgresql
 
 echo "Homebrew: Installing Cask apps..."
 
