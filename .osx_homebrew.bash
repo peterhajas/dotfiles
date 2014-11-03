@@ -18,3 +18,4 @@ brew install lua
 brew install luarocks
 brew install python
 brew install postgresql
+brew install pngcrush
