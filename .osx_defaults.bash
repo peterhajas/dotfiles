@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Global settings
 
 ## Set highlight color to orange

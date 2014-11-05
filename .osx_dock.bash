@@ -1,3 +1,5 @@
+#!/bin/bash
+
 DOCKUTILBIN=~/bin/dockutil/scripts/dockutil
 DOCKUTILADD="$DOCKUTILBIN --add"
 
