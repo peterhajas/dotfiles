@@ -5,5 +5,7 @@ function fish_prompt
     echo -n ' '
     echo (prompt_vcs_info)
     set_color cyan; echo -n (prompt_current_user)
-    set_color normal; echo ' > '
+    set_color F5A623 --bold; echo -n ' ▶ '
+    set_color normal
+    echo ''
 end
