@@ -15,3 +15,7 @@ vim/.vim/bundle/*/
 *.swp
 *.netrwhist
 
+# fish related
+
+fish_history
+fishd.*
