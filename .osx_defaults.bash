@@ -60,6 +60,11 @@ defaults write com.apple.dock wvous-tr-modifier -int 0
 defaults write com.apple.dock wvous-bl-corner -int 5
 defaults write com.apple.dock wvous-bl-modifier -int 0
 
+# Use DuckDuckGo as my search engine
+
+defaults write com.apple.Safari SearchProviderIdentifier "com.duckduckgo"
+defaults write com.apple.Safari SearchProviderIdentifierMigratedToSystemPreference -int 0
+
 # Enable Safari’s debug menu
 defaults write com.apple.Safari IncludeInternalDebugMenu -bool true
 
