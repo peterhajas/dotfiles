@@ -14,6 +14,9 @@ set expandtab
 " Make leader the , key
 
 let mapleader = ","
+
+" I don't use ;, I don't even know what it does! Let's just use :
+
 nnoremap ; :
 
 " Y to yank to the end of the line, to match C and D
