@@ -1,11 +1,23 @@
 function version_control_repo_type
-    if test -d ./.git
-        echo -n  git
-    else if test -d ./.svn
-        echo -n  svn
-    else if test -d ./.hg
-        echo -n  hg
-    else
-        echo -n  ''
+    pwd | read CURRENT_DIRECTORY
+
+    while test -d ~
+        echo $CURRENT_DIRECTORY | wc -c | read CURRENT_DIRECTORY_LENGTH
+
+        if test 2 -eq $CURRENT_DIRECTORY_LENGTH
+            echo -n 'none'
+            return
+        else if test -d $CURRENT_DIRECTORY/.git
+            echo -n git
+            return
+        else if test -d $CURRENT_DIRECTORY/.svn
+            echo -n svn
+            return
+        else if test -d $CURRENT_DIRECTORY/.hg
+            echo -n hg
+            return
+        end
+
+        dirname $CURRENT_DIRECTORY | read CURRENT_DIRECTORY
     end
 end
