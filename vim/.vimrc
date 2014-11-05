@@ -41,6 +41,8 @@ nnoremap <silent> <leader><space> :noh<cr>
 nnoremap n nzzzv
 nnoremap N Nzzzv
 
+" Move up and down visually. I'm not totally sold on this...
+
 nnoremap j gj
 nnoremap k gk
 
