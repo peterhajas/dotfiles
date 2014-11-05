@@ -18,3 +18,6 @@ $DOCKUTILADD /Applications/Utilities/Terminal.app
 $DOCKUTILADD /Applications/Tweetbot.app
 $DOCKUTILADD ~/Applications/Spotify.app
 $DOCKUTILADD /Applications/Messages.app
+
+$DOCKUTILADD '~' --view grid --display stack
+$DOCKUTILADD '~/Downloads' --view fan --display stack
