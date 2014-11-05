@@ -19,6 +19,11 @@ let mapleader = ","
 
 nnoremap ; :
 
+" Use jk and kj to escape
+
+inoremap jk <Esc>
+inoremap kj <Esc>
+
 " Y to yank to the end of the line, to match C and D
 
 nnoremap Y y$
