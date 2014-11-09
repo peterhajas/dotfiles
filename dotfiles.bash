@@ -2,6 +2,7 @@
 
 echo "Clearing Karabiner Preferences..."
 rm ~/Library/Preferences/org.pqrs.Karabiner.plist
+rm ~/Library/Application\ Support/Karabiner/private.xml
 
 echo "Configuring stow..."
 stow -D stow

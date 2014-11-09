@@ -1,0 +1,9 @@
+<?xml version="1.0"?>
+<root>
+    <item>
+      <name>Tab to Hyper without cmd</name>
+      <appendix>(+ When you type Tab only, send Tab)</appendix>
+      <identifier>remap.tab2hyperwithoutcmd</identifier>
+      <autogen>__KeyOverlaidModifier__ KeyCode::TAB, KeyCode::OPTION_L, ModifierFlag::SHIFT_L | ModifierFlag::CONTROL_L, KeyCode::TAB</autogen>
+    </item>
+</root>
