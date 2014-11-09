@@ -11,15 +11,15 @@ echo "Installing Homebrew software..."
 
 echo "Homebrew: Installing utilities..."
 
-bash .osx_homebrew.bash
+bash osx_homebrew.bash
 
 echo "Homebrew: Installing Cask apps..."
 
-bash .osx_cask.bash
+bash osx_cask.bash
 
 echo "Homebrew: Installing "fun" Cask apps..."
 
-bash .osx_cask_fun.bash
+bash osx_cask_fun.bash
 
 echo "Finalizing Homebrew configuration..."
 
@@ -37,25 +37,11 @@ echo "Installing Mjolnir dependencies..."
 luarocks install mjolnir.hotkey
 luarocks install mjolnir.application
 
-echo "Clearing KeyRemap4MacBook Preferences..."
-rm ~/Library/Preferences/org.pqrs.KeyRemap4MacBook.plist
-
-echo "Configuring stow..."
-stow -D stow
-stow stow
-
-echo "Restowing all apps..."
-for dir in */
-do
-    echo Unstowing $dir
-    stow -D $dir
-    echo Restowing $dir
-    stow $dir
-done
+bash dotfiles.bash
 
 echo "Updating submodules..."
 git submodule init
 git submodule update
 
 echo "Configuring OS X settings..."
-bash .osx.bash
+bash osx.bash
