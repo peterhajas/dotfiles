@@ -118,9 +118,11 @@ filetype plugin indent on
 
 if has('gui_running')
     set guifont=Menlo\ Regular:h13
-    " Sets up the clipboard to interface with the system clipboard
-    set clipboard=unnamed
 endif
+
+" Sets up the clipboard to interface with the system clipboard
+
+set clipboard=unnamed
 
 " Theme and coloring
 
