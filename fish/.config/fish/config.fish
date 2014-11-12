@@ -2,7 +2,7 @@
 
 ## ~/bin is where personal executables are stored
 
-set PATH $PATH ~/bin;
+set PATH $PATH (find -L ~/bin -type d)
 
 ## /usr/local/bin is where brew installs stuff
 
