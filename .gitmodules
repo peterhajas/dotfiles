@@ -4,6 +4,6 @@
 [submodule "dockutil/bin/dockutil"]
 	path = dockutil/bin/dockutil
 	url = https://github.com/kcrawford/dockutil.git
-[submodule "replace_icns/replace_icns"]
-	path = replace_icns/replace_icns
+[submodule "replace_icns/bin/replace_icns"]
+	path = replace_icns/bin/replace_icns
 	url = https://github.com/mdznr/replace_icns.git
