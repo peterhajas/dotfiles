@@ -17,6 +17,5 @@ brew cask install kaleidoscope
 brew cask install xquartz
 brew cask install hazel
 brew cask install hex-fiend
-brew cask install hammerspoon
 brew cask install appcleaner
 brew cask install daisydisk
