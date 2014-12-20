@@ -19,3 +19,4 @@ brew cask install hazel
 brew cask install hex-fiend
 brew cask install mjolnir
 brew cask install appcleaner
+brew cask install daisydisk
