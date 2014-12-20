@@ -15,7 +15,6 @@ brew install wine
 brew install sloccount
 brew install datamash
 brew install lua
-brew install luarocks
 brew install python
 brew install postgresql
 brew install pngcrush

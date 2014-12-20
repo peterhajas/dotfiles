@@ -32,11 +32,6 @@ echo "Installing python libraries..."
 
 sh python_dependencies.sh
 
-echo "Installing Mjolnir dependencies..."
-
-luarocks install mjolnir.hotkey
-luarocks install mjolnir.application
-
 bash dotfiles.bash
 
 echo "Updating submodules..."
