@@ -117,7 +117,7 @@ filetype plugin indent on
 " Font
 
 if has('gui_running')
-    set guifont=Menlo\ Regular:h13
+    set guifont=Menlo\ Regular:h11
 endif
 
 " Sets up the clipboard to interface with the system clipboard
