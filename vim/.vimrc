@@ -254,6 +254,7 @@ NeoBundle 'Keithbsmiley/swift.vim'
 NeoBundle 'dag/vim-fish'
 NeoBundle 'ervandew/supertab'
 NeoBundle 'godlygeek/tabular'
+NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'junegunn/goyo.vim'
 NeoBundle 'kien/ctrlp.vim'
 NeoBundle 'mattn/flappyvird-vim'
@@ -324,6 +325,17 @@ let g:sneak#s_next = 1
 " mapping (leader-w)
 
 nmap <Leader>q <Plug>VimwikiIndex
+
+" vim-slime
+
+" Activate tmux, my multiplexer of choice
+
+let g:slime_target = "tmux"
+
+" Default to a tmux configuration with a REPL on the right and editor on the
+" left
+
+let g:slime_default_config = {"socket_name": "default", "target_pane": ":.1"}
 
 " Misc.
 
