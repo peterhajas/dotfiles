@@ -18,3 +18,5 @@ brew install lua
 brew install python
 brew install postgresql
 brew install pngcrush
+brew install mutt
+brew install urlview
