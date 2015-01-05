@@ -17,3 +17,13 @@ hs.hotkey.bind(hyper, "T", function()
     win:moveToScreen(newWindowScreen)
 end)
 
+-- Misc.
+
+-- I can reload the config when this file changes. From:
+-- http://www.hammerspoon.org/go/#fancyreload
+function reload_config(files)
+    hs.reload()
+end
+hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reload_config):start()
+hs.alert.show("Config loaded")
+
