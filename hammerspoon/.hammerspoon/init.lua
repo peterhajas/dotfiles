@@ -12,6 +12,8 @@ local hyperVimMovement = {"alt", "shift"}
 
 -- Window Manipulation
 
+local windowPadding = 15
+
 function adjustForegroundWindowToUnitSize (x,y,w,h)
     local win = hs.window.focusedWindow()
     local windowScreen = win:screen()
@@ -22,6 +24,11 @@ function adjustForegroundWindowToUnitSize (x,y,w,h)
     frame.y = screenFrame.y + screenFrame.h * y
     frame.w = screenFrame.w * w
     frame.h = screenFrame.h * h
+
+    frame.x = frame.x + windowPadding
+    frame.y = frame.y + windowPadding
+    frame.w = frame.w - (2 * windowPadding)
+    frame.h = frame.h - (2 * windowPadding)
 
     win:setFrame(frame)
 end
