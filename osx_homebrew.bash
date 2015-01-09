@@ -20,3 +20,4 @@ brew install postgresql
 brew install pngcrush
 brew install mutt
 brew install urlview
+brew install contacts
