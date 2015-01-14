@@ -21,3 +21,4 @@ brew install pngcrush
 brew install mutt
 brew install urlview
 brew install contacts
+brew install tty-clock
