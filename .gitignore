@@ -19,3 +19,4 @@ vim/.vim/bundle/*/
 
 fish_history
 fishd.*
+*.menu
