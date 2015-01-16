@@ -22,3 +22,4 @@ brew install mutt
 brew install urlview
 brew install contacts
 brew install tty-clock
+brew install the_silver_searcher

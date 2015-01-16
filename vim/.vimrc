@@ -301,6 +301,13 @@ else
     let g:ctrlp_match_func = { 'match': 'pymatcher#PyMatch' }
 endif
 
+" Use ag if available
+
+if executable("ag")
+    set grepprg=ag\ --nogroup\ --nocolor
+    let g:ctrlp_user_command = 'ag %s -i --nocolor --nogroup --ignore ''.git'' --ignore ''.DS_Store'' --ignore ''node_modules'' --hidden -g ""'
+endif
+
 " Fugitive
 
 " Map leader-b to blame
