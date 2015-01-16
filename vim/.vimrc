@@ -250,6 +250,7 @@ NeoBundleFetch 'Shougo/neobundle.vim'
 
 " List of plugins:
 
+NeoBundle 'FelikZ/ctrlp-py-matcher'
 NeoBundle 'Keithbsmiley/swift.vim'
 NeoBundle 'ajh17/VimCompletesMe'
 NeoBundle 'dag/vim-fish'
@@ -290,6 +291,15 @@ set runtimepath^=~/.vim/bundle/ctrlp.vim
 let g:ctrlp_cmd = 'CtrlPMixed'
 let g:ctrlp_map = '<leader>,'
 let g:ctrlp_switch_buffer = 0
+let g:ctrlp_lazy_update = 350
+
+" Ctrl-P-Matcher
+
+if !has('python')
+    echo 'In order to use pymatcher plugin, you need +python compiled vim'
+else
+    let g:ctrlp_match_func = { 'match': 'pymatcher#PyMatch' }
+endif
 
 " Fugitive
 
