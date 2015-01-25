@@ -257,7 +257,6 @@ NeoBundleCheck
 
 " Commentary
 
-nmap <leader>/ <Plug>CommentaryLine
 xmap <leader>/ <Plug>Commentary
 
 " Ctrl-P
