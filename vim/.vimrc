@@ -148,13 +148,16 @@ match OverLength /\%81v/
 
 
 " Status Line
+
 " Divided into two sides:
 
 " Left:
 
 " Branch
+" Notice that this doesn't start with a +=. This resets the statusline in the
+" event that the .vimrc is reloaded
 
-set statusline+=%{fugitive#head()}
+set statusline=%{fugitive#head()}
 
 " Path
 
