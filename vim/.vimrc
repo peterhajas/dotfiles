@@ -109,7 +109,6 @@ nnoremap S i<cr><esc><right>
 
 " Filetypes
 
-filetype on
 filetype plugin indent on
 
 " Visual styling
