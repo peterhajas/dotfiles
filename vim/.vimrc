@@ -374,7 +374,7 @@ set undofile
 set nobackup
 set noswapfile
 
-" Save all the time, automatically. It's 2014, computers should do this.
+" Save all the time, automatically. It's 2015, computers should do this.
 
 set autowriteall
 
