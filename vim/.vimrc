@@ -237,12 +237,9 @@ NeoBundle 'godlygeek/tabular'
 NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'junegunn/goyo.vim'
 NeoBundle 'kien/ctrlp.vim'
-NeoBundle 'mattn/flappyvird-vim'
 NeoBundle 'myusuf3/numbers.vim'
 NeoBundle 'plasticboy/vim-markdown'
 NeoBundle 'sjl/gundo.vim'
-NeoBundle 't9md/vim-tryit'
-NeoBundle 'thinca/vim-quickrun'
 NeoBundle 'tpope/vim-afterimage'
 NeoBundle 'tpope/vim-commentary'
 NeoBundle 'tpope/vim-fugitive'
@@ -253,7 +250,6 @@ NeoBundle 'tpope/vim-surround'
 NeoBundle 'tpope/vim-unimpaired'
 NeoBundle 'tpope/vim-vinegar'
 NeoBundle 'vim-scripts/scratch.vim'
-NeoBundle 'vimwiki/vimwiki'
 
 call neobundle#end()
 
@@ -293,34 +289,11 @@ endif
 
 nmap <silent> <leader>b :Gblame <CR>
 
-" QuickRun
-
-" Disable the default keybindings
-
-let g:quickrun_no_default_key_mappings = 1
-
-" Map control-enter to QuickRun a file
-
-nmap <silent> <C-CR> :QuickRun<CR>
-
 " gundo
 
 " Map control-u to toggle gundo
 
 nmap <silent> <C-u> :GundoToggle<CR>
-
-" Sneak
-
-" Turn on s_next
-
-let g:sneak#s_next = 1
-
-" Vimwiki
-
-" Remap the VimwikiIndex action to something that won't delay my new split
-" mapping (leader-w)
-
-nmap <Leader>q <Plug>VimwikiIndex
 
 " vim-slime
 
