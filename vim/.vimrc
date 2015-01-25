@@ -210,7 +210,7 @@ set listchars=tab:▸\ ,eol:¬
 
 " GUI Options
 
-" Disable the scrollbars, for more room
+" Disable everything in the GUI by passing empty guioptions
 
 set guioptions=
 
