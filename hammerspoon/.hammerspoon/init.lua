@@ -30,7 +30,7 @@ function adjustForegroundWindowToUnitSize (x,y,w,h)
     frame.w = frame.w - (2 * windowPadding)
     frame.h = frame.h - (2 * windowPadding)
 
-    win:setFrame(frame)
+    win:setFrame(frame, 0)
 end
 
 -- 50% manipulation
