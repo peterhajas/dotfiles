@@ -241,8 +241,8 @@ NeoBundleFetch 'Shougo/neobundle.vim'
 " List of plugins:
 
 NeoBundle 'Keithbsmiley/swift.vim'
-NeoBundle 'ajh17/VimCompletesMe'
 NeoBundle 'dag/vim-fish'
+NeoBundle 'ervandew/supertab'
 NeoBundle 'godlygeek/tabular'
 NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'junegunn/goyo.vim'
