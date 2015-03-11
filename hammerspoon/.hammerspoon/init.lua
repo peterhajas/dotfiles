@@ -10,6 +10,26 @@ local hyper = {"ctrl", "alt", "shift"}
 
 local hyperVimMovement = {"alt", "shift"}
 
+-- App Shortcuts
+
+-- Option-M for Mail
+
+hs.hotkey.bind({"alt"}, "m", function()
+    hs.application.launchOrFocus("Mail")
+end)
+
+-- Option-A for Messages
+
+hs.hotkey.bind({"alt"}, "a", function()
+    hs.application.launchOrFocus("Messages")
+end)
+
+-- Option-Tab for Terminal
+
+hs.hotkey.bind({"alt"}, "tab", function()
+    hs.application.launchOrFocus("Terminal")
+end)
+
 -- Window Manipulation
 
 local windowPadding = 15
