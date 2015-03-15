@@ -30,6 +30,20 @@ hs.hotkey.bind({"alt"}, "tab", function()
     hs.application.launchOrFocus("Terminal")
 end)
 
+-- Volume Control
+
+-- Hyper-- for volume down
+
+hs.hotkey.bind(hyper, "-", function()
+    hs.applescript.applescript("set volume output volume ((output volume of (get volume settings)) - 10) --100%")
+end)
+
+-- Hyper-+ for volume up
+
+hs.hotkey.bind(hyper, "=", function()
+    hs.applescript.applescript("set volume output volume ((output volume of (get volume settings)) + 10) --100%")
+end)
+
 -- Window Manipulation
 
 local windowPadding = 15
