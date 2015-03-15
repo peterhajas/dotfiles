@@ -58,6 +58,20 @@ hs.hotkey.bind(hyper, "2", function()
     changeBrightnessInDirection(1)
 end)
 
+-- Mission Control and Launchpad
+
+-- Hyper-3 for Mission Control
+
+hs.hotkey.bind(hyper, "3", function()
+    hs.application.launchOrFocus("Mission Control")
+end)
+
+-- Hyper-4 for Launchpad
+
+hs.hotkey.bind(hyper, "4", function()
+    hs.application.launchOrFocus("Launchpad")
+end)
+
 -- Volume Control
 
 -- Hyper-- for volume down
