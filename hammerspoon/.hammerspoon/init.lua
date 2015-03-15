@@ -10,6 +10,11 @@ local hyper = {"ctrl", "alt", "shift"}
 
 local hyperVimMovement = {"alt", "shift"}
 
+-- Declare a global 'doc' variable that I can use inside of the Hammerspoon
+-- console
+
+doc = hs.doc.fromJSONFile(hs.docstrings_json_file)
+
 -- App Shortcuts
 
 -- Option-M for Mail
