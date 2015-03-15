@@ -88,6 +88,16 @@ end)
 
 -- Window Manipulation
 
+-- Hints
+
+local hints = hs.hints
+hints.hintChars = {'a','s','d','f','j','k','l',';','g','h'}
+hints.fontSize = 100
+
+hs.hotkey.bind(hyper, "space", function()
+    hints.windowHints()
+end)
+
 local windowPadding = 15
 
 function adjustForegroundWindowToUnitSize (x,y,w,h)
