@@ -86,6 +86,14 @@ hs.hotkey.bind(hyper, "=", function()
     hs.applescript.applescript("set volume output volume ((output volume of (get volume settings)) + 10) --100%")
 end)
 
+-- Easy Locking
+
+-- Hyper-Delete to lock the machine
+
+hs.hotkey.bind(hyper, "delete", function()
+    hs.caffeinate.startScreensaver()
+end)
+
 -- Window Manipulation
 
 -- Hints
