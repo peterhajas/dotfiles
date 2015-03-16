@@ -72,6 +72,26 @@ hs.hotkey.bind(hyper, "4", function()
     hs.application.launchOrFocus("Launchpad")
 end)
 
+-- Media Player Controls
+
+-- Hyper-8 plays/pauses music
+
+hs.hotkey.bind(hyper, "8", function()
+    hs.itunes.play()
+end)
+
+-- Hyper-0 goes to the next track
+
+hs.hotkey.bind(hyper, "0", function()
+    hs.itunes.next()
+end)
+
+-- Hyper-9 goes to the previous track
+
+hs.hotkey.bind(hyper, "9", function()
+    hs.itunes.previous()
+end)
+
 -- Volume Control
 
 -- Hyper-- for volume down
@@ -230,26 +250,6 @@ hs.hotkey.bind(hyper, "T", function()
     
     local newWindowScreen = windowScreen:next()
     win:moveToScreen(newWindowScreen)
-end)
-
--- Media Player Controls
-
--- Hyper-8 plays/pauses music
-
-hs.hotkey.bind(hyper, "8", function()
-    hs.itunes.play()
-end)
-
--- Hyper-0 goes to the next track
-
-hs.hotkey.bind(hyper, "0", function()
-    hs.itunes.next()
-end)
-
--- Hyper-9 goes to the previous track
-
-hs.hotkey.bind(hyper, "9", function()
-    hs.itunes.previous()
 end)
 
 -- Misc.
