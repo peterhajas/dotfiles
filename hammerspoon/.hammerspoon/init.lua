@@ -5,11 +5,6 @@
 
 local hyper = {"ctrl", "alt", "shift"}
 
--- Because I define Ctrl-H/J/K/L to left/down/up/right, we need to do this
--- Grumble grumble
-
-local hyperVimMovement = {"alt", "shift"}
-
 -- Declare a global 'doc' variable that I can use inside of the Hammerspoon
 -- console
 
@@ -114,6 +109,28 @@ hs.hotkey.bind(hyper, "delete", function()
     hs.caffeinate.startScreensaver()
 end)
 
+-- Vim Movement Shortcuts
+
+hs.hotkey.bind({"ctrl"}, "h", function()
+    local key = hs.eventtap.event.newKeyEvent({}, "left", true)
+    key:post()
+end)
+
+hs.hotkey.bind({"ctrl"}, "j", function()
+    local key = hs.eventtap.event.newKeyEvent({}, "down", true)
+    key:post()
+end)
+
+hs.hotkey.bind({"ctrl"}, "k", function()
+    local key = hs.eventtap.event.newKeyEvent({}, "up", true)
+    key:post()
+end)
+
+hs.hotkey.bind({"ctrl"}, "l", function()
+    local key = hs.eventtap.event.newKeyEvent({}, "right", true)
+    key:post()
+end)
+
 -- Other Shortcuts
 
 -- Hyper-escape to toggle the Hammerspoon console
@@ -170,25 +187,25 @@ end
 -- 50% manipulation
 
 -- Bind hyper-H to move window to the left half of its current screen
-hs.hotkey.bind(hyperVimMovement, "Left", function()
+hs.hotkey.bind(hyper, "h", function()
     adjustForegroundWindowToUnitSize(0,0,0.5,1)
 end)
 
 -- Bind hyper-L to move window to the right half of its current screen
 
-hs.hotkey.bind(hyperVimMovement, "Right", function()
+hs.hotkey.bind(hyper, "l", function()
     adjustForegroundWindowToUnitSize(0.5,0.0,0.5,1)
 end)
 
 -- Bind hyper-K to move window to the top half of its current screen
 
-hs.hotkey.bind(hyperVimMovement, "Up", function()
+hs.hotkey.bind(hyper, "k", function()
     adjustForegroundWindowToUnitSize(0,0,1,0.5)
 end)
 
--- Bind hyper-L to move window to the bottom half of its current screen
+-- Bind hyper-J to move window to the bottom half of its current screen
 
-hs.hotkey.bind(hyperVimMovement, "Down", function()
+hs.hotkey.bind(hyper, "j", function()
     adjustForegroundWindowToUnitSize(0,0.5,1,0.5)
 end)
 
