@@ -114,6 +114,20 @@ hs.hotkey.bind(hyper, "delete", function()
     hs.caffeinate.startScreensaver()
 end)
 
+-- Other Shortcuts
+
+-- Hyper-escape to toggle the Hammerspoon console
+
+hs.hotkey.bind(hyper, "escape", function()
+    hs.toggleConsole()
+end)
+
+-- Shift-escape to ~
+
+hs.hotkey.bind({"shift"}, "escape", function()
+    hs.eventtap.keyStrokes({"shift"}, "`")
+end)
+
 -- Window Manipulation
 
 -- Hints
