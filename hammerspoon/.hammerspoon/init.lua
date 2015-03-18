@@ -128,6 +128,12 @@ hs.hotkey.bind({"shift"}, "escape", function()
     hs.eventtap.keyStrokes({"shift"}, "`")
 end)
 
+-- Command-escape to cmd-`
+
+hs.hotkey.bind({"cmd"}, "escape", function()
+    hs.eventtap.keyStrokes({"cmd"}, "`")
+end)
+
 -- Window Manipulation
 
 -- Hints
