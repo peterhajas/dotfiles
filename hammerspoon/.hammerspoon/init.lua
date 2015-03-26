@@ -30,6 +30,12 @@ hs.hotkey.bind({"alt"}, "tab", function()
     hs.application.launchOrFocus("Terminal")
 end)
 
+-- Option-T for Textual
+
+hs.hotkey.bind({"alt"}, "t", function()
+    hs.application.launchOrFocus("Textual 5")
+end)
+
 -- Brightness Control
 
 function changeBrightnessInDirection (d)
