@@ -374,10 +374,10 @@ function handleBatteryEvent()
     if hs.battery.powerSource() == nil then isDraining = false end
 
     if isDraining then
-        appWatcher.stop()
+        appWatcher:stop()
         timer:stop()
     else
-        appWatcher.start()
+        appWatcher:start()
         timer:start()
     end
 end
