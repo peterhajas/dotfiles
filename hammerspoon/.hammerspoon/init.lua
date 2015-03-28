@@ -84,13 +84,14 @@ function destroyiTunesTrackDisplay()
 end
 
 function updateiTunesTrackDisplay()
-    -- We only want to do this if iTunes is runnign
-    
-    if not hs.appfinder.appFromName('iTunes') then return end
+    local statusText = ''
+    if hs.appfinder.appFromName('iTunes') and 
+        type(hs.itunes.getCurrentTrack()) == 'string' then
+        local trackName = hs.itunes.getCurrentTrack()
+        local artistName = hs.itunes.getCurrentArtist()
+        statusText = trackName .. ' by ' .. artistName
+    end
 
-    local trackName = hs.itunes.getCurrentTrack()
-    local artistName = hs.itunes.getCurrentArtist()
-    local statusText = trackName .. ' by ' .. artistName
     iTunesStatusText:setText(statusText)
 end
 
