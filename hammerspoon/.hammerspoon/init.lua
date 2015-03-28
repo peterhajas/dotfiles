@@ -73,24 +73,68 @@ hs.hotkey.bind(hyper, "4", function()
     hs.application.launchOrFocus("Launchpad")
 end)
 
+-- iTunes Current Track Display
+
+local iTunesStatusText
+local iTunesStatusTextBackground
+
+function destroyiTunesTrackDisplay()
+    if iTunesStatusText then iTunesStatusText:delete() end
+    if iTunesStatusTextBackground then iTunesStatusTextBackground:delete() end
+end
+
+function updateiTunesTrackDisplay()
+    -- We only want to do this if iTunes is runnign
+    
+    if not hs.appfinder.appFromName('iTunes') then return end
+
+    local trackName = hs.itunes.getCurrentTrack()
+    local artistName = hs.itunes.getCurrentArtist()
+    local statusText = trackName .. ' by ' .. artistName
+    iTunesStatusText:setText(statusText)
+end
+
+function buildiTunesTrackDisplay()
+    destroyiTunesTrackDisplay()
+    local iTunesStatusTextTextSize = 15
+    local iTunesStatusTextEdgePadding = 10
+    local iTunesStatusTextWidth = 400
+    local iTunesStatusTextHeight = 20
+    local iTunesStatusTextScreenFrame = hs.screen.allScreens()[1]:fullFrame()
+    local iTunesStatusTextFrame = hs.geometry.rect(iTunesStatusTextEdgePadding, iTunesStatusTextScreenFrame.h - iTunesStatusTextHeight - iTunesStatusTextEdgePadding, iTunesStatusTextWidth, iTunesStatusTextHeight)
+    iTunesStatusText = hs.drawing.text(iTunesStatusTextFrame, '')
+    local iTunesStatusTextColor = {}
+    iTunesStatusTextColor['red'] = 1.0
+    iTunesStatusTextColor['green'] = 1.0
+    iTunesStatusTextColor['blue'] = 1.0
+    iTunesStatusTextColor['alpha'] = 0.7
+    iTunesStatusText:setTextColor(iTunesStatusTextColor):setTextSize(iTunesStatusTextColor):sendToBack():show()
+    updateiTunesTrackDisplay()
+end
+
+buildiTunesTrackDisplay()
+
 -- Media Player Controls
 
 -- Hyper-8 plays/pauses music
 
 hs.hotkey.bind(hyper, "8", function()
     hs.itunes.play()
+    updateiTunesTrackDisplay()
 end)
 
 -- Hyper-0 goes to the next track
 
 hs.hotkey.bind(hyper, "0", function()
     hs.itunes.next()
+    updateiTunesTrackDisplay()
 end)
 
 -- Hyper-9 goes to the previous track
 
 hs.hotkey.bind(hyper, "9", function()
     hs.itunes.previous()
+    updateiTunesTrackDisplay()
 end)
 
 -- Volume Control
@@ -295,11 +339,58 @@ hs.hotkey.bind(hyper, "T", function()
     win:moveToScreen(newWindowScreen)
 end)
 
+-- Application Watching
+
+-- Our global app watcher which will watch for app changes
+
+function handleAppEvent(name, event, app)
+    if name == 'iTunes' then updateiTunesTrackDisplay() end
+end
+
+appWatcher = hs.application.watcher.new(handleAppEvent)
+appWatcher:start()
+
+-- Global Update Timer
+
+-- For all sorts of reasons, it's convenient to have a timer that's always
+-- running. We'll keep it at a pretty infrequent ten seconds (and terminate it
+-- if the battery is too low)
+
+function timerUpdate()
+    updateiTunesTrackDisplay()
+end
+
+timer = hs.timer.new(10, timerUpdate)
+timer:start()
+
+-- Battery Watching
+
+-- Our global battery watcher which will watch for battery events
+
+function handleBatteryEvent()
+    local isDraining = true
+
+    if hs.battery.powerSource() == 'AC Power' then isDraining = false end
+    if hs.battery.powerSource() == nil then isDraining = false end
+
+    if isDraining then
+        appWatcher.stop()
+        timer:stop()
+    else
+        appWatcher.start()
+        timer:start()
+    end
+end
+
+batteryWatcher = hs.battery.watcher.new(handleBatteryEvent)
+batteryWatcher:start()
+
 -- Misc.
 
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
 function reload_config(files)
+    destroyiTunesTrackDisplay()
     hs.reload()
 end
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reload_config):start()
