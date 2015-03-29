@@ -100,10 +100,12 @@ function buildiTunesTrackDisplay()
     local iTunesStatusTextTextSize = 15
     local iTunesStatusTextEdgePadding = 10
     local iTunesStatusTextWidth = 400
-    local iTunesStatusTextHeight = 20
+    local iTunesStatusTextHeight = iTunesStatusTextTextSize
     local iTunesStatusTextScreenFrame = hs.screen.allScreens()[1]:fullFrame()
     local iTunesStatusTextFrame = hs.geometry.rect(iTunesStatusTextEdgePadding, iTunesStatusTextScreenFrame.h - iTunesStatusTextHeight - iTunesStatusTextEdgePadding, iTunesStatusTextWidth, iTunesStatusTextHeight)
     iTunesStatusText = hs.drawing.text(iTunesStatusTextFrame, '')
+    iTunesStatusTextBackground = hs.drawing.rectangle(iTunesStatusTextFrame)
+
     local iTunesStatusTextColor = {}
     iTunesStatusTextColor['red'] = 1.0
     iTunesStatusTextColor['green'] = 1.0
