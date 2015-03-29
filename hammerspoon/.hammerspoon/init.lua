@@ -100,7 +100,7 @@ function buildiTunesTrackDisplay()
     local iTunesStatusTextTextSize = 15
     local iTunesStatusTextEdgePadding = 10
     local iTunesStatusTextWidth = 400
-    local iTunesStatusTextHeight = iTunesStatusTextTextSize
+    local iTunesStatusTextHeight = iTunesStatusTextTextSize + 4
     local iTunesStatusTextScreenFrame = hs.screen.allScreens()[1]:fullFrame()
     local iTunesStatusTextFrame = hs.geometry.rect(iTunesStatusTextEdgePadding, iTunesStatusTextScreenFrame.h - iTunesStatusTextHeight - iTunesStatusTextEdgePadding, iTunesStatusTextWidth, iTunesStatusTextHeight)
     iTunesStatusText = hs.drawing.text(iTunesStatusTextFrame, '')
