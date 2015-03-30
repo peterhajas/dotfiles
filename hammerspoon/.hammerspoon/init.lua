@@ -36,6 +36,48 @@ hs.hotkey.bind({"alt"}, "t", function()
     hs.application.launchOrFocus("Textual 5")
 end)
 
+-- Status Geometry
+
+-- When drawing status information, it is useful to have metrics about where to
+-- draw
+
+function statusEdgePadding()
+    return 10
+end
+
+function statusTextSize()
+    return 15
+end
+
+function statusHeight()
+    return statusTextSize() + 4
+end
+
+function statusFrameForXAndWidth (x, w)
+    local screenFrame = hs.screen.allScreens()[1]:fullFrame()
+    return hs.geometry.rect(x,
+                            screenFrame.h - statusHeight() - statusEdgePadding(),
+                            w,
+                            statusHeight())
+end
+
+function statusTextColor()
+    local statusTextColor = {}
+    statusTextColor['red'] = 1.0
+    statusTextColor['green'] = 1.0
+    statusTextColor['blue'] = 1.0
+    statusTextColor['alpha'] = 0.7
+    return statusTextColor
+end
+
+-- Status Frames
+
+function iTunesStatusFrame()
+    local width = 400
+    local frame = statusFrameForXAndWidth(statusEdgePadding(), width)
+    return frame
+end
+
 -- Brightness Control
 
 function changeBrightnessInDirection (d)
@@ -97,21 +139,11 @@ end
 
 function buildiTunesTrackDisplay()
     destroyiTunesTrackDisplay()
-    local iTunesStatusTextTextSize = 15
-    local iTunesStatusTextEdgePadding = 10
-    local iTunesStatusTextWidth = 400
-    local iTunesStatusTextHeight = iTunesStatusTextTextSize + 4
-    local iTunesStatusTextScreenFrame = hs.screen.allScreens()[1]:fullFrame()
-    local iTunesStatusTextFrame = hs.geometry.rect(iTunesStatusTextEdgePadding, iTunesStatusTextScreenFrame.h - iTunesStatusTextHeight - iTunesStatusTextEdgePadding, iTunesStatusTextWidth, iTunesStatusTextHeight)
-    iTunesStatusText = hs.drawing.text(iTunesStatusTextFrame, '')
-    iTunesStatusTextBackground = hs.drawing.rectangle(iTunesStatusTextFrame)
+    local frame = iTunesStatusFrame()
+    iTunesStatusText = hs.drawing.text(frame, '')
+    iTunesStatusTextBackground = hs.drawing.rectangle(frame)
 
-    local iTunesStatusTextColor = {}
-    iTunesStatusTextColor['red'] = 1.0
-    iTunesStatusTextColor['green'] = 1.0
-    iTunesStatusTextColor['blue'] = 1.0
-    iTunesStatusTextColor['alpha'] = 0.7
-    iTunesStatusText:setTextColor(iTunesStatusTextColor):setTextSize(iTunesStatusTextColor):sendToBack():show()
+    iTunesStatusText:setTextColor(statusTextColor()):setTextSize(statusTextColor):sendToBack():show()
     updateiTunesTrackDisplay()
 end
 
