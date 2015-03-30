@@ -376,7 +376,9 @@ function handleBatteryEvent()
     if hs.battery.powerSource() == 'AC Power' then isDraining = false end
     if hs.battery.powerSource() == nil then isDraining = false end
 
-    if isDraining then
+    local isLow = isDraining and (hs.battery.percentage() < 10)
+
+    if isLow then
         appWatcher:stop()
         timer:stop()
     else
