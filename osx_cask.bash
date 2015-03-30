@@ -20,3 +20,4 @@ brew cask install hex-fiend
 brew cask install appcleaner
 brew cask install daisydisk
 brew cask install hammerspoon
+brew cask install audioscrobbler
