@@ -10,6 +10,12 @@ local hyper = {"ctrl", "alt", "shift"}
 
 doc = hs.doc.fromJSONFile(hs.docstrings_json_file)
 
+-- Preferred screen
+
+function preferredScreen ()
+    return hs.screen.allScreens()[1]
+end
+
 -- App Shortcuts
 
 -- Option-M for Mail
@@ -54,7 +60,7 @@ function statusHeight()
 end
 
 function statusFrameForXAndWidth (x, w)
-    local screenFrame = hs.screen.allScreens()[1]:fullFrame()
+    local screenFrame = preferredScreen():fullFrame()
     return hs.geometry.rect(x,
                             screenFrame.h - statusHeight() - statusEdgePadding(),
                             w,
