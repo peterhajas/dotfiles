@@ -5,7 +5,6 @@ brew cask install google-chrome
 brew cask install macvim
 brew cask install spotify
 brew cask install bartender
-brew cask install flux
 brew cask install karabiner
 brew cask install dropbox
 brew cask install vlc
