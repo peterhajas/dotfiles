@@ -17,8 +17,8 @@ $DOCKUTILADD ~/Applications/MacVim.app
 $DOCKUTILADD /Applications/Utilities/Terminal.app
 $DOCKUTILADD /Applications/Tweetbot.app
 $DOCKUTILADD /Applications/iTunes.app
+$DOCKUTILADD /Applications/Photos.app
 $DOCKUTILADD /Applications/Messages.app
-$DOCKUTILADD '/Applications/Textual 5.app'
 
 $DOCKUTILADD '~' --view grid --display stack
 $DOCKUTILADD '~/Downloads' --view fan --display stack
