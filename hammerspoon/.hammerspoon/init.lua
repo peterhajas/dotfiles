@@ -81,6 +81,8 @@ end
 
 function updateFluxiness()
     local location = hs.location.get()
+
+    if location == nil then return end
     local latitude = location['latitude']
     local longitude = location['longitude']
     local timestamp = location['timestamp']
