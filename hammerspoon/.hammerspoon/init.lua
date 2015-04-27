@@ -526,6 +526,50 @@ batteryWatcher:start()
 
 -- Misc.
 
+function decorationColor()
+    nameForColor = 'Computer'
+
+    ok, result = hs.applescript.applescript("set foo to computer name of (system info)")
+
+    if (ok) then
+        nameForColor = result
+    end
+
+    local color = {}
+
+    local nameLength = string.len(nameForColor)
+    local sin = math.sin(nameLength)
+    local cos = math.cos(nameLength)
+
+    color['red'] = 1.0 - (1.0 / nameLength)
+    color['green'] = sin
+    color['blue'] = cos
+    color['alpha'] = 1.0
+
+    return color
+end
+
+local strip
+
+function buildStrip()
+    if strip then strip:delete() end
+    local stripWidth = 250
+    local screenForStrip = preferredScreen()
+    local screenFrame = screenForStrip:fullFrame()
+    local stripStart = hs.geometry.point((screenFrame.w * 0.65) - stripWidth, 0 - stripWidth)
+    local stripEndY = screenFrame.w - stripStart.x
+    local stripEnd = hs.geometry.point(screenFrame.w + 2 * stripWidth, stripEndY  + 2 * stripWidth)
+    strip = hs.drawing.line(stripStart, stripEnd)
+
+    strip = strip:setStrokeWidth(stripWidth)
+
+    strip = strip:setStrokeColor(decorationColor())
+
+    strip:sendToBack():show()
+end
+
+buildStrip()
+
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
 function reload_config(files)
