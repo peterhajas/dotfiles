@@ -1,3 +1,3 @@
 function fish_greeting
-    fortune -s
+    # Empty for now
 end

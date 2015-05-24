@@ -10,7 +10,6 @@ brew install hg
 brew install lighttpd
 brew install wget
 brew install htop
-brew install fortune
 brew install wine
 brew install sloccount
 brew install datamash
