@@ -551,10 +551,14 @@ end
 
 local strip
 
+function stripWidthForScreen(screen)
+    return screen:fullFrame().w * 0.15
+end
+
 function buildStrip()
     if strip then strip:delete() end
-    local stripWidth = 250
     local screenForStrip = preferredScreen()
+    local stripWidth = stripWidthForScreen(screenForStrip)
     local screenFrame = screenForStrip:fullFrame()
     local stripStart = hs.geometry.point((screenFrame.w * 0.65) - stripWidth, 0 - stripWidth)
     local stripEndY = screenFrame.w - stripStart.x
