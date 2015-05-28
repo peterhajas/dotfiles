@@ -30,7 +30,7 @@ nnoremap Y y$
 
 " Searching / Moving
 
-set ignorecase
+set smartcase
 set gdefault
 set incsearch
 set showmatch
