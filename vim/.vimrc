@@ -30,7 +30,7 @@ nnoremap Y y$
 
 " Searching / Moving
 
-set smartcase
+set ignorecase
 set gdefault
 set incsearch
 set showmatch
@@ -339,6 +339,7 @@ function EnterProseMode()
     call lexical#init()
     set nonumber
     set norelativenumber
+    set background=light
 endfunction
 
 function ExitProseMode()
@@ -347,6 +348,8 @@ function ExitProseMode()
     NoPencil
     set number
     set relativenumber
+    set background=dark
+    colorscheme molokai
 endfunction
 
 function ToggleProseMode()
