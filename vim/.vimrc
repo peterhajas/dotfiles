@@ -202,9 +202,22 @@ set statusline+=\ %l:
 set statusline+=\ %c\ 
 
 " Line numbers
-" These are mostly handled by numbers.vim
 
 set number
+set relativenumber
+
+function ShowRelativeNumbers()
+    if !g:ProseModeActive
+        set relativenumber
+    endif
+endfunction
+
+function HideRelativeNumbers()
+    set norelativenumber
+endfunction
+
+autocmd InsertEnter,WinLeave,FocusLost * call HideRelativeNumbers()
+autocmd InsertLeave,WinEnter,FocusGained * call ShowRelativeNumbers()
 
 " Invisible characters
 
@@ -240,16 +253,11 @@ NeoBundleFetch 'Shougo/neobundle.vim'
 
 " List of plugins:
 
+" Editing:
+
 NeoBundle 'Keithbsmiley/swift.vim'
 NeoBundle 'dag/vim-fish'
-NeoBundle 'ervandew/supertab'
-NeoBundle 'godlygeek/tabular'
-NeoBundle 'jpalardy/vim-slime'
-NeoBundle 'junegunn/goyo.vim'
-NeoBundle 'kien/ctrlp.vim'
-NeoBundle 'myusuf3/numbers.vim'
 NeoBundle 'plasticboy/vim-markdown'
-NeoBundle 'sjl/gundo.vim'
 NeoBundle 'tpope/vim-afterimage'
 NeoBundle 'tpope/vim-commentary'
 NeoBundle 'tpope/vim-fugitive'
@@ -259,7 +267,27 @@ NeoBundle 'tpope/vim-sensible'
 NeoBundle 'tpope/vim-surround'
 NeoBundle 'tpope/vim-unimpaired'
 NeoBundle 'tpope/vim-vinegar'
+
+" Syntax:
+
+NeoBundle 'ervandew/supertab'
+NeoBundle 'godlygeek/tabular'
+NeoBundle 'jpalardy/vim-slime'
+
+" Colors:
+
+" Misc:
+
+NeoBundle 'kien/ctrlp.vim'
+NeoBundle 'sjl/gundo.vim'
 NeoBundle 'vim-scripts/scratch.vim'
+
+" Prose:
+
+NeoBundle 'junegunn/goyo.vim'
+NeoBundle 'reedes/vim-pencil'
+NeoBundle 'reedes/vim-lexical'
+NeoBundle 'reedes/vim-wordy'
 
 call neobundle#end()
 
@@ -299,6 +327,37 @@ let g:slime_target = "tmux"
 " left
 
 let g:slime_default_config = {"socket_name": "default", "target_pane": ":.1"}
+
+" Prose plugin configuration
+
+let g:ProseModeActive = exists('w:ProseModeActive') ? w:ProseModeActive : 0
+
+function EnterProseMode()
+    let g:ProseModeActive = 1
+    Goyo
+    Pencil
+    call lexical#init()
+    set nonumber
+    set norelativenumber
+endfunction
+
+function ExitProseMode()
+    let g:ProseModeActive = 0
+    Goyo!
+    NoPencil
+    set number
+    set relativenumber
+endfunction
+
+function ToggleProseMode()
+    if g:ProseModeActive
+        call ExitProseMode()
+    else
+        call EnterProseMode()
+    endif
+endfunction
+
+nmap <silent> <leader>e :call ToggleProseMode() <CR>
 
 " Misc.
 
