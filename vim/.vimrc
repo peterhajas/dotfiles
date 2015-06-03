@@ -339,6 +339,7 @@ function EnterProseMode()
     call lexical#init()
     set nonumber
     set norelativenumber
+    set noshowmode
     set background=light
 endfunction
 
@@ -348,6 +349,7 @@ function ExitProseMode()
     NoPencil
     set number
     set relativenumber
+    set showmode
     set background=dark
     colorscheme molokai
 endfunction
