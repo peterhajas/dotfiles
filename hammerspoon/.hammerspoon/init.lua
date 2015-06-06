@@ -353,13 +353,20 @@ hs.hotkey.bind(hyper, "space", function()
     hints.windowHints()
 end)
 
-local windowPadding = 15
+function windowPaddingForScreen (screen)
+    local screenFrame = screen:frame()
+    local windowPadding = screenFrame.w * 0.005
+
+    return windowPadding
+end
 
 function adjustForegroundWindowToUnitSize (x,y,w,h)
     local win = hs.window.focusedWindow()
     local windowScreen = win:screen()
     local screenFrame = windowScreen:frame()
     local frame = win:frame()
+
+    local windowPadding = windowPaddingForScreen(windowScreen)
 
     frame.x = screenFrame.x + screenFrame.w * x
     frame.y = screenFrame.y + screenFrame.h * y
