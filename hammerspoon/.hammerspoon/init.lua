@@ -85,10 +85,14 @@ function updateFluxiness()
     if location == nil then return end
     local latitude = location['latitude']
     local longitude = location['longitude']
-    local timestamp = location['timestamp']
+    local now = os.time()
 
-    local sunriseTime = hs.location.sunrise(latitude, longitude, 0)
-    local sunsetTime = hs.location.sunset(latitude, longitude, 0)
+    local sunriseTime = hs.location.sunrise(latitude, longitude, -7)
+    local sunsetTime = hs.location.sunset(latitude, longitude, -7)
+
+    local nowDay = os.date("*t").day
+    local sunriseDay = os.date("*t", sunriseTime).day
+    local sunsetDay = os.date("*t", sunsetTime).day
 
     local sunHasRisenToday
     local sunHasSetToday
@@ -96,13 +100,13 @@ function updateFluxiness()
     if type(sunriseTime) == 'string' and sunriseTime == 'N/R' then
         sunHasRisenToday = false
     else
-        sunHasRisenToday = timestamp > sunriseTime
+        sunHasRisenToday = ((now > sunriseTime) and (nowDay == sunriseDay))
     end
 
     if type(sunsetTime) == 'string' and sunsetTime == 'N/S' then
         sunHasSetToday = false
     else
-        sunHasSetToday = timestamp > sunsetTime
+        sunHasSetToday = ((now > sunsetTime) and (nowDay == sunsetDay))
     end
 
     local shouldTintScreen = false
