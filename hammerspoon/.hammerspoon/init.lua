@@ -360,120 +360,163 @@ function windowPaddingForScreen (screen)
     return windowPadding
 end
 
-function adjustForegroundWindowToUnitSize (x,y,w,h)
-    local win = hs.window.focusedWindow()
-    local windowScreen = win:screen()
-    local screenFrame = windowScreen:frame()
-    local frame = win:frame()
-
+function sanitizeWindowPosition (window, frame)
+    local windowScreen = window:screen()
     local windowPadding = windowPaddingForScreen(windowScreen)
 
-    frame.x = screenFrame.x + screenFrame.w * x
-    frame.y = screenFrame.y + screenFrame.h * y
-    frame.w = screenFrame.w * w
-    frame.h = screenFrame.h * h
+    local screenFrame = windowScreen:frame()
 
-    frame.x = frame.x + windowPadding
-    frame.y = frame.y + windowPadding
-    frame.w = frame.w - (2 * windowPadding)
-    frame.h = frame.h - (2 * windowPadding)
+    local minimumWindowX = screenFrame.x + windowPadding
+    local minimumWindowY = screenFrame.y + windowPadding
 
-    win:setFrame(frame, 0)
+    local maximumWindowX = (screenFrame.x + screenFrame.w) - (frame.w + windowPadding)
+    local maximumWindowY = (screenFrame.y + screenFrame.h) - (frame.h + windowPadding)
+
+    frame.x = math.max(frame.x, minimumWindowX)
+    frame.y = math.max(frame.y, minimumWindowY)
+
+    frame.x = math.min(frame.x, maximumWindowX)
+    frame.y = math.min(frame.y, maximumWindowY)
+
+    return frame
 end
 
--- 50% manipulation
+function sanitizeWindowSize (window, frame)
+    local windowScreen = window:screen()
+    local windowPadding = windowPaddingForScreen(windowScreen)
 
--- Bind hyper-H to move window to the left half of its current screen
+    local screenFrame = windowScreen:frame()
+
+    local maximumWidth = screenFrame.w - (2 * windowPadding)
+    local maximumHeight = screenFrame.h - (2 * windowPadding)
+
+    frame.w = math.min(frame.w, maximumWidth)
+    frame.h = math.min(frame.h, maximumHeight)
+
+    return frame
+end
+
+function sanitizeWindowFrame (window, frame)
+    frame = sanitizeWindowSize(window, frame)
+    frame = sanitizeWindowPosition(window, frame)
+
+    return frame
+end
+
+function moveWindowInDirection (window,direction)
+    local newWindowFrame = window:frame()
+    oldWindowPosition = hs.geometry.point(newWindowFrame.x, newWindowFrame.y)
+
+    local padding = windowPaddingForScreen(window:screen())
+
+    newWindowFrame.x = newWindowFrame.x + (newWindowFrame.w * direction.w)
+    newWindowFrame.y = newWindowFrame.y + (newWindowFrame.h * direction.h)
+
+    if newWindowFrame.x ~= oldWindowPosition.x then newWindowFrame.x = newWindowFrame.x + padding * direction.w end
+    if newWindowFrame.y ~= oldWindowPosition.y then newWindowFrame.y = newWindowFrame.y + padding * direction.h end
+
+    newWindowFrame = sanitizeWindowFrame(window, newWindowFrame)
+
+    window:setFrame(newWindowFrame, 0)
+end
+
+function moveForegroundWindowInDirection (direction)
+    local window = hs.window.focusedWindow()
+    moveWindowInDirection(window, direction)
+end
+
+function amountToResizeForWindow (window, amount)
+    local screen = window:screen()
+    local minimumWindowWidth = 600
+
+    -- We should allow even multiples of minimumWindowWidth to fit onscreen
+    
+    numberOfWindowsWide = screen:frame().w / minimumWindowWidth
+    numberOfWindowsWide = math.floor(numberOfWindowsWide)
+
+    if amount == 1 then amount = numberOfWindowsWide end
+    if amount == -1 then amount = 1 / numberOfWindowsWide end
+    if amount == 0 then amount = 1 end
+
+    return amount
+end
+
+function resizeWindowByAmount (window, amount)
+    local newWindowFrame = window:frame()
+
+    oldWindowSize = hs.geometry.size(newWindowFrame.w, newWindowFrame.h)
+
+    local amountW = amountToResizeForWindow(window, amount.w)
+    local amountH = amountToResizeForWindow(window, amount.h)
+
+    newWindowFrame.w = newWindowFrame.w * amountW
+    newWindowFrame.h = newWindowFrame.h * amountH
+
+    diffW = newWindowFrame.w - oldWindowSize.w
+    diffH = newWindowFrame.h - oldWindowSize.h
+
+    newWindowFrame.x = newWindowFrame.x - (diffW / 2)
+    newWindowFrame.y = newWindowFrame.y - (diffH / 2)
+
+    newWindowFrame = sanitizeWindowFrame(window, newWindowFrame)
+
+    window:setFrame(newWindowFrame, 0)
+end
+
+function resizeForegroundWindowByAmount (amount)
+    local window = hs.window.focusedWindow()
+    resizeWindowByAmount(window, amount)
+end
+
+-- Window Movement
+
+-- Bind hyper-H to move window to the left
 hs.hotkey.bind(hyper, "h", function()
-    adjustForegroundWindowToUnitSize(0,0,0.5,1)
+    moveForegroundWindowInDirection(hs.geometry.size(-1,0))
 end)
 
--- Bind hyper-L to move window to the right half of its current screen
+-- Bind hyper-L to move window to the right
 
 hs.hotkey.bind(hyper, "l", function()
-    adjustForegroundWindowToUnitSize(0.5,0.0,0.5,1)
+    moveForegroundWindowInDirection(hs.geometry.size(1,0))
 end)
 
--- Bind hyper-K to move window to the top half of its current screen
+-- Bind hyper-K to move window up
 
 hs.hotkey.bind(hyper, "k", function()
-    adjustForegroundWindowToUnitSize(0,0,1,0.5)
+    moveForegroundWindowInDirection(hs.geometry.size(0,-1))
 end)
 
--- Bind hyper-J to move window to the bottom half of its current screen
+-- Bind hyper-J to move window down
 
 hs.hotkey.bind(hyper, "j", function()
-    adjustForegroundWindowToUnitSize(0,0.5,1,0.5)
+    moveForegroundWindowInDirection(hs.geometry.size(0,1))
 end)
 
--- Bind hyper-: to move 75% sized window to the center
+-- Window Resizing
 
-hs.hotkey.bind(hyper, ";", function()
-    adjustForegroundWindowToUnitSize(0.125,0.125,0.75,0.7)
-end)
-
--- 70% manipulation
-
--- Bind hyper-Y to move window to the left 70% of its current screen
+-- Bind hyper-Y to resize window width smaller
 
 hs.hotkey.bind(hyper, "Y", function()
-    adjustForegroundWindowToUnitSize(0,0,0.7,1)
+    resizeForegroundWindowByAmount(hs.geometry.size(-1, 0))
 end)
 
--- Bind hyper-O to move window to the right 70% of its current screen
+-- Bind hyper-O to resize window width larger
 
 hs.hotkey.bind(hyper, "O", function()
-    adjustForegroundWindowToUnitSize(0.3,0.0,0.7,1)
+    resizeForegroundWindowByAmount(hs.geometry.size(1, 0))
 end)
 
--- Bind hyper-I to move window to the top 70% of its current screen
+-- Bind hyper-I to resize window height larger
 
 hs.hotkey.bind(hyper, "I", function()
-    adjustForegroundWindowToUnitSize(0,0,1,0.7)
+    resizeForegroundWindowByAmount(hs.geometry.size(0, 1))
 end)
 
--- Bind hyper-U to move window to the bottom 70% of its current screen
+-- Bind hyper-U to resize window height smaller
 
 hs.hotkey.bind(hyper, "U", function()
-    adjustForegroundWindowToUnitSize(0,0.3,1,0.7)
-end)
-
--- Bind hyper-P to move 100% sized window to the center
-
-hs.hotkey.bind(hyper, "P", function()
-    adjustForegroundWindowToUnitSize(0,0,1,1)
-end)
-
--- 30% manipulation
-
--- Bind hyper-N to move window to the left 30% of its current screen
-
-hs.hotkey.bind(hyper, "N", function()
-    adjustForegroundWindowToUnitSize(0,0,0.3,1)
-end)
-
--- Bind hyper-. to move window to the right 30% of its current screen
-
-hs.hotkey.bind(hyper, ".", function()
-    adjustForegroundWindowToUnitSize(0.7,0.0,0.3,1)
-end)
-
--- Bind hyper-, to move window to the top 30% of its current screen
-
-hs.hotkey.bind(hyper, ",", function()
-    adjustForegroundWindowToUnitSize(0,0,1,0.3)
-end)
-
--- Bind hyper-M to move window to the bottom 30% of its current screen
-
-hs.hotkey.bind(hyper, "M", function()
-    adjustForegroundWindowToUnitSize(0,0.7,1,0.3)
-end)
-
--- Bind hyper-/ to move 50% sized window to the center
-
-hs.hotkey.bind(hyper, "/", function()
-    adjustForegroundWindowToUnitSize(0.25,0.25,.5,.5)
+    resizeForegroundWindowByAmount(hs.geometry.size(0, -1))
 end)
 
 -- Bind hyper-T to move window to the "next" screen
