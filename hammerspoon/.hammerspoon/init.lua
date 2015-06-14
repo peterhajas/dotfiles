@@ -578,6 +578,16 @@ end
 batteryWatcher = hs.battery.watcher.new(handleBatteryEvent)
 batteryWatcher:start()
 
+-- Watch screen change notifications, and reload the config when the screen
+-- configuration changes
+
+function handleScreenEvent()
+    reload_config()
+end
+
+screenWatcher = hs.screen.watcher.new(handleScreenEvent)
+screenWatcher:start()
+
 -- Misc.
 
 function decorationColor()
@@ -635,8 +645,10 @@ function reload_config(files)
     appWatcher:stop()
     timer:stop()
     batteryWatcher:stop()
+    screenWatcher:stop()
     hs.reload()
 end
+
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reload_config):start()
 hs.alert.show("Config loaded")
 
