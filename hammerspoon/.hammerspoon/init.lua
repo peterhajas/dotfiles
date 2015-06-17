@@ -364,6 +364,8 @@ hs.hotkey.bind({""}, "f9", function()
     elseif appName == "Mail" then
         sendKeyStroke({"cmd","shift"}, "k")
         sendKeyStroke({}, "up")
+    elseif appName == "Messages" then
+        sendKeyStroke({"cmd"}, "[")
     end
 end)
 
@@ -375,6 +377,8 @@ hs.hotkey.bind({""}, "f10", function()
     elseif appName == "Mail" then
         sendKeyStroke({"cmd","shift"}, "k")
         sendKeyStroke({}, "down")
+    elseif appName == "Messages" then
+        sendKeyStroke({"cmd"}, "]")
     end
 end)
 
