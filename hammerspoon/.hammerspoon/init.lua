@@ -24,6 +24,12 @@ function preferredScreen ()
     return hs.screen.allScreens()[1]
 end
 
+-- Frontmost app
+
+function frontmostAppName ()
+    return hs.application.frontmostApplication():title()
+end
+
 -- App Shortcuts
 
 -- Option-M for Mail
@@ -339,6 +345,37 @@ end)
 
 hs.hotkey.bind({"cmd"}, "escape", function()
     hs.eventtap.keyStroke({"cmd"}, "`")
+end)
+
+-- Pedals
+
+-- My footpedals map to F9 and F10. We'll use this to make different things
+-- happen in different apps
+
+function sendKeyStroke(modifiers, character)
+    hs.eventtap.keyStroke(modifiers, character)
+end
+
+hs.hotkey.bind({""}, "f9", function()
+    local appName = frontmostAppName()
+
+    if appName == "Safari" then
+        sendKeyStroke({"cmd","shift"}, "[")
+    elseif appName == "Mail" then
+        sendKeyStroke({"cmd","shift"}, "k")
+        sendKeyStroke({}, "up")
+    end
+end)
+
+hs.hotkey.bind({""}, "f10", function()
+    local appName = frontmostAppName()
+
+    if appName == "Safari" then
+        sendKeyStroke({"cmd","shift"}, "]")
+    elseif appName == "Mail" then
+        sendKeyStroke({"cmd","shift"}, "k")
+        sendKeyStroke({}, "down")
+    end
 end)
 
 -- Window Manipulation
