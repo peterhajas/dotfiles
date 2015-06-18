@@ -424,6 +424,10 @@ set backspace=indent,eol,start
 
 set laststatus=2
 
+" Always show the tab line
+
+set showtabline=2
+
 " Keep an undo file. TODO: Do we need this? Seems annoying...
 
 set undofile
