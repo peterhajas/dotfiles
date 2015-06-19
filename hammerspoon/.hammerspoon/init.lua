@@ -366,6 +366,8 @@ hs.hotkey.bind({""}, "f9", function()
         sendKeyStroke({}, "up")
     elseif appName == "Messages" then
         sendKeyStroke({"cmd"}, "[")
+    elseif appName == "Photos" then
+        sendKeyStroke({}, "left")
     end
 end)
 
@@ -379,6 +381,8 @@ hs.hotkey.bind({""}, "f10", function()
         sendKeyStroke({}, "down")
     elseif appName == "Messages" then
         sendKeyStroke({"cmd"}, "]")
+    elseif appName == "Photos" then
+        sendKeyStroke({}, "right")
     end
 end)
 
