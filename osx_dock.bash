@@ -15,6 +15,7 @@ $DOCKUTILADD /Applications/Mail.app
 $DOCKUTILADD /Applications/Safari.app
 $DOCKUTILADD ~/Applications/MacVim.app
 $DOCKUTILADD /Applications/Utilities/Terminal.app
+$DOCKUTILADD /Applications/OmniFocus.app
 $DOCKUTILADD /Applications/Tweetbot.app
 $DOCKUTILADD /Applications/iTunes.app
 $DOCKUTILADD /Applications/Photos.app
