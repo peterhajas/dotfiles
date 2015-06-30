@@ -18,6 +18,22 @@ if startedMonitoringLocation == false then
     hs.alert.show("Unable to determine location - please approve Hammerspoon to access your location")
 end
 
+-- Notifying
+
+function notifySoftly(notificationString)
+    hs.alert.show(notificationString)
+end
+
+function notify(notificationString)
+    local notification = hs.notify.new()
+    notification:title(notificationString)
+    notification:send()
+end
+
+function notifyUrgently(notificationString)
+    hs.messages.iMessage("peterhajas@gmail.com", notificationString)
+end
+
 -- Preferred screen
 
 function preferredScreen ()
