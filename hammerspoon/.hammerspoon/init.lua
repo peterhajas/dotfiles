@@ -32,7 +32,32 @@ end
 
 function notifyUrgently(notificationString)
     hs.messages.iMessage("peterhajas@gmail.com", notificationString)
+    local messagesApp = hs.appfinder.appFromName("Messages")
+    if messagesApp then
+        messagesApp:hide()
+    end
 end
+
+hs.urlevent.bind("notifySoftly", function(eventName, params)
+    local text = params["text"]
+    if text then
+        notifySoftly(text)
+    end
+end)
+
+hs.urlevent.bind("notify", function(eventName, params)
+    local text = params["text"]
+    if text then
+        notify(text)
+    end
+end)
+
+hs.urlevent.bind("notifyUrgently", function(eventName, params)
+    local text = params["text"]
+    if text then
+        notifyUrgently(text)
+    end
+end)
 
 -- Preferred screen
 
