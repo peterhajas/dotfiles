@@ -3,7 +3,6 @@
 brew install caskroom/cask/brew-cask
 brew cask install google-chrome
 brew cask install macvim
-brew cask install spotify
 brew cask install bartender
 brew cask install karabiner
 brew cask install dropbox
