@@ -2,14 +2,17 @@
 " phajas
 " Originally written Feb 1, 2014
 
-" Tabs, spaces and indenting
+" vim:fdm=marker
+
+" Tabs, spaces and indenting {{{
 
 set tabstop=4
 set shiftwidth=4
 set softtabstop=4
 set expandtab
 
-" Key remapping
+" }}}
+" Key remapping {{{
 
 " Make leader the , key
 
@@ -28,7 +31,16 @@ inoremap kj <Esc>
 
 nnoremap Y y$
 
-" Searching / Moving
+" Leader-. to reload .vimrc
+
+nmap <silent> <leader>. :so $MYVIMRC<CR>
+
+" Remap <BS> to % to easily jump to matching identifier (bracket, paren, tag)
+
+nmap <BS> %
+
+" }}}
+" Searching / Moving {{{
 
 set ignorecase
 set gdefault
@@ -54,7 +66,8 @@ nnoremap N Nzzzv
 nnoremap j gj
 nnoremap k gk
 
-" Split windows
+" }}}
+" Split windows {{{
 
 " leader-w makes a new split and moves to it
 
@@ -82,7 +95,8 @@ nnoremap <right> <C-w>l
 
 au VimResized * :wincmd =
 
-" Tabs
+" }}}
+" Tabs {{{
 
 " Remap leader-t to make a new tab
 
@@ -93,13 +107,15 @@ nmap <silent> <leader>t :tabnew <CR>
 nmap <silent> ]w :tabnext <CR>
 nmap <silent> [w :tabprevious <CR>
 
-" Finding the cursor
+" }}}
+" Finding the cursor {{{
 
 " I tried to live without it, but I couldn't. Give me my cursorline
 
 set cursorline
 
-" Line handling
+" }}}
+" Line handling {{{
 
 set formatoptions=qrn1
 
@@ -107,23 +123,19 @@ set formatoptions=qrn1
 
 nnoremap S i<cr><esc><right>
 
-" Filetypes
+" }}}
+" Filetypes {{{
 
 filetype plugin indent on
 
-" Visual styling
+" }}}
+" Visual styling {{{
 
 " Font
 
 if has('gui_running')
     set guifont=Menlo\ Regular:h11
 endif
-
-" Sets up the clipboard to interface with the system clipboard
-
-set clipboard=unnamed
-
-" Theme and coloring
 
 " Turn on syntax highlighting
 
@@ -141,13 +153,17 @@ set background=dark
 
 colorscheme molokai
 
+" Disable everything in the GUI by passing empty guioptions
+
+set guioptions=
+
 " When a line exceeds 80 characters, color the 81st character red
 
 highlight OverLength ctermbg=darkred ctermfg=white guibg=#FFD9D9
 match OverLength /\%81v/
 
-
-" Status Line
+" }}}
+" Status Line {{{
 
 " Divided into two sides:
 
@@ -201,7 +217,8 @@ set statusline+=\ %l:
 
 set statusline+=\ %c\ 
 
-" Line numbers
+" }}}
+" Line numbers {{{
 
 set number
 set relativenumber
@@ -219,18 +236,14 @@ endfunction
 autocmd InsertEnter,WinLeave,FocusLost * call HideRelativeNumbers()
 autocmd InsertLeave,WinEnter,FocusGained * call ShowRelativeNumbers()
 
-" Invisible characters
+" }}}
+" Invisible characters {{{
 
 set list
 set listchars=tab:▸\ ,eol:¬
 
-" GUI Options
-
-" Disable everything in the GUI by passing empty guioptions
-
-set guioptions=
-
-" Folding
+" }}}
+" Folding {{{
 
 " On insertion entering / leaving (or window leaving), disable folding
 " This causes significant speed increases when using folds
@@ -238,7 +251,8 @@ set guioptions=
 autocmd InsertEnter * if !exists('w:last_fdm') | let w:last_fdm=&foldmethod | setlocal foldmethod=manual | endif
 autocmd InsertLeave,WinLeave * if exists('w:last_fdm') | let &l:foldmethod=w:last_fdm | unlet w:last_fdm | endif
 
-" Plugins
+" }}}
+" Plugin Installation {{{
 
 " NeoBundle
 
@@ -293,6 +307,13 @@ call neobundle#end()
 
 NeoBundleCheck
 
+" Enable matchit, which has smarter matching support (HTML tags, etc.)
+
+runtime macros/matchit.vim
+
+" }}}
+" Plugin Settings {{{
+
 " Commentary
 
 nmap <leader>/ :Commentary <CR>
@@ -328,7 +349,8 @@ let g:slime_target = "tmux"
 
 let g:slime_default_config = {"socket_name": "default", "target_pane": ":.1"}
 
-" Prose plugin configuration
+" }}}
+" Prose mode configuration {{{
 
 let g:ProseModeActive = exists('w:ProseModeActive') ? w:ProseModeActive : 0
 
@@ -364,19 +386,8 @@ endfunction
 
 nmap <silent> <leader>e :call ToggleProseMode() <CR>
 
-" Misc.
-
-" Leader-. to reload .vimrc
-
-nmap <silent> <leader>. :so $MYVIMRC<CR>
-
-" Enable matchit, which has smarter matching support (HTML tags, etc.)
-
-runtime macros/matchit.vim
-
-" Remap <BS> to % to easily jump to matching identifier (bracket, paren, tag)
-
-nmap <BS> %
+" }}}
+" Misc. {{{
 
 " Don't be `vi` compatible
 
@@ -445,4 +456,10 @@ set autowriteall
 " automatically, but terminal vim does not)
 
 set autoread
+
+" Sets up the clipboard to interface with the system clipboard
+
+set clipboard=unnamed
+
+" }}}
 
