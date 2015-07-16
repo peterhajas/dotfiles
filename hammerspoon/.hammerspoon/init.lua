@@ -64,6 +64,82 @@ hs.urlevent.bind("notifyUrgently", function(eventName, params)
 end)
 
 -- }}}
+-- Color Manipulation {{{
+
+function HSVtoRGB (hsv_color)
+    local h = hsv_color['hue']
+    local s = hsv_color['saturation']
+    local v = hsv_color['value']
+    local r, g, b, i, f, p, q, t;
+    i = math.floor(h * 6);
+    f = h * 6 - i;
+    p = v * (1 - s);
+    q = v * (1 - f * s);
+    t = v * (1 - (1 - f) * s);
+    if i == 0 then r = v; g = t; b = p end
+    if i == 1 then r = q; g = v; b = p end
+    if i == 2 then r = p; g = v; b = t end
+    if i == 3 then r = p; g = q; b = v end
+    if i == 4 then r = t; g = p; b = v end
+    if i == 5 then r = v; g = p; b = q end
+    local color = {}
+    color['red'] = r
+    color['green'] = g
+    color['blue'] = b
+    color['alpha'] = 1.0
+
+    return color
+end
+
+-- }}}
+-- Decoration Colors {{{
+
+function decorationColorHSV()
+    nameForColor = 'Computer'
+
+    ok, result = hs.applescript.applescript("set foo to computer name of (system info)")
+
+    if (ok) then
+        nameForColor = result
+    end
+
+    local color = {}
+
+    local nameLength = string.len(nameForColor)
+    local sin = math.sin(nameLength)
+    local cos = math.cos(nameLength)
+
+    local h = math.abs(sin)
+    local s = math.abs(cos)
+    local v = 1.0 - (1.0 / nameLength)
+
+    local color = {}
+    color['hue'] = h
+    color['saturation'] = s
+    color['value'] = v
+
+    return color
+end
+
+function altDecorationColorHSV()
+    local color = decorationColorHSV()
+    color['hue'] = 1.0 - color['hue']
+    return color
+end
+
+function decorationColor()
+    local hsv_color = decorationColorHSV()
+    local color = HSVtoRGB(hsv_color)
+    return color
+end
+
+function altDecorationColor()
+    local hsv_color = altDecorationColorHSV()
+    local color = HSVtoRGB(hsv_color)
+    return color
+end
+
+-- }}}
 -- Preferred screen {{{
 
 function preferredScreen ()
@@ -705,30 +781,7 @@ screenWatcher = hs.screen.watcher.new(handleScreenEvent)
 screenWatcher:start()
 
 -- }}}
--- Misc. {{{
-
-function decorationColor()
-    nameForColor = 'Computer'
-
-    ok, result = hs.applescript.applescript("set foo to computer name of (system info)")
-
-    if (ok) then
-        nameForColor = result
-    end
-
-    local color = {}
-
-    local nameLength = string.len(nameForColor)
-    local sin = math.sin(nameLength)
-    local cos = math.cos(nameLength)
-
-    color['red'] = 1.0 - (1.0 / nameLength)
-    color['green'] = sin
-    color['blue'] = cos
-    color['alpha'] = 1.0
-
-    return color
-end
+-- Desktop Strip {{{
 
 local strip
 
