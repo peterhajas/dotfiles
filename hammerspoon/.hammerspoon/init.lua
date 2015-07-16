@@ -1,16 +1,19 @@
 -- peterhajas's Hammerspoon config file
 -- Originally written Jan 4, 2015
 
--- This is defined in my Karabiner config
+-- vim:fdm=marker
+
+-- Hyper Key {{{
 
 local hyper = {"ctrl", "alt", "shift"}
 
--- Declare a global 'doc' variable that I can use inside of the Hammerspoon
--- console
+-- }}}
+-- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
 doc = hs.doc.fromJSONFile(hs.docstrings_json_file)
 
--- Begin Monitoring for Location Events
+-- }}}
+-- Listen for Location Events {{{
 
 local startedMonitoringLocation = hs.location.start()
 
@@ -18,7 +21,8 @@ if startedMonitoringLocation == false then
     hs.alert.show("Unable to determine location - please approve Hammerspoon to access your location")
 end
 
--- Notifying
+-- }}}
+-- Notifying {{{
 
 function notifySoftly(notificationString)
     hs.alert.show(notificationString)
@@ -59,19 +63,22 @@ hs.urlevent.bind("notifyUrgently", function(eventName, params)
     end
 end)
 
--- Preferred screen
+-- }}}
+-- Preferred screen {{{
 
 function preferredScreen ()
     return hs.screen.allScreens()[1]
 end
 
--- Frontmost app
+-- }}}
+-- Frontmost app {{{
 
 function frontmostAppName ()
     return hs.application.frontmostApplication():title()
 end
 
--- App Shortcuts
+-- }}}
+-- App Shortcuts {{{
 
 -- Option-M for Mail
 
@@ -97,7 +104,8 @@ hs.hotkey.bind({"alt"}, "t", function()
     hs.application.launchOrFocus("Textual 5")
 end)
 
--- F.lux Functionality
+-- }}}
+-- F.lux Functionality {{{
 
 function whitepointForHavingScreenTint(hasScreenTint)
     local whitepoint = { }
@@ -188,7 +196,8 @@ end
 
 updateFluxiness()
 
--- Status Geometry
+-- }}}
+-- Status Geometry {{{
 
 -- When drawing status information, it is useful to have metrics about where to
 -- draw
@@ -230,7 +239,8 @@ function iTunesStatusFrame()
     return frame
 end
 
--- Brightness Control
+-- }}}
+-- Brightness Control {{{
 
 function changeBrightnessInDirection (d)
     local brightnessChangeAmount = 16
@@ -253,7 +263,8 @@ hs.hotkey.bind(hyper, "2", function()
     changeBrightnessInDirection(1)
 end)
 
--- Mission Control and Launchpad
+-- }}}
+-- Mission Control and Launchpad {{{
 
 -- Hyper-3 for Mission Control
 
@@ -267,7 +278,8 @@ hs.hotkey.bind(hyper, "4", function()
     hs.application.launchOrFocus("Launchpad")
 end)
 
--- iTunes Current Track Display
+-- }}}
+-- iTunes Current Track Display {{{
 
 local iTunesStatusText
 local iTunesStatusTextBackground
@@ -301,7 +313,8 @@ end
 
 buildiTunesTrackDisplay()
 
--- Media Player Controls
+-- }}}
+-- Media Player Controls {{{
 
 -- Hyper-8 plays/pauses music
 
@@ -324,7 +337,8 @@ hs.hotkey.bind(hyper, "9", function()
     updateiTunesTrackDisplay()
 end)
 
--- Volume Control
+-- }}}
+-- Volume Control {{{
 
 -- Hyper-- for volume down
 
@@ -338,7 +352,8 @@ hs.hotkey.bind(hyper, "=", function()
     hs.applescript.applescript("set volume output volume ((output volume of (get volume settings)) + 10) --100%")
 end)
 
--- Easy Locking
+-- }}}
+-- Easy Locking {{{
 
 -- Hyper-Delete to lock the machine
 
@@ -346,7 +361,8 @@ hs.hotkey.bind(hyper, "delete", function()
     hs.caffeinate.startScreensaver()
 end)
 
--- Vim Movement Shortcuts
+-- }}}
+-- Vim Movement Shortcuts {{{
 
 hs.hotkey.bind({"ctrl"}, "h", function()
     local key = hs.eventtap.event.newKeyEvent({}, "left", true)
@@ -368,7 +384,8 @@ hs.hotkey.bind({"ctrl"}, "l", function()
     key:post()
 end)
 
--- Other Shortcuts
+-- }}}
+-- Other Shortcuts {{{
 
 -- Hyper-escape to toggle the Hammerspoon console
 
@@ -388,7 +405,8 @@ hs.hotkey.bind({"cmd"}, "escape", function()
     hs.eventtap.keyStroke({"cmd"}, "`")
 end)
 
--- Pedals
+-- }}}
+-- Footpedals {{{
 
 -- My footpedals map to F9 and F10. We'll use this to make different things
 -- happen in different apps
@@ -427,9 +445,8 @@ hs.hotkey.bind({""}, "f10", function()
     end
 end)
 
--- Window Manipulation
-
--- Hints
+-- }}}
+-- Window Hints {{{
 
 local hints = hs.hints
 hints.hintChars = {'a','s','d','f','j','k','l',';','g','h'}
@@ -438,6 +455,9 @@ hints.fontSize = 100
 hs.hotkey.bind(hyper, "space", function()
     hints.windowHints()
 end)
+
+-- }}}
+-- Window Movement {{{
 
 function windowPaddingForScreen (screen)
     local screenFrame = screen:frame()
@@ -511,6 +531,9 @@ function moveForegroundWindowInDirection (direction)
     moveWindowInDirection(window, direction)
 end
 
+-- }}}
+-- Window Resizing {{{
+
 function amountToResizeForWindow (window, amount)
     local screen = window:screen()
     local minimumWindowWidth = 600
@@ -554,7 +577,8 @@ function resizeForegroundWindowByAmount (amount)
     resizeWindowByAmount(window, amount)
 end
 
--- Window Movement
+-- }}}
+-- Window Movement Keys {{{
 
 -- Bind hyper-H to move window to the left
 hs.hotkey.bind(hyper, "h", function()
@@ -579,7 +603,18 @@ hs.hotkey.bind(hyper, "j", function()
     moveForegroundWindowInDirection(hs.geometry.size(0,1))
 end)
 
--- Window Resizing
+-- Bind hyper-T to move window to the "next" screen
+
+hs.hotkey.bind(hyper, "T", function()
+    local win = hs.window.focusedWindow()
+    local windowScreen = win:screen()
+    
+    local newWindowScreen = windowScreen:next()
+    win:moveToScreen(newWindowScreen)
+end)
+
+-- }}}
+-- Window Resizing Keys {{{
 
 -- Bind hyper-Y to resize window width smaller
 
@@ -605,17 +640,8 @@ hs.hotkey.bind(hyper, "U", function()
     resizeForegroundWindowByAmount(hs.geometry.size(0, -1))
 end)
 
--- Bind hyper-T to move window to the "next" screen
-
-hs.hotkey.bind(hyper, "T", function()
-    local win = hs.window.focusedWindow()
-    local windowScreen = win:screen()
-    
-    local newWindowScreen = windowScreen:next()
-    win:moveToScreen(newWindowScreen)
-end)
-
--- Application Watching
+-- }}}
+-- Application Watching {{{
 
 -- Our global app watcher which will watch for app changes
 
@@ -626,7 +652,8 @@ end
 appWatcher = hs.application.watcher.new(handleAppEvent)
 appWatcher:start()
 
--- Global Update Timer
+-- }}}
+-- Global Update Timer {{{
 
 -- For all sorts of reasons, it's convenient to have a timer that's always
 -- running. We'll keep it at a pretty infrequent ten seconds (and terminate it
@@ -640,7 +667,8 @@ end
 timer = hs.timer.new(10, timerUpdate)
 timer:start()
 
--- Battery Watching
+-- }}}
+-- Battery Watching {{{
 
 -- Our global battery watcher which will watch for battery events
 
@@ -664,6 +692,8 @@ end
 batteryWatcher = hs.battery.watcher.new(handleBatteryEvent)
 batteryWatcher:start()
 
+-- }}}
+-- Screen Watching {{{
 -- Watch screen change notifications, and reload the config when the screen
 -- configuration changes
 
@@ -674,7 +704,8 @@ end
 screenWatcher = hs.screen.watcher.new(handleScreenEvent)
 screenWatcher:start()
 
--- Misc.
+-- }}}
+-- Misc. {{{
 
 function decorationColor()
     nameForColor = 'Computer'
@@ -724,6 +755,8 @@ end
 
 buildStrip()
 
+-- }}}
+-- Reloading {{{
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
 function reload_config(files)
@@ -737,4 +770,6 @@ end
 
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reload_config):start()
 hs.alert.show("Config loaded")
+
+-- }}}
 
