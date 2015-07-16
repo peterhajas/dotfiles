@@ -612,16 +612,11 @@ end
 
 function amountToResizeForWindow (window, amount)
     local screen = window:screen()
-    local minimumWindowWidth = 600
+    local minimumWindowWidth = 400
 
-    -- We should allow even multiples of minimumWindowWidth to fit onscreen
-    
-    numberOfWindowsWide = screen:frame().w / minimumWindowWidth
-    numberOfWindowsWide = math.floor(numberOfWindowsWide)
-
-    if amount == 1 then amount = numberOfWindowsWide end
-    if amount == -1 then amount = 1 / numberOfWindowsWide end
-    if amount == 0 then amount = 1 end
+    if amount == 1 then amount = minimumWindowWidth end
+    if amount == -1 then amount = -1 * minimumWindowWidth end
+    if amount == 0 then amount = 0 end
 
     return amount
 end
@@ -634,8 +629,8 @@ function resizeWindowByAmount (window, amount)
     local amountW = amountToResizeForWindow(window, amount.w)
     local amountH = amountToResizeForWindow(window, amount.h)
 
-    newWindowFrame.w = newWindowFrame.w * amountW
-    newWindowFrame.h = newWindowFrame.h * amountH
+    newWindowFrame.w = newWindowFrame.w + amountW
+    newWindowFrame.h = newWindowFrame.h + amountH
 
     diffW = newWindowFrame.w - oldWindowSize.w
     diffH = newWindowFrame.h - oldWindowSize.h
