@@ -390,6 +390,26 @@ end
 buildiTunesTrackDisplay()
 
 -- }}}
+-- iTunes Manipulation {{{
+
+function updateiTunesStatus()
+    updateiTunesTrackDisplay()
+
+    -- If iTunes is in the foreground, show the full app
+    -- Otherwise, show the mini player
+
+    local itunes = hs.appfinder.appFromName("iTunes")
+
+    if itunes ~= nil then
+        if itunes:isFrontmost() then
+            itunes:selectMenuItem("Switch from MiniPlayer")
+        else
+            itunes:selectMenuItem("Switch to MiniPlayer")
+        end
+    end
+end
+
+-- }}}
 -- Media Player Controls {{{
 
 -- Hyper-8 plays/pauses music
@@ -717,7 +737,9 @@ end)
 -- Our global app watcher which will watch for app changes
 
 function handleAppEvent(name, event, app)
-    if name == 'iTunes' then updateiTunesTrackDisplay() end
+    if name == 'iTunes' then
+        updateiTunesStatus()
+    end
 end
 
 appWatcher = hs.application.watcher.new(handleAppEvent)
