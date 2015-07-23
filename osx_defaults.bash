@@ -97,6 +97,12 @@ defaults write com.apple.Safari com.apple.Safari.ContentPageGroupIdentifier.WebK
 ## Add a context menu item for showing the Web Inspector in web views
 defaults write NSGlobalDomain WebKitDeveloperExtras -bool true
 
+### Set my Startpage as my home page
+
+defaults write com.apple.Safari "HomePage" "file:///Users/phajas/dotfiles/startpage/.startpage/index.html"
+defaults write com.apple.Safari "NewTabBehavior" 0
+defaults write com.apple.Safari "NewWindowBehavior" 0
+
 killall Finder
 killall Safari
 killall Dock
