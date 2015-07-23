@@ -1,0 +1,57 @@
+body
+{
+    font-family: Helvetica;
+    font-weight: lighter;
+    background-color: #2d2d2d;
+}
+
+*.linkSectionsContainer
+{
+    text-align: center;
+}
+
+h1
+{
+    text-align: center;
+    color: white;
+    font-weight: lighter;
+}
+
+*.searchbar
+{
+    width:90%;
+    height:30pt;
+}
+
+*.linkSectionContainer
+{
+    background-color: #4d4d4d;
+    display: inline-block;
+    width: 200pt;
+    margin: 20pt;
+    padding-bottom: 20pt;
+    vertical-align: top;
+    border-radius: 18px;
+    border-style: solid;
+    border-color: gray;
+}
+
+*.linkSectionContainer a
+{
+    display: block;
+    padding-top:8px;
+}
+
+*.linkSectionContainer h2
+{
+    color: #ddd;
+}
+
+a:link,
+a:visited,
+a:hover,
+a:active
+{
+    color: rgb(255,120,0);
+    text-decoration:none;
+}
