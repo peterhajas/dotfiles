@@ -395,16 +395,17 @@ buildiTunesTrackDisplay()
 function updateiTunesStatus()
     updateiTunesTrackDisplay()
 
-    -- If iTunes is in the foreground, show the full app
+    -- If iTunes is not hidden, show the full app
     -- Otherwise, show the mini player
 
     local itunes = hs.appfinder.appFromName("iTunes")
 
     if itunes ~= nil then
-        if itunes:isFrontmost() then
-            itunes:selectMenuItem("Switch from MiniPlayer")
-        else
+        if itunes:isHidden() then
             itunes:selectMenuItem("Switch to MiniPlayer")
+            itunes:unhide()
+        else
+            itunes:selectMenuItem("Switch from MiniPlayer")
         end
     end
 end
