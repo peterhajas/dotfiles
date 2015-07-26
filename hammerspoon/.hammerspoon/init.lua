@@ -390,11 +390,30 @@ end
 buildiTunesTrackDisplay()
 
 -- }}}
--- iTunes Manipulation {{{
+-- iTunes Miniplayer {{{
 
-function updateiTunesStatus()
-    updateiTunesTrackDisplay()
+function iTunesMiniPlayerDimension()
+    return 200
+end
 
+function moveiTunesMiniPlayer()
+    local itunes = hs.appfinder.appFromName("iTunes")
+    
+    if itunes ~= nil then
+        local miniPlayerWindow = itunes:visibleWindows()[1]
+        if miniPlayerWindow ~= nil then
+            local textFrame = iTunesStatusFrame()
+            local miniPlayerDimension = iTunesMiniPlayerDimension()
+            local miniPlayerFrame = hs.geometry.rect(textFrame.x,
+                                                     textFrame.y - (miniPlayerDimension + textFrame.h + 2 * statusEdgePadding()),
+                                                     miniPlayerDimension,
+                                                     miniPlayerDimension)
+            miniPlayerWindow:setFrame(miniPlayerFrame)
+        end
+    end
+end
+
+function toggleiTunesMiniPlayer()
     -- If iTunes is not hidden, show the full app
     -- Otherwise, show the mini player
 
@@ -404,10 +423,19 @@ function updateiTunesStatus()
         if itunes:isHidden() then
             itunes:selectMenuItem("Switch to MiniPlayer")
             itunes:unhide()
+            moveiTunesMiniPlayer()
         else
             itunes:selectMenuItem("Switch from MiniPlayer")
         end
     end
+end
+
+-- }}}
+-- iTunes Manipulation {{{
+
+function updateiTunesStatus()
+    updateiTunesTrackDisplay()
+    toggleiTunesMiniPlayer()
 end
 
 -- }}}
