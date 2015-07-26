@@ -538,14 +538,10 @@ hs.hotkey.bind({"cmd"}, "escape", function()
 end)
 
 -- }}}
--- Footpedals {{{
+-- Footpedals Key Combos {{{
 
 -- My footpedals map to F9 and F10. We'll use this to make different things
 -- happen in different apps
-
-function sendKeyStroke(modifiers, character)
-    hs.eventtap.keyStroke(modifiers, character)
-end
 
 local footpedalKeyCombos = {}
 
@@ -558,8 +554,18 @@ local footpedalKeyCombos = {}
 footpedalKeyCombos["Mail"]     = { {{"cmd","shift"}, "k", "k"}, {{}, "up", "down"} }
 footpedalKeyCombos["Safari"]   = { {{"cmd","shift"}, "[", "]" } }
 footpedalKeyCombos["Tweetbot"] = { {{"cmd"}, "[", "]" } }
+footpedalKeyCombos["iTunes"]   = { {{"cmd"}, "left", "right" } }
 footpedalKeyCombos["Photos"]   = { {{"cmd"}, "left", "right" } }
 footpedalKeyCombos["Messages"] = { {{"cmd"}, "[", "]" } }
+
+-- }}}
+
+-- Sending footpedal key commands {{{
+
+function sendKeyStroke(modifiers, character)
+    hs.eventtap.keyStroke(modifiers, character)
+end
+
 
 function runFootpedalCommandsForFoot(commands, foot)
     for idx,command in pairs(commands) do
