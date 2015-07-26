@@ -559,7 +559,6 @@ footpedalKeyCombos["Photos"]   = { {{"cmd"}, "left", "right" } }
 footpedalKeyCombos["Messages"] = { {{"cmd"}, "[", "]" } }
 
 -- }}}
-
 -- Sending footpedal key commands {{{
 
 function sendKeyStroke(modifiers, character)
