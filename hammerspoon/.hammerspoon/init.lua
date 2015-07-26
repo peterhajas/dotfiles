@@ -547,34 +547,40 @@ function sendKeyStroke(modifiers, character)
     hs.eventtap.keyStroke(modifiers, character)
 end
 
-hs.hotkey.bind({""}, "f9", function()
-    local appName = frontmostAppName()
+local footpedalKeyCombos = {}
 
-    if appName == "Safari" then
-        sendKeyStroke({"cmd","shift"}, "[")
-    elseif appName == "Mail" then
-        sendKeyStroke({"cmd","shift"}, "k")
-        sendKeyStroke({}, "up")
-    elseif appName == "Messages" then
-        sendKeyStroke({"cmd"}, "[")
-    elseif appName == "Photos" then
-        sendKeyStroke({}, "left")
+-- Footpedal Key Combos are defined as a table of tables
+-- Each entry in the table has the modifiers (if any), the left key pedal press,
+-- and the right key pedal press.
+--
+-- Most apps only have one command per foot. Some, like Mail, require two
+
+footpedalKeyCombos["Safari"]   = {{{"cmd","shift"}, "[", "]" }}
+footpedalKeyCombos["Messages"] = {{{"cmd"}, "[", "]" }}
+footpedalKeyCombos["Photos"]   = {{{"cmd"}, "left", "right" }}
+footpedalKeyCombos["Mail"]     = {{{"cmd","shift"}, "k", "k"}, {{}, "up", "down"}}
+
+function runFootpedalCommandsForFoot(commands, foot)
+    for idx,command in pairs(commands) do
+        local modifiers = command[1]
+        local key
+
+        if foot == "left" then
+            key = command[2]
+        else
+            key = command[3]
+        end
+
+        sendKeyStroke(modifiers, key)
     end
+end
+
+hs.hotkey.bind({""}, "f9", function()
+    runFootpedalCommandsForFoot(footpedalKeyCombos[frontmostAppName()], "left")
 end)
 
 hs.hotkey.bind({""}, "f10", function()
-    local appName = frontmostAppName()
-
-    if appName == "Safari" then
-        sendKeyStroke({"cmd","shift"}, "]")
-    elseif appName == "Mail" then
-        sendKeyStroke({"cmd","shift"}, "k")
-        sendKeyStroke({}, "down")
-    elseif appName == "Messages" then
-        sendKeyStroke({"cmd"}, "]")
-    elseif appName == "Photos" then
-        sendKeyStroke({}, "right")
-    end
+    runFootpedalCommandsForFoot(footpedalKeyCombos[frontmostAppName()], "right")
 end)
 
 -- }}}
