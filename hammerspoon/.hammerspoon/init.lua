@@ -555,11 +555,11 @@ local footpedalKeyCombos = {}
 --
 -- Most apps only have one command per foot. Some, like Mail, require two
 
-footpedalKeyCombos["Mail"]     = {{{"cmd","shift"}, "k", "k"}, {{}, "up", "down"}}
-footpedalKeyCombos["Safari"]   = {{{"cmd","shift"}, "[", "]" }}
-footpedalKeyCombos["Tweetbot"] = {{{"cmd"}, "[", "]" }}
-footpedalKeyCombos["Photos"]   = {{{"cmd"}, "left", "right" }}
-footpedalKeyCombos["Messages"] = {{{"cmd"}, "[", "]" }}
+footpedalKeyCombos["Mail"]     = { {{"cmd","shift"}, "k", "k"}, {{}, "up", "down"} }
+footpedalKeyCombos["Safari"]   = { {{"cmd","shift"}, "[", "]" } }
+footpedalKeyCombos["Tweetbot"] = { {{"cmd"}, "[", "]" } }
+footpedalKeyCombos["Photos"]   = { {{"cmd"}, "left", "right" } }
+footpedalKeyCombos["Messages"] = { {{"cmd"}, "[", "]" } }
 
 function runFootpedalCommandsForFoot(commands, foot)
     for idx,command in pairs(commands) do
