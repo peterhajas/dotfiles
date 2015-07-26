@@ -13,6 +13,13 @@ local hyper = {"ctrl", "alt", "shift"}
 doc = hs.doc.fromJSONFile(hs.docstrings_json_file)
 
 -- }}}
+-- Global 'inspectThing' function for inspecting objects {{{
+
+function inspectThing(thing)
+    return hs.inspect.inspect(thing)
+end
+
+-- }}}
 -- Listen for Location Events {{{
 
 local startedMonitoringLocation = hs.location.start()
