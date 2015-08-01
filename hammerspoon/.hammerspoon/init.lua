@@ -154,6 +154,76 @@ function preferredScreen ()
 end
 
 -- }}}
+-- Decoration Geometry {{{
+
+function proportionOfPreferredScreenDimension(percent)
+    return preferredScreen():fullFrame().w * percent
+end
+
+function regularDecorationTextSize()
+    return 15
+end
+
+function regularDecorationHeight()
+    return regularDecorationTextSize() + 4
+end
+
+function regularDecorationPadding()
+    return 10
+end
+
+function frameForDecoration(isOnBottom, xPosition, width)
+    padding = regularDecorationPadding()
+    xPosition = math.max(xPosition, padding)
+    xPosition = math.min(xPosition, preferredScreen():fullFrame().w - (width + padding))
+
+    h = regularDecorationHeight()
+    y = 0
+    if isOnBottom then
+        y = preferredScreen():fullFrame().h - (regularDecorationHeight() + padding)
+    else
+        y = 0
+    end
+
+    return hs.geometry.rect(xPosition, y, width, h)
+end
+
+function decorationTextColor()
+    local statusTextColor = {}
+    statusTextColor['red'] = 1.0
+    statusTextColor['green'] = 1.0
+    statusTextColor['blue'] = 1.0
+    statusTextColor['alpha'] = 0.7
+    return statusTextColor
+end
+
+-- }}}
+-- Bottom Status Strip {{{
+
+local bottomStrip
+
+function buildBottomStrip()
+    if bottomStrip then bottomStrip:delete() end
+
+    local height = regularDecorationHeight() + 2 * regularDecorationPadding()
+    local bottomStripFrame = hs.geometry.rect(0, preferredScreen():fullFrame().h - height, preferredScreen():fullFrame().w, height)
+
+    local color = {}
+    color['hue'] = 0
+    color['saturation'] = 0
+    color['value'] = 0.2
+
+    color = HSVtoRGB(color)
+
+    bottomStrip = hs.drawing.rectangle(bottomStripFrame)
+    bottomStrip = bottomStrip:setFillColor(color)
+
+    bottomStrip:sendToBack():show()
+end
+
+buildBottomStrip()
+
+-- }}}
 -- Frontmost app {{{
 
 function frontmostAppName ()
@@ -280,49 +350,6 @@ end
 updateFluxiness()
 
 -- }}}
--- Status Geometry {{{
-
--- When drawing status information, it is useful to have metrics about where to
--- draw
-
-function statusEdgePadding()
-    return 10
-end
-
-function statusTextSize()
-    return 15
-end
-
-function statusHeight()
-    return statusTextSize() + 4
-end
-
-function statusFrameForXAndWidth (x, w)
-    local screenFrame = preferredScreen():fullFrame()
-    return hs.geometry.rect(x,
-                            screenFrame.h - statusHeight() - statusEdgePadding(),
-                            w,
-                            statusHeight())
-end
-
-function statusTextColor()
-    local statusTextColor = {}
-    statusTextColor['red'] = 1.0
-    statusTextColor['green'] = 1.0
-    statusTextColor['blue'] = 1.0
-    statusTextColor['alpha'] = 0.7
-    return statusTextColor
-end
-
--- Status Frames
-
-function iTunesStatusFrame()
-    local width = 400
-    local frame = statusFrameForXAndWidth(statusEdgePadding(), width)
-    return frame
-end
-
--- }}}
 -- Brightness Control {{{
 
 function changeBrightnessInDirection (d)
@@ -365,11 +392,9 @@ end)
 -- iTunes Current Track Display {{{
 
 local iTunesStatusText
-local iTunesStatusTextBackground
 
-function destroyiTunesTrackDisplay()
-    if iTunesStatusText then iTunesStatusText:delete() end
-    if iTunesStatusTextBackground then iTunesStatusTextBackground:delete() end
+function iTunesStatusFrame()
+    return frameForDecoration(true, 0, 400)
 end
 
 function updateiTunesTrackDisplay()
@@ -385,12 +410,11 @@ function updateiTunesTrackDisplay()
 end
 
 function buildiTunesTrackDisplay()
-    destroyiTunesTrackDisplay()
+    if iTunesStatusText then iTunesStatusText:delete() end
     local frame = iTunesStatusFrame()
     iTunesStatusText = hs.drawing.text(frame, '')
-    iTunesStatusTextBackground = hs.drawing.rectangle(frame)
 
-    iTunesStatusText:setTextColor(statusTextColor()):setTextSize(statusTextColor):sendToBack():show()
+    iTunesStatusText:setTextColor(decorationTextColor()):setTextSize(regularDecorationTextSize):sendToBack():show()
     updateiTunesTrackDisplay()
 end
 
@@ -411,8 +435,9 @@ function moveiTunesMiniPlayer()
         if miniPlayerWindow ~= nil then
             local textFrame = iTunesStatusFrame()
             local miniPlayerDimension = iTunesMiniPlayerDimension()
+            local padding = 3 * regularDecorationPadding()
             local miniPlayerFrame = hs.geometry.rect(textFrame.x,
-                                                     textFrame.y - (miniPlayerDimension + textFrame.h + 2 * statusEdgePadding()),
+                                                     textFrame.y - (miniPlayerDimension + textFrame.h + padding),
                                                      miniPlayerDimension,
                                                      miniPlayerDimension)
             miniPlayerWindow:setFrame(miniPlayerFrame)
@@ -850,14 +875,10 @@ screenWatcher:start()
 
 local strip
 
-function stripWidthForScreen(screen)
-    return screen:fullFrame().w * 0.15
-end
-
 function buildStrip()
     if strip then strip:delete() end
     local screenForStrip = preferredScreen()
-    local stripWidth = stripWidthForScreen(screenForStrip)
+    local stripWidth = proportionOfPreferredScreenDimension(0.15)
     local screenFrame = screenForStrip:fullFrame()
     local longestScreenDimension = math.max(screenFrame.w, screenFrame.h)
     local shortestScreenDimension = math.min(screenFrame.w, screenFrame.h)
@@ -876,11 +897,21 @@ end
 buildStrip()
 
 -- }}}
+-- Decoration Z Ordering {{{
+
+function arrangeDecorations()
+    bottomStrip:sendToBack()
+    strip:orderBelow(bottomStrip)
+    iTunesStatusText:bringToFront()
+end
+
+arrangeDecorations()
+
+-- }}}
 -- Reloading {{{
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
 function reload_config(files)
-    destroyiTunesTrackDisplay()
     appWatcher:stop()
     timer:stop()
     batteryWatcher:stop()
