@@ -116,8 +116,8 @@ function decorationColorHSV()
     local sin = math.sin(nameLength)
     local cos = math.cos(nameLength)
 
-    local h = math.abs(sin)
-    local s = math.abs(cos)
+    local h = math.abs(cos)
+    local s = math.abs(sin)
     local v = 1.0 - (1.0 / nameLength)
 
     local color = {}
