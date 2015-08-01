@@ -859,9 +859,11 @@ function buildStrip()
     local screenForStrip = preferredScreen()
     local stripWidth = stripWidthForScreen(screenForStrip)
     local screenFrame = screenForStrip:fullFrame()
-    local stripStart = hs.geometry.point((screenFrame.w * 0.65) - stripWidth, 0 - stripWidth)
-    local stripEndY = screenFrame.w - stripStart.x
-    local stripEnd = hs.geometry.point(screenFrame.w + 2 * stripWidth, stripEndY  + 2 * stripWidth)
+    local longestScreenDimension = math.max(screenFrame.w, screenFrame.h)
+    local shortestScreenDimension = math.min(screenFrame.w, screenFrame.h)
+    local dimensionDifference = longestScreenDimension - shortestScreenDimension
+    local stripStart = hs.geometry.point(dimensionDifference - stripWidth, 0 - stripWidth)
+    local stripEnd = hs.geometry.point(screenFrame.w + stripWidth, screenFrame.h + stripWidth)
     strip = hs.drawing.line(stripStart, stripEnd)
 
     strip = strip:setStrokeWidth(stripWidth)
