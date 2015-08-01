@@ -198,6 +198,16 @@ function decorationTextColor()
 end
 
 -- }}}
+-- Decoration Constructors
+
+function statusLabelWithFrame(frame)
+    local label = hs.drawing.text(frame, '')
+    label = label:setTextColor(decorationTextColor())
+    label = label:setTextSize(regularDecorationTextSize())
+    label:show()
+    return label
+end
+
 -- Bottom Status Strip {{{
 
 local bottomStrip
@@ -394,7 +404,7 @@ end)
 local iTunesStatusText
 
 function iTunesStatusFrame()
-    return frameForDecoration(true, 0, 400)
+    return frameForDecoration(true, 0, 230)
 end
 
 function updateiTunesTrackDisplay()
@@ -411,10 +421,8 @@ end
 
 function buildiTunesTrackDisplay()
     if iTunesStatusText then iTunesStatusText:delete() end
-    local frame = iTunesStatusFrame()
-    iTunesStatusText = hs.drawing.text(frame, '')
+    iTunesStatusText = statusLabelWithFrame(iTunesStatusFrame())
 
-    iTunesStatusText:setTextColor(decorationTextColor()):setTextSize(regularDecorationTextSize):sendToBack():show()
     updateiTunesTrackDisplay()
 end
 
@@ -613,6 +621,29 @@ end)
 hs.hotkey.bind({""}, "f10", function()
     runFootpedalCommandsForFoot(footpedalKeyCombos[frontmostAppName()], "right")
 end)
+
+-- }}}
+-- Clock {{{
+
+function clockString()
+    return os.date("%b %d %a %I:%M")
+end
+
+local statusClock
+
+function updateStatusClock()
+    statusClock:setText(clockString())
+end
+
+function buildStatusClock()
+    if statusClock then statusClock:delete() end
+    local width = 130
+    local frame = frameForDecoration(true, preferredScreen():fullFrame().w - width, width)
+    statusClock = statusLabelWithFrame(frame)
+    updateStatusClock()
+end
+
+buildStatusClock()
 
 -- }}}
 -- Window Hints {{{
@@ -828,6 +859,7 @@ appWatcher:start()
 function timerUpdate()
     updateiTunesTrackDisplay()
     updateFluxiness()
+    updateStatusClock()
 end
 
 timer = hs.timer.new(10, timerUpdate)
@@ -903,6 +935,7 @@ function arrangeDecorations()
     bottomStrip:sendToBack()
     strip:orderBelow(bottomStrip)
     iTunesStatusText:bringToFront()
+    statusClock:bringToFront()
 end
 
 arrangeDecorations()
