@@ -198,7 +198,7 @@ function decorationTextColor()
 end
 
 -- }}}
--- Decoration Constructors
+-- Decoration Constructors {{{
 
 function statusLabelWithFrame(frame)
     local label = hs.drawing.text(frame, '')
@@ -208,6 +208,7 @@ function statusLabelWithFrame(frame)
     return label
 end
 
+-- }}}
 -- Bottom Status Strip {{{
 
 local bottomStrip
