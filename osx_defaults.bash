@@ -28,8 +28,8 @@ defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false
 
 # Dock
 
-## Don't hide the Dock
-defaults write com.apple.dock autohide -bool false
+## Hide the Dock
+defaults write com.apple.dock autohide -bool true
 
 ## Make Dock icons of hidden applications translucent
 defaults write com.apple.dock showhidden -bool true
