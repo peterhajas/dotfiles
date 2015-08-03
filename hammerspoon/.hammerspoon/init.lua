@@ -638,7 +638,7 @@ end
 
 function buildStatusClock()
     if statusClock then statusClock:delete() end
-    local width = 130
+    local width = 150
     local frame = frameForDecoration(true, preferredScreen():fullFrame().w - width, width)
     statusClock = statusLabelWithFrame(frame)
     updateStatusClock()
