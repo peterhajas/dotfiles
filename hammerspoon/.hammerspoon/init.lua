@@ -161,7 +161,7 @@ function proportionOfPreferredScreenDimension(percent)
 end
 
 function regularDecorationTextSize()
-    return 15
+    return 13
 end
 
 function regularDecorationHeight()
@@ -204,6 +204,7 @@ function statusLabelWithFrame(frame)
     local label = hs.drawing.text(frame, '')
     label = label:setTextColor(decorationTextColor())
     label = label:setTextSize(regularDecorationTextSize())
+    label = label:setTextFont("Menlo")
     label:show()
     return label
 end
@@ -638,7 +639,7 @@ end
 
 function buildStatusClock()
     if statusClock then statusClock:delete() end
-    local width = 150
+    local width = 130
     local frame = frameForDecoration(true, preferredScreen():fullFrame().w - width, width)
     statusClock = statusLabelWithFrame(frame)
     updateStatusClock()
