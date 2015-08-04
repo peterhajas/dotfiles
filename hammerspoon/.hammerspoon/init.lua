@@ -200,13 +200,17 @@ end
 -- }}}
 -- Decoration Constructors {{{
 
-function statusLabelWithFrame(frame)
+function statusLabelWithFrameAndTextColor(frame, textColor)
     local label = hs.drawing.text(frame, '')
-    label = label:setTextColor(decorationTextColor())
+    label = label:setTextColor(textColor)
     label = label:setTextSize(regularDecorationTextSize())
     label = label:setTextFont("Menlo")
     label:show()
     return label
+end
+
+function statusLabelWithFrame(frame)
+    return statusLabelWithFrameAndTextColor(frame, decorationTextColor())
 end
 
 -- }}}
