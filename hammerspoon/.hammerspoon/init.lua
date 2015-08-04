@@ -214,32 +214,6 @@ function statusLabelWithFrame(frame)
 end
 
 -- }}}
--- Bottom Status Strip {{{
-
-local bottomStrip
-
-function buildBottomStrip()
-    if bottomStrip then bottomStrip:delete() end
-
-    local height = regularDecorationHeight() + 2 * regularDecorationPadding()
-    local bottomStripFrame = hs.geometry.rect(0, preferredScreen():fullFrame().h - height, preferredScreen():fullFrame().w, height)
-
-    local color = {}
-    color['hue'] = 0
-    color['saturation'] = 0
-    color['value'] = 0.2
-
-    color = HSVtoRGB(color)
-
-    bottomStrip = hs.drawing.rectangle(bottomStripFrame)
-    bottomStrip = bottomStrip:setFillColor(color)
-
-    bottomStrip:sendToBack():show()
-end
-
-buildBottomStrip()
-
--- }}}
 -- Frontmost app {{{
 
 function frontmostAppName ()
@@ -677,7 +651,13 @@ function buildStatusClock()
     if statusClock then statusClock:delete() end
     local width = 130
     local frame = frameForDecoration(true, preferredScreen():fullFrame().w - width, width)
-    statusClock = statusLabelWithFrame(frame)
+    local colorVal = 0.0
+    local color = {}
+    color['red']=colorVal
+    color['green']=colorVal
+    color['blue']=colorVal
+    color['alpha']=1.0
+    statusClock = statusLabelWithFrameAndTextColor(frame, color)
     updateStatusClock()
 end
 
@@ -970,10 +950,9 @@ buildStrip()
 -- Decoration Z Ordering {{{
 
 function arrangeDecorations()
-    bottomStrip:sendToBack()
-    strip:orderBelow(bottomStrip)
-    iTunesStatusText:bringToFront()
-    statusClock:bringToFront()
+    statusClock:sendToBack()
+    iTunesStatusText:sendToBack()
+    strip:sendToBack()
 end
 
 arrangeDecorations()
