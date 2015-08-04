@@ -507,16 +507,48 @@ end)
 -- }}}
 -- Volume Control {{{
 
+-- Number of volume "ticks"
+
+function volumeTicks()
+    return 10
+end
+
+-- Getting the current volume
+
+function currentVolume()
+    ok, result = hs.applescript.applescript("output volume of (get volume settings)")
+
+    volume = -1
+
+    if (ok) then
+        volume = tonumber(result)
+    end
+
+    return volume
+end
+
+-- Changing volume
+
+function changeVolumeByAmount(amount)
+    vol = currentVolume()
+    delta = (100 / volumeTicks()) * amount
+    newVol = currentVolume() + delta
+    newVol = math.floor(newVol)
+
+    local command = "set volume output volume " .. newVol .. " --100%"
+    hs.applescript.applescript(command)
+end
+
 -- Hyper-- for volume down
 
 hs.hotkey.bind(hyper, "-", function()
-    hs.applescript.applescript("set volume output volume ((output volume of (get volume settings)) - 10) --100%")
+    changeVolumeByAmount(-1)
 end)
 
 -- Hyper-+ for volume up
 
 hs.hotkey.bind(hyper, "=", function()
-    hs.applescript.applescript("set volume output volume ((output volume of (get volume settings)) + 10) --100%")
+    changeVolumeByAmount(1)
 end)
 
 -- }}}
