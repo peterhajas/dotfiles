@@ -52,6 +52,7 @@ local rightStatusItems = {}
 -- Status Convenience Methods {{{
 
 function percentStringWithLeadingZeroForPercent(percent)
+    percent = math.floor(percent)
     percentString = tostring(percent)
 
     -- Ugly hack - how does one do leading zeroes?
@@ -888,6 +889,27 @@ timer = hs.timer.new(10, timerUpdate)
 timer:start()
 
 -- }}}
+-- Battery Status {{{
+
+function updateBatteryStatus()
+    local string = ""
+    local charging = hs.battery.isCharging()
+
+    if charging == nil then return string end
+
+    if charging == true then
+        string = "+"
+    else 
+        string = "-"
+    end
+
+    if hs.battery.isCharged() then string = "=" end
+
+    return string .. percentStringWithLeadingZeroForPercent(hs.battery.percentage())
+
+end
+
+-- }}}
 -- Battery Watching {{{
 
 -- Our global battery watcher which will watch for battery events
@@ -907,6 +929,8 @@ function handleBatteryEvent()
         appWatcher:start()
         timer:start()
     end
+
+    updateStatusItemWithName(rightStatusItems, "Battery")
 end
 
 batteryWatcher = hs.battery.watcher.new(handleBatteryEvent)
@@ -1055,9 +1079,10 @@ end
 
 leftStatusItems["iTunes"] = {"This is a song by this cool artist", updateiTunesTrackDisplay, nil, nil, 1}
 
-rightStatusItems["Brightness"] = {"B:020", updateBrightnessStatus, nil, nil, 1}
-rightStatusItems["Volume"] = {"V:050", updateVolumeStatus, nil, nil, 2}
-rightStatusItems["Clock"] = {"MMM DD DDD HH:MM", updateStatusClock, nil, nil, 3}
+rightStatusItems["Battery"] = {"100=", updateBatteryStatus, nil, nil, 1}
+rightStatusItems["Brightness"] = {"B:020", updateBrightnessStatus, nil, nil, 2}
+rightStatusItems["Volume"] = {"V:050", updateVolumeStatus, nil, nil, 3}
+rightStatusItems["Clock"] = {"MMM DD DDD HH:MM", updateStatusClock, nil, nil, 4}
 
 addStatusItemsOnSide(leftStatusItems, "left")
 addStatusItemsOnSide(rightStatusItems, "right")
