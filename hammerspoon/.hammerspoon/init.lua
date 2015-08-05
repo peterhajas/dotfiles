@@ -20,6 +20,50 @@ function inspectThing(thing)
 end
 
 -- }}}
+-- {{{ Updating Status Items
+
+function updateStatusItemWithName(items, name)
+    textObject = items[name][3]
+    bgObject = items[name][4]
+
+    updateFunc = items[name][2]
+
+    newText = ""
+
+    if updateFunc ~= nil then newText = updateFunc() end
+
+    if string.len(newText) == 0 then
+        bgObject:hide()
+    else
+        bgObject:show()
+        bgObject:orderBelow(textObject)
+    end
+
+    textObject:setText(newText)
+end
+
+-- }}}
+-- {{{ Left / Right Status Items
+--
+local leftStatusItems = {}
+local rightStatusItems = {}
+
+-- }}}
+-- Status Convenience Methods {{{
+
+function percentStringWithLeadingZeroForPercent(percent)
+    percentString = tostring(percent)
+
+    -- Ugly hack - how does one do leading zeroes?
+
+    if string.len(percent) > 2 then
+        return percentString
+    else
+        return "0" .. percentString
+    end
+end
+
+-- }}}
 -- Listen for Location Events {{{
 
 local startedMonitoringLocation = hs.location.start()
@@ -154,7 +198,7 @@ function preferredScreen ()
 end
 
 -- }}}
--- Decoration Geometry {{{
+-- Decoration Drawing {{{
 
 function proportionOfPreferredScreenDimension(percent)
     return preferredScreen():fullFrame().w * percent
@@ -165,52 +209,31 @@ function regularDecorationTextSize()
 end
 
 function regularDecorationHeight()
-    return regularDecorationTextSize() + 4
+    return regularDecorationTextSize() * 1.7
 end
 
 function regularDecorationPadding()
-    return 10
-end
-
-function frameForDecoration(isOnBottom, xPosition, width)
-    padding = regularDecorationPadding()
-    xPosition = math.max(xPosition, padding)
-    xPosition = math.min(xPosition, preferredScreen():fullFrame().w - (width + padding))
-
-    h = regularDecorationHeight()
-    y = 0
-    if isOnBottom then
-        y = preferredScreen():fullFrame().h - (regularDecorationHeight() + padding)
-    else
-        y = 0
-    end
-
-    return hs.geometry.rect(xPosition, y, width, h)
+    return 5
 end
 
 function decorationTextColor()
     local statusTextColor = {}
-    statusTextColor['red'] = 1.0
-    statusTextColor['green'] = 1.0
-    statusTextColor['blue'] = 1.0
-    statusTextColor['alpha'] = 0.7
+    local color = 1.0
+    statusTextColor['red'] = color
+    statusTextColor['green'] = color
+    statusTextColor['blue'] = color
+    statusTextColor['alpha'] = 1.0
     return statusTextColor
 end
 
--- }}}
--- Decoration Constructors {{{
-
-function statusLabelWithFrameAndTextColor(frame, textColor)
-    local label = hs.drawing.text(frame, '')
-    label = label:setTextColor(textColor)
-    label = label:setTextSize(regularDecorationTextSize())
-    label = label:setTextFont("Menlo")
-    label:show()
-    return label
-end
-
-function statusLabelWithFrame(frame)
-    return statusLabelWithFrameAndTextColor(frame, decorationTextColor())
+function decorationBackgroundColor()
+    local backgroundColor = {}
+    local color = 0.2
+    backgroundColor['red'] = color
+    backgroundColor['green'] = color
+    backgroundColor['blue'] = color
+    backgroundColor['alpha'] = 0.85
+    return backgroundColor
 end
 
 -- }}}
@@ -342,6 +365,11 @@ updateFluxiness()
 -- }}}
 -- Brightness Control {{{
 
+function updateBrightnessStatus()
+    text = "B:" .. percentStringWithLeadingZeroForPercent(hs.brightness.get())
+    return text
+end
+
 function changeBrightnessInDirection (d)
     local brightnessChangeAmount = 16
     local brightness = hs.brightness.get()
@@ -349,6 +377,8 @@ function changeBrightnessInDirection (d)
     brightness = brightness + (brightnessChangeAmount * d)
 
     hs.brightness.set(brightness)
+
+    updateStatusItemWithName(rightStatusItems, "Brightness")
 end
 
 -- Hyper-1 for brightness down
@@ -379,13 +409,7 @@ hs.hotkey.bind(hyper, "4", function()
 end)
 
 -- }}}
--- iTunes Current Track Display {{{
-
-local iTunesStatusText
-
-function iTunesStatusFrame()
-    return frameForDecoration(true, 0, 230)
-end
+-- iTunes Current Track Status Update{{{
 
 function updateiTunesTrackDisplay()
     local statusText = ''
@@ -396,17 +420,8 @@ function updateiTunesTrackDisplay()
         statusText = trackName .. ' by ' .. artistName
     end
 
-    iTunesStatusText:setText(statusText)
+    return statusText
 end
-
-function buildiTunesTrackDisplay()
-    if iTunesStatusText then iTunesStatusText:delete() end
-    iTunesStatusText = statusLabelWithFrame(iTunesStatusFrame())
-
-    updateiTunesTrackDisplay()
-end
-
-buildiTunesTrackDisplay()
 
 -- }}}
 -- iTunes Miniplayer {{{
@@ -421,11 +436,9 @@ function moveiTunesMiniPlayer()
     if itunes ~= nil then
         local miniPlayerWindow = itunes:visibleWindows()[1]
         if miniPlayerWindow ~= nil then
-            local textFrame = iTunesStatusFrame()
             local miniPlayerDimension = iTunesMiniPlayerDimension()
-            local padding = 3 * regularDecorationPadding()
-            local miniPlayerFrame = hs.geometry.rect(textFrame.x,
-                                                     textFrame.y - (miniPlayerDimension + textFrame.h + padding),
+            local miniPlayerFrame = hs.geometry.rect(regularDecorationPadding(),
+                                                     preferredScreen():fullFrame().h - (miniPlayerDimension + 6 * regularDecorationPadding()),
                                                      miniPlayerDimension,
                                                      miniPlayerDimension)
             miniPlayerWindow:setFrame(miniPlayerFrame)
@@ -454,7 +467,7 @@ end
 -- iTunes Manipulation {{{
 
 function updateiTunesStatus()
-    updateiTunesTrackDisplay()
+    updateStatusItemWithName(leftStatusItems, "iTunes")
     toggleiTunesMiniPlayer()
 end
 
@@ -465,21 +478,21 @@ end
 
 hs.hotkey.bind(hyper, "8", function()
     hs.itunes.play()
-    updateiTunesTrackDisplay()
+    updateStatusItemWithName(leftStatusItems, "iTunes")
 end)
 
 -- Hyper-0 goes to the next track
 
 hs.hotkey.bind(hyper, "0", function()
     hs.itunes.next()
-    updateiTunesTrackDisplay()
+    updateStatusItemWithName(leftStatusItems, "iTunes")
 end)
 
 -- Hyper-9 goes to the previous track
 
 hs.hotkey.bind(hyper, "9", function()
     hs.itunes.previous()
-    updateiTunesTrackDisplay()
+    updateStatusItemWithName(leftStatusItems, "iTunes")
 end)
 
 -- }}}
@@ -505,6 +518,13 @@ function currentVolume()
     return volume
 end
 
+-- Volume Status Item
+
+function updateVolumeStatus(volumeStatus)
+    text = "V:" .. percentStringWithLeadingZeroForPercent(currentVolume())
+    return text
+end
+
 -- Changing volume
 
 function changeVolumeByAmount(amount)
@@ -515,6 +535,8 @@ function changeVolumeByAmount(amount)
 
     local command = "set volume output volume " .. newVol .. " --100%"
     hs.applescript.applescript(command)
+
+    updateStatusItemWithName(rightStatusItems, "Volume")
 end
 
 -- Hyper-- for volume down
@@ -635,33 +657,15 @@ hs.hotkey.bind({""}, "f10", function()
 end)
 
 -- }}}
--- Clock {{{
+-- Clock Status Update{{{
 
 function clockString()
     return os.date("%b %d %a %I:%M")
 end
 
-local statusClock
-
-function updateStatusClock()
-    statusClock:setText(clockString())
+function updateStatusClock(clock)
+    return clockString()
 end
-
-function buildStatusClock()
-    if statusClock then statusClock:delete() end
-    local width = 130
-    local frame = frameForDecoration(true, preferredScreen():fullFrame().w - width, width)
-    local colorVal = 0.0
-    local color = {}
-    color['red']=colorVal
-    color['green']=colorVal
-    color['blue']=colorVal
-    color['alpha']=1.0
-    statusClock = statusLabelWithFrameAndTextColor(frame, color)
-    updateStatusClock()
-end
-
-buildStatusClock()
 
 -- }}}
 -- Window Hints {{{
@@ -875,9 +879,9 @@ appWatcher:start()
 -- if the battery is too low)
 
 function timerUpdate()
-    updateiTunesTrackDisplay()
+    updateiTunesStatus()
     updateFluxiness()
-    updateStatusClock()
+    updateStatusItemWithName(rightStatusItems, "Clock")
 end
 
 timer = hs.timer.new(10, timerUpdate)
@@ -947,11 +951,121 @@ end
 buildStrip()
 
 -- }}}
+-- Status Item Layout {{{
+
+-- Iterate through tables in a sorted fashion
+-- Cribbed from http://stackoverflow.com/questions/15706270/sort-a-table-in-lua
+
+function spairs(t, order)
+    -- collect the keys
+    local keys = {}
+    for k in pairs(t) do keys[#keys+1] = k end
+
+    -- if order function given, sort by it by passing the table and keys a, b,
+    -- otherwise just sort the keys 
+    if order then
+        table.sort(keys, function(a,b) return order(t, a, b) end)
+    else
+        table.sort(keys)
+    end
+
+    -- return the iterator function
+    local i = 0
+    return function()
+        i = i + 1
+        if keys[i] then
+            return keys[i], t[keys[i]]
+        end
+    end
+end
+
+function addStatusItemsOnSide(items, side)
+    local textSize = regularDecorationTextSize()
+    local widthPerChar = 8.9
+    local height = regularDecorationHeight()
+    local y = preferredScreen():fullFrame().h - (height + regularDecorationPadding())
+    local margin = regularDecorationPadding()
+    local startingX
+    local offsetMultiplier
+
+    if side == "left" then
+        startingX = 0
+        offsetMultiplier = 1
+    else
+        startingX = hs.screen.mainScreen():frame().w
+        offsetMultiplier = -1
+    end
+
+    local currentX = startingX + (offsetMultiplier * margin)
+
+    function sortItems(i, a, b)
+        local a_ord = i[a][5]
+        local b_ord = i[b][5]
+
+        return a_ord > b_ord
+    end
+
+    for name, data in spairs(items, sortItems) do
+        local drawable = data[3]
+        local bg = data[4]
+
+        local text = data[1]
+
+        local width = widthPerChar * string.len(text)
+
+        if side == "right" then
+            currentX = currentX - width
+        end
+
+        local frame = hs.geometry.rect(currentX,y,width,height)
+
+        if side == "left" then
+            currentX = currentX + (offsetMultiplier * (width + margin))
+        else
+            currentX = currentX + (offsetMultiplier * margin)
+        end
+
+        local drawable = hs.drawing.text(frame, text)
+        local bg = hs.drawing.rectangle(frame)
+
+        data[3] = drawable
+        data[4] = bg
+
+        bg:setFillColor(decorationBackgroundColor())
+        bg:show()
+
+        drawable:setTextFont("Menlo")
+        drawable:setTextSize(textSize)
+        drawable:setTextColor(decorationTextColor())
+        drawable:show()
+
+        bg:sendToBack()
+        drawable:sendToBack()
+
+        updateStatusItemWithName(items, name)
+    end
+end
+
+-- }}}
+-- Status Items {{{
+
+-- A status item is a table with the following params:
+-- Sample text (for sizing) | update func (if any) | nil | nil | order (LTR)
+-- Note that the nils will be populated with the text object and background
+
+leftStatusItems["iTunes"] = {"This is a song by this cool artist", updateiTunesTrackDisplay, nil, nil, 1}
+
+rightStatusItems["Brightness"] = {"B:020", updateBrightnessStatus, nil, nil, 1}
+rightStatusItems["Volume"] = {"V:050", updateVolumeStatus, nil, nil, 2}
+rightStatusItems["Clock"] = {"MMM DD DDD HH:MM", updateStatusClock, nil, nil, 3}
+
+addStatusItemsOnSide(leftStatusItems, "left")
+addStatusItemsOnSide(rightStatusItems, "right")
+
+-- }}}
 -- Decoration Z Ordering {{{
 
 function arrangeDecorations()
-    statusClock:sendToBack()
-    iTunesStatusText:sendToBack()
     strip:sendToBack()
 end
 
