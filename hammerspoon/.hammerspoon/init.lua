@@ -828,7 +828,7 @@ hs.hotkey.bind(hyper, "T", function()
     local windowScreen = win:screen()
     
     local newWindowScreen = windowScreen:next()
-    win:moveToScreen(newWindowScreen)
+    win:moveToScreen(newWindowScreen, 0)
 end)
 
 -- }}}
