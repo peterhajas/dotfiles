@@ -686,7 +686,8 @@ end)
 
 function windowPaddingForScreen (screen)
     local screenFrame = screen:frame()
-    local windowPadding = screenFrame.w * 0.005
+    local windowPadding = screenFrame.w * 0.001
+    windowPadding = math.floor(windowPadding)
 
     return windowPadding
 end
