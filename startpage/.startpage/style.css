@@ -36,6 +36,17 @@ h1
     border-color: gray;
 }
 
+*.weatherContainer
+{
+    background-color: #ddd;
+    display: block;
+    margin: auto;
+    border-radius: 18px;
+    border-style: solid;
+    border-color: gray;
+    max-width:1000px;
+}
+
 *.linkSectionContainer a
 {
     display: block;
