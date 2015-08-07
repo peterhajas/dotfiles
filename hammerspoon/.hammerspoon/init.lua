@@ -658,14 +658,14 @@ hs.hotkey.bind({""}, "f10", function()
 end)
 
 -- }}}
--- Clock Status Update{{{
+-- Date Status Update{{{
 
-function clockString()
-    return os.date("%b %d %a %I:%M")
+function dateString()
+    return os.date("%a %b %d")
 end
 
-function updateStatusClock(clock)
-    return clockString()
+function updateStatusDate(date)
+    return dateString()
 end
 
 -- }}}
@@ -882,7 +882,7 @@ appWatcher:start()
 function timerUpdate()
     updateiTunesStatus()
     updateFluxiness()
-    updateStatusItemWithName(rightStatusItems, "Clock")
+    updateStatusItemWithName(rightStatusItems, "Date")
 end
 
 timer = hs.timer.new(10, timerUpdate)
@@ -1082,7 +1082,7 @@ leftStatusItems["iTunes"] = {"This is a song by this cool artist", updateiTunesT
 rightStatusItems["Battery"] = {"100=", updateBatteryStatus, nil, nil, 1}
 rightStatusItems["Brightness"] = {"B:020", updateBrightnessStatus, nil, nil, 2}
 rightStatusItems["Volume"] = {"V:050", updateVolumeStatus, nil, nil, 3}
-rightStatusItems["Clock"] = {"MMM DD DDD HH:MM", updateStatusClock, nil, nil, 4}
+rightStatusItems["Date"] = {"MMM DD DDD", updateStatusDate, nil, nil, 4}
 
 addStatusItemsOnSide(leftStatusItems, "left")
 addStatusItemsOnSide(rightStatusItems, "right")
