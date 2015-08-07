@@ -625,6 +625,7 @@ footpedalKeyCombos["Tweetbot"] = { {{"cmd"}, "[", "]" } }
 footpedalKeyCombos["iTunes"]   = { {{"cmd"}, "left", "right" } }
 footpedalKeyCombos["Photos"]   = { {{"cmd"}, "left", "right" } }
 footpedalKeyCombos["Messages"] = { {{"cmd"}, "[", "]" } }
+footpedalKeyCombos["Calendar"] = { {{"cmd"}, "left", "right" } }
 
 -- }}}
 -- Sending footpedal key commands {{{
