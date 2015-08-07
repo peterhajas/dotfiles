@@ -635,6 +635,7 @@ end
 
 
 function runFootpedalCommandsForFoot(commands, foot)
+    if commands == nil then return end
     for idx,command in pairs(commands) do
         local modifiers = command[1]
         local key
