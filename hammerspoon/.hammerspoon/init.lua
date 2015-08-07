@@ -425,54 +425,6 @@ function updateiTunesTrackDisplay()
 end
 
 -- }}}
--- iTunes Miniplayer {{{
-
-function iTunesMiniPlayerDimension()
-    return 200
-end
-
-function moveiTunesMiniPlayer()
-    local itunes = hs.appfinder.appFromName("iTunes")
-    
-    if itunes ~= nil then
-        local miniPlayerWindow = itunes:visibleWindows()[1]
-        if miniPlayerWindow ~= nil then
-            local miniPlayerDimension = iTunesMiniPlayerDimension()
-            local miniPlayerFrame = hs.geometry.rect(regularDecorationPadding(),
-                                                     preferredScreen():fullFrame().h - (miniPlayerDimension + 6 * regularDecorationPadding()),
-                                                     miniPlayerDimension,
-                                                     miniPlayerDimension)
-            miniPlayerWindow:setFrame(miniPlayerFrame)
-        end
-    end
-end
-
-function toggleiTunesMiniPlayer()
-    -- If iTunes is not hidden, show the full app
-    -- Otherwise, show the mini player
-
-    local itunes = hs.appfinder.appFromName("iTunes")
-
-    if itunes ~= nil then
-        if itunes:isHidden() then
-            itunes:selectMenuItem("Switch to MiniPlayer")
-            itunes:unhide()
-            moveiTunesMiniPlayer()
-        else
-            itunes:selectMenuItem("Switch from MiniPlayer")
-        end
-    end
-end
-
--- }}}
--- iTunes Manipulation {{{
-
-function updateiTunesStatus()
-    updateStatusItemWithName(leftStatusItems, "iTunes")
-    toggleiTunesMiniPlayer()
-end
-
--- }}}
 -- Media Player Controls {{{
 
 -- Hyper-8 plays/pauses music
@@ -868,7 +820,7 @@ end)
 
 function handleAppEvent(name, event, app)
     if name == 'iTunes' then
-        updateiTunesStatus()
+        updateStatusItemWithName(leftStatusItems, "iTunes")
     end
 end
 
@@ -883,7 +835,7 @@ appWatcher:start()
 -- if the battery is too low)
 
 function timerUpdate()
-    updateiTunesStatus()
+    updateStatusItemWithName(leftStatusItems, "iTunes")
     updateFluxiness()
     updateStatusItemWithName(rightStatusItems, "Date")
 end
