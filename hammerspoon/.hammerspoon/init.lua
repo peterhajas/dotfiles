@@ -367,7 +367,7 @@ updateFluxiness()
 -- Brightness Control {{{
 
 function updateBrightnessStatus()
-    text = "B:" .. percentStringWithLeadingZeroForPercent(hs.brightness.get())
+    text = percentStringWithLeadingZeroForPercent(hs.brightness.get()) .. "☀"
     return text
 end
 
@@ -474,7 +474,7 @@ end
 -- Volume Status Item
 
 function updateVolumeStatus(volumeStatus)
-    text = "V:" .. percentStringWithLeadingZeroForPercent(currentVolume())
+    text = percentStringWithLeadingZeroForPercent(currentVolume()) .. "☊"
     return text
 end
 
@@ -1035,8 +1035,8 @@ end
 leftStatusItems["iTunes"] = {"This is a song by this cool artist", updateiTunesTrackDisplay, nil, nil, 1}
 
 rightStatusItems["Battery"] = {"100=", updateBatteryStatus, nil, nil, 1}
-rightStatusItems["Brightness"] = {"B:020", updateBrightnessStatus, nil, nil, 2}
-rightStatusItems["Volume"] = {"V:050", updateVolumeStatus, nil, nil, 3}
+rightStatusItems["Brightness"] = {"020B", updateBrightnessStatus, nil, nil, 2}
+rightStatusItems["Volume"] = {"050V", updateVolumeStatus, nil, nil, 3}
 rightStatusItems["Date"] = {"MMM DD DDD", updateStatusDate, nil, nil, 4}
 
 addStatusItemsOnSide(leftStatusItems, "left")
