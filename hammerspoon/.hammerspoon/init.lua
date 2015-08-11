@@ -934,6 +934,7 @@ function timerUpdate()
     updateStatusItemWithName(leftStatusItems, "iTunes")
     updateFluxiness()
     updateStatusItemWithName(rightStatusItems, "Date")
+    updateStatusItemWithName(rightStatusItems, "Clock")
 end
 
 timer = hs.timer.new(10, timerUpdate)
