@@ -708,6 +708,17 @@ function updateStatusDate(date)
 end
 
 -- }}}
+-- Clock Status Update{{{
+
+function clockString()
+    return os.date("%I:%M")
+end
+
+function updateStatusClock()
+    return clockString()
+end
+
+-- }}}
 -- Window Hints {{{
 
 local hints = hs.hints
@@ -1123,6 +1134,7 @@ rightStatusItems["Battery"] = {"100=", updateBatteryStatus, nil, nil, 1}
 rightStatusItems["Brightness"] = {"020B", updateBrightnessStatus, nil, nil, 2}
 rightStatusItems["Volume"] = {"050V", updateVolumeStatus, nil, nil, 3}
 rightStatusItems["Date"] = {"MMM DD DDD", updateStatusDate, nil, nil, 4}
+rightStatusItems["Clock"] = {"HH:MM", updateStatusClock, nil, nil, 5}
 
 addStatusItemsOnSide(leftStatusItems, "left")
 addStatusItemsOnSide(rightStatusItems, "right")
