@@ -547,15 +547,13 @@ end
 -- Getting the current volume
 
 function currentVolume()
-    ok, result = hs.applescript.applescript("output volume of (get volume settings)")
-
-    volume = -1
-
-    if (ok) then
-        volume = tonumber(result)
+    local volume = hs.audiodevice.current()['device']:volume()
+    if volume ~= nil then
+        return volume
+    else
+        -- No output controls available
+        return 100
     end
-
-    return volume
 end
 
 -- Volume Status Item
