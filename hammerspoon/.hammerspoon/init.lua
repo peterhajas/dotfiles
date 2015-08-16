@@ -504,9 +504,9 @@ function updateiTunesTrackDisplay()
         local trackName = hs.itunes.getCurrentTrack()
         local artistName = hs.itunes.getCurrentArtist()
         statusText = trackName .. ' by ' .. artistName
-
-        updateiTunesArtwork()
     end
+
+    updateiTunesArtwork()
 
     return statusText
 end
