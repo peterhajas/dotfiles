@@ -299,6 +299,7 @@ NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'kien/ctrlp.vim'
 NeoBundle 'sjl/gundo.vim'
 NeoBundle 'vim-scripts/scratch.vim'
+NeoBundle 'junegunn/vim-peekaboo'
 
 " Prose:
 
