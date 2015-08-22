@@ -257,9 +257,7 @@ nnoremap <Space> za
 vnoremap <Space> za
 
 " }}}
-" Plugin Installation {{{
-
-" NeoBundle
+" NeoBundle Setup {{{
 
 if has('vim_starting')
     set runtimepath+=~/.vim/bundle/neobundle.vim/
@@ -270,7 +268,8 @@ call neobundle#begin(expand('~/.vim/bundle/'))
 " Let NeoBundle manage NeoBundle
 NeoBundleFetch 'Shougo/neobundle.vim'
 
-" List of plugins:
+" }}}
+" List of Plugins {{{
 
 " Editing:
 
