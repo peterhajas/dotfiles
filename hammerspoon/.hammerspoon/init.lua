@@ -956,9 +956,27 @@ function updateBatteryStatus()
     end
 
     if hs.battery.isCharged() then string = "=" end
+    
+    string = string .. percentStringWithLeadingZeroForPercent(hs.battery.percentage())
 
-    return string .. percentStringWithLeadingZeroForPercent(hs.battery.percentage())
+    time_remaining = 0
 
+    if charging then time_remaining = hs.battery.timeToFullCharge()
+    else time_remaining = hs.battery.timeRemaining() end
+    time_remaining_str = ''
+
+    if time_remaining == -1 then
+        time_remaining_str = '?'
+    else if time_remaining == -2 then
+        time_remaining_str = ''
+    else
+        time_remaining_str = time_remaining
+        end
+    end
+
+    string = string .. ' ' .. time_remaining_str
+
+    return string
 end
 
 -- }}}
@@ -1131,7 +1149,7 @@ end
 
 leftStatusItems["iTunes"] = {"This is a song by this cool artist", updateiTunesTrackDisplay, nil, nil, 1}
 
-rightStatusItems["Battery"] = {"100=", updateBatteryStatus, nil, nil, 1}
+rightStatusItems["Battery"] = {"100= XXX.X", updateBatteryStatus, nil, nil, 1}
 rightStatusItems["Brightness"] = {"020B", updateBrightnessStatus, nil, nil, 2}
 rightStatusItems["Volume"] = {"050V", updateVolumeStatus, nil, nil, 3}
 rightStatusItems["Date"] = {"MMM DD DDD", updateStatusDate, nil, nil, 4}
