@@ -34,6 +34,12 @@ defaults write com.apple.dock autohide -bool true
 ## Make Dock icons of hidden applications translucent
 defaults write com.apple.dock showhidden -bool true
 
+# Menu Bar
+
+## Hide the Menu Bar
+
+defaults write "Apple Global Domain" "_HIHideMenuBar" 1
+
 # Desktop / Screensaver
 
 ## Require password immediately after sleep or screen saver begins
