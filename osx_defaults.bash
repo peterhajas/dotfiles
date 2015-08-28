@@ -88,6 +88,10 @@ defaults write com.apple.universalaccess closeViewScrollWheelToggle 1
 
 # Safari
 
+## Show the status bar
+
+defaults write com.apple.Safari ShowOverlayStatusBar 1
+
 ## Use DuckDuckGo as my search engine
 defaults write com.apple.Safari SearchProviderIdentifier "com.duckduckgo"
 defaults write com.apple.Safari SearchProviderIdentifierMigratedToSystemPreference -int 0
