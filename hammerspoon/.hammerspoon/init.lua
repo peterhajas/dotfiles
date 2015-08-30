@@ -789,8 +789,10 @@ function moveWindowInDirection (window,direction)
 
     local padding = windowPaddingForScreen(window:screen())
 
-    newWindowFrame.x = newWindowFrame.x + (newWindowFrame.w * direction.w)
-    newWindowFrame.y = newWindowFrame.y + (newWindowFrame.h * direction.h)
+    local dimensionMultiplier = 0.5
+
+    newWindowFrame.x = newWindowFrame.x + (newWindowFrame.w * direction.w * dimensionMultiplier)
+    newWindowFrame.y = newWindowFrame.y + (newWindowFrame.h * direction.h * dimensionMultiplier)
 
     if newWindowFrame.x ~= oldWindowPosition.x then newWindowFrame.x = newWindowFrame.x + padding * direction.w end
     if newWindowFrame.y ~= oldWindowPosition.y then newWindowFrame.y = newWindowFrame.y + padding * direction.h end
