@@ -8,6 +8,9 @@ defaults write NSGlobalDomain AppleHighlightColor -string "1.0 0.448 0.0"
 ## Use Dark Mode
 defaults write NSGlobalDomain AppleInterfaceStyle -string "Dark"
 
+## Show scrollbars when scrolling
+defaults write NSGlobalDomain AppleShowScrollBars -string "WhenScrolling"
+
 # Finder / File Panels
 
 ## Expand save panel by default
