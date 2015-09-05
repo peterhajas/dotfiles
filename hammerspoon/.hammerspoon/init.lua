@@ -301,7 +301,14 @@ function blackpointForHavingScreenTint(hasScreenTint)
     return blackpoint
 end
 
+function shouldUpdateFluxiness()
+    -- Currently encountering some issues with this
+    return false
+end
+
 function updateFluxiness()
+    if shouldUpdateFluxiness() ~= true then return end
+
     local location = hs.location.get()
 
     if location == nil then return end
