@@ -1,0 +1,7 @@
+bind newWindow n
+bind closeWindow x
+bind newTab t
+bind refresh r
+bind goToLocation l
+bind back [
+bind forward ]
