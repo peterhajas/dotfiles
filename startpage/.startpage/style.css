@@ -2,7 +2,7 @@ body
 {
     font-family: Helvetica;
     font-weight: lighter;
-    background-color: #2d2d2d;
+    background-color: #1a150c;
 }
 
 *.linkSectionsContainer
@@ -13,7 +13,12 @@ body
 h1
 {
     text-align: center;
-    color: white;
+    color: #e1ceaf;
+    font-weight: lighter;
+}
+
+h2
+{
     font-weight: lighter;
 }
 
@@ -25,15 +30,11 @@ h1
 
 *.linkSectionContainer
 {
-    background-color: #4d4d4d;
     display: inline-block;
-    width: 200pt;
-    margin: 20pt;
+    width: 100pt;
+    padding-top:-20pt;
     padding-bottom: 20pt;
     vertical-align: top;
-    border-radius: 18px;
-    border-style: solid;
-    border-color: gray;
 }
 
 *.weatherContainer
@@ -41,9 +42,6 @@ h1
     background-color: #ddd;
     display: block;
     margin: auto;
-    border-radius: 18px;
-    border-style: solid;
-    border-color: gray;
     max-width:1000px;
 }
 
@@ -55,7 +53,7 @@ h1
 
 *.linkSectionContainer h2
 {
-    color: #ddd;
+    color: #f8cc55;
 }
 
 a:link,
@@ -63,6 +61,7 @@ a:visited,
 a:hover,
 a:active
 {
-    color: rgb(255,120,0);
+    font-size: 12pt;
+    color: rgb(208,128,55);
     text-decoration:none;
 }
