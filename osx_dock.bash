@@ -13,7 +13,6 @@ $DOCKUTILBIN --remove all
 
 $DOCKUTILADD /Applications/Mail.app
 $DOCKUTILADD /Applications/Safari.app
-$DOCKUTILADD ~/Applications/MacVim.app
 $DOCKUTILADD /Applications/Utilities/Terminal.app
 $DOCKUTILADD /Applications/OmniFocus.app
 $DOCKUTILADD /Applications/Tweetbot.app
