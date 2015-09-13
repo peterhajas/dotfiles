@@ -1028,32 +1028,6 @@ screenWatcher = hs.screen.watcher.new(handleScreenEvent)
 screenWatcher:start()
 
 -- }}}
--- Desktop Strip {{{
-
-local strip
-
-function buildStrip()
-    if strip then strip:delete() end
-    local screenForStrip = preferredScreen()
-    local stripWidth = proportionOfPreferredScreenDimension(0.15)
-    local screenFrame = screenForStrip:fullFrame()
-    local longestScreenDimension = math.max(screenFrame.w, screenFrame.h)
-    local shortestScreenDimension = math.min(screenFrame.w, screenFrame.h)
-    local dimensionDifference = longestScreenDimension - shortestScreenDimension
-    local stripStart = hs.geometry.point(dimensionDifference - stripWidth, 0 - stripWidth)
-    local stripEnd = hs.geometry.point(screenFrame.w + stripWidth, screenFrame.h + stripWidth)
-    strip = hs.drawing.line(stripStart, stripEnd)
-
-    strip = strip:setStrokeWidth(stripWidth)
-
-    strip = strip:setStrokeColor(decorationColor())
-
-    strip:sendToBack():show()
-end
-
-buildStrip()
-
--- }}}
 -- Status Item Layout {{{
 
 -- Iterate through tables in a sorted fashion
@@ -1166,15 +1140,6 @@ rightStatusItems["Clock"] = {"HH:MM", updateStatusClock, nil, nil, 5}
 
 addStatusItemsOnSide(leftStatusItems, "left")
 addStatusItemsOnSide(rightStatusItems, "right")
-
--- }}}
--- Decoration Z Ordering {{{
-
-function arrangeDecorations()
-    strip:sendToBack()
-end
-
-arrangeDecorations()
 
 -- }}}
 -- Reloading {{{
