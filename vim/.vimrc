@@ -145,14 +145,6 @@ syntax on
 
 set t_Co=256
 
-" Use a dark background
-
-set background=dark
-
-" Use the Molokai colorscheme
-
-colorscheme molokai
-
 " Disable everything in the GUI by passing empty guioptions
 
 set guioptions=
