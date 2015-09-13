@@ -24,20 +24,11 @@ end
 
 function updateStatusItemWithName(items, name)
     textObject = items[name][3]
-    bgObject = items[name][4]
-
     updateFunc = items[name][2]
 
     newText = ""
 
     if updateFunc ~= nil then newText = updateFunc() end
-
-    if string.len(newText) == 0 then
-        bgObject:hide()
-    else
-        bgObject:show()
-        bgObject:orderBelow(textObject)
-    end
 
     textObject:setText(newText)
 end
@@ -206,7 +197,11 @@ function proportionOfPreferredScreenDimension(percent)
 end
 
 function regularDecorationTextSize()
-    return 13
+    return 18
+end
+
+function decorationWidthPerCharacter()
+    return 11.9
 end
 
 function regularDecorationHeight()
@@ -217,23 +212,29 @@ function regularDecorationPadding()
     return 5
 end
 
+function statusBarHorizontalMargin()
+    return preferredScreen():fullFrame().w / 12
+end
+
+function statusBarVerticalMargin()
+    return preferredScreen():fullFrame().h / 12
+end
+
 function decorationTextColor()
     local statusTextColor = {}
-    local color = 1.0
-    statusTextColor['red'] = color
-    statusTextColor['green'] = color
-    statusTextColor['blue'] = color
+    statusTextColor['red'] = 0.81
+    statusTextColor['green'] = 0.49
+    statusTextColor['blue'] = 0.16
     statusTextColor['alpha'] = 1.0
     return statusTextColor
 end
 
 function decorationBackgroundColor()
     local backgroundColor = {}
-    local color = 0.2
-    backgroundColor['red'] = color
-    backgroundColor['green'] = color
-    backgroundColor['blue'] = color
-    backgroundColor['alpha'] = 0.85
+    backgroundColor['red'] = 0.1
+    backgroundColor['green'] = 0.08
+    backgroundColor['blue'] = 0.04
+    backgroundColor['alpha'] = 1.0
     return backgroundColor
 end
 
@@ -487,11 +488,11 @@ end
 function buildiTunesArtwork()
     if itunesArtwork ~= nil then itunesArtwork:delete() end
     local preferredScreenFrame = preferredScreen():fullFrame()
-    local dimension = 300
+    local dimension = preferredScreenFrame.w / 10
     local frame = hs.geometry.rect(preferredScreenFrame.x + regularDecorationPadding(),
-                                   preferredScreenFrame.h - dimension - 35,
-                                   300,
-                                   300)
+                                   preferredScreenFrame.h - (dimension + regularDecorationPadding()),
+                                   dimension,
+                                   dimension)
     itunesArtwork = hs.drawing.image(frame, "ASCII:.")
 
     itunesArtwork:sendToBack()
@@ -1056,36 +1057,47 @@ function spairs(t, order)
     end
 end
 
+local statusBarBG
+
+function buildStatusBarBG()
+    local statusBarFrame = hs.geometry.rect(statusBarHorizontalMargin(), statusBarVerticalMargin(), preferredScreen():fullFrame().w - 2 * statusBarHorizontalMargin(), regularDecorationHeight())
+    statusBarBG = hs.drawing.rectangle(statusBarFrame)
+    statusBarBG:setFillColor(decorationBackgroundColor())
+    statusBarBG:setStrokeColor(decorationBackgroundColor())
+    statusBarBG:show()
+    statusBarBG:sendToBack()
+end
+
+buildStatusBarBG()
+
 function addStatusItemsOnSide(items, side)
+    local horizontalPadding = statusBarHorizontalMargin()
     local textSize = regularDecorationTextSize()
-    local widthPerChar = 8.9
+    local widthPerChar = decorationWidthPerCharacter()
     local height = regularDecorationHeight()
-    local y = preferredScreen():fullFrame().h - (height + regularDecorationPadding())
+    local y = statusBarVerticalMargin()
     local margin = regularDecorationPadding()
     local startingX
     local offsetMultiplier
 
     if side == "left" then
-        startingX = 0
+        startingX = horizontalPadding
         offsetMultiplier = 1
     else
-        startingX = hs.screen.mainScreen():frame().w
+        startingX = hs.screen.mainScreen():frame().w - horizontalPadding
         offsetMultiplier = -1
     end
 
     local currentX = startingX + (offsetMultiplier * margin)
 
     function sortItems(i, a, b)
-        local a_ord = i[a][5]
-        local b_ord = i[b][5]
+        local a_ord = i[a][4]
+        local b_ord = i[b][4]
 
         return a_ord > b_ord
     end
 
     for name, data in spairs(items, sortItems) do
-        local drawable = data[3]
-        local bg = data[4]
-
         local text = data[1]
 
         local width = widthPerChar * string.len(text)
@@ -1103,20 +1115,14 @@ function addStatusItemsOnSide(items, side)
         end
 
         local drawable = hs.drawing.text(frame, text)
-        local bg = hs.drawing.rectangle(frame)
 
         data[3] = drawable
-        data[4] = bg
-
-        bg:setFillColor(decorationBackgroundColor())
-        bg:show()
 
         drawable:setTextFont("Menlo")
         drawable:setTextSize(textSize)
         drawable:setTextColor(decorationTextColor())
         drawable:show()
 
-        bg:sendToBack()
         drawable:sendToBack()
 
         updateStatusItemWithName(items, name)
@@ -1132,11 +1138,11 @@ end
 
 leftStatusItems["iTunes"] = {"This is a song by this cool artist", updateiTunesTrackDisplay, nil, nil, 1}
 
-rightStatusItems["Battery"] = {"100= XXX.X", updateBatteryStatus, nil, nil, 1}
-rightStatusItems["Brightness"] = {"020B", updateBrightnessStatus, nil, nil, 2}
-rightStatusItems["Volume"] = {"050V", updateVolumeStatus, nil, nil, 3}
-rightStatusItems["Date"] = {"MMM DD DDD", updateStatusDate, nil, nil, 4}
-rightStatusItems["Clock"] = {"HH:MM", updateStatusClock, nil, nil, 5}
+rightStatusItems["Battery"] = {"100= XXX.X", updateBatteryStatus, nil, 1}
+rightStatusItems["Brightness"] = {"020B", updateBrightnessStatus, nil, 2}
+rightStatusItems["Volume"] = {"050V", updateVolumeStatus, nil, 3}
+rightStatusItems["Date"] = {"MMM DD DDD", updateStatusDate, nil, 4}
+rightStatusItems["Clock"] = {"HH:MM", updateStatusClock, nil, 5}
 
 addStatusItemsOnSide(leftStatusItems, "left")
 addStatusItemsOnSide(rightStatusItems, "right")
