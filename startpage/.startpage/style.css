@@ -39,10 +39,11 @@ h2
 
 *.weatherContainer
 {
-    background-color: #ddd;
     display: block;
     margin: auto;
-    max-width:1000px;
+    width: 200px;
+    height: 200px;
+    transform: scale(0.7, 0.7);
 }
 
 *.linkSectionContainer a
