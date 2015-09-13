@@ -217,7 +217,7 @@ function statusBarHorizontalMargin()
 end
 
 function statusBarVerticalMargin()
-    return preferredScreen():fullFrame().h / 12
+    return preferredScreen():fullFrame().h / 16
 end
 
 function decorationTextColor()
