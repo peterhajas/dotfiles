@@ -3,7 +3,7 @@
 # Global settings
 
 ## Set highlight color to orange
-defaults write NSGlobalDomain AppleHighlightColor -string "1.0 0.448 0.0"
+defaults write NSGlobalDomain AppleHighlightColor -string ".8156 0.501 .2156"
 
 ## Use Dark Mode
 defaults write NSGlobalDomain AppleInterfaceStyle -string "Dark"
