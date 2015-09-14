@@ -5,6 +5,9 @@
 ## Set highlight color to orange
 defaults write NSGlobalDomain AppleHighlightColor -string ".8156 0.501 .2156"
 
+## Use Graphite color theme
+defaults write NSGlobalDomain AppleAquaColorVariant 6
+
 ## Use Dark Mode
 defaults write NSGlobalDomain AppleInterfaceStyle -string "Dark"
 
