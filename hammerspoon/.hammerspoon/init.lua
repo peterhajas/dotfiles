@@ -217,7 +217,7 @@ function statusBarHorizontalMargin()
 end
 
 function statusBarVerticalMargin()
-    return preferredScreen():fullFrame().h / 16
+    return 80
 end
 
 function decorationTextColor()
@@ -488,7 +488,7 @@ end
 function buildiTunesArtwork()
     if itunesArtwork ~= nil then itunesArtwork:delete() end
     local preferredScreenFrame = preferredScreen():fullFrame()
-    local dimension = preferredScreenFrame.w / 10
+    local dimension = statusBarHorizontalMargin() - 2 * regularDecorationPadding()
     local frame = hs.geometry.rect(preferredScreenFrame.x + regularDecorationPadding(),
                                    preferredScreenFrame.h - (dimension + regularDecorationPadding()),
                                    dimension,
