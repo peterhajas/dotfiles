@@ -1,7 +1,19 @@
+# File
 bind newWindow n
-bind closeWindow x
-bind newTab t
-bind refresh r
+bind closeTab x
+bind closeWindow d
 bind goToLocation l
+bind newTab t
+
+# View
+bind refresh r
+bind cancelLoading .
+bind scrollDown j
+bind scrollUp k
+bind pageDown <ctrl>f
+bind pageUp <ctrl>b
+
+# History
 bind back [
 bind forward ]
+
