@@ -7,3 +7,6 @@
 [submodule "replace_icns/bin/replace_icns"]
 	path = replace_icns/bin/replace_icns
 	url = https://github.com/mdznr/replace_icns.git
+[submodule "video_transcoding_scripts/bin/video-transcoding-scripts"]
+	path = video_transcoding_scripts/bin/video-transcoding-scripts
+	url = https://github.com/donmelton/video-transcoding-scripts.git
