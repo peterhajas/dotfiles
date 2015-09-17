@@ -79,17 +79,17 @@ nnoremap <leader>W <C-w>s<C-w>j
 
 " Remap ctrl-movement keys to move to adjacent splits
 
-nnoremap <C-h> <C-w>h
-nnoremap <C-j> <C-w>j
-nnoremap <C-k> <C-w>k
-nnoremap <C-l> <C-w>l
+nnoremap <silent> <C-h> :TmuxNavigateLeft<cr>
+nnoremap <silent> <C-j> :TmuxNavigateDown<cr>
+nnoremap <silent> <C-k> :TmuxNavigateUp<cr>
+nnoremap <silent> <C-l> :TmuxNavigateRight<cr>
 
 " Map arrow keys to move to adjacent splits also
 
-nnoremap <left> <C-w>h
-nnoremap <down> <C-w>j
-nnoremap <up> <C-w>k
-nnoremap <right> <C-w>l
+nnoremap <silent> <left> :TmuxNavigateLeft<cr>
+nnoremap <silent> <down> :TmuxNavigateDown<cr>
+nnoremap <silent> <up> :TmuxNavigateUp<cr>
+nnoremap <silent> <right> :TmuxNavigateRight<cr>
 
 " Resize splits when resizing vim
 
@@ -292,6 +292,7 @@ NeoBundle 'kien/ctrlp.vim'
 NeoBundle 'sjl/gundo.vim'
 NeoBundle 'vim-scripts/scratch.vim'
 NeoBundle 'junegunn/vim-peekaboo'
+NeoBundle 'christoomey/vim-tmux-navigator'
 
 " Prose:
 
