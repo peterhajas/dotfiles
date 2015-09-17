@@ -119,6 +119,11 @@ defaults write com.apple.Safari "HomePage" "file:///Users/phajas/dotfiles/startp
 defaults write com.apple.Safari "NewTabBehavior" 0
 defaults write com.apple.Safari "NewWindowBehavior" 0
 
+### Use custom CSS
+
+defaults write com.apple.Safari "UserStyleSheetEnabled" 1
+defaults write com.apple.Safari "UserStyleSheetLocationURLString" "~/dotfiles/cactus/.config/cactus/cactus.css"
+
 killall Finder
 killall Safari
 killall Dock
