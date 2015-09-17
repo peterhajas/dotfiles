@@ -1,5 +1,21 @@
-body
+/* Reddit */
+
+div.listing-chooser
 {
-    background:black;
-    color:red;
+    display: none;
+}
+
+#sr-header-area
+{
+    display: none;
+}
+
+#header-bottom-right
+{
+    padding: 0px;
+}
+
+.content
+{
+    margin-left: 0px;
 }
