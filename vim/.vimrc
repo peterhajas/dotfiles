@@ -212,21 +212,29 @@ set statusline+=\ %c\
 " }}}
 " Line numbers {{{
 
-set number
-set relativenumber
+let g:NumbersShowing = exists('w:NumbersShowing') ? w:NumbersShowing : 0
 
-function ShowRelativeNumbers()
-    if !g:ProseModeActive
-        set relativenumber
-    endif
+function ShowLineNumbers()
+    let g:NumbersShowing = 1
+    set number
+    set relativenumber
 endfunction
 
-function HideRelativeNumbers()
+function HideLineNumbers()
+    let g:NumbersShowing = 0
+    set nonumber
     set norelativenumber
 endfunction
 
-autocmd InsertEnter,WinLeave,FocusLost * call HideRelativeNumbers()
-autocmd InsertLeave,WinEnter,FocusGained * call ShowRelativeNumbers()
+function ToggleNumbers()
+    if g:NumbersShowing
+        call HideLineNumbers()
+    else
+        call ShowLineNumbers()
+    endif
+endfunction
+
+nmap <silent> <leader>n :call ToggleNumbers() <CR>
 
 " }}}
 " Invisible characters {{{
@@ -357,8 +365,6 @@ function EnterProseMode()
     Goyo
     Pencil
     call lexical#init()
-    set nonumber
-    set norelativenumber
     set noshowmode
     set background=light
 endfunction
@@ -367,8 +373,6 @@ function ExitProseMode()
     let g:ProseModeActive = 0
     Goyo!
     NoPencil
-    set number
-    set relativenumber
     set showmode
     set background=dark
     colorscheme molokai
