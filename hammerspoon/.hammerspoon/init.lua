@@ -20,6 +20,23 @@ function inspectThing(thing)
 end
 
 -- }}}
+-- Finding all running GUI apps {{{
+
+function allRunningApps()
+    local allApps = hs.application.runningApplications()
+    local allRunningApps = {}
+
+    for idx,app in pairs(allApps) do
+        -- Ignore Hammerspoon
+        if app:mainWindow() ~= nil and app:title() ~= "Hammerspoon" then
+            table.insert(allRunningApps, app)
+        end
+    end
+
+    return allRunningApps
+end
+
+-- }}}
 -- {{{ Updating Status Items
 
 function updateStatusItemWithName(items, name)
