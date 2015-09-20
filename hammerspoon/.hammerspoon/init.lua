@@ -234,7 +234,7 @@ function statusBarHorizontalMargin()
 end
 
 function statusBarVerticalMargin()
-    return 80
+    return 20
 end
 
 function decorationTextColor()
