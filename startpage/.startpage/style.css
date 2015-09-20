@@ -2,7 +2,7 @@ body
 {
     font-family: Helvetica;
     font-weight: lighter;
-    background-color: #1a150c;
+    background-color: #212121;
 }
 
 *.linkSectionsContainer
@@ -13,7 +13,7 @@ body
 h1
 {
     text-align: center;
-    color: #e1ceaf;
+    color: #e64a19;
     font-weight: lighter;
 }
 
@@ -54,7 +54,7 @@ h2
 
 *.linkSectionContainer h2
 {
-    color: #f8cc55;
+    color: #ff9800;
 }
 
 a:link,
@@ -63,6 +63,6 @@ a:hover,
 a:active
 {
     font-size: 12pt;
-    color: rgb(208,128,55);
+    color: #ff7400;
     text-decoration:none;
 }

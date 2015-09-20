@@ -131,6 +131,10 @@ filetype plugin indent on
 " }}}
 " Visual styling {{{
 
+" Highlight folds to be the same as the background
+
+hi Folded ctermbg=236
+
 " Font
 
 if has('gui_running')

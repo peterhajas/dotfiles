@@ -239,18 +239,18 @@ end
 
 function decorationTextColor()
     local statusTextColor = {}
-    statusTextColor['red'] = 0.81
-    statusTextColor['green'] = 0.49
-    statusTextColor['blue'] = 0.16
+    statusTextColor['red'] = 255 / 255.0
+    statusTextColor['green'] = 116 / 255.0
+    statusTextColor['blue'] = 0 / 255.0
     statusTextColor['alpha'] = 1.0
     return statusTextColor
 end
 
 function decorationBackgroundColor()
     local backgroundColor = {}
-    backgroundColor['red'] = 0.1
-    backgroundColor['green'] = 0.08
-    backgroundColor['blue'] = 0.04
+    backgroundColor['red'] = 33 / 255.0
+    backgroundColor['green'] = 33 / 255.0
+    backgroundColor['blue'] = 33 / 255.0
     backgroundColor['alpha'] = 1.0
     return backgroundColor
 end
