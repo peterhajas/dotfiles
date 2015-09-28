@@ -214,11 +214,11 @@ function proportionOfPreferredScreenDimension(percent)
 end
 
 function regularDecorationTextSize()
-    return 18
+    return 15
 end
 
 function decorationWidthPerCharacter()
-    return 11.9
+    return 10.0
 end
 
 function regularDecorationHeight()
@@ -226,7 +226,7 @@ function regularDecorationHeight()
 end
 
 function regularDecorationPadding()
-    return 5
+    return 4
 end
 
 function statusBarHorizontalMargin()
