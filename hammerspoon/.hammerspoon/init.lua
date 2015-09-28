@@ -761,11 +761,14 @@ hs.hotkey.bind(hyper, "space", function()
 end)
 
 -- }}}
--- Window Movement {{{
+-- Window Geometry {{{
 
 function windowPaddingForScreen (screen)
     return regularDecorationPadding()
 end
+
+-- }}}
+-- Window Sanitizing {{{
 
 function sanitizeWindowPosition (window, frame)
     local windowScreen = window:screen()
@@ -809,6 +812,9 @@ function sanitizeWindowFrame (window, frame)
 
     return frame
 end
+
+-- }}}
+-- Window Movement {{{
 
 function moveWindowInDirection (window,direction)
     local newWindowFrame = window:frame()
