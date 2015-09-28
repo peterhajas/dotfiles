@@ -764,11 +764,7 @@ end)
 -- Window Movement {{{
 
 function windowPaddingForScreen (screen)
-    local screenFrame = screen:frame()
-    local windowPadding = screenFrame.w * 0.001
-    windowPadding = math.floor(windowPadding)
-
-    return windowPadding
+    return regularDecorationPadding()
 end
 
 function sanitizeWindowPosition (window, frame)
