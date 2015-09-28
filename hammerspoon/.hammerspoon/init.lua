@@ -497,7 +497,11 @@ function updateiTunesArtwork()
     if image ~= nil then
         itunesArtwork:setImage(image)
         itunesArtwork:show()
+        local activateiTunes = function() hs.application.launchOrFocus("iTunes") end
+        itunesArtwork = itunesArtwork:setClickCallback(activateiTunes)
+
     else
+        itunesArtwork = itunesArtwork:setClickCallback(nil)
         itunesArtwork:hide()
     end
 end
@@ -512,7 +516,9 @@ function buildiTunesArtwork()
                                    dimension)
     itunesArtwork = hs.drawing.image(frame, "ASCII:.")
 
-    itunesArtwork:sendToBack()
+    -- Not crazy about this - it still floats over windows :-/
+    -- It won't get click events if it's sent to the back, though...
+    itunesArtwork:orderBelow()
 
     updateiTunesArtwork()
 end
