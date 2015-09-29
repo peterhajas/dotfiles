@@ -243,9 +243,6 @@ nmap <silent> <leader>n :call ToggleNumbers() <CR>
 " }}}
 " Invisible characters {{{
 
-set list
-set listchars=tab:▸\ ,eol:¬
-
 " }}}
 " Folding {{{
 
@@ -370,7 +367,8 @@ function EnterProseMode()
     Pencil
     call lexical#init()
     set noshowmode
-    set background=light
+    set nolist
+    set listchars=
 endfunction
 
 function ExitProseMode()
@@ -378,8 +376,8 @@ function ExitProseMode()
     Goyo!
     NoPencil
     set showmode
-    set background=dark
-    colorscheme molokai
+    set list
+    set listchars=tab:▸\ ,eol:¬
 endfunction
 
 function ToggleProseMode()
