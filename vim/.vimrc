@@ -108,13 +108,6 @@ nmap <silent> ]w :tabnext <CR>
 nmap <silent> [w :tabprevious <CR>
 
 " }}}
-" Finding the cursor {{{
-
-" I tried to live without it, but I couldn't. Give me my cursorline
-
-set cursorline
-
-" }}}
 " Line handling {{{
 
 set formatoptions=qrn1
@@ -239,9 +232,6 @@ function ToggleNumbers()
 endfunction
 
 nmap <silent> <leader>n :call ToggleNumbers() <CR>
-
-" }}}
-" Invisible characters {{{
 
 " }}}
 " Folding {{{
@@ -369,6 +359,7 @@ function EnterProseMode()
     set noshowmode
     set nolist
     set listchars=
+    set nocursorline
 endfunction
 
 function ExitProseMode()
@@ -378,6 +369,7 @@ function ExitProseMode()
     set showmode
     set list
     set listchars=tab:▸\ ,eol:¬
+    set cursorline
 endfunction
 
 function ToggleProseMode()
