@@ -22,3 +22,4 @@ brew install urlview
 brew install contacts
 brew install tty-clock
 brew install cmus
+brew install youtube-dl
