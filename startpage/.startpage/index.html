@@ -1,16 +1,17 @@
 <html>
     <head>
         <link href="style.css" rel="stylesheet"/>
+        <script src="https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js"></script>
+        <script src="script.js"></script>
+        <script type="text/javascript">
+            $(document).ready( function () {
+              prepareEventHandlers();
+            });
+        </script>
         <title>startpage</title>
     </head>
 
     <body>
-        <h1>startpage</h1>
-
-        <div class="searchbar">
-            <iframe src="https://duckduckgo.com/search.html?prefill=DuckDuckGo" style="overflow:hidden;margin:0;padding:0;width:100%; margin-left:5%" frameborder="0"></iframe>
-        </div>
-
         <div class="linkSectionsContainer">
             <span class="linkSectionContainer">
                 <h2>content</h2>
@@ -51,10 +52,6 @@
                 <a href="https://plex.tv/web">plex</a>
                 <a href="http://www.amazon.com/b?node=2676882011">prime video</a>
             </span>
-        </div>
-
-        <div class="weatherContainer">
-            <iframe id="forecast_embed" type="text/html" frameborder="0" height="245" width="100%" src="http://forecast.io/embed/#lat=36.974117&lon=-122.030796&name=Santa Cruz"> </iframe>
         </div>
     </body>
 
