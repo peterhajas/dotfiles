@@ -1,0 +1,10 @@
+#!/bin/sh
+IP=10.0.1.22
+FLUX_LED_PATH=~/bin/flux_led/flux_led.py
+ONSTATUS=$($FLUX_LED_PATH -i $IP | awk '{print $2}')
+
+if [ $ONSTATUS = "ON" ]; then
+    $FLUX_LED_PATH -0 $IP
+else
+    $FLUX_LED_PATH -1 $IP
+fi
