@@ -1,5 +1,5 @@
 #!/bin/sh
-IP=10.0.1.22
+IP=10.0.1.4
 FLUX_LED_PATH=~/bin/flux_led/flux_led.py
 ONSTATUS=$($FLUX_LED_PATH -i $IP | awk '{print $2}')
 
