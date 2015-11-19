@@ -287,7 +287,7 @@ NeoBundle 'jpalardy/vim-slime'
 
 " Misc:
 
-NeoBundle 'kien/ctrlp.vim'
+NeoBundle 'ctrlpvim/ctrlp.vim'
 NeoBundle 'sjl/gundo.vim'
 NeoBundle 'vim-scripts/scratch.vim'
 NeoBundle 'junegunn/vim-peekaboo'
