@@ -457,5 +457,10 @@ set autoread
 
 set clipboard=unnamed
 
+" Turn on ttyfast and lazyredraw for speed in the Terminal
+
+set ttyfast
+set lazyredraw
+
 " }}}
 
