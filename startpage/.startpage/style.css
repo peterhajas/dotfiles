@@ -41,18 +41,14 @@ h2
 
 .linkSectionContainer.collapsed a
 {
-    transform: scaleY(0.001);
+    pointer-events: none;
+    opacity: 0;
 }
 
 .linkSectionContainer h2
 {
     color: #ff9800;
     transition-duration: 0.5s;
-}
-
-.linkSectionContainer.collapsed h2
-{
-
 }
 
 a:link,
