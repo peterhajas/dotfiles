@@ -5,34 +5,30 @@ body
     background-color: #212121;
 }
 
+h2
+{
+    font-weight: lighter;
+}
+
 .linkSectionsContainer
 {
     text-align: center;
-}
-
-h2
-{
-    margin-top:40pt;
-    font-weight: lighter;
+    height: 100vh;
 }
 
 .linkSectionContainer
 {
     display: inline-block;
     width: 100pt;
-    margin-top:30vh;
     vertical-align: top;
     transition-duration: 0.5s;
+    list-style: none;
+    padding-left: 0px;
+    height: 55vh;
+    padding-top: 40vh;
 }
 
-.linkSectionContainer.collapsed
-{
-    height: 100pt;
-    margin-top:40vh;
-    background-color: #303030;
-}
-
-.linkSectionContainer a
+.linkSectionContainer li
 {
     display: block;
     padding-top:8px;
