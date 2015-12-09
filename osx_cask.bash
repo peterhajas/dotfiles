@@ -18,3 +18,4 @@ brew cask install appcleaner
 brew cask install daisydisk
 brew cask install hammerspoon
 brew cask install audioscrobbler
+brew cask install jadengeller-helium
