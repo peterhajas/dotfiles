@@ -23,3 +23,4 @@ brew install contacts
 brew install tty-clock
 brew install cmus
 brew install youtube-dl
+brew install homebrew/games/nethack
