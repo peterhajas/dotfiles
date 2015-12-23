@@ -32,6 +32,9 @@ defaults write NSGlobalDomain AppleShowAllExtensions -bool true
 ## Disable the warning when changing a file extension
 defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false
 
+## Hide desktop icons
+defaults write com.apple.finder CreateDesktop -bool false
+
 # Dock
 
 ## Hide the Dock
