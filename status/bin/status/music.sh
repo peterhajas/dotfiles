@@ -12,6 +12,6 @@ then
 
     if test "$trackLength -gt 1"
     then
-        echo "$track - $artist"
+        echo "$track - $artist" | tr -d '\n'
     fi
 fi
