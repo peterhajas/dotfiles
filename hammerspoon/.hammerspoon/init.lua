@@ -3,11 +3,10 @@
 
 -- vim:fdm=marker
 
--- Hyper Key {{{
+require "hyper"
+require "vim_movement"
+require "app_shortcuts"
 
-local hyper = {"ctrl", "alt", "shift"}
-
--- }}}
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
 doc = hs.doc.fromJSONFile(hs.docstrings_json_file)
@@ -261,33 +260,6 @@ end
 function frontmostAppName ()
     return hs.application.frontmostApplication():title()
 end
-
--- }}}
--- App Shortcuts {{{
-
--- Option-M for Mail
-
-hs.hotkey.bind({"alt"}, "m", function()
-    hs.application.launchOrFocus("Mail")
-end)
-
--- Option-A for Messages
-
-hs.hotkey.bind({"alt"}, "a", function()
-    hs.application.launchOrFocus("Messages")
-end)
-
--- Option-Tab for Terminal
-
-hs.hotkey.bind({"alt"}, "tab", function()
-    hs.application.launchOrFocus("Terminal")
-end)
-
--- Option-T for Textual
-
-hs.hotkey.bind({"alt"}, "t", function()
-    hs.application.launchOrFocus("Textual 5")
-end)
 
 -- }}}
 -- F.lux Functionality {{{
@@ -627,29 +599,6 @@ end)
 
 hs.hotkey.bind(hyper, "delete", function()
     hs.caffeinate.startScreensaver()
-end)
-
--- }}}
--- Vim Movement Shortcuts {{{
-
-hs.hotkey.bind({"ctrl"}, "h", function()
-    local key = hs.eventtap.event.newKeyEvent({}, "left", true)
-    key:post()
-end)
-
-hs.hotkey.bind({"ctrl"}, "j", function()
-    local key = hs.eventtap.event.newKeyEvent({}, "down", true)
-    key:post()
-end)
-
-hs.hotkey.bind({"ctrl"}, "k", function()
-    local key = hs.eventtap.event.newKeyEvent({}, "up", true)
-    key:post()
-end)
-
-hs.hotkey.bind({"ctrl"}, "l", function()
-    local key = hs.eventtap.event.newKeyEvent({}, "right", true)
-    key:post()
 end)
 
 -- }}}
