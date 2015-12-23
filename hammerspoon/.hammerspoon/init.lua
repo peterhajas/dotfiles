@@ -12,6 +12,7 @@ require "preferred_screen"
 require "media_control"
 require "volume_control"
 require "brightness_control"
+require "window_tweaks"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
