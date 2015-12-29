@@ -3,6 +3,8 @@ require "preferred_screen"
 local color = hs.drawing.color
 local crayons = color.lists()['Crayons']
 
+local updateInterval = 1 -- Update every second
+
 allStatusItems = {
                   {'sh ~/bin/status/status_frontmost_window', 'left', crayons['Bubblegum']},
                   {'sh ~/bin/status/status_music', 'center', crayons['Honeydew']},
@@ -132,7 +134,7 @@ function statusTimerUpdate()
     updateStatusItems()
 end
 
-statusTimer = hs.timer.new(5, statusTimerUpdate)
+statusTimer = hs.timer.new(updateInterval, statusTimerUpdate)
 statusTimer:start()
 
 buildStatusItems()
