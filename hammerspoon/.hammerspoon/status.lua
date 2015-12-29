@@ -3,7 +3,7 @@ require "preferred_screen"
 local color = hs.drawing.color
 local crayons = color.lists()['Crayons']
 
-local updateInterval = 1 -- Update every second
+local updateInterval = 5
 
 allStatusItems = {
                   {'sh ~/bin/status/status_frontmost_window', 'left', crayons['Bubblegum']},
