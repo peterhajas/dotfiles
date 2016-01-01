@@ -7,13 +7,27 @@ then
     album=`osascript -e "tell application \"iTunes\" to album of the current track" 2>/dev/null`
     artist=`osascript -e "tell application \"iTunes\" to artist of the current track" 2>/dev/null`
     track=`osascript -e "tell application \"iTunes\" to name of the current track" 2>/dev/null`
+    playstatus=`osascript -e "tell application \"iTunes\" to get player state" 2>/dev/null`
+
+    if [ $playstatus = stopped ]
+    then
+        playstatus=◼︎
+    fi
+    if [ $playstatus = paused ]
+    then
+        playstatus=❘❘
+    fi
+    if [ $playstatus = playing ]
+    then
+        playstatus=▶︎
+    fi
 
     trackLength=`echo $track | wc -c`
 
     if [ $trackLength -gt 1 ]
     then
-        echo "$artist - $track" | tr -d '\n'
+        echo "$playstatus - $artist - $track" | tr -d '\n'
     else
-        echo "[stopped]"
+        echo "$playstatus"
     fi
 fi
