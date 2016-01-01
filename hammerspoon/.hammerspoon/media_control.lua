@@ -2,22 +2,24 @@ require "hyper"
 
 -- Media Player Controls {{{
 
+hs.alert(hs.inspect.inspect(hyper))
+
 -- Hyper-8 plays/pauses music
 
 hs.hotkey.bind(hyper, "8", function()
-    hs.itunes.play()
+    hs.execute('status_battery')
 end)
 
 -- Hyper-0 goes to the next track
 
 hs.hotkey.bind(hyper, "0", function()
-    hs.itunes.next()
+    hs.execute('media_nexttrack')
 end)
 
 -- Hyper-9 goes to the previous track
 
 hs.hotkey.bind(hyper, "9", function()
-    hs.itunes.previous()
+    hs.execute('media_previoustrack')
 end)
 
 -- }}}

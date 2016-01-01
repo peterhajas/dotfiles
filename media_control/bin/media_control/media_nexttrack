@@ -1,0 +1,3 @@
+#!/bin/sh
+
+osascript -e "tell application \"iTunes\" to next track"
