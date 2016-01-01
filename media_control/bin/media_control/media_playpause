@@ -1,5 +1,3 @@
 #!/bin/sh
 
 osascript -e "tell application \"iTunes\" to playpause"
-
-echo "lol"
