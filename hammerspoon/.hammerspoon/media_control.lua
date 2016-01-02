@@ -2,8 +2,6 @@ require "hyper"
 
 -- Media Player Controls {{{
 
-hs.alert(hs.inspect.inspect(hyper))
-
 -- Hyper-8 plays/pauses music
 
 hs.hotkey.bind(hyper, "8", function()
