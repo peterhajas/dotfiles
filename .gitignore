@@ -20,3 +20,12 @@ vim/.vim/bundle/*/
 fish_history
 fishd.*
 *.menu
+
+# cmus related
+
+cmus/.config/cmus/autosave
+cmus/.config/cmus/cache
+cmus/.config/cmus/command-history
+cmus/.config/cmus/lib.pl
+cmus/.config/cmus/playlist.pl
+cmus/.config/cmus/search-history
