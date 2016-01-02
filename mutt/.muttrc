@@ -3,7 +3,14 @@ set certificate_file=~/.mutt/certificates
 
 # Accounts
 
-# TBD.
+set realname = "Peter Hajas"
+set imap_check_subscribed
+
+# Storage
+
+set folder = imaps://imap.gmail.com/
+set spoolfile = +INBOX
+mailboxes = +INBOX
 
 # Sort by threads, and show the newest message up top
 
