@@ -12,6 +12,7 @@ require "preferred_screen"
 require "media_control"
 require "volume_control"
 require "brightness_control"
+require "grid"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
@@ -262,17 +263,6 @@ end)
 
 hs.hotkey.bind({"cmd"}, "escape", function()
     hs.eventtap.keyStroke({"cmd"}, "`")
-end)
-
--- }}}
--- Window Hints {{{
-
-local hints = hs.hints
-hints.hintChars = {'a','s','d','f','j','k','l',';','g','h'}
-hints.fontSize = 100
-
-hs.hotkey.bind(hyper, "space", function()
-    hints.windowHints()
 end)
 
 -- }}}
