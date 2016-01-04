@@ -64,10 +64,13 @@ end
 
 function allStatusTextWithTextAppended(statusText, text, item)
     local newStatusText = statusText
-    local space = hs.styledtext.new(' ', styleForStatusItem(item))
-    newStatusText = newStatusText..space
 
-    newStatusText = newStatusText..text
+    if string.len(text:getString()) > 0 then
+        local space = hs.styledtext.new(' ', styleForStatusItem(item))
+        newStatusText = newStatusText..space
+
+        newStatusText = newStatusText..text
+    end
     return newStatusText
 end
 
