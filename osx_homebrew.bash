@@ -24,3 +24,5 @@ brew install tty-clock
 brew install cmus
 brew install youtube-dl
 brew install homebrew/games/nethack
+brew install tree
+brew install jq
