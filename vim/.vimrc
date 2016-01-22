@@ -383,6 +383,15 @@ endfunction
 nmap <silent> <leader>e :call ToggleProseMode() <CR>
 
 " }}}
+" Marked 2.app Integration {{{
+
+function OpenInMarked2()
+    !open -a Marked\ 2.app %
+endfunction
+
+nmap <silent> <leader>m :call OpenInMarked2() <CR> <CR>
+
+" }}}
 " Misc. {{{
 
 " Don't be `vi` compatible
