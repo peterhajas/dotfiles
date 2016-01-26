@@ -18,6 +18,9 @@ function updateGridForScreen(screen)
     w = math.floor(w)
     h = math.floor(h)
 
+    w = math.max(w, 3)
+    h = math.max(h, 3)
+
     size = hs.geometry.size(w, h)
 
     hs.grid.setGrid(size, screen)
