@@ -288,7 +288,7 @@ NeoBundle 'jpalardy/vim-slime'
 " Misc:
 
 NeoBundle 'ctrlpvim/ctrlp.vim'
-NeoBundle 'sjl/gundo.vim'
+NeoBundle 'mbbill/undotree'
 NeoBundle 'vim-scripts/scratch.vim'
 NeoBundle 'junegunn/vim-peekaboo'
 NeoBundle 'christoomey/vim-tmux-navigator'
@@ -329,11 +329,11 @@ let g:ctrlp_switch_buffer = 0
 
 nmap <silent> <leader>b :Gblame <CR>
 
-" gundo
+" undotree
 
-" Map control-u to toggle gundo
+" Map control-u to toggle undotree
 
-nmap <silent> <C-u> :GundoToggle<CR>
+nmap <silent> <C-u> :UndotreeToggle<CR>
 
 " vim-slime
 
