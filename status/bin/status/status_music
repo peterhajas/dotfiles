@@ -1,6 +1,6 @@
 #!/bin/sh
 
-itunesRunning=`ps -ax |grep iTunes | grep -v Helper | grep -v "Extension" |  grep -v "grep" | wc -l`
+itunesRunning=`ps -ax |grep iTunes | grep -v Helper | grep -v "Extension" | grep -v Service | grep -v "grep" | wc -l`
 
 if [ $itunesRunning -gt 0 ]
 then
