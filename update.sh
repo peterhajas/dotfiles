@@ -1,32 +1,14 @@
 #!/bin/sh
 
-echo "Installing Homebrew..."
-if which brew 2>/dev/null 1>/dev/null; then
-    echo "Homebrew already installed."
+PLATFORM_NAME=`uname`
+
+if [ "$PLATFORM_NAME" == "Darwin" ]; then
+    echo "Detected OS X install, proceeding with OS X setup..."
+    bash osx_update.bash
 else
-    ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+    echo "Detected Linux install, proceeding with Linux setup..."
+    bash linux_update.bash
 fi
-
-echo "Installing Homebrew software..."
-
-echo "Homebrew: Installing utilities..."
-
-bash osx_homebrew.bash
-
-echo "Homebrew: Installing Cask apps..."
-
-bash osx_cask.bash
-
-echo "Homebrew: Installing "fun" Cask apps..."
-
-bash osx_cask_fun.bash
-
-echo "Finalizing Homebrew configuration..."
-
-brew update
-brew upgrade
-brew cleanup
-brew cask cleanup
 
 echo "Installing python libraries..."
 
@@ -38,5 +20,3 @@ echo "Updating submodules..."
 git submodule init
 git submodule update
 
-echo "Configuring OS X settings..."
-bash osx.bash
