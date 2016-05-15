@@ -20,6 +20,11 @@ alias mate mvim
 
 # Shell management
 
+## Set LC_ALL for unicode detection in Ubuntu
+## This is from (https://github.com/fish-shell/fish-shell/issues/2126)
+
+set LC_ALL "en_us.utf8"
+
 ## Easily open this file
 
 alias confedit "mate ~/.config/fish/config.fish"
