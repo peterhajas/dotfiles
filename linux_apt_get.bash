@@ -15,7 +15,7 @@ sudo apt-get install vim
 sudo apt-get install stow
 sudo apt-get install tmux
 sudo apt-get install ctags
-sudo apt-get install hg
+sudo apt-get install mercurial
 sudo apt-get install lighttpd
 sudo apt-get install wget
 sudo apt-get install htop
