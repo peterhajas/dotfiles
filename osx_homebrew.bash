@@ -26,3 +26,5 @@ brew install youtube-dl
 brew install homebrew/games/nethack
 brew install tree
 brew install jq
+
+# Hi Peter! Are you adding software here? If so, make sure to add it to linux_apt_get.bash if it makes sense. Sincerely, Past Peter
