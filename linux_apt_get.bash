@@ -44,3 +44,5 @@ sudo apt-get install subversion
 # No curl either. wat
 sudo apt-get install curl
 
+# Inconsolata, a font we use in x
+sudo apt-get install ttf-inconsolata

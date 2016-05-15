@@ -1,3 +1,6 @@
+! Font
+
+*.font:         xft:Inconsolata:size=14
 ! special
 *.foreground:   #d3d0c8
 *.background:   #2d2d2d
