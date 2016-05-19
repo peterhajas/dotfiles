@@ -178,33 +178,14 @@ set statusline+=\ %m
 
 set statusline+=%=
 
-" File kind
+" Line
 
-set statusline+=%y
-
-" Encoding
-
-set statusline+=\ %{strlen(&fenc)?&fenc:'none'}
-
-" File type
-
-set statusline+=[%{&ff}]
+set statusline+=\ %l
+set statusline+=\/
 
 " Total lines
 
-set statusline+=\ (%L)
-
-" Percentage
-
-set statusline+=\ %P\ :
-
-" Line
-
-set statusline+=\ %l:
-
-" Column
-
-set statusline+=\ %c\ 
+set statusline+=\%L
 
 " }}}
 " Line numbers {{{
