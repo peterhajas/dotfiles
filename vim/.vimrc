@@ -421,9 +421,9 @@ set backspace=indent,eol,start
 
 set laststatus=2
 
-" Always show the tab line
+" Only show the tab line if there are >1 tabs
 
-set showtabline=2
+set showtabline=1
 
 " Keep an undo file. TODO: Do we need this? Seems annoying...
 
