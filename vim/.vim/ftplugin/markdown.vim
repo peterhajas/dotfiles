@@ -1,1 +1,1 @@
-:set spell
+" Blank currently
