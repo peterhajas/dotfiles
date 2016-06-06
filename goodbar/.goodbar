@@ -1,0 +1,8 @@
+{
+    "left" : [
+        {
+        "script" : "~/bin/status/status_frontmost_window",
+         "color" : "#FF0000"
+        }
+    ]
+}
