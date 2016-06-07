@@ -215,6 +215,13 @@ endfunction
 nmap <silent> <leader>n :call ToggleNumbers() <CR>
 
 " }}}
+" Mouse Support {{{
+
+" Turn on mouse support
+
+set mouse=a
+
+" }}}
 " Folding {{{
 
 " On insertion entering / leaving (or window leaving), disable folding
