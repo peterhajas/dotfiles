@@ -5,7 +5,7 @@ require "hyper"
 -- Hyper-8 plays/pauses music
 
 hs.hotkey.bind(hyper, "8", function()
-    hs.execute('status_battery')
+    hs.execute('media_playpause')
 end)
 
 -- Hyper-0 goes to the next track
