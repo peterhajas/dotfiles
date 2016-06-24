@@ -1,8 +1,33 @@
 {
+    "backgroundColor" : "2d2d2d",
     "left" : [
         {
         "script" : "~/bin/status/status_frontmost_window",
-         "color" : "#FF0000"
+         "color" : "#cc99cc"
+        }
+    ],
+    "center" : [
+        {
+        "script" : "~/bin/status/status_music",
+         "color" : "#99cc99"
+        }
+    ],
+    "right" : [
+        {
+        "script" : "~/bin/status/status_cpu",
+         "color" : "#ffcc66"
+        },
+        {
+        "script" : "~/bin/status/status_memory",
+         "color" : "#66cccc"
+        },
+        {
+        "script" : "~/bin/status/status_date",
+         "color" : "#f2777a"
+        },
+        {
+        "script" : "~/bin/status/status_time",
+         "color" : "#6699cc"
         }
     ]
 }
