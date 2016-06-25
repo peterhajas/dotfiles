@@ -3,31 +3,31 @@
     "left" : [
         {
         "script" : "~/bin/status/status_frontmost_window",
-         "color" : "#cc99cc"
+         "color" : "#d3d0c8"
         }
     ],
     "center" : [
         {
         "script" : "~/bin/status/status_music",
-         "color" : "#99cc99"
+         "color" : "#f2777a"
         }
     ],
     "right" : [
         {
         "script" : "~/bin/status/status_cpu",
-         "color" : "#ffcc66"
+         "color" : "#99cc99"
         },
         {
         "script" : "~/bin/status/status_memory",
-         "color" : "#66cccc"
+         "color" : "#6699cc"
         },
         {
         "script" : "~/bin/status/status_date",
-         "color" : "#f2777a"
+         "color" : "#cc99cc"
         },
         {
         "script" : "~/bin/status/status_time",
-         "color" : "#6699cc"
+         "color" : "#66cccc"
         }
     ]
 }
