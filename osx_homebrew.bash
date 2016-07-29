@@ -11,7 +11,7 @@ brew install lighttpd
 brew install wget
 brew install htop
 brew install wine
-brew install sloccount
+brew install cloc
 brew install datamash
 brew install lua
 brew install python
