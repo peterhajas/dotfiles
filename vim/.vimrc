@@ -342,7 +342,7 @@ let g:ProseModeActive = exists('w:ProseModeActive') ? w:ProseModeActive : 0
 function EnterProseMode()
     let g:ProseModeActive = 1
     Goyo
-    Pencil
+    SoftPencil
     call lexical#init()
     set noshowmode
     set nolist
