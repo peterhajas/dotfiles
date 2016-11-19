@@ -48,9 +48,9 @@ defaults write com.apple.dock showhidden -bool true
 
 # Menu Bar
 
-## Hide the Menu Bar
+## Show the Menu Bar
 
-defaults write "Apple Global Domain" "_HIHideMenuBar" 1
+defaults write "Apple Global Domain" "_HIHideMenuBar" 0
 
 # Desktop / Screensaver
 
