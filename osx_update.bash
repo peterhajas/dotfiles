@@ -18,10 +18,6 @@ echo "Homebrew: Installing Cask apps..."
 
 bash osx_cask.bash
 
-echo "Homebrew: Installing "fun" Cask apps..."
-
-bash osx_cask_fun.bash
-
 echo "Finalizing Homebrew configuration..."
 
 brew update
