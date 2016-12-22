@@ -307,7 +307,7 @@ vmap <leader>/ :Commentary <CR>
 " Ctrl-P
 
 set runtimepath^=~/.vim/bundle/ctrlp.vim
-let g:ctrlp_cmd = 'CtrlPMixed'
+let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden -g ""'
 let g:ctrlp_map = '<leader>,'
 let g:ctrlp_switch_buffer = 0
 

@@ -35,6 +35,7 @@ sudo apt-get install youtube-dl
 sudo apt-get install nethack
 sudo apt-get install tree
 sudo apt-get install jq
+sudo apt-get install ag
 
 # Others:
 
