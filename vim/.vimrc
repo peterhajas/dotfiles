@@ -252,7 +252,7 @@ NeoBundleFetch 'Shougo/neobundle.vim'
 
 " Editing:
 
-NeoBundle 'Keithbsmiley/swift.vim'
+NeoBundle 'keith/swift.vim'
 NeoBundle 'dag/vim-fish'
 NeoBundle 'plasticboy/vim-markdown'
 NeoBundle 'tpope/vim-afterimage'
