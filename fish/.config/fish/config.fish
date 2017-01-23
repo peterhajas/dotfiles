@@ -32,4 +32,3 @@ alias confedit "mate ~/.config/fish/config.fish"
 # Tool configuration
 
 config_editor_aliases
-config_diff_merge_tool

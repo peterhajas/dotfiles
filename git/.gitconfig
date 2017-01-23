@@ -7,7 +7,7 @@
 [difftool "Kaleidoscope"]
 	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
 [diff]
-	tool = Kaleidoscope
+	tool = vimdiff
 [difftool]
 	prompt = false
 [mergetool "Kaleidoscope"]
@@ -16,7 +16,7 @@
 [mergetool]
 	prompt = false
 [merge]
-	tool = Kaleidoscope
+	tool = vimdiff
 [push]
 	default = matching
 [init]
