@@ -14,3 +14,4 @@ brew cask install hex-fiend
 brew cask install appcleaner
 brew cask install daisydisk
 brew cask install audioscrobbler
+brew cask install bitbar
