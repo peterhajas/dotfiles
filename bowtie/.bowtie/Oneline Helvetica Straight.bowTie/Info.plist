@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BTMainFile</key>
+	<string>index.html</string>
+	<key>BTStatusFunction</key>
+	<string>playerUpdate</string>
+	<key>BTThemeArtist</key>
+	<string>Leonard Schwarz</string>
+	<key>BTThemeIdentifier</key>
+	<string>com.vangenie.onlinehelveticastraight</string>
+	<key>BTThemeName</key>
+	<string>Oneline Helvetica Straight</string>
+	<key>BTThemePreviewImage</key>
+	<string>preview.png</string>
+	<key>BTTrackFunction</key>
+	<string>trackUpdate</string>
+	<key>BTWindowHeight</key>
+	<integer>200</integer>
+	<key>BTWindowMode</key>
+	<string>desktop</string>
+	<key>BTWindowWidth</key>
+	<integer>500</integer>
+</dict>
+</plist>

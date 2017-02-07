@@ -1,0 +1,50 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+	"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<head>
+
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+
+<title>Oneline</title>
+
+<style type="text/css">
+
+	body {
+		text-transform: capitalize;
+		-webkit-user-select: none;
+		color: #fff;
+		text-shadow: RGBA(0,0,0,0.2) 0px 1px 3px;
+		font-size: 11px;
+		opacity: 0.7;
+		font-family: Helvetica, sans-serif;
+	}
+
+	#artist {
+		text-transform: capitalize;
+	}
+	
+	#title{
+		text-transform: capitalize;
+		font-weight: bold;
+	}
+	
+	#by{
+		text-transform: lowercase;		
+	}
+	</style>
+	
+	<script type="text/javascript">
+		var oldPlayState=0;
+		function $(el) { return document.getElementById(el); }
+		function trackUpdate(track) {		
+			$('title').innerHTML = track.property('title');
+			$('artist').innerHTML = track.property('artist');
+		}
+	</script>
+	
+</head>
+<body>
+		<span id="title">title</span><span id="by"> by </span>
+		<span id="artist">artist</span>
+</body>
+</html>
