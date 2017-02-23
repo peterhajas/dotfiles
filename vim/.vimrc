@@ -126,7 +126,7 @@ filetype plugin indent on
 
 " Highlight folds to be the same as the background
 
-hi Folded ctermbg=236
+hi Folded ctermbg=black
 
 " Font
 
@@ -145,11 +145,6 @@ set t_Co=256
 " Disable everything in the GUI by passing empty guioptions
 
 set guioptions=
-
-" When a line exceeds 80 characters, color the 81st character red
-
-highlight OverLength ctermbg=darkred ctermfg=white guibg=#FFD9D9
-match OverLength /\%81v/
 
 " }}}
 " Status Line {{{
@@ -186,6 +181,10 @@ set statusline+=\/
 " Total lines
 
 set statusline+=\%L
+
+" Always hide the status line. This can always be re-enabled.
+
+set laststatus=0
 
 " }}}
 " Line numbers {{{
@@ -260,7 +259,6 @@ NeoBundle 'tpope/vim-commentary'
 NeoBundle 'tpope/vim-fugitive'
 NeoBundle 'tpope/vim-obsession'
 NeoBundle 'tpope/vim-repeat'
-NeoBundle 'tpope/vim-sensible'
 NeoBundle 'tpope/vim-surround'
 NeoBundle 'tpope/vim-unimpaired'
 NeoBundle 'tpope/vim-vinegar'
@@ -344,9 +342,6 @@ function EnterProseMode()
     Goyo
     SoftPencil
     call lexical#init()
-    set noshowmode
-    set nolist
-    set listchars=
     set nocursorline
 endfunction
 
@@ -354,9 +349,6 @@ function ExitProseMode()
     let g:ProseModeActive = 0
     Goyo!
     NoPencil
-    set showmode
-    set list
-    set listchars=tab:▸\ ,eol:¬
     set cursorline
 endfunction
 
@@ -383,81 +375,93 @@ nmap <silent> <leader>m :call OpenInMarked2() <CR> <CR>
 " Misc. {{{
 
 " Don't be `vi` compatible
-
 set nocompatible
 
 " Change the default shell vim uses to avoid a warning from Syntastic
-
 set shell=bash
 
 " Change vim's character encoding to UTF-8
-
 set encoding=utf-8
 
 " Never let there be less than 15 spaces above/below the insertion point
-
 set scrolloff=15
 
 " Automatically indent
-
 set autoindent
 
 " Show the current mode
-
 set showmode
 
 " Enable wildcard matching for commands. Complete until the longest common
 " string
-
 set wildmenu
 set wildmode=list:longest
 
 " Instead of beeping, use the visual bell
-
 set visualbell
 
-" Show the current line & column number of the cursor position
-
-set ruler
-
 " Not sure.
-
 set backspace=indent,eol,start
 
-" Always give the last window a statusline
-
-set laststatus=2
-
 " Only show the tab line if there are >1 tabs
-
 set showtabline=1
 
 " Keep an undo file. TODO: Do we need this? Seems annoying...
-
 set undofile
 
 " Don't keep a backup file or swap file
-
 set nobackup
 set noswapfile
 
 " Save all the time, automatically. It's 2015, computers should do this.
-
 set autowriteall
 
 " If a file has changed outside of vim, reload it (it seems MacVim may do this
 " automatically, but terminal vim does not)
-
 set autoread
 
 " Sets up the clipboard to interface with the system clipboard
-
 set clipboard=unnamed
 
 " Turn on ttyfast and lazyredraw for speed in the Terminal
-
 set ttyfast
 set lazyredraw
 
-" }}}
+" Disable non-text characters by coloring them like the background
+highlight EndOfBuffer ctermfg=black ctermbg=black
 
+" Don't show text control characters
+set nolist
+
+" Don't show the current mode
+set noshowmode
+
+" Let filetype plugins do indents
+if has('autocmd')
+  filetype plugin indent on
+endif
+
+" Turn on syntax highlighting if possible
+if has('syntax') && !exists('g:syntax_on')
+  syntax enable
+endif
+
+" Turn on "smarttab" for tab insertion / deletion
+set smarttab
+
+" For combos, give me 100 units of time (ms?) to hit a combo
+set ttimeout
+set ttimeoutlen=100
+
+" Delete comment character when joining commented lines
+set formatoptions+=j 
+
+" Have a command history of 1000
+set history=1000
+
+" Not sure
+if !empty(&viminfo)
+  set viminfo^=!
+endif
+
+" }}}
