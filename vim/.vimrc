@@ -433,9 +433,6 @@ highlight EndOfBuffer ctermfg=black ctermbg=black
 " Don't show text control characters
 set nolist
 
-" Don't show the current mode
-set noshowmode
-
 " Let filetype plugins do indents
 if has('autocmd')
   filetype plugin indent on
