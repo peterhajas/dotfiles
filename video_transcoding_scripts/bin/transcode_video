@@ -1,4 +1,9 @@
 #!/usr/bin/python
+# Requires the installation of Don Melton's video_transcoding scripts
+# Get them by running:
+# gem install video_transcoding
+# Update them by running:
+# gem update video_transcoding
 
 import os, sys, subprocess
 
@@ -12,7 +17,7 @@ def transcode_path(path):
     extension = os.path.basename(path).split('.')[-1]
     if extension_is_convertable(extension):
         print 'Transcoding {} ...'.format(path)
-        command = '~/bin/video-transcoding-scripts/transcode-video.sh --no-auto-burn --output \"{}\" \"{}\"'.format(os.path.dirname(path), path)
+        command = 'transcode-video --no-auto-burn --mp4 --output \"{}\" \"{}\"'.format(os.path.dirname(path), path)
         subprocess.call(command, shell=True)
 
 if os.path.isfile(path):
