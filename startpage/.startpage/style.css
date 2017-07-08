@@ -13,7 +13,6 @@ h2
 .linkSectionsContainer
 {
     text-align: center;
-    height: 100vh;
 }
 
 .linkSectionContainer
@@ -24,7 +23,6 @@ h2
     transition-duration: 0.5s;
     list-style: none;
     padding-left: 0px;
-    height: 55vh;
     padding-top: 40vh;
 }
 
@@ -33,12 +31,6 @@ h2
     display: block;
     padding-top:8px;
     transition-duration: 0.5s;
-}
-
-.linkSectionContainer.collapsed a
-{
-    pointer-events: none;
-    opacity: 0;
 }
 
 .linkSectionContainer h2
