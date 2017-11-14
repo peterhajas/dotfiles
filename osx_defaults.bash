@@ -130,7 +130,3 @@ defaults write com.apple.Safari "NewWindowBehavior" 0
 defaults write com.apple.Safari "UserStyleSheetEnabled" 1
 defaults write com.apple.Safari "UserStyleSheetLocationURLString" "~/dotfiles/cactus/.config/cactus/cactus.css"
 
-killall Finder
-killall Safari
-killall Dock
-

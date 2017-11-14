@@ -3,8 +3,6 @@
 DOCKUTILBIN=~/bin/dockutil/scripts/dockutil
 DOCKUTILADD="$DOCKUTILBIN --add"
 
-killall Dock
-
 # First, remove all items from the Dock
 
 $DOCKUTILBIN --remove all
