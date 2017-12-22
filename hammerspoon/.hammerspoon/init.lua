@@ -132,7 +132,7 @@ end)
 -- Window Geometry {{{
 
 function windowPaddingForScreen (screen)
-    return 4
+    return 0
 end
 
 -- }}}
