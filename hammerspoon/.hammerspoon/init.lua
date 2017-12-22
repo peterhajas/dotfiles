@@ -325,6 +325,45 @@ screenWatcher = hs.screen.watcher.new(handleScreenEvent)
 screenWatcher:start()
 
 -- }}}
+-- Noises {{{
+-- Just playing for now with this config:
+-- https://github.com/trishume/dotfiles/blob/master/hammerspoon/hammerspoon.symlink/init.lua
+-- This stuff is wild, and it works!
+listener = nil
+popclickListening = false
+local scrollDownTimer = nil
+function popclickHandler(evNum)
+  if evNum == 1 then
+    scrollDownTimer = hs.timer.doEvery(0.02, function()
+      hs.eventtap.scrollWheel({0,-10},{}, "pixel")
+      end)
+  elseif evNum == 2 then
+    if scrollDownTimer then
+      scrollDownTimer:stop()
+      scrollDownTimer = nil
+    end
+  elseif evNum == 3 then
+    hs.eventtap.scrollWheel({0,250},{}, "pixel")
+  end
+end
+
+function popclickPlayPause()
+  if not popclickListening then
+    listener:start()
+    hs.alert.show("listening")
+  else
+    listener:stop()
+    hs.alert.show("stopped listening")
+  end
+  popclickListening = not popclickListening
+end
+popclickListening = false
+local fn = popclickHandler
+listener = hs.noises.new(fn)
+hs.hotkey.bind(hyper, "Q", function()
+    popclickPlayPause()
+end)
+-- }}}
 -- Reloading {{{
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
