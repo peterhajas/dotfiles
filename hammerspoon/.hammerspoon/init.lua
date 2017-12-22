@@ -211,12 +211,13 @@ end
 -- }}}
 -- Window Resizing {{{
 
-function amountToResizeForWindow (window, amount)
+function amountToResizeForWindow (window, amount, horizontal)
     local screen = window:screen()
-    local minimumWindowWidth = 400
+    if horizontal then minimumWindowDimension = screen:frame().w / 5 end
+    if vertical then minimumWindowDimension = screen:frame().h / 5 end
 
-    if amount == 1 then amount = minimumWindowWidth end
-    if amount == -1 then amount = -1 * minimumWindowWidth end
+    if amount == 1 then amount = minimumWindowDimension end
+    if amount == -1 then amount = -1 * minimumWindowDimension end
     if amount == 0 then amount = 0 end
 
     return amount
@@ -227,8 +228,8 @@ function resizeWindowByAmount (window, amount)
 
     oldWindowSize = hs.geometry.size(newWindowFrame.w, newWindowFrame.h)
 
-    local amountW = amountToResizeForWindow(window, amount.w)
-    local amountH = amountToResizeForWindow(window, amount.h)
+    local amountW = amountToResizeForWindow(window, amount.w, true)
+    local amountH = amountToResizeForWindow(window, amount.h, false)
 
     newWindowFrame.w = newWindowFrame.w + amountW
     newWindowFrame.h = newWindowFrame.h + amountH
