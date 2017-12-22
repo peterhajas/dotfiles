@@ -15,7 +15,7 @@ require "grid"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
-doc = hs.doc.fromJSONFile(hs.docstrings_json_file)
+doc = hs.doc
 
 -- }}}
 -- Global 'inspectThing' function for inspecting objects {{{
