@@ -470,6 +470,7 @@ function reload_config(files)
 end
 
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reload_config):start()
+hs.alert.show("hammerspoon", 1)
 
 -- }}}
 
