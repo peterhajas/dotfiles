@@ -205,6 +205,7 @@ end
 
 function moveForegroundWindowInDirection (direction)
     local window = hs.window.focusedWindow()
+    if window == nil then return end
     moveWindowInDirection(window, direction)
 end
 
@@ -213,8 +214,8 @@ end
 
 function amountToResizeForWindow (window, amount, horizontal)
     local screen = window:screen()
-    if horizontal then minimumWindowDimension = screen:frame().w / 5 end
-    if vertical then minimumWindowDimension = screen:frame().h / 5 end
+    if horizontal then minimumWindowDimension = screenWidthPerGridUnit end
+    if vertical then minimumWindowDimension = screenHeightPerGridUnit end
 
     if amount == 1 then amount = minimumWindowDimension end
     if amount == -1 then amount = -1 * minimumWindowDimension end
@@ -247,6 +248,7 @@ end
 
 function resizeForegroundWindowByAmount (amount)
     local window = hs.window.focusedWindow()
+    if window == nil then return end
     resizeWindowByAmount(window, amount)
 end
 

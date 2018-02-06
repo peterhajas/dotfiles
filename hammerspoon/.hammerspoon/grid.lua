@@ -4,9 +4,9 @@ hs.window.animationDuration = 0
 
 -- Found by taking the largest res I run at (3200) and diving by hint keys on
 -- the keyboard
-local screenWidthPerGridUnit = 3200 / 10
+screenWidthPerGridUnit = 3200 / 10
 -- Likewise with height (1800 is the largest)
-local screenHeightPerGridUnit = 1800 / 4
+screenHeightPerGridUnit = 1800 / 4
 
 function updateGridForScreen(screen)
     local w = screen:fullFrame().w
