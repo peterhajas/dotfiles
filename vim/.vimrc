@@ -275,7 +275,6 @@ NeoBundle 'jpalardy/vim-slime'
 
 NeoBundle 'ctrlpvim/ctrlp.vim'
 NeoBundle 'mbbill/undotree'
-NeoBundle 'vim-scripts/scratch.vim'
 NeoBundle 'junegunn/vim-peekaboo'
 NeoBundle 'christoomey/vim-tmux-navigator'
 
@@ -370,6 +369,17 @@ function OpenInMarked2()
 endfunction
 
 nmap <silent> <leader>m :call OpenInMarked2() <CR> <CR>
+
+" }}}
+" Scratchpad {{{
+function EditScratchPad()
+    if strlen(expand('%:p')) == 0
+        e ~/.scratch
+        w
+    endif
+endfunction
+
+autocmd VimEnter * call EditScratchPad()
 
 " }}}
 " Misc. {{{
