@@ -471,4 +471,7 @@ if !empty(&viminfo)
   set viminfo^=!
 endif
 
+" Turn on hidden buffers
+set hidden
+
 " }}}
