@@ -430,7 +430,7 @@ if has('nvim')
     tnoremap <silent><up> <C-\><C-N><C-w>k
     tnoremap <silent><right> <C-\><C-N><C-w>l
 
-    nmap <silent> <leader>a edit term://fish<CR>
+    nmap <leader>a :edit term://fish<CR>A<CR>
 endif
 " }}}
 " Misc. {{{
