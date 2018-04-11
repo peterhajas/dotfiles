@@ -128,6 +128,8 @@ function ResetTheme()
     let g:LightModeActive = 0
     hi Normal ctermbg=NONE
     hi Normal ctermfg=NONE
+    hi EndOfBuffer ctermbg=NONE
+    hi EndOfBuffer ctermfg=NONE
     " Highlight selected text to be more visible
     hi Visual ctermbg=white
     hi Visual ctermfg=black
@@ -140,6 +142,8 @@ function LightTheme()
     " This inverts all the settings above
     hi Normal ctermbg=white
     hi Normal ctermfg=black
+    hi EndOfBuffer ctermbg=white
+    hi EndOfBuffer ctermfg=black
     hi Visual ctermbg=black
     hi Visual ctermfg=white
     hi Folded ctermbg=white
