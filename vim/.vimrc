@@ -124,9 +124,43 @@ filetype plugin indent on
 " }}}
 " Visual styling {{{
 
-" Highlight folds to be the same as the background
+let g:LightModeActive = exists('w:LightModeActive') ? w:LightModeActive : 0
 
-hi Folded ctermbg=black
+function ResetTheme()
+    let g:LightModeActive = 0
+    hi Normal ctermbg=NONE
+    hi Normal ctermfg=NONE
+    " Highlight selected text to be more visible
+    hi Visual ctermbg=white
+    hi Visual ctermfg=black
+    " Highlight folds to be the same as the background
+    hi Folded ctermbg=black
+endfunction
+
+function LightTheme()
+    let g:LightModeActive = 1
+    " This inverts all the settings above
+    hi Normal ctermbg=white
+    hi Normal ctermfg=black
+    hi Visual ctermbg=black
+    hi Visual ctermfg=white
+    hi Folded ctermbg=white
+endfunction
+
+function ToggleTheme()
+    if g:LightModeActive
+        call ResetTheme()
+    else
+        call LightTheme()
+    endif
+endfunction
+
+" Get into the default theme (dark)
+call ResetTheme()
+
+" Leader-s to toggle themes
+" (I guess the hint here is "s for style"?)
+nmap <silent> <leader>s :call ToggleTheme() <CR>
 
 " Font
 
