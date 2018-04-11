@@ -78,18 +78,16 @@ nnoremap <leader>w <C-w>v<C-w>l
 nnoremap <leader>W <C-w>s<C-w>j
 
 " Remap ctrl-movement keys to move to adjacent splits
-
-nnoremap <silent> <C-h> :TmuxNavigateLeft<cr>
-nnoremap <silent> <C-j> :TmuxNavigateDown<cr>
-nnoremap <silent> <C-k> :TmuxNavigateUp<cr>
-nnoremap <silent> <C-l> :TmuxNavigateRight<cr>
+nnoremap <C-h> <C-\><C-N><C-w>h
+nnoremap <C-j> <C-\><C-N><C-w>j
+nnoremap <C-k> <C-\><C-N><C-w>k
+nnoremap <C-l> <C-\><C-N><C-w>l
 
 " Map arrow keys to move to adjacent splits also
-
-nnoremap <silent> <left> :TmuxNavigateLeft<cr>
-nnoremap <silent> <down> :TmuxNavigateDown<cr>
-nnoremap <silent> <up> :TmuxNavigateUp<cr>
-nnoremap <silent> <right> :TmuxNavigateRight<cr>
+nnoremap <silent><left> <C-\><C-N><C-w>h
+nnoremap <silent><down> <C-\><C-N><C-w>j
+nnoremap <silent><up> <C-\><C-N><C-w>k
+nnoremap <silent><right> <C-\><C-N><C-w>l
 
 " Resize splits when resizing vim
 
@@ -310,7 +308,6 @@ NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'ctrlpvim/ctrlp.vim'
 NeoBundle 'mbbill/undotree'
 NeoBundle 'junegunn/vim-peekaboo'
-NeoBundle 'christoomey/vim-tmux-navigator'
 
 " Prose:
 
@@ -415,6 +412,26 @@ endfunction
 
 autocmd VimEnter * call EditScratchPad()
 
+" }}}
+" nvim-Specific {{{
+if has('nvim')
+    tnoremap <Esc> <C-\><C-n>
+    tnoremap <expr> <C-R> '<C-\><C-N>"'.nr2char(getchar()).'pi'
+
+    " Remap ctrl-movement keys to move to adjacent splits
+    tnoremap <C-h> <C-\><C-N><C-w>h
+    tnoremap <C-j> <C-\><C-N><C-w>j
+    tnoremap <C-k> <C-\><C-N><C-w>k
+    tnoremap <C-l> <C-\><C-N><C-w>l
+
+    " Map arrow keys to move to adjacent splits also
+    tnoremap <silent><left> <C-\><C-N><C-w>h
+    tnoremap <silent><down> <C-\><C-N><C-w>j
+    tnoremap <silent><up> <C-\><C-N><C-w>k
+    tnoremap <silent><right> <C-\><C-N><C-w>l
+
+    nmap <silent> <leader>a edit term://fish<CR>
+endif
 " }}}
 " Misc. {{{
 
