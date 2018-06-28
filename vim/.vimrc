@@ -439,9 +439,6 @@ endif
 " }}}
 " Misc. {{{
 
-" Don't be `vi` compatible
-set nocompatible
-
 " Change the default shell vim uses to avoid a warning from Syntastic
 set shell=bash
 
