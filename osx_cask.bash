@@ -14,3 +14,5 @@ brew cask install audioscrobbler
 brew cask install bitbar
 brew cask install bowtie
 brew cask install karabiner-elements
+brew cask install hammerspoon
+brew cask install bartender
