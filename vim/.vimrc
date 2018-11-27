@@ -435,11 +435,8 @@ endfunction
 autocmd VimEnter * call EditScratchPad()
 
 " }}}
-" nvim-Specific {{{
-if has('nvim')
-    tnoremap <Esc> <C-\><C-n>
-    tnoremap <expr> <C-R> '<C-\><C-N>"'.nr2char(getchar()).'pi'
-
+" Terminal Setup {{{
+if has('terminal')
     " Remap ctrl-movement keys to move to adjacent splits
     tnoremap <C-h> <C-\><C-N><C-w>h
     tnoremap <C-j> <C-\><C-N><C-w>j
@@ -452,7 +449,8 @@ if has('nvim')
     tnoremap <silent><up> <C-\><C-N><C-w>k
     tnoremap <silent><right> <C-\><C-N><C-w>l
 
-    nmap <leader>a :edit term://fish<CR>A<CR>
+    " Leader-a to launch a terminal into a fish shell
+    nmap <leader>a :term fish<CR>
 endif
 " }}}
 " Misc. {{{
