@@ -271,6 +271,22 @@ nnoremap <Space> za
 vnoremap <Space> za
 
 " }}}
+" ALE {{{
+
+" According to ALE docs, some / all of these need to be enabled *before* ALE
+" has been loaded
+
+" Turn on ALE completion
+let g:ale_completion_enabled = 1
+
+" Have ALE populate the quickfix
+let g:ale_set_quickfix = 1
+
+" Show ALE messages when near a line with errors / warnings
+let g:ale_virtualtext_cursor = 1
+
+
+" }}}
 " NeoBundle Setup {{{
 
 if has('vim_starting')
@@ -304,6 +320,7 @@ NeoBundle 'tpope/vim-vinegar'
 NeoBundle 'ervandew/supertab'
 NeoBundle 'godlygeek/tabular'
 NeoBundle 'jpalardy/vim-slime'
+NeoBundle 'w0rp/ale'
 
 " Colors:
 
