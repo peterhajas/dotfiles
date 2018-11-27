@@ -14,12 +14,10 @@ function hammerspoon -d "Send a command to the Hammerspoon process"
                 echo -n $urlstring$i'&' | read urlstring
                 set is_param 1
             end
-
-            echo -n $urlstring$param=$arg | read urlstring
         end
 
         echo (math $loopcount+1) | read loopcount
     end
 
-    open -g $urlstring
+    open $urlstring
 end
