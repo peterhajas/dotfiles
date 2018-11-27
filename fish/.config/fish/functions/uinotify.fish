@@ -1,4 +1,4 @@
-function notify -d "Send a user notification"
+function uinotify -d "Send a user notification"
     set message $argv[1]
     set intensity $argv[2]
     
