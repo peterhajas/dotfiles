@@ -1,0 +1,21 @@
+{
+    "backgroundColor" : "2d2d2d",
+    "left" : [
+        {
+        "script" : "~/bin/status/status_frontmost_window",
+         "color" : "#d3d0c8"
+        }
+    ],
+    "center" : [
+        {
+        "script" : "~/bin/status/status_music",
+         "color" : "#f2777a"
+        }
+    ],
+    "right" : [
+        {
+        "script" : "~/bin/status/status_time",
+         "color" : "#66cccc"
+        }
+    ]
+}
