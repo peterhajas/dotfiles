@@ -492,7 +492,8 @@ set nobackup
 set noswapfile
 
 " Save all the time, automatically. It's 2015, computers should do this.
-set autowriteall
+set autowrite
+set autowriteall 
 
 " If a file has changed outside of vim, reload it (it seems MacVim may do this
 " automatically, but terminal vim does not)
