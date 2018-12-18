@@ -1,0 +1,9 @@
+#!/bin/bash
+ARG_LENGTH=$(echo $* | wc -c)
+if (( $ARG_LENGTH > 1 )); then
+    # If we have a long argument, play from that
+    mpsyt playurl "$*"
+else
+    # Otherwise, play from the clipboard
+    mpsyt playurl $(pbpaste)
+fi
