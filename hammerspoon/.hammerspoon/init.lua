@@ -12,6 +12,7 @@ require "media_control"
 require "volume_control"
 require "brightness_control"
 require "grid"
+require "darkmode"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
