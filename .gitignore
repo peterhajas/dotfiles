@@ -8,6 +8,7 @@
 
 pathogen.vim
 vim/.vim/bundle/*/
+vim/.vim/bundle/NeoBundle.lock
 
 ## Temp files
 
