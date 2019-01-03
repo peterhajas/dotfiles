@@ -30,3 +30,9 @@ cmus/.config/cmus/command-history
 cmus/.config/cmus/lib.pl
 cmus/.config/cmus/playlist.pl
 cmus/.config/cmus/search-history
+
+# newsboat related
+
+newsboat/.newsboat/cache*
+newsboat/.newsboat/history*
+newsboat/.newsboat/cookies*

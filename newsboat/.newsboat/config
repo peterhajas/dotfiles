@@ -1,0 +1,4 @@
+urls-source "newsblur"
+cookie-cache "~/.newsboat/cookies.txt"
+
+newsblur-login "peterhajas@gmail.com"
