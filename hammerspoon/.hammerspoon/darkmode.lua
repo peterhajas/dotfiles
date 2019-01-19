@@ -16,7 +16,7 @@ function toggleDarkMode ()
     local frontmostApp = hs.application.frontmostApplication()
     if frontmostApp:name() == "Safari" then
         frontmostApp:hide()
-        hs.timer.doAfter(0.5, function()
+        hs.timer.doAfter(0.1, function()
             frontmostApp:unhide()
             frontmostApp:activate()
         end)
