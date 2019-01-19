@@ -2,26 +2,9 @@ require "hyper"
 
 hs.window.animationDuration = 0
 
--- Found by taking the largest res I run at (3200) and diving by hint keys on
--- the keyboard
-screenWidthPerGridUnit = 3200 / 10
--- Likewise with height (1800 is the largest)
-screenHeightPerGridUnit = 1800 / 4
-
 function updateGridForScreen(screen)
-    local w = screen:fullFrame().w
-    local h = screen:fullFrame().h
-
-    w = w / screenWidthPerGridUnit
-    h = h / screenHeightPerGridUnit
-
-    w = math.floor(w)
-    h = math.floor(h)
-
-    w = math.max(w, 3)
-    h = math.max(h, 3)
-
-    size = hs.geometry.size(w, h)
+    -- The largest comfortable size to use for the keyboards I type on
+    size = hs.geometry.size(10, 4)
 
     hs.grid.setGrid(size, screen)
 end
