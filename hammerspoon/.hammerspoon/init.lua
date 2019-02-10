@@ -319,18 +319,6 @@ hs.hotkey.bind(hyper, "U", function()
 end)
 
 -- }}}
--- Screen Watching {{{
--- Watch screen change notifications, and reload the config when the screen
--- configuration changes
-
-function handleScreenEvent()
-    reload_config()
-end
-
-screenWatcher = hs.screen.watcher.new(handleScreenEvent)
-screenWatcher:start()
-
--- }}}
 -- Noises {{{
 -- Just playing for now with this config:
 -- https://github.com/trishume/dotfiles/blob/master/hammerspoon/hammerspoon.symlink/init.lua
