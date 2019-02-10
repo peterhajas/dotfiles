@@ -14,6 +14,7 @@ require "brightness_control"
 require "grid"
 require "darkmode"
 require "emoji"
+require "audio_output"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
