@@ -362,7 +362,6 @@ end)
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
 function reload_config(files)
-    screenWatcher:stop()
     hs.reload()
 end
 
