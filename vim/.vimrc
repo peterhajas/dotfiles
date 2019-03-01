@@ -324,6 +324,7 @@ NeoBundle 'w0rp/ale'
 NeoBundle 'ctrlpvim/ctrlp.vim'
 NeoBundle 'mbbill/undotree'
 NeoBundle 'junegunn/vim-peekaboo'
+NeoBundle 'jceb/vim-orgmode'
 
 " Prose:
 
