@@ -7,7 +7,8 @@ hs.audiodevice.watcher.setCallback(function(kind)
         local name = hs.audiodevice.current()['name']
         if name ~= lastSeenName then
             lastSeenName = name
-            local alertText = "🔉 " .. name
+            local volume = hs.audiodevice.current()['volume']
+            local alertText = "🔉 " .. name .. " " .. volume
             hs.alert(alertText)
         end
     end
