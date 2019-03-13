@@ -358,6 +358,18 @@ hs.hotkey.bind(hyper, "Q", function()
     popclickPlayPause()
 end)
 -- }}}
+-- {{{ Screen Changes
+--- Watch screen change notifications, and reload certain components when the
+--screen configuration changes
+
+function handleScreenEvent()
+    updateGridsForScreens()
+end
+
+screenWatcher = hs.screen.watcher.new(handleScreenEvent)
+screenWatcher:start()
+
+-- }}}
 -- Reloading {{{
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
