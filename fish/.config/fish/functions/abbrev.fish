@@ -9,7 +9,7 @@ function abbrev -d "Install fish abbreviations"
     abbr leaderboard git shortlog -sn
     
     # vim
-    abbr v 'find . | fzf | xargs -o vim'
+    abbr vv 'find . | fzf | xargs -o vim'
 
     # misc.
     abbr c cd

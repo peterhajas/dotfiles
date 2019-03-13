@@ -321,7 +321,7 @@ NeoBundle 'w0rp/ale'
 
 " Misc:
 
-NeoBundle 'ctrlpvim/ctrlp.vim'
+NeoBundle 'junegunn/fzf.vim'
 NeoBundle 'mbbill/undotree'
 NeoBundle 'junegunn/vim-peekaboo'
 NeoBundle 'jceb/vim-orgmode'
@@ -349,13 +349,6 @@ runtime macros/matchit.vim
 nmap <leader>/ :Commentary <CR>
 vmap <leader>/ :Commentary <CR>
 
-" Ctrl-P
-
-set runtimepath^=~/.vim/bundle/ctrlp.vim
-let g:ctrlp_user_command = 'ag %s -l --nocolor --hidden -g ""'
-let g:ctrlp_map = '<leader>,'
-let g:ctrlp_switch_buffer = 0
-
 " Fugitive
 
 " Map leader-b to blame
@@ -378,6 +371,17 @@ let g:slime_target = "tmux"
 " left
 
 let g:slime_default_config = {"socket_name": "default", "target_pane": ":.1"}
+
+" fzf
+
+" Set the runtimepath to also include fzf
+set rtp+=/usr/local/opt/fzf
+
+" Map leader-, to FZF (kind of like my old Ctrl-P configuration)
+nmap <leader>, :FZF <CR>
+
+" Map vv to FZF also
+nmap vv :FZF <CR>
 
 " }}}
 " Prose mode configuration {{{
