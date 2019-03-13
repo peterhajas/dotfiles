@@ -24,13 +24,7 @@
 [alias]
 	ctags = !.git/hooks/ctags
 
-    s = status
     st = status
-    stat = status
-
-    b = branch
-    br = branch
-    bran = branch
 
     # hah!
     checkotu = checkout
