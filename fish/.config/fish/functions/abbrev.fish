@@ -6,6 +6,7 @@ function abbrev -d "Install fish abbreviations"
     abbr gl git log
     abbr gp git push
     abbr gs git status
+    abbr gd git diff
     abbr leaderboard git shortlog -sn
     
     # vim
