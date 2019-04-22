@@ -297,18 +297,29 @@ NeoBundleFetch 'Shougo/neobundle.vim'
 
 " Editing:
 
-NeoBundle 'keith/swift.vim'
 NeoBundle 'dag/vim-fish'
+NeoBundle 'keith/swift.vim'
+NeoBundle 'ludovicchabant/vim-gutentags'
 NeoBundle 'plasticboy/vim-markdown'
 NeoBundle 'tpope/vim-afterimage'
 NeoBundle 'tpope/vim-commentary'
 NeoBundle 'tpope/vim-fugitive'
 NeoBundle 'tpope/vim-obsession'
 NeoBundle 'tpope/vim-repeat'
+NeoBundle 'tpope/vim-rsi'
+NeoBundle 'tpope/vim-speeddating'
 NeoBundle 'tpope/vim-surround'
 NeoBundle 'tpope/vim-unimpaired'
 NeoBundle 'tpope/vim-vinegar'
-NeoBundle 'tpope/vim-speeddating'
+NeoBundle 'tommcdo/vim-lion'
+NeoBundle 'justinmk/vim-sneak'
+NeoBundle 'wellle/targets.vim'
+NeoBundle 'tomtom/ttags_vim'
+
+" QuickFix:
+
+NeoBundle 'romainl/vim-qf'
+NeoBundle 'romainl/vim-qlist'
 
 " Syntax:
 
@@ -317,20 +328,21 @@ NeoBundle 'godlygeek/tabular'
 NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'w0rp/ale'
 
-" Colors:
-
 " Misc:
 
-NeoBundle 'junegunn/fzf.vim'
-NeoBundle 'mbbill/undotree'
-NeoBundle 'junegunn/vim-peekaboo'
 NeoBundle 'jceb/vim-orgmode'
+NeoBundle 'junegunn/fzf.vim'
+NeoBundle 'junegunn/vim-peekaboo'
+NeoBundle 'ludovicchabant/vim-gutentags'
+NeoBundle 'mbbill/undotree'
+NeoBundle 'tpope/vim-eunuch'
+NeoBundle 'tpope/vim-sensible'
 
 " Prose:
 
 NeoBundle 'junegunn/goyo.vim'
-NeoBundle 'reedes/vim-pencil'
 NeoBundle 'reedes/vim-lexical'
+NeoBundle 'reedes/vim-pencil'
 NeoBundle 'reedes/vim-wordy'
 
 call neobundle#end()
