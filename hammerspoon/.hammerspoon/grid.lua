@@ -21,7 +21,7 @@ end
 
 updateGridsForScreens()
 
-local margins = hs.geometry.size(4, 4)
+local margins = hs.geometry.size(0, 0)
 
 hs.grid.setMargins(margins)
 hs.grid.ui.showExtraKeys = false
