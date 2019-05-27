@@ -36,3 +36,6 @@ cmus/.config/cmus/search-history
 newsboat/.newsboat/cache*
 newsboat/.newsboat/history*
 newsboat/.newsboat/cookies*
+
+# Karabiner related
+karabiner/.config/karabiner/automatic_backups
