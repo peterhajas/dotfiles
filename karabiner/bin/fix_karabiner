@@ -1,0 +1,9 @@
+#!/bin/sh
+
+# Kill the processes
+sudo killall karabiner_grabber
+sudo killall karabiner_observer
+sudo killall karabiner_session_monitor
+
+# Fire up the app
+open -a "Karabiner-Elements"
