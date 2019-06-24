@@ -8,6 +8,9 @@ hs.audiodevice.watcher.setCallback(function(kind)
         if name ~= lastSeenName then
             lastSeenName = name
             local volume = hs.audiodevice.current()['volume']
+            if volume == nil then
+                volume = ""
+            end
             local alertText = "🔉 " .. name .. " " .. volume
             hs.alert(alertText)
         end
