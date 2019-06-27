@@ -203,7 +203,7 @@ function moveWindowInDirection (window,direction)
 
     newWindowFrame = sanitizeWindowFrame(window, newWindowFrame)
 
-    window:setFrame(newWindowFrame, 0)
+    window:setFrame(newWindowFrame)
 end
 
 function moveForegroundWindowInDirection (direction)
@@ -246,7 +246,7 @@ function resizeWindowByAmount (window, amount)
 
     newWindowFrame = sanitizeWindowFrame(window, newWindowFrame)
 
-    window:setFrame(newWindowFrame, 0)
+    window:setFrame(newWindowFrame)
 end
 
 function resizeForegroundWindowByAmount (amount)

@@ -1,7 +1,5 @@
 require "hyper"
 
-hs.window.animationDuration = 0
-
 screenWidthPerGridUnit = 3840 / 10
 screenHeightPerGridUnit = 2160 / 4
 
