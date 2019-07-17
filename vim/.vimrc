@@ -331,6 +331,7 @@ NeoBundle 'w0rp/ale'
 " Misc:
 
 NeoBundle 'jceb/vim-orgmode'
+NeoBundle 'jremmen/vim-ripgrep'
 NeoBundle 'junegunn/fzf.vim'
 NeoBundle 'junegunn/vim-peekaboo'
 NeoBundle 'ludovicchabant/vim-gutentags'
