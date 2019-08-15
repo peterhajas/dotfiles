@@ -1,8 +1,5 @@
 require "hyper"
 
-screenWidthPerGridUnit = 3840 / 10
-screenHeightPerGridUnit = 2160 / 4
-
 function updateGridForScreen(screen)
     -- The largest comfortable size to use for the keyboards I type on
     size = hs.geometry.size(10, 4)
