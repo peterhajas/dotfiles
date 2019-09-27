@@ -1,13 +1,13 @@
 body
 {
     font-family: Helvetica;
-    font-weight: lighter;
-    background-color: #212121;
+    font-size: xx-large;
+    background-color: #dedede;
 }
 
 h2
 {
-    font-weight: lighter;
+    font-weight: light;
 }
 
 .linkSectionsContainer
@@ -18,11 +18,8 @@ h2
 .linkSectionContainer
 {
     display: inline-block;
-    width: 100pt;
     vertical-align: top;
-    transition-duration: 0.5s;
     list-style: none;
-    padding-left: 0px;
     padding-top: 40vh;
 }
 
@@ -30,13 +27,11 @@ h2
 {
     display: block;
     padding-top:8px;
-    transition-duration: 0.5s;
 }
 
 .linkSectionContainer h2
 {
     color: #ff9800;
-    transition-duration: 0.5s;
 }
 
 a:link,
@@ -44,8 +39,21 @@ a:visited,
 a:hover,
 a:active
 {
-    font-size: 12pt;
     color: #ff7400;
     text-decoration:none;
+}
+
+@media (prefers-color-scheme: dark) {
+    body {
+        color: white;
+        background-color: #212121;
+    }
+
+    .date {
+        color: #777;
+    }
+    blockquote {
+        border-left-color: white;
+    }
 }
 
