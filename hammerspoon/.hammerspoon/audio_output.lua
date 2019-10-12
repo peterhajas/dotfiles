@@ -12,7 +12,7 @@ hs.audiodevice.watcher.setCallback(function(kind)
                 volume = ""
             end
             local alertText = "🔉 " .. name .. " " .. volume
-            hs.alert(alertText)
+            hs.alert(alertText, hs.screen.primaryScreen())
         end
     end
 end)
