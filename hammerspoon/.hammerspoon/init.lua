@@ -192,11 +192,11 @@ function moveWindowInDirection (window,direction)
     oldWindowPosition = hs.geometry.point(newWindowFrame.x, newWindowFrame.y)
 
     local padding = windowPaddingForScreen(window:screen())
+    local screen = window:screen()
+    local screenFrame = screen:frame()
 
-    local dimensionMultiplier = 0.5
-
-    newWindowFrame.x = newWindowFrame.x + (newWindowFrame.w * direction.w * dimensionMultiplier)
-    newWindowFrame.y = newWindowFrame.y + (newWindowFrame.h * direction.h * dimensionMultiplier)
+    newWindowFrame.x = newWindowFrame.x + (direction.w * screenFrame.w / 10)
+    newWindowFrame.y = newWindowFrame.y + (direction.h * screenFrame.h / 4)
 
     if newWindowFrame.x ~= oldWindowPosition.x then newWindowFrame.x = newWindowFrame.x + padding * direction.w end
     if newWindowFrame.y ~= oldWindowPosition.y then newWindowFrame.y = newWindowFrame.y + padding * direction.h end
@@ -217,8 +217,10 @@ end
 
 function amountToResizeForWindow (window, amount, horizontal)
     local screen = window:screen()
-    if horizontal then minimumWindowDimension = screenWidthPerGridUnit end
-    if vertical then minimumWindowDimension = screenHeightPerGridUnit end
+    local screenFrame = screen:frame()
+
+    if horizontal == true then minimumWindowDimension = screenFrame.w / 10 end
+    if not horizontal then minimumWindowDimension = screenFrame.h / 4 end
 
     if amount == 1 then amount = minimumWindowDimension end
     if amount == -1 then amount = -1 * minimumWindowDimension end
@@ -230,19 +232,11 @@ end
 function resizeWindowByAmount (window, amount)
     local newWindowFrame = window:frame()
 
-    oldWindowSize = hs.geometry.size(newWindowFrame.w, newWindowFrame.h)
-
     local amountW = amountToResizeForWindow(window, amount.w, true)
     local amountH = amountToResizeForWindow(window, amount.h, false)
 
     newWindowFrame.w = newWindowFrame.w + amountW
     newWindowFrame.h = newWindowFrame.h + amountH
-
-    diffW = newWindowFrame.w - oldWindowSize.w
-    diffH = newWindowFrame.h - oldWindowSize.h
-
-    newWindowFrame.x = newWindowFrame.x - (diffW / 2)
-    newWindowFrame.y = newWindowFrame.y - (diffH / 2)
 
     newWindowFrame = sanitizeWindowFrame(window, newWindowFrame)
 
