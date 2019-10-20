@@ -1,8 +1,8 @@
 options=name:Obrien
 options=race:dwarf
 options=gender:female
-options=align:neutral
-options=role:rogue
+options=align:lawful
+options=role:valkyrie
 options=fruit:funion
 
 options=safe_pet
