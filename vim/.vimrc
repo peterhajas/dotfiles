@@ -364,6 +364,9 @@ vmap <leader>/ :Commentary <CR>
 
 " Fugitive
 
+" Set up tags
+set tags^=.git/tags
+
 " Map leader-b to blame
 
 nmap <silent> <leader>b :Gblame <CR>
