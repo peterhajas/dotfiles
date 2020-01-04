@@ -1,18 +1,33 @@
 body
 {
+    text-align: center;
     font-family: Helvetica;
     font-size: large;
     background-color: #dedede;
 }
 
+iframe {
+    overflow: hidden;
+    border: none;
+    margin: 0;
+    padding: 0;
+}
+
+.weather
+{
+    width: 70%;
+    height: 290pt;
+}
+
+.search
+{
+    width: 50%;
+    height: 40pt;
+}
+
 h2
 {
     font-weight: light;
-}
-
-.linkSectionsContainer
-{
-    text-align: center;
 }
 
 .linkSectionContainer
@@ -22,13 +37,12 @@ h2
     list-style: none;
 }
 
-.linkSectionContainer li
+li
 {
-    display: block;
-    padding-top:8px;
+    padding: 4;
 }
 
-.linkSectionContainer h2
+h2
 {
     color: #ff9800;
 }
@@ -46,13 +60,6 @@ a:active
     body {
         color: white;
         background-color: #212121;
-    }
-
-    .date {
-        color: #777;
-    }
-    blockquote {
-        border-left-color: white;
     }
 }
 
