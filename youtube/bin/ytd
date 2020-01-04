@@ -1,0 +1,5 @@
+#!/bin/sh
+
+mkdir -p ~/Movies/ytd 2>>/dev/null
+youtube-dl --format mp4 --mark-watched --output "~/Movies/yt/%(title)s-%(id)s.%(ext)s" --download-archive "~/Movies/yt/archive.txt" "$*"
+open ~/Movies/yt
