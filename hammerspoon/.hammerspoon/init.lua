@@ -28,6 +28,9 @@ function inspectThing(thing)
 end
 
 -- }}}
+-- Global variables {{{
+hs.window.animationDuration = 0.1
+-- }}}
 -- Finding all running GUI apps {{{
 
 function allRunningApps()
@@ -282,7 +285,7 @@ hs.hotkey.bind(hyper, "T", function()
     local windowScreen = win:screen()
     
     local newWindowScreen = windowScreen:next()
-    win:moveToScreen(newWindowScreen, 0)
+    win:moveToScreen(newWindowScreen)
 end)
 
 -- }}}
