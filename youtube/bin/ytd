@@ -1,5 +1,7 @@
 #!/bin/sh
 
-mkdir -p ~/Movies/ytd 2>>/dev/null
-youtube-dl --format mp4 --mark-watched --output "~/Movies/yt/%(title)s-%(id)s.%(ext)s" --download-archive "~/Movies/yt/archive.txt" "$*"
-open ~/Movies/yt
+OUTPATH=~/Movies/yt
+
+mkdir -p $OUTPATH 2>>/dev/null
+youtube-dl --format mp4 --mark-watched --output "$OUTPATH/%(title)s-%(id)s.%(ext)s" --download-archive "$OUTPATH/archive.txt" --cookies "$OUTPATH/cookies.txt" "$*"
+open $OUTPATH
