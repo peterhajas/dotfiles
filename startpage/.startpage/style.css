@@ -16,13 +16,13 @@ iframe {
 .weather
 {
     width: 70%;
-    height: 290pt;
+    height: 200pt;
 }
 
-.search
+.news
 {
-    width: 50%;
-    height: 40pt;
+    width: 70%;
+    height: 600pt;
 }
 
 h2
