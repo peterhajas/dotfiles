@@ -7,22 +7,22 @@ body
 }
 
 iframe {
-    overflow: hidden;
     border: none;
     margin: 0;
     padding: 0;
+    display: inline-block;
+
+    height: 560px;
 }
 
 .weather
 {
-    width: 70%;
-    height: 200pt;
+    width: 920px;
 }
 
 .news
 {
-    width: 70%;
-    height: 600pt;
+    width: 612px;
 }
 
 h2
