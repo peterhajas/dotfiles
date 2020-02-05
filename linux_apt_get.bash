@@ -38,6 +38,7 @@ sudo apt-get install jq
 sudo apt-get install ag
 sudo apt-get install watch
 sudo apt-get install fzf
+sudo apt-get install graphviz
 
 # Others:
 
