@@ -3,5 +3,4 @@
 OUTPATH=~/Movies/yt
 
 mkdir -p $OUTPATH 2>>/dev/null
-youtube-dl --format mp4 --mark-watched --output "$OUTPATH/%(title)s-%(id)s.%(ext)s" --download-archive "$OUTPATH/archive.txt" --cookies "$OUTPATH/cookies.txt" "$*"
-open $OUTPATH
+youtube-dl --format mp4 --mark-watched --output "$OUTPATH/%(title)s-%(id)s.%(ext)s" --download-archive "$OUTPATH/archive.txt" --cookies "$OUTPATH/cookies.txt" --exec 'open {}' "$*"
