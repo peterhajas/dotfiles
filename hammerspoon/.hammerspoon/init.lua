@@ -3,6 +3,9 @@
 
 -- vim:fdm=marker
 
+require("hs.ipc")
+hs.ipc.cliInstall()
+
 require "hyper"
 require "vim_movement"
 require "app_shortcuts"
@@ -15,6 +18,7 @@ require "grid"
 require "darkmode"
 require "emoji"
 require "audio_output"
+require "choose"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 

@@ -1,0 +1,37 @@
+#!/bin/bash
+
+# Prepare arguments
+# To pass these to lua, we'll make one big string with a delimiter
+
+INPUT=""
+while IFS= read -r line; do
+    INPUT+=$line
+    INPUT+="|"
+done
+
+# Now, tell Hammerspoon to prepare the chooser with these options
+# This will also show the chooser, and clear our "chosen" variable
+
+hs -c "prepareChooser('$INPUT')"
+
+# Now, poll Hammerspoon for the chosen variable until we get something
+
+NOTHING="nil"
+DID_NOT_PICK="NOTHING_PICKED_IN_CHOOSER"
+while [ true ]
+do
+    CHOSEN=$(hs -c "getChosen()")
+    if [ $CHOSEN == $NOTHING ];
+    then
+        echo "" > /dev/null
+    else
+        if [ $CHOSEN == $DID_NOT_PICK ];
+        then
+            break
+        else
+            echo $CHOSEN
+            break
+        fi
+    fi
+    sleep 0.5
+done
