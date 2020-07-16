@@ -21,15 +21,15 @@ DID_NOT_PICK="NOTHING_PICKED_IN_CHOOSER"
 while [ true ]
 do
     CHOSEN=$(hs -c "getChosen()")
-    if [ $CHOSEN == $NOTHING ];
+    if [ "$CHOSEN" = $NOTHING ];
     then
         echo "" > /dev/null
     else
-        if [ $CHOSEN == $DID_NOT_PICK ];
+        if [ "$CHOSEN" = $DID_NOT_PICK ];
         then
             break
         else
-            echo $CHOSEN
+            echo "$CHOSEN"
             break
         fi
     fi
