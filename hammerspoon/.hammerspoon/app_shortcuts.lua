@@ -18,6 +18,11 @@ hs.hotkey.bind({"alt"}, "tab", function()
     hs.application.launchOrFocus("Terminal")
 end)
 
+-- Option-R for Reeder
+hs.hotkey.bind({"alt"}, "r", function()
+    hs.application.launchOrFocus("Reeder")
+end)
+
 -- Option-T for Textual
 
 hs.hotkey.bind({"alt"}, "t", function()
