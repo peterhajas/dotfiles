@@ -328,6 +328,9 @@ NeoBundle 'godlygeek/tabular'
 NeoBundle 'jpalardy/vim-slime'
 NeoBundle 'w0rp/ale'
 
+" PIM:
+NeoBundle 'vimwiki/vimwiki'
+
 " Misc:
 
 NeoBundle 'jceb/vim-orgmode'
