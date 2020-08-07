@@ -440,17 +440,6 @@ endfunction
 nmap <silent> <leader>m :call OpenInMarked2() <CR> <CR>
 
 " }}}
-" Scratchpad {{{
-function EditScratchPad()
-    if strlen(expand('%:p')) == 0
-        e ~/.scratch
-        w
-    endif
-endfunction
-
-autocmd VimEnter * call EditScratchPad()
-
-" }}}
 " Terminal Setup {{{
 if has('terminal')
     " Remap ctrl-movement keys to move to adjacent splits
