@@ -281,82 +281,80 @@ let g:ale_virtualtext_cursor = 1
 
 
 " }}}
-" NeoBundle Setup {{{
-
-if has('vim_starting')
-    set runtimepath+=~/.vim/bundle/neobundle.vim/
+" vim-plug auto-downloading {{{
+" This is a handy way to nab vim-plug when we launch
+if empty(glob('~/.vim/autoload/plug.vim'))
+  silent !curl -fLo ~/.vim/autoload/plug.vim --create-dirs
+    \ https://raw.githubusercontent.com/junegunn/vim-plug/master/plug.vim
+  autocmd VimEnter * PlugInstall --sync | source $MYVIMRC
 endif
-
-call neobundle#begin(expand('~/.vim/bundle/'))
-
-" Let NeoBundle manage NeoBundle
-NeoBundleFetch 'Shougo/neobundle.vim'
-
+" }}}
+" vim-plug begin {{{
+call plug#begin('~/.vim/plugged')
 " }}}
 " List of Plugins {{{
 
 " Editing:
 
-NeoBundle 'dag/vim-fish'
-NeoBundle 'keith/swift.vim'
-NeoBundle 'ludovicchabant/vim-gutentags'
-NeoBundle 'plasticboy/vim-markdown'
-NeoBundle 'tpope/vim-afterimage'
-NeoBundle 'tpope/vim-commentary'
-NeoBundle 'tpope/vim-fugitive'
-NeoBundle 'tpope/vim-obsession'
-NeoBundle 'tpope/vim-repeat'
-NeoBundle 'tpope/vim-rsi'
-NeoBundle 'tpope/vim-speeddating'
-NeoBundle 'tpope/vim-surround'
-NeoBundle 'tpope/vim-unimpaired'
-NeoBundle 'tpope/vim-vinegar'
-NeoBundle 'tommcdo/vim-lion'
-NeoBundle 'justinmk/vim-sneak'
-NeoBundle 'wellle/targets.vim'
-NeoBundle 'tomtom/ttags_vim'
+Plug 'dag/vim-fish'
+Plug 'keith/swift.vim'
+Plug 'ludovicchabant/vim-gutentags'
+Plug 'plasticboy/vim-markdown'
+Plug 'tpope/vim-afterimage'
+Plug 'tpope/vim-commentary'
+Plug 'tpope/vim-fugitive'
+Plug 'tpope/vim-obsession'
+Plug 'tpope/vim-repeat'
+Plug 'tpope/vim-rsi'
+Plug 'tpope/vim-speeddating'
+Plug 'tpope/vim-surround'
+Plug 'tpope/vim-unimpaired'
+Plug 'tpope/vim-vinegar'
+Plug 'tommcdo/vim-lion'
+Plug 'justinmk/vim-sneak'
+Plug 'wellle/targets.vim'
+Plug 'tomtom/ttags_vim'
 
 " QuickFix:
 
-NeoBundle 'romainl/vim-qf'
-NeoBundle 'romainl/vim-qlist'
+Plug 'romainl/vim-qf'
+Plug 'romainl/vim-qlist'
 
 " Syntax:
 
-NeoBundle 'ervandew/supertab'
-NeoBundle 'godlygeek/tabular'
-NeoBundle 'jpalardy/vim-slime'
-NeoBundle 'w0rp/ale'
+Plug 'ervandew/supertab'
+Plug 'godlygeek/tabular'
+Plug 'jpalardy/vim-slime'
+Plug 'w0rp/ale'
 
 " PIM:
-NeoBundle 'vimwiki/vimwiki'
+Plug 'vimwiki/vimwiki'
 
 " Misc:
 
-NeoBundle 'jceb/vim-orgmode'
-NeoBundle 'jremmen/vim-ripgrep'
-NeoBundle 'junegunn/fzf.vim'
-NeoBundle 'junegunn/vim-peekaboo'
-NeoBundle 'ludovicchabant/vim-gutentags'
-NeoBundle 'mbbill/undotree'
-NeoBundle 'tpope/vim-eunuch'
-NeoBundle 'tpope/vim-sensible'
+Plug 'jceb/vim-orgmode'
+Plug 'jremmen/vim-ripgrep'
+Plug 'junegunn/fzf.vim'
+Plug 'junegunn/vim-peekaboo'
+Plug 'ludovicchabant/vim-gutentags'
+Plug 'mbbill/undotree'
+Plug 'tpope/vim-eunuch'
+Plug 'tpope/vim-sensible'
 
 " Prose:
 
-NeoBundle 'junegunn/goyo.vim'
-NeoBundle 'reedes/vim-lexical'
-NeoBundle 'reedes/vim-pencil'
-NeoBundle 'reedes/vim-wordy'
-
-call neobundle#end()
-
-NeoBundleCheck
+Plug 'junegunn/goyo.vim'
+Plug 'reedes/vim-lexical'
+Plug 'reedes/vim-pencil'
+Plug 'reedes/vim-wordy'
 
 " Enable matchit, which has smarter matching support (HTML tags, etc.)
 
 runtime macros/matchit.vim
 
+" }}}
+" vim-plug end {{{
+call plug#end()
 " }}}
 " Plugin Settings {{{
 

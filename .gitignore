@@ -6,9 +6,16 @@
 
 ## Plugins
 
+### Pathogen
 pathogen.vim
+
+### NeoBundle
 vim/.vim/bundle/*/
 vim/.vim/bundle/NeoBundle.lock
+
+### Plug
+vim/.vim/autoload/plug.vim
+vim/.vim/plugged
 
 ## Temp files
 
