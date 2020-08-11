@@ -19,6 +19,7 @@ require "darkmode"
 require "emoji"
 require "audio_output"
 require "choose"
+require "pass"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
