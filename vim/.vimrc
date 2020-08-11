@@ -401,6 +401,10 @@ nmap <leader>, :FZF <CR>
 nmap vv :FZF <CR>
 
 " vimwiki
+" We want a wiki in ~/.vimwiki that uses Markdown and the .md extension
+let g:vimwiki_list = [{'path': '~/.vimwiki',
+                   \ 'syntax': 'markdown', 'ext': '.md'}]
+
 " Disable the auto-syntax detection for everything but .wiki files
 let g:vimwiki_ext2syntax = {'.wiki': 'media'}
 
