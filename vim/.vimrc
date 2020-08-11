@@ -400,6 +400,11 @@ nmap <leader>, :FZF <CR>
 " Map vv to FZF also
 nmap vv :FZF <CR>
 
+" vimwiki
+" Disable the auto-syntax detection for everything but .wiki files
+let g:vimwiki_ext2syntax = {'.wiki': 'media'}
+
+
 " }}}
 " Prose mode configuration {{{
 
