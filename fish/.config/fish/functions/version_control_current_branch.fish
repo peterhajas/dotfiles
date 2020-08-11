@@ -3,7 +3,7 @@ function version_control_current_branch
     
     switch $repo_type
         case git
-            git branch | head -n 1 | read branch
+            git branch |grep "* " | awk '{print substr($0, 3)}'
         case svn
             # No idea if this works
             svn info | sed -n "/URL:/s/.*\///p" | read branch
