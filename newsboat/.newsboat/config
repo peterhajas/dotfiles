@@ -2,3 +2,4 @@ urls-source "newsblur"
 cookie-cache "~/.newsboat/cookies.txt"
 
 newsblur-login "peterhajas@gmail.com"
+newsblur-passwordeval "pass newsblur.com/peterhajas"
