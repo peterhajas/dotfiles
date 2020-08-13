@@ -1,0 +1,11 @@
+#!/bin/bash
+
+filename=$(basename -- "$1")
+extension="${filename##*.}"
+filename="${filename%.*}"
+
+tempfile="tmp.$extension"
+echo $tempfile
+
+ffmpeg -i $1 $tempfile
+mv $tempfile $1
