@@ -12,6 +12,11 @@ function abbrev -d "Install fish abbreviations"
     # vim
     abbr vv 'find . | fzf | xargs -o vim'
 
+    # vimwikki
+    abbr vw 'vim -c "VimwikiIndex"'
+    abbr vd 'vim -c "VimwikiMakeDiaryNote"'
+    abbr vp 'vimwiki_pull && vimwiki_push'
+
     # misc.
     abbr c cd
     abbr l ls -lah
