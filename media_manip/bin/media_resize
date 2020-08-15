@@ -1,11 +1,14 @@
 #!/bin/bash
 
-filename=$(basename -- "$1")
-extension="${filename##*.}"
-filename="${filename%.*}"
+for file in "$@"
+do
+    filename=$(basename -- "$file")
+    extension="${filename##*.}"
+    filename="${filename%.*}"
 
-tempfile="tmp.$extension"
-echo $tempfile
+    tempfile="tmp.$extension"
+    echo $tempfile
 
-ffmpeg -i $1 $tempfile
-mv $tempfile $1
+    ffmpeg -i $file $tempfile
+    mv $tempfile $file
+done
