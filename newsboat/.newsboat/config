@@ -1,5 +1,8 @@
 urls-source "newsblur"
 cookie-cache "~/.newsboat/cookies.txt"
 
-newsblur-login "peterhajas@gmail.com"
+newsblur-login "peterhajas"
 newsblur-passwordeval "pass newsblur.com/peterhajas"
+
+show-read-feeds no
+auto-reload yes
