@@ -39,6 +39,8 @@ sudo apt-get install ag
 sudo apt-get install watch
 sudo apt-get install fzf
 sudo apt-get install graphviz
+sudo apt-get install syncthing
+sudo apt-get install exa
 
 # Others:
 

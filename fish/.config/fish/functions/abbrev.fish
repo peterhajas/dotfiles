@@ -19,5 +19,6 @@ function abbrev -d "Install fish abbreviations"
 
     # misc.
     abbr c cd
-    abbr l ls -lah
+    abbr l exa -l
+    abbr ll exa -l
 end
