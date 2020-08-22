@@ -405,8 +405,8 @@ nmap vv :FZF <CR>
 let g:vimwiki_list = [{'path': '~/.vimwiki',
                    \ 'syntax': 'markdown', 'ext': '.md'}]
 
-" Disable the auto-syntax detection for everything but .wiki files
-let g:vimwiki_ext2syntax = {'.wiki': 'media'}
+" Disable the auto-syntax detection for everything but my actual Wiki
+let g:vimwiki_global_ext = 0
 
 
 " }}}
