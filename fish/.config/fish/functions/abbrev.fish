@@ -4,7 +4,8 @@ function abbrev -d "Install fish abbreviations"
     abbr gb 'git branch | fzf | xargs git checkout'
     abbr gc git checkout
     abbr gl git log
-    abbr gp git push
+    abbr gps git push
+    abbr gpl git pull
     abbr gs git status
     abbr gd git diff
     abbr leaderboard git shortlog -sn
