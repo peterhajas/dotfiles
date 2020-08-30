@@ -18,6 +18,9 @@ function abbrev -d "Install fish abbreviations"
     abbr wd 'vim -c "VimwikiMakeDiaryNote"'
     abbr wp 'vimwiki_pull && vimwiki_push'
 
+    # youtube-dl
+    abbr y 'ytd "'
+
     # misc.
     abbr c cd
     abbr l exa -l
