@@ -332,7 +332,6 @@ Plug 'vimwiki/vimwiki'
 
 " Misc:
 
-Plug 'jceb/vim-orgmode'
 Plug 'jremmen/vim-ripgrep'
 Plug 'junegunn/fzf.vim'
 Plug 'junegunn/vim-peekaboo'
@@ -407,7 +406,6 @@ let g:vimwiki_list = [{'path': '~/.vimwiki',
 
 " Disable the auto-syntax detection for everything but my actual Wiki
 let g:vimwiki_global_ext = 0
-
 
 " }}}
 " Prose mode configuration {{{
