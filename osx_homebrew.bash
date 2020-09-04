@@ -32,6 +32,8 @@ brew install watch
 brew install fzf
 brew install rg
 brew install graphviz
+brew install pass
+brew install pass-otp
 brew install syncthing
 brew install exa
 
