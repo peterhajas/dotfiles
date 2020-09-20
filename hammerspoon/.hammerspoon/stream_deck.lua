@@ -118,7 +118,6 @@ end
 
 local function streamdeck_updateWeatherButton(index, deck)
     local output, status, t, rc = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/°F//" | grep -v "Unknow"')
-    hs.alert(output)
     deck:setButtonImage(index, streamdeck_imageFromText(output))
 end
 
