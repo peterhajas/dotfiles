@@ -16,10 +16,10 @@ require "volume_control"
 require "brightness_control"
 require "grid"
 require "darkmode"
-require "emoji"
 require "audio_output"
 require "choose"
 require "pass"
+require "stream_deck"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
@@ -35,6 +35,7 @@ end
 -- }}}
 -- Global variables {{{
 hs.window.animationDuration = 0.1
+caffeinateWatcher = nil
 -- }}}
 -- Finding all running GUI apps {{{
 
@@ -371,6 +372,21 @@ end
 screenWatcher = hs.screen.watcher.new(handleScreenEvent)
 screenWatcher:start()
 
+-- }}}
+-- {{{ Caffeinate
+
+function caffeinateCallback(eventType)
+    if (eventType == hs.caffeinate.watcher.screensDidSleep) then
+    elseif (eventType == hs.caffeinate.watcher.screensDidWake) then
+    elseif (eventType == hs.caffeinate.watcher.screensDidLock) then
+        streamdeck_sleep()
+    elseif (eventType == hs.caffeinate.watcher.screensDidUnlock) then
+        streamdeck_wake()
+    end
+end
+
+caffeinateWatcher = hs.caffeinate.watcher.new(caffeinateCallback)
+caffeinateWatcher:start()
 -- }}}
 -- Reloading {{{
 -- I can reload the config when this file changes. From:
