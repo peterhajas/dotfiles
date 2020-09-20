@@ -42,13 +42,23 @@ local function streamdeck_run_in_terminal(command)
 end
 
 local function streamdeck_button(deck, buttonID, pressed)
-    if buttonID == 15 then
+    if buttonID == 14 then
         if pressed then
             hs.application.open("com.apple.iCal")
         else
             local app = hs.application'com.apple.iCal'
             if app ~= nil then
-                hs.application'com.apple.iCal':hide()
+                app:hide()
+            end
+        end
+    end
+    if buttonID == 15 then
+        if pressed then
+            hs.application.open("com.reederapp.macOS")
+        else
+            local app = hs.application'com.reederapp.macOS'
+            if app ~= nil then
+                app:hide()
             end
         end
     end
@@ -132,8 +142,8 @@ local function streamdeck_discovery(connected, deck)
         deck:setButtonImage(11, hs.image.imageFromAppBundle("com.apple.Terminal"))
         deck:setButtonImage(12, hs.image.imageFromAppBundle("com.apple.Notes"))
         deck:setButtonImage(13, hs.image.imageFromAppBundle("com.apple.Reminders"))
-        deck:setButtonImage(14, hs.image.imageFromAppBundle("com.apple.Music"))
-        deck:setButtonImage(15, hs.image.imageFromAppBundle("com.apple.iCal"))
+        deck:setButtonImage(14, hs.image.imageFromAppBundle("com.apple.iCal"))
+        deck:setButtonImage(15, streamdeck_imageFromText("􀖆"))
         deck:setButtonImage(23, streamdeck_imageFromText("􀎡"))
     else
         currentDeck = nil
