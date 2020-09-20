@@ -20,6 +20,7 @@ require "audio_output"
 require "choose"
 require "pass"
 require "stream_deck"
+require "link_replace"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
@@ -36,6 +37,7 @@ end
 -- Global variables {{{
 hs.window.animationDuration = 0.1
 caffeinateWatcher = nil
+pasteboardWatcher = nil
 -- }}}
 -- Finding all running GUI apps {{{
 
@@ -387,6 +389,11 @@ end
 
 caffeinateWatcher = hs.caffeinate.watcher.new(caffeinateCallback)
 caffeinateWatcher:start()
+-- }}}
+-- {{{ Pasteboard
+pasteboardWatcher = hs.pasteboard.watcher.new(function(contents)
+    replacePasteboardLinkIfNecessary(contents)
+end)
 -- }}}
 -- Reloading {{{
 -- I can reload the config when this file changes. From:
