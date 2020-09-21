@@ -148,7 +148,7 @@ end)
 local youtubeDLButton = terminalButton(function()
     -- Grab pasteboard
     local pasteboard = hs.pasteboard.readString()
-    if string.find(pasteboard, 'https') then
+    if string.find(pasteboard, 'http') then
         local command = "ytd \""..pasteboard.."\""
         return command
     end
