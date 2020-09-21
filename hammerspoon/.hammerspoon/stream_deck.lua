@@ -4,110 +4,51 @@ end
 
 local currentDeck = nil
 local asleep = false
-local cameraButtonUpdateTimer = nil
+local buttonUpdateTimer = nil
+local buttonUpdateInterval = 10
+local buttonWidth = 96
+local buttonHeight = 96
 
-function fixupCameraButtonUpdateTimer()
+function fixupButtonUpdateTimer()
     if asleep or currentDeck == nil then
-        cameraButtonUpdateTimer:stop()
+        buttonUpdateTimer:stop()
     else
-        cameraButtonUpdateTimer:start()
+        buttonUpdateTimer:start()
     end
 end
 
 function streamdeck_sleep()
     asleep = true
-    fixupCameraButtonUpdateTimer()
+    fixupButtonUpdateTimer()
     if currentDeck == nil then return end
     currentDeck:setBrightness(0)
 end
 
 function streamdeck_wake()
     asleep = false
-    fixupCameraButtonUpdateTimer()
+    fixupButtonUpdateTimer()
     if currentDeck == nil then return end
     currentDeck:setBrightness(30)
 end
 
-cameraButtonUpdateTimer = hs.timer.new(3, function()
-    if currentDeck == nil then return end
-    currentDeck:setButtonImage(30, hs.image.imageFromURL("http://192.168.0.167/cgi-bin/currentpic.cgi"))
-    currentDeck:setButtonImage(31, hs.image.imageFromURL("http://192.168.0.196/cgi-bin/currentpic.cgi"))
-end)
-
-local function streamdeck_run_in_terminal(command)
-    hs.application.open("com.apple.Terminal")
-    hs.eventtap.keyStroke({"cmd"}, "n")
-    hs.eventtap.keyStrokes(command)
-    hs.eventtap.keyStroke({}, "return")
-end
-
-local function streamdeck_button(deck, buttonID, pressed)
-    if buttonID == 14 then
-        if pressed then
-            hs.application.open("com.apple.iCal")
-        else
-            local app = hs.application'com.apple.iCal'
-            if app ~= nil then
-                app:hide()
-            end
-        end
-    end
-    if buttonID == 15 then
-        if pressed then
-            hs.application.open("com.reederapp.macOS")
-        else
-            local app = hs.application'com.reederapp.macOS'
-            if app ~= nil then
-                app:hide()
-            end
-        end
-    end
-    -- Only activate on button-down
-    if not pressed then
-        return
-    end
-    -- Don't allow commands while the machine is asleep / locked
-    if asleep then
-        return
-    end
-
-    if buttonID == 1 then
-        hs.urlevent.openURL("https://pinboard.in/add/")
-        hs.eventtap.keyStroke({"cmd"}, "v")
-    end
-    if buttonID == 2 then
-        -- Grab pasteboard
-        local pasteboard = hs.pasteboard.readString()
-        local command = "ytd \""..pasteboard.."\""
-        streamdeck_run_in_terminal(command)
-    end
-    if buttonID == 23 then
-        hs.caffeinate.lockScreen()
-    end
-    if buttonID == 30 then
-        hs.execute('camera1', true)
-    end
-    if buttonID == 31 then
-        hs.execute('camera2', true)
-    end
-end
-
 -- Returns an image with the specified text, color, and background color
-local function streamdeck_imageFromText(text, textColor, backgroundColor)
-    local imageCanvas = hs.canvas.new{ w = 100, h = 100 }
-    textColor = textColor or hs.drawing.color.white
-    backgroundColor = backgroundColor or hs.drawing.color.black
+local function streamdeck_imageFromText(text, options)
+    local imageCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
+    local options = options or { }
+    textColor = options["textColor"] or hs.drawing.color.white
+    backgroundColor = options["backgroundColor"] or hs.drawing.color.black
+    fontSize = options["fontSize"] or 70
 
     imageCanvas[1] = {
         action = "fill",
-        frame = { x = 0, y = 0, w = 100, h = 100 },
+        frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
         fillColor = backgroundColor,
         type = "rectangle",
     }
     imageCanvas[2] = {
-        frame = { x = 0, y = 0, w = 100, h = 100 },
+        frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
         text = hs.styledtext.new(text, {
-            font = { name = ".AppleSystemUIFont", size = 70 },
+            font = { name = ".AppleSystemUIFont", size = fontSize },
             paragraphStyle = { alignment = "center" },
             color = textColor,
         }),
@@ -116,37 +57,150 @@ local function streamdeck_imageFromText(text, textColor, backgroundColor)
     return imageCanvas:imageFromCanvas()
 end
 
-local function streamdeck_updateWeatherButton(index, deck)
-    local output, status, t, rc = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/°F//" | grep -v "Unknow"')
-    deck:setButtonImage(index, streamdeck_imageFromText(output))
+-- Button Definitions
+-- Buttons are defined as tables, with three functions:
+-- "image": the function returning the image
+-- "pressDown": the function to perform on press down
+-- "pressUp": the function to perform on press up
+
+local nonceButton = {}
+
+local function peekButtonFor(bundleID)
+    return {
+        ["image"] = function (pressed)
+            return hs.image.imageFromAppBundle(bundleID)
+        end,
+        ["pressDown"] = function()
+            hs.application.open(bundleID)
+        end,
+        ["pressUp"] = function()
+            local app = hs.application.get(bundleID)
+            if app ~= nil then
+                app:hide()
+            end
+        end
+    }
+end
+
+local function urlButton(url, imageProvider, performAfter)
+    return {
+        ["image"] = imageProvider, 
+        ["pressUp"] = function()
+            hs.urlevent.openURL(url)
+            performAfter = performAfter or function() end
+            hs.timer.doAfter(0.2, function()
+                performAfter()
+            end)
+        end
+    }
+end
+
+local function terminalButton(commandProvider, imageProvider)
+    return {
+        ["image"] = imageProvider,
+        ["pressUp"] = function()
+            local command = commandProvider()
+
+            hs.application.open("com.apple.Terminal")
+            hs.eventtap.keyStroke({"cmd"}, "n")
+            hs.eventtap.keyStrokes(command)
+            hs.eventtap.keyStroke({}, "return")
+            hs.eventtap.keyStroke({"ctrl"}, "d")
+        end
+    }
+end
+
+local weatherButton = urlButton('https://wttr.in', function()
+    local output, status, t, rc = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/F//" | grep -v "Unknow"')
+    return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+end)
+
+local pinboardButton = urlButton('https://pinboard.in/add/', function()
+    return streamdeck_imageFromText('􀎧', {['backgroundColor'] = hs.drawing.color.blue})
+end,
+function()
+    hs.eventtap.keyStroke({"cmd"}, "v")
+end)
+
+local youtubeDLButton = terminalButton(function()
+    -- Grab pasteboard
+    local pasteboard = hs.pasteboard.readString()
+    local command = "ytd \""..pasteboard.."\""
+    return command
+end, function()
+    return streamdeck_imageFromText('􀊚"', {['backgroundColor'] = hs.drawing.color.white, ['textColor'] = hs.drawing.color.red})
+end)
+
+local buttons = {
+    weatherButton,
+    pinboardButton,
+    youtubeDLButton,
+    peekButtonFor('com.apple.iCal'),
+    peekButtonFor('com.reederapp.macOS'),
+}
+
+local function updateButton(i, pressed)
+    if currentDeck == nil then return end
+    local button = buttons[i]
+    local image = button["image"](pressed)
+    if image ~= nil then
+        currentDeck:setButtonImage(i, image)
+    end
+end
+
+local function updateButtons()
+    for index, button in pairs(buttons) do
+        updateButton(index, false)
+    end
+end
+
+buttonUpdateTimer = hs.timer.new(buttonUpdateInterval, function()
+    updateButtons()
+end)
+
+local function streamdeck_button(deck, buttonID, pressed)
+    -- Don't allow commands while the machine is asleep / locked
+    if asleep then
+        return
+    end
+
+    -- Grab the button
+    local buttonForID = buttons[buttonID]
+    -- Guard against invalid buttons
+    if buttonForID == nil then
+        return
+    end
+
+    -- Grab its actions
+    local pressDown = buttonForID["pressDown"] or function() end
+    local pressUp = buttonForID["pressUp"] or function() end
+
+    -- Dispatch
+    if pressed then
+        pressDown()
+        updateButton(buttonID, true)
+    else
+        pressUp()
+        updateButton(buttonID, false)
+    end
 end
 
 local function streamdeck_discovery(connected, deck)
     if connected then
         currentDeck = deck
-        fixupCameraButtonUpdateTimer()
+        fixupButtonUpdateTimer()
         local waiting = streamdeck_imageFromText("􀍠")
 
         deck:buttonCallback(streamdeck_button)
 
-        print(deck:buttonLayout())
-        for i=1,32 do
+        columns, rows = deck:buttonLayout()
+        for i=1,columns*rows do
             deck:setButtonImage(i, waiting)
         end
-        deck:setButtonImage(1, streamdeck_imageFromText("􀎧", nil, hs.drawing.color.blue))
-        deck:setButtonImage(2, streamdeck_imageFromText("􀊚", hs.drawing.color.red, hs.drawing.color.white))
-        streamdeck_updateWeatherButton(3, deck)
-        deck:setButtonImage(9, hs.image.imageFromAppBundle("com.apple.Mail"))
-        deck:setButtonImage(10, hs.image.imageFromAppBundle("com.apple.Safari"))
-        deck:setButtonImage(11, hs.image.imageFromAppBundle("com.apple.Terminal"))
-        deck:setButtonImage(12, hs.image.imageFromAppBundle("com.apple.Notes"))
-        deck:setButtonImage(13, hs.image.imageFromAppBundle("com.apple.Reminders"))
-        deck:setButtonImage(14, hs.image.imageFromAppBundle("com.apple.iCal"))
-        deck:setButtonImage(15, streamdeck_imageFromText("􀖆"))
-        deck:setButtonImage(23, streamdeck_imageFromText("􀎡"))
+        updateButtons()
     else
         currentDeck = nil
-        fixupCameraButtonUpdateTimer()
+        fixupButtonUpdateTimer()
     end
     if asleep then
         streamdeck_sleep()
