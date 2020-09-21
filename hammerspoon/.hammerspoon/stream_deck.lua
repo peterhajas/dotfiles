@@ -95,17 +95,24 @@ local function urlButton(url, imageProvider, performAfter)
     }
 end
 
-local function terminalButton(commandProvider, imageProvider)
+local function terminalButton(commandProvider, imageProvider, performAfter)
     return {
         ["image"] = imageProvider,
         ["pressUp"] = function()
             local command = commandProvider()
+            if command == nil then
+                return
+            end
 
             hs.application.open("com.apple.Terminal")
             hs.eventtap.keyStroke({"cmd"}, "n")
             hs.eventtap.keyStrokes(command)
             hs.eventtap.keyStroke({}, "return")
-            hs.eventtap.keyStroke({"ctrl"}, "d")
+
+            performAfter = performAfter or function() end
+            hs.timer.doAfter(0.1, function()
+                performAfter()
+            end)
         end
     }
 end
@@ -113,6 +120,22 @@ end
 local weatherButton = urlButton('https://wttr.in', function()
     local output, status, t, rc = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/F//" | grep -v "Unknow"')
     return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+end)
+
+local cpuButton = terminalButton(function() return 'htop' end,
+function()
+    local output, status, t, rc = hs.execute('cpu.10s.sh', true)
+    return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+end, function()
+    hs.eventtap.keyStrokes("P")
+end)
+
+local memoryButton = terminalButton(function() return 'htop' end,
+function()
+    local output, status, t, rc = hs.execute('memory.10s.sh', true)
+    return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+end, function()
+    hs.eventtap.keyStrokes("M")
 end)
 
 local pinboardButton = urlButton('https://pinboard.in/add/', function()
@@ -125,18 +148,35 @@ end)
 local youtubeDLButton = terminalButton(function()
     -- Grab pasteboard
     local pasteboard = hs.pasteboard.readString()
-    local command = "ytd \""..pasteboard.."\""
-    return command
+    if string.find(pasteboard, 'https') then
+        local command = "ytd \""..pasteboard.."\""
+        return command
+    end
+    return nil
 end, function()
     return streamdeck_imageFromText('􀊚"', {['backgroundColor'] = hs.drawing.color.white, ['textColor'] = hs.drawing.color.red})
+end, function()
+    hs.eventtap.keyStroke({"ctrl"}, "d")
 end)
+
+local lockButton = {
+    ['image'] = function()
+        return streamdeck_imageFromText('􀎡')
+    end,
+    ['pressUp'] = function()
+        hs.caffeinate.lockScreen()
+    end
+}
 
 local buttons = {
     weatherButton,
+    cpuButton,
+    memoryButton,
     pinboardButton,
     youtubeDLButton,
     peekButtonFor('com.apple.iCal'),
     peekButtonFor('com.reederapp.macOS'),
+    lockButton,
 }
 
 local function updateButton(i, pressed)

@@ -4,6 +4,9 @@
 
 set PATH $PATH (find -L ~/bin -type d)
 
+## ~/.bitbar/plugins is where bitbar plugs are stored
+set PATH $PATH ~/.bitbar/plugins
+
 ## /usr/local/bin is where brew installs stuff
 
 set PATH /usr/local/bin $PATH;
