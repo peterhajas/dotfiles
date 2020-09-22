@@ -35,9 +35,9 @@ end
 local function streamdeck_imageFromText(text, options)
     local imageCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
     local options = options or { }
-    textColor = options["textColor"] or hs.drawing.color.white
+    textColor = options['textColor'] or hs.drawing.color.white
     backgroundColor = options["backgroundColor"] or hs.drawing.color.black
-    fontSize = options["fontSize"] or 70
+    fontSize = options['fontSize'] or 70
 
     imageCanvas[1] = {
         action = "fill",
@@ -59,21 +59,21 @@ end
 
 -- Button Definitions
 -- Buttons are defined as tables, with three functions:
--- "image": the function returning the image
--- "pressDown": the function to perform on press down
--- "pressUp": the function to perform on press up
+-- 'image': the function returning the image
+-- 'pressDown': the function to perform on press down
+-- 'pressUp': the function to perform on press up
 
 local nonceButton = {}
 
 local function peekButtonFor(bundleID)
     return {
-        ["image"] = function (pressed)
+        ['image'] = function (pressed)
             return hs.image.imageFromAppBundle(bundleID)
         end,
-        ["pressDown"] = function()
+        ['pressDown'] = function()
             hs.application.open(bundleID)
         end,
-        ["pressUp"] = function()
+        ['pressUp'] = function()
             local app = hs.application.get(bundleID)
             if app ~= nil then
                 app:hide()
@@ -84,8 +84,8 @@ end
 
 local function urlButton(url, imageProvider, performAfter)
     return {
-        ["image"] = imageProvider, 
-        ["pressUp"] = function()
+        ['image'] = imageProvider, 
+        ['pressUp'] = function()
             hs.urlevent.openURL(url)
             performAfter = performAfter or function() end
             hs.timer.doAfter(0.2, function()
@@ -97,8 +97,8 @@ end
 
 local function terminalButton(commandProvider, imageProvider, performAfter)
     return {
-        ["image"] = imageProvider,
-        ["pressUp"] = function()
+        ['image'] = imageProvider,
+        ['pressUp'] = function()
             local command = commandProvider()
             if command == nil then
                 return
@@ -182,7 +182,7 @@ local buttons = {
 local function updateButton(i, pressed)
     if currentDeck == nil then return end
     local button = buttons[i]
-    local image = button["image"](pressed)
+    local image = button['image'](pressed)
     if image ~= nil then
         currentDeck:setButtonImage(i, image)
     end
@@ -212,8 +212,8 @@ local function streamdeck_button(deck, buttonID, pressed)
     end
 
     -- Grab its actions
-    local pressDown = buttonForID["pressDown"] or function() end
-    local pressUp = buttonForID["pressUp"] or function() end
+    local pressDown = buttonForID['pressDown'] or function() end
+    local pressUp = buttonForID['pressUp'] or function() end
 
     -- Dispatch
     if pressed then
