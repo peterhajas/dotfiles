@@ -39,6 +39,10 @@ nmap <silent> <leader>. :so $MYVIMRC<CR>
 
 nmap <BS> %
 
+" Leader-p to delete visual contents into void register and replace with
+" clipboard register
+vnoremap <leader>p "_dP
+
 " }}}
 " Searching / Moving {{{
 
