@@ -65,18 +65,31 @@ end
 
 local nonceButton = {}
 
+-- Key: bundleID
+-- Value: last "press down" nanoseconds
+local peekDownTimes = {}
 local function peekButtonFor(bundleID)
     return {
         ['image'] = function (pressed)
             return hs.image.imageFromAppBundle(bundleID)
         end,
         ['pressDown'] = function()
+            peekDownTimes[bundleID] = hs.timer.absoluteTime()
             hs.application.open(bundleID)
         end,
         ['pressUp'] = function()
-            local app = hs.application.get(bundleID)
-            if app ~= nil then
-                app:hide()
+            local upTime = hs.timer.absoluteTime()
+            local downTime = peekDownTimes[bundleID]
+
+            if downTime ~= nil then
+                local elapsed = (upTime - downTime) * .000001
+                -- If we've held the button down for > 300ms, hide
+                if elapsed > 300 then
+                    local app = hs.application.get(bundleID)
+                    if app ~= nil then
+                        app:hide()
+                    end
+                end
             end
         end
     }
