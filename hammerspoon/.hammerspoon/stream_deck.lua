@@ -188,7 +188,7 @@ local buttons = {
     pinboardButton,
     youtubeDLButton,
     peekButtonFor('com.apple.iCal'),
-    peekButtonFor('com.reederapp.macOS'),
+    peekButtonFor('com.reederapp.5.macOS'),
     lockButton,
 }
 
