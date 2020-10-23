@@ -1,8 +1,9 @@
--- Audio Output {{{
+require 'stream_deck'
 
 local lastSeenName = ""
 
 hs.audiodevice.watcher.setCallback(function(kind)
+    streamdeck_update()
     if kind == "dOut" or kind == "sOut" then
         local name = hs.audiodevice.current()['name']
         if name ~= lastSeenName then
@@ -19,4 +20,3 @@ end)
 
 hs.audiodevice.watcher.start()
 
--- }}}

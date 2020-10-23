@@ -1,3 +1,6 @@
+require "streamdeck_buttons.button_images"
+require "streamdeck_buttons.audio_devices"
+
 function bool_to_number(value)
   return value and 1 or 0
 end
@@ -6,8 +9,6 @@ local currentDeck = nil
 local asleep = false
 local buttonUpdateTimer = nil
 local buttonUpdateInterval = 10
-local buttonWidth = 96
-local buttonHeight = 96
 
 function fixupButtonUpdateTimer()
     if asleep or currentDeck == nil then
@@ -29,32 +30,6 @@ function streamdeck_wake()
     fixupButtonUpdateTimer()
     if currentDeck == nil then return end
     currentDeck:setBrightness(30)
-end
-
--- Returns an image with the specified text, color, and background color
-local function streamdeck_imageFromText(text, options)
-    local imageCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
-    local options = options or { }
-    textColor = options['textColor'] or hs.drawing.color.white
-    backgroundColor = options["backgroundColor"] or hs.drawing.color.black
-    fontSize = options['fontSize'] or 70
-
-    imageCanvas[1] = {
-        action = "fill",
-        frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
-        fillColor = backgroundColor,
-        type = "rectangle",
-    }
-    imageCanvas[2] = {
-        frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
-        text = hs.styledtext.new(text, {
-            font = { name = ".AppleSystemUIFont", size = fontSize },
-            paragraphStyle = { alignment = "center" },
-            color = textColor,
-        }),
-        type = "text",
-    }
-    return imageCanvas:imageFromCanvas()
 end
 
 -- Button Definitions
@@ -190,6 +165,8 @@ local buttons = {
     peekButtonFor('com.apple.iCal'),
     peekButtonFor('com.reederapp.5.macOS'),
     lockButton,
+    audioDeviceButton(true),
+    audioDeviceButton(false)
 }
 
 local function updateButton(i, pressed)
@@ -206,6 +183,11 @@ local function updateButtons()
         updateButton(index, false)
     end
 end
+
+function streamdeck_update()
+    updateButtons()
+end
+
 
 buttonUpdateTimer = hs.timer.new(buttonUpdateInterval, function()
     updateButtons()
