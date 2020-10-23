@@ -2,9 +2,9 @@
 -- Currently unused
 
 function currentiTunesArtwork()
-    if hs.appfinder.appFromName('iTunes') then
+    if hs.appfinder.appFromName('Music') then
         applescript_str = [[global f, a
-        tell application "iTunes"
+        tell application "Music"
             
             tell artwork 1 of current track
                 set d to raw data

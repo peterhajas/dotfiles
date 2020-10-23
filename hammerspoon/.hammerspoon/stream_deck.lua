@@ -1,5 +1,6 @@
 require "streamdeck_buttons.button_images"
 require "streamdeck_buttons.audio_devices"
+require "streamdeck_buttons.itunes"
 
 function bool_to_number(value)
   return value and 1 or 0
@@ -168,7 +169,10 @@ local buttons = {
     peekButtonFor('com.reederapp.5.macOS'),
     lockButton,
     audioDeviceButton(true),
-    audioDeviceButton(false)
+    audioDeviceButton(false),
+    itunesPreviousButton(),
+    itunesPlayPuaseButton(),
+    itunesNextButton()
 }
 
 local function updateButton(i, pressed)
