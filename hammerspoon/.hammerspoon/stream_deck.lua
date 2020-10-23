@@ -33,8 +33,9 @@ function streamdeck_wake()
 end
 
 -- Button Definitions
--- Buttons are defined as tables, with three functions:
--- 'image': the function returning the image
+-- Buttons are defined as tables, with some values
+-- 'image': the image
+-- 'imageProvider': the function returning the image
 -- 'pressDown': the function to perform on press down
 -- 'pressUp': the function to perform on press up
 
@@ -45,9 +46,7 @@ local nonceButton = {}
 local peekDownTimes = {}
 local function peekButtonFor(bundleID)
     return {
-        ['image'] = function (pressed)
-            return hs.image.imageFromAppBundle(bundleID)
-        end,
+        ['image'] = hs.image.imageFromAppBundle(bundleID),
         ['pressDown'] = function()
             peekDownTimes[bundleID] = hs.timer.absoluteTime()
             hs.application.open(bundleID)
@@ -70,68 +69,72 @@ local function peekButtonFor(bundleID)
     }
 end
 
-local function urlButton(url, imageProvider, performAfter)
-    return {
-        ['image'] = imageProvider, 
-        ['pressUp'] = function()
-            hs.urlevent.openURL(url)
-            performAfter = performAfter or function() end
-            hs.timer.doAfter(0.2, function()
-                performAfter()
-            end)
-        end
-    }
+local function urlButton(url, button)
+    local out = button
+    out['pressUp'] =  function()
+        hs.urlevent.openURL(url)
+        performAfter = performAfter or function() end
+        hs.timer.doAfter(0.2, function()
+            performAfter()
+        end)
+    end
+    return out
 end
 
-local function terminalButton(commandProvider, imageProvider, performAfter)
-    return {
-        ['image'] = imageProvider,
-        ['pressUp'] = function()
-            local command = commandProvider()
-            if command == nil then
-                return
-            end
-
-            hs.application.open("com.apple.Terminal")
-            hs.eventtap.keyStroke({"cmd"}, "n")
-            hs.eventtap.keyStrokes(command)
-            hs.eventtap.keyStroke({}, "return")
-
-            performAfter = performAfter or function() end
-            hs.timer.doAfter(0.1, function()
-                performAfter()
-            end)
+local function terminalButton(commandProvider, button)
+    local out = button
+    out['pressUp'] = function()
+        local command = commandProvider()
+        if command == nil then
+            return
         end
-    }
+
+        hs.application.open("com.apple.Terminal")
+        hs.eventtap.keyStroke({"cmd"}, "n")
+        hs.eventtap.keyStrokes(command)
+        hs.eventtap.keyStroke({}, "return")
+
+        performAfter = button['performAfter'] or function() end
+        hs.timer.doAfter(0.1, function()
+            performAfter()
+        end)
+    end
+    return out
 end
 
-local weatherButton = urlButton('https://wttr.in', function()
-    local output, status, t, rc = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/F//" | grep -v "Unknow"')
-    return streamdeck_imageFromText(output, {['fontSize'] = 40 })
-end)
+local weatherButton = urlButton('https://wttr.in', {
+    ['imageProvider'] = function()
+        local output, status, t, rc = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/F//" | grep -v "Unknow"')
+        return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+    end
+})
 
-local cpuButton = terminalButton(function() return 'htop' end,
-function()
-    local output, status, t, rc = hs.execute('cpu.10s.sh', true)
-    return streamdeck_imageFromText(output, {['fontSize'] = 40 })
-end, function()
-    hs.eventtap.keyStrokes("P")
-end)
+local cpuButton = terminalButton(function() return 'htop' end, {
+    ['imageProvider'] = function()
+        local output, status, t, rc = hs.execute('cpu.10s.sh', true)
+        return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+    end,
+    ['performAfter'] = function()
+        hs.eventtap.keyStrokes("P")
+    end
+})
 
-local memoryButton = terminalButton(function() return 'htop' end,
-function()
-    local output, status, t, rc = hs.execute('memory.10s.sh', true)
-    return streamdeck_imageFromText(output, {['fontSize'] = 40 })
-end, function()
-    hs.eventtap.keyStrokes("M")
-end)
+local memoryButton = terminalButton(function() return 'htop' end, {
+    ['imageProvider'] = function()
+        local output, status, t, rc = hs.execute('memory.10s.sh', true)
+        return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+    end,
+    ['performAfter'] = function()
+        hs.eventtap.keyStrokes("M")
+    end
+})
 
-local pinboardButton = urlButton('https://pinboard.in/add/', function()
-    return streamdeck_imageFromText('􀎧', {['backgroundColor'] = hs.drawing.color.blue})
-end,
-function()
-    hs.eventtap.keyStroke({"cmd"}, "v")
-end)
+local pinboardButton = urlButton('https://pinboard.in/add/', {
+    ['image'] = streamdeck_imageFromText('􀎧', {['backgroundColor'] = hs.drawing.color.blue}),
+    ['pressUp'] = function()
+        hs.eventtap.keyStroke({"cmd"}, "v")
+    end
+})
 
 local youtubeDLButton = terminalButton(function()
     -- Grab pasteboard
@@ -141,16 +144,15 @@ local youtubeDLButton = terminalButton(function()
         return command
     end
     return nil
-end, function()
-    return streamdeck_imageFromText('􀊚"', {['backgroundColor'] = hs.drawing.color.white, ['textColor'] = hs.drawing.color.red})
-end, function()
-    hs.eventtap.keyStroke({"ctrl"}, "d")
-end)
+end, {
+    ['image'] = streamdeck_imageFromText('􀊚"', {['backgroundColor'] = hs.drawing.color.white, ['textColor'] = hs.drawing.color.red}),
+    ['performAfter'] = function()
+        hs.eventtap.keyStroke({"ctrl"}, "d")
+    end
+})
 
 local lockButton = {
-    ['image'] = function()
-        return streamdeck_imageFromText('􀎡')
-    end,
+    ['image'] = streamdeck_imageFromText('􀎡'),
     ['pressUp'] = function()
         hs.caffeinate.lockScreen()
     end
@@ -170,11 +172,27 @@ local buttons = {
 }
 
 local function updateButton(i, pressed)
+    -- No StreamDeck? No update
     if currentDeck == nil then return end
+
     local button = buttons[i]
-    local image = button['image'](pressed)
-    if image ~= nil then
-        currentDeck:setButtonImage(i, image)
+
+    -- If we have a static image, then only update if we have to
+    local isStatic = button['image'] ~= nil
+    if isStatic then
+        if button['_hasAppliedStaticImage'] ~= true then
+            -- hs.alert("STATIC: updating image for " .. i, 4)
+            currentDeck:setButtonImage(i, button['image'])
+            button['_hasAppliedStaticImage'] = true
+        end
+    else
+        -- hs.alert("DYNAMIC: updating image for " .. i, 4)
+
+        -- Otherwise, call the provider
+        local image = button['imageProvider'](pressed)
+        if image ~= nil then
+            currentDeck:setButtonImage(i, image)
+        end
     end
 end
 

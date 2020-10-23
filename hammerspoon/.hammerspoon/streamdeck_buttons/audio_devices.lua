@@ -5,7 +5,7 @@ require "streamdeck_buttons.button_images"
 --         or an output device button
 function audioDeviceButton(input)
     return {
-        ['image'] = function (pressed)
+        ['imageProvider'] = function (pressed)
             local deviceName = hs.audiodevice.current(input)['name']
             local text = ""
             if input then
