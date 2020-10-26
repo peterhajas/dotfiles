@@ -19,20 +19,6 @@ function fixupButtonUpdateTimer()
     end
 end
 
-function streamdeck_sleep()
-    asleep = true
-    fixupButtonUpdateTimer()
-    if currentDeck == nil then return end
-    currentDeck:setBrightness(0)
-end
-
-function streamdeck_wake()
-    asleep = false
-    fixupButtonUpdateTimer()
-    if currentDeck == nil then return end
-    currentDeck:setBrightness(30)
-end
-
 -- Button Definitions
 -- Buttons are defined as tables, with some values
 -- 'image': the image
@@ -168,12 +154,29 @@ local buttons = {
     peekButtonFor('com.apple.iCal'),
     peekButtonFor('com.reederapp.5.macOS'),
     lockButton,
-    audioDeviceButton(true),
     audioDeviceButton(false),
+    audioDeviceButton(true),
     itunesPreviousButton(),
     itunesPlayPuaseButton(),
     itunesNextButton()
 }
+
+function streamdeck_sleep()
+    asleep = true
+    fixupButtonUpdateTimer()
+    if currentDeck == nil then return end
+    currentDeck:setBrightness(0)
+end
+
+function streamdeck_wake()
+    asleep = false
+    fixupButtonUpdateTimer()
+    if currentDeck == nil then return end
+    currentDeck:setBrightness(30)
+    for index, button in pairs(buttons) do
+        button['_hasAppliedStaticImage'] = nil
+    end
+end
 
 local function updateButton(i, pressed)
     -- No StreamDeck? No update
