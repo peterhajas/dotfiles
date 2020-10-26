@@ -1,6 +1,4 @@
--- iTunes Album Artwork (an experiment) {{{
--- Currently unused
-
+-- Grab the current track's iTunes albumart
 function currentiTunesArtwork()
     if hs.appfinder.appFromName('Music') then
         applescript_str = [[global f, a
@@ -52,38 +50,3 @@ function currentiTunesArtwork()
         return nil
     end
 end
-
-local itunesArtwork
-
-function updateiTunesArtwork()
-    local image = currentiTunesArtwork()
-
-    if image ~= nil then
-        itunesArtwork:setImage(image)
-        itunesArtwork:show()
-        local activateiTunes = function() hs.application.launchOrFocus("iTunes") end
-        itunesArtwork = itunesArtwork:setClickCallback(activateiTunes)
-
-    else
-        itunesArtwork = itunesArtwork:setClickCallback(nil)
-        itunesArtwork:hide()
-    end
-end
-
-function buildiTunesArtwork()
-    if itunesArtwork ~= nil then itunesArtwork:delete() end
-    local preferredScreenFrame = preferredScreen():fullFrame()
-    local dimension = 100
-    local frame = hs.geometry.rect(0,40,dimension,dimension)
-    itunesArtwork = hs.drawing.image(frame, "ASCII:.")
-
-    -- Not crazy about this - it still floats over windows :-/
-    -- It won't get click events if it's sent to the back, though...
-    itunesArtwork:orderBelow()
-
-    updateiTunesArtwork()
-end
-
-buildiTunesArtwork()
-
--- }}}
