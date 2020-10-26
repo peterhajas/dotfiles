@@ -407,3 +407,16 @@ hs.alert.show("hs ready", 1)
 
 -- }}}
 
+local axbrowse = require("axbrowse")
+local lastApp
+hs.hotkey.bind({"cmd", "alt", "ctrl"}, "b", function()
+ local currentApp = hs.axuielement.applicationElement(hs.application.frontmostApplication())
+ if currentApp == lastApp then
+     axbrowse.browse() -- try to continue from where we left off
+ else
+     lastApp = currentApp
+     axbrowse.browse(currentApp) -- new app, so start over
+ end
+end)
+
+
