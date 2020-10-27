@@ -21,6 +21,7 @@ require "choose"
 require "pass"
 require "stream_deck"
 require "link_replace"
+require "home"
 
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
