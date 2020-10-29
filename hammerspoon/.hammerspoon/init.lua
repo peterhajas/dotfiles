@@ -3,6 +3,15 @@
 
 -- vim:fdm=marker
 
+-- Clear the console
+hs.console.clearConsole()
+
+-- Start profiling
+require("profile")
+
+profileStart('imports')
+profileStart('configTotal')
+
 require("hs.ipc")
 hs.ipc.cliInstall()
 
@@ -23,6 +32,8 @@ require "stream_deck"
 require "link_replace"
 require "home"
 
+profileStop('imports')
+profileStart('globals')
 -- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
 doc = hs.doc
@@ -40,6 +51,7 @@ hs.window.animationDuration = 0.1
 caffeinateWatcher = nil
 pasteboardWatcher = nil
 -- }}}
+profileStop('globals')
 -- Finding all running GUI apps {{{
 
 function allRunningApps()
@@ -144,6 +156,7 @@ hs.hotkey.bind({"cmd"}, "escape", function()
 end)
 
 -- }}}
+profileStart('windowCommands')
 -- Window Geometry {{{
 
 function windowPaddingForScreen (screen)
@@ -325,6 +338,8 @@ hs.hotkey.bind(hyper, "U", function()
 end)
 
 -- }}}
+profileStop('windowCommands')
+profileStart('noises')
 -- Noises {{{
 -- Just playing for now with this config:
 -- https://github.com/trishume/dotfiles/blob/master/hammerspoon/hammerspoon.symlink/init.lua
@@ -364,6 +379,8 @@ hs.hotkey.bind(hyper, "Q", function()
     popclickPlayPause()
 end)
 -- }}}
+profileStop('noises')
+profileStart('screenChanges')
 -- {{{ Screen Changes
 --- Watch screen change notifications, and reload certain components when the
 --screen configuration changes
@@ -376,6 +393,8 @@ screenWatcher = hs.screen.watcher.new(handleScreenEvent)
 screenWatcher:start()
 
 -- }}}
+profileStop('screenChanges')
+profileStart('caffeinate')
 -- {{{ Caffeinate
 
 function caffeinateCallback(eventType)
@@ -391,11 +410,15 @@ end
 caffeinateWatcher = hs.caffeinate.watcher.new(caffeinateCallback)
 caffeinateWatcher:start()
 -- }}}
+profileStop('caffeinate')
+profileStart('pasteboard')
 -- {{{ Pasteboard
 pasteboardWatcher = hs.pasteboard.watcher.new(function(contents)
     replacePasteboardLinkIfNecessary(contents)
 end)
 -- }}}
+profileStop('pasteboard')
+profileStart('reloading')
 -- Reloading {{{
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
@@ -407,7 +430,8 @@ hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reload_config):start()
 hs.alert.show("hs ready", 1)
 
 -- }}}
-
+profileStop('reloading')
+-- AXBrowse {{{
 local axbrowse = require("axbrowse")
 local lastApp
 hs.hotkey.bind({"cmd", "alt", "ctrl"}, "b", function()
@@ -419,5 +443,5 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "b", function()
      axbrowse.browse(currentApp) -- new app, so start over
  end
 end)
-
-
+-- }}}
+profileStop('configTotal')

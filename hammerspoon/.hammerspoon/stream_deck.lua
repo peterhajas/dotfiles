@@ -2,6 +2,8 @@ require "streamdeck_buttons.button_images"
 require "streamdeck_buttons.audio_devices"
 require "streamdeck_buttons.itunes"
 
+require "profile"
+
 function bool_to_number(value)
   return value and 1 or 0
 end
@@ -182,6 +184,8 @@ local function updateButton(i, pressed)
     -- No StreamDeck? No update
     if currentDeck == nil then return end
 
+    profileStart('streamdeckButtonUpdate_' .. i)
+
     local button = buttons[i]
 
     -- If we have a static image, then only update if we have to
@@ -201,6 +205,8 @@ local function updateButton(i, pressed)
             currentDeck:setButtonImage(i, image)
         end
     end
+
+    profileStop('streamdeckButtonUpdate_' .. i)
 end
 
 local function updateButtons()
@@ -246,6 +252,7 @@ local function streamdeck_button(deck, buttonID, pressed)
 end
 
 local function streamdeck_discovery(connected, deck)
+    profileStart('streamdeckDiscovery')
     if connected then
         currentDeck = deck
         fixupButtonUpdateTimer()
@@ -267,6 +274,7 @@ local function streamdeck_discovery(connected, deck)
     else
         streamdeck_wake()
     end
+    profileStop('streamdeckDiscovery')
 end
 
 hs.streamdeck.init(streamdeck_discovery)
