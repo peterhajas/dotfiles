@@ -12,14 +12,15 @@ local function urlButton(url, button)
     return out
 end
 
-local weatherButton = urlButton('https://wttr.in', {
+weatherButton = urlButton('https://wttr.in', {
     ['imageProvider'] = function()
         local output = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/F//" | grep -v "Unknow"')
         return streamdeck_imageFromText(output, {['fontSize'] = 40 })
-    end
+    end,
+    ['updateInterval'] = 60 * 60 * 10,
 })
 
-local pinboardButton = urlButton('https://pinboard.in/add/', {
+pinboardButton = urlButton('https://pinboard.in/add/', {
     ['image'] = streamdeck_imageFromText('􀎧', {['backgroundColor'] = hs.drawing.color.blue}),
     ['pressUp'] = function()
         hs.eventtap.keyStroke({"cmd"}, "v")

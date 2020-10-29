@@ -21,27 +21,29 @@ local function terminalButton(commandProvider, button)
     return out
 end
 
-local cpuButton = terminalButton(function() return 'htop' end, {
+cpuButton = terminalButton(function() return 'htop' end, {
     ['imageProvider'] = function()
         local output = hs.execute('cpu.10s.sh', true)
         return streamdeck_imageFromText(output, {['fontSize'] = 40 })
     end,
     ['performAfter'] = function()
         hs.eventtap.keyStrokes("P")
-    end
+    end,
+    ['updateInterval'] = 10,
 })
 
-local memoryButton = terminalButton(function() return 'htop' end, {
+memoryButton = terminalButton(function() return 'htop' end, {
     ['imageProvider'] = function()
         local output = hs.execute('memory.10s.sh', true)
         return streamdeck_imageFromText(output, {['fontSize'] = 40 })
     end,
     ['performAfter'] = function()
         hs.eventtap.keyStrokes("M")
-    end
+    end,
+    ['updateInterval'] = 10,
 })
 
-local youtubeDLButton = terminalButton(function()
+youtubeDLButton = terminalButton(function()
     -- Grab pasteboard
     local pasteboard = hs.pasteboard.readString()
     if string.find(pasteboard, 'http') then

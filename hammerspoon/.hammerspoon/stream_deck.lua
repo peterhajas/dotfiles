@@ -14,56 +14,7 @@ end
 
 local currentDeck = nil
 local asleep = false
-local buttonUpdateTimer = nil
-local buttonUpdateInterval = 10
-
-function fixupButtonUpdateTimer()
-    if asleep or currentDeck == nil then
-        buttonUpdateTimer:stop()
-    else
-        buttonUpdateTimer:start()
-    end
-end
-
--- Button Definitions
--- Buttons are defined as tables, with some values
--- 'image': the image
--- 'imageProvider': the function returning the image
--- 'pressDown': the function to perform on press down
--- 'pressUp': the function to perform on press up
-
-local buttons = {
-    weatherButton,
-    cpuButton,
-    memoryButton,
-    pinboardButton,
-    youtubeDLButton,
-    peekButtonFor('com.apple.iCal'),
-    peekButtonFor('com.reederapp.5.macOS'),
-    lockButton,
-    audioDeviceButton(false),
-    audioDeviceButton(true),
-    itunesPreviousButton(),
-    itunesPlayPuaseButton(),
-    itunesNextButton()
-}
-
-function streamdeck_sleep()
-    asleep = true
-    fixupButtonUpdateTimer()
-    if currentDeck == nil then return end
-    currentDeck:setBrightness(0)
-end
-
-function streamdeck_wake()
-    asleep = false
-    fixupButtonUpdateTimer()
-    if currentDeck == nil then return end
-    currentDeck:setBrightness(30)
-    for index, button in pairs(buttons) do
-        button['_hasAppliedStaticImage'] = nil
-    end
-end
+local buttons = { }
 
 local function updateButton(i, pressed)
     -- No StreamDeck? No update
@@ -94,6 +45,79 @@ local function updateButton(i, pressed)
     profileStop('streamdeckButtonUpdate_' .. i)
 end
 
+
+-- Button Definitions
+-- Buttons are defined as tables, with some values:
+-- 'image': the image
+-- 'imageProvider': the function returning the image
+-- 'pressDown': the function to perform on press down
+-- 'pressUp': the function to perform on press up
+-- 'updateInterval': the desired update interval (if any) in seconds
+-- Internal values:
+-- '_timer': the timer that is updating this button
+
+buttons = {
+    weatherButton,
+    cpuButton,
+    memoryButton,
+    pinboardButton,
+    youtubeDLButton,
+    peekButtonFor('com.apple.iCal'),
+    peekButtonFor('com.reederapp.5.macOS'),
+    lockButton,
+    audioDeviceButton(false),
+    audioDeviceButton(true),
+    itunesPreviousButton(),
+    itunesPlayPuaseButton(),
+    itunesNextButton()
+}
+
+local function disableTimers()
+    for index, button in pairs(buttons) do
+        local currentTimer = button['_timer']
+        if currentTimer ~= nil then
+            currentTimer:stop()
+        end
+        button['_timer'] = nil
+    end
+end
+
+local function updateTimers()
+    if asleep or currentDeck == nil then
+        disableTimers()
+    else
+        disableTimers()
+        for index, button in pairs(buttons) do
+            local desiredUpdateInterval = button['updateInterval']
+            if desiredUpdateInterval ~= nil then
+                local timer = hs.timer.new(desiredUpdateInterval, function()
+                    updateButton(index, false)
+                end)
+                timer:start()
+                button['_timer'] = timer
+            end
+        end
+    end
+end
+
+
+function streamdeck_sleep()
+    asleep = true
+    updateTimers()
+    if currentDeck == nil then return end
+    currentDeck:setBrightness(0)
+end
+
+function streamdeck_wake()
+    asleep = false
+    updateTimers()
+    if currentDeck == nil then return end
+    currentDeck:setBrightness(30)
+    for index, button in pairs(buttons) do
+        button['_hasAppliedStaticImage'] = nil
+    end
+end
+
 local function updateButtons()
     profileStart('streamdeckButtonUpdate_all')
     for index, button in pairs(buttons) do
@@ -105,11 +129,6 @@ end
 function streamdeck_update()
     updateButtons()
 end
-
-
-buttonUpdateTimer = hs.timer.new(buttonUpdateInterval, function()
-    updateButtons()
-end)
 
 local function streamdeck_button(deck, buttonID, pressed)
     -- Don't allow commands while the machine is asleep / locked
@@ -142,14 +161,14 @@ local function streamdeck_discovery(connected, deck)
     profileStart('streamdeckDiscovery')
     if connected then
         currentDeck = deck
-        fixupButtonUpdateTimer()
         deck:buttonCallback(streamdeck_button)
 
         -- columns, rows = deck:buttonLayout()
         updateButtons()
+        updateTimers()
     else
         currentDeck = nil
-        fixupButtonUpdateTimer()
+        updateTimers()
     end
     if asleep then
         streamdeck_sleep()
