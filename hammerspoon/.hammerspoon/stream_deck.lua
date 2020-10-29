@@ -140,6 +140,12 @@ local function streamdeck_button(deck, buttonID, pressed)
     local buttonForID = buttons[buttonID]
     -- Guard against invalid buttons
     if buttonForID == nil then
+        -- Just do a dinky little sign-of-life
+        local color = hs.drawing.color.black
+        if pressed then
+            color = hs.drawing.color.lists()['Apple']['Orange']
+        end
+        currentDeck:setButtonColor(buttonID, color)
         return
     end
 
