@@ -93,14 +93,14 @@ end
 
 local weatherButton = urlButton('https://wttr.in', {
     ['imageProvider'] = function()
-        local output, status, t, rc = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/F//" | grep -v "Unknow"')
+        local output = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/F//" | grep -v "Unknow"')
         return streamdeck_imageFromText(output, {['fontSize'] = 40 })
     end
 })
 
 local cpuButton = terminalButton(function() return 'htop' end, {
     ['imageProvider'] = function()
-        local output, status, t, rc = hs.execute('cpu.10s.sh', true)
+        local output = hs.execute('cpu.10s.sh', true)
         return streamdeck_imageFromText(output, {['fontSize'] = 40 })
     end,
     ['performAfter'] = function()
@@ -110,7 +110,7 @@ local cpuButton = terminalButton(function() return 'htop' end, {
 
 local memoryButton = terminalButton(function() return 'htop' end, {
     ['imageProvider'] = function()
-        local output, status, t, rc = hs.execute('memory.10s.sh', true)
+        local output = hs.execute('memory.10s.sh', true)
         return streamdeck_imageFromText(output, {['fontSize'] = 40 })
     end,
     ['performAfter'] = function()
@@ -256,14 +256,9 @@ local function streamdeck_discovery(connected, deck)
     if connected then
         currentDeck = deck
         fixupButtonUpdateTimer()
-        local waiting = streamdeck_imageFromText("􀍠")
-
         deck:buttonCallback(streamdeck_button)
 
-        columns, rows = deck:buttonLayout()
-        for i=1,columns*rows do
-            deck:setButtonImage(i, waiting)
-        end
+        -- columns, rows = deck:buttonLayout()
         updateButtons()
     else
         currentDeck = nil
