@@ -8,7 +8,12 @@ function peekButtonFor(bundleID)
         ['image'] = hs.image.imageFromAppBundle(bundleID),
         ['pressDown'] = function()
             peekDownTimes[bundleID] = hs.timer.absoluteTime()
-            hs.application.open(bundleID)
+            local app = hs.application.get(bundleID)
+            if app:isFrontmost() then
+                app:hide()
+            else
+                hs.application.open(bundleID)
+            end
         end,
         ['pressUp'] = function()
             local upTime = hs.timer.absoluteTime()
