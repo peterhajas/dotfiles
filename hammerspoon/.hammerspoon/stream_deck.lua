@@ -1,6 +1,10 @@
 require "streamdeck_buttons.button_images"
 require "streamdeck_buttons.audio_devices"
 require "streamdeck_buttons.itunes"
+require "streamdeck_buttons.terminal"
+require "streamdeck_buttons.peek"
+require "streamdeck_buttons.url"
+require "streamdeck_buttons.lock"
 
 require "profile"
 
@@ -27,125 +31,6 @@ end
 -- 'imageProvider': the function returning the image
 -- 'pressDown': the function to perform on press down
 -- 'pressUp': the function to perform on press up
-
-local nonceButton = {}
-
--- Key: bundleID
--- Value: last "press down" nanoseconds
-local peekDownTimes = {}
-local function peekButtonFor(bundleID)
-    return {
-        ['image'] = hs.image.imageFromAppBundle(bundleID),
-        ['pressDown'] = function()
-            peekDownTimes[bundleID] = hs.timer.absoluteTime()
-            hs.application.open(bundleID)
-        end,
-        ['pressUp'] = function()
-            local upTime = hs.timer.absoluteTime()
-            local downTime = peekDownTimes[bundleID]
-
-            if downTime ~= nil then
-                local elapsed = (upTime - downTime) * .000001
-                -- If we've held the button down for > 300ms, hide
-                if elapsed > 300 then
-                    local app = hs.application.get(bundleID)
-                    if app ~= nil then
-                        app:hide()
-                    end
-                end
-            end
-        end
-    }
-end
-
-local function urlButton(url, button)
-    local out = button
-    out['pressUp'] =  function()
-        hs.urlevent.openURL(url)
-        performAfter = performAfter or function() end
-        hs.timer.doAfter(0.2, function()
-            performAfter()
-        end)
-    end
-    return out
-end
-
-local function terminalButton(commandProvider, button)
-    local out = button
-    out['pressUp'] = function()
-        local command = commandProvider()
-        if command == nil then
-            return
-        end
-
-        hs.application.open("com.apple.Terminal")
-        hs.eventtap.keyStroke({"cmd"}, "n")
-        hs.eventtap.keyStrokes(command)
-        hs.eventtap.keyStroke({}, "return")
-
-        performAfter = button['performAfter'] or function() end
-        hs.timer.doAfter(0.1, function()
-            performAfter()
-        end)
-    end
-    return out
-end
-
-local weatherButton = urlButton('https://wttr.in', {
-    ['imageProvider'] = function()
-        local output = hs.execute('curl -s "wttr.in?format=1" | sed "s/+//" | sed "s/F//" | grep -v "Unknow"')
-        return streamdeck_imageFromText(output, {['fontSize'] = 40 })
-    end
-})
-
-local cpuButton = terminalButton(function() return 'htop' end, {
-    ['imageProvider'] = function()
-        local output = hs.execute('cpu.10s.sh', true)
-        return streamdeck_imageFromText(output, {['fontSize'] = 40 })
-    end,
-    ['performAfter'] = function()
-        hs.eventtap.keyStrokes("P")
-    end
-})
-
-local memoryButton = terminalButton(function() return 'htop' end, {
-    ['imageProvider'] = function()
-        local output = hs.execute('memory.10s.sh', true)
-        return streamdeck_imageFromText(output, {['fontSize'] = 40 })
-    end,
-    ['performAfter'] = function()
-        hs.eventtap.keyStrokes("M")
-    end
-})
-
-local pinboardButton = urlButton('https://pinboard.in/add/', {
-    ['image'] = streamdeck_imageFromText('􀎧', {['backgroundColor'] = hs.drawing.color.blue}),
-    ['pressUp'] = function()
-        hs.eventtap.keyStroke({"cmd"}, "v")
-    end
-})
-
-local youtubeDLButton = terminalButton(function()
-    -- Grab pasteboard
-    local pasteboard = hs.pasteboard.readString()
-    if string.find(pasteboard, 'http') then
-        local command = "ytd \""..pasteboard.."\""
-        return command
-    end
-    return nil
-end, {
-    ['image'] = streamdeck_imageFromText('􀊚"', {['backgroundColor'] = hs.drawing.color.white, ['textColor'] = hs.drawing.color.red}),
-    ['performAfter'] = function()
-        hs.eventtap.keyStroke({"ctrl"}, "d")
-    end
-})
-
-local lockButton = {
-    ['image'] = streamdeck_imageFromText('􀎡'),
-    ['pressUp'] = function()
-        hs.caffeinate.lockScreen()
-    end
-}
 
 local buttons = {
     weatherButton,
