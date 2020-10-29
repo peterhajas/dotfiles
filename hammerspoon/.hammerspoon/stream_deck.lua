@@ -210,9 +210,11 @@ local function updateButton(i, pressed)
 end
 
 local function updateButtons()
+    profileStart('streamdeckButtonUpdate_all')
     for index, button in pairs(buttons) do
         updateButton(index, false)
     end
+    profileStop('streamdeckButtonUpdate_all')
 end
 
 function streamdeck_update()
