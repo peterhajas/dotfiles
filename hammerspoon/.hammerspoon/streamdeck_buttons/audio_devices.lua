@@ -4,6 +4,12 @@ require "streamdeck_buttons.button_images"
 -- `input` controls whether this is an input device
 --         or an output device button
 function audioDeviceButton(input)
+    local name = "audio_"
+    if input then
+        name = name .. 'input'
+    else
+        name = name .. 'output'
+    end
     return {
         ['imageProvider'] = function (pressed)
             local deviceName = hs.audiodevice.current(input)['name']
@@ -47,6 +53,7 @@ function audioDeviceButton(input)
             else
                 allDevices[index]:setDefaultOutputDevice()
             end
-        end
+        end,
+        ['name'] = name,
     }
 end

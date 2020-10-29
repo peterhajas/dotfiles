@@ -45,7 +45,6 @@ local function updateButton(i, pressed)
     profileStop('streamdeckButtonUpdate_' .. i)
 end
 
-
 -- Button Definitions
 -- Buttons are defined as tables, with some values:
 -- 'image': the image
@@ -53,6 +52,7 @@ end
 -- 'pressDown': the function to perform on press down
 -- 'pressUp': the function to perform on press up
 -- 'updateInterval': the desired update interval (if any) in seconds
+-- 'name': the name of the button
 -- Internal values:
 -- '_timer': the timer that is updating this button
 
@@ -126,8 +126,15 @@ local function updateButtons()
     profileStop('streamdeckButtonUpdate_all')
 end
 
-function streamdeck_update()
-    updateButtons()
+function streamdeck_updateButton(matching)
+    for index, button in pairs(buttons) do
+        title = button['name']
+        if title ~= nil then
+            if string.match(title, matching) then
+                updateButton(index, false)
+            end
+        end
+    end
 end
 
 local function streamdeck_button(deck, buttonID, pressed)

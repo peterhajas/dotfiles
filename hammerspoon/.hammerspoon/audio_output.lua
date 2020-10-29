@@ -3,7 +3,7 @@ require 'stream_deck'
 local lastSeenName = ""
 
 hs.audiodevice.watcher.setCallback(function(kind)
-    streamdeck_update()
+    streamdeck_updateButton('audio')
     if kind == "dOut" or kind == "sOut" then
         local name = hs.audiodevice.current()['name']
         if name ~= lastSeenName then
