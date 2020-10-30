@@ -1,5 +1,8 @@
 -- Grab the current track's iTunes albumart
 function currentiTunesArtwork()
+    if hs.itunes.getCurrentTrack() == nil then
+        return nil
+    end
     if hs.appfinder.appFromName('Music') then
         applescript_str = [[global f, a
         tell application "Music"
