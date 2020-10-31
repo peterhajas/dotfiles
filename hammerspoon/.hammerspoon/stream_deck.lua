@@ -175,6 +175,7 @@ local function streamdeck_discovery(connected, deck)
     if connected then
         currentDeck = deck
         deck:buttonCallback(streamdeck_button)
+        deck:reset()
 
         -- columns, rows = deck:buttonLayout()
         updateButtons()
