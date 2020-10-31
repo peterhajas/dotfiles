@@ -24,14 +24,10 @@ local function updateButton(i, pressed)
 
     local button = buttons[i]
 
-    -- If we have a static image, then only update if we have to
     local isStatic = button['image'] ~= nil
     if isStatic then
-        if button['_hasAppliedStaticImage'] ~= true then
-            -- hs.alert("STATIC: updating image for " .. i, 4)
-            currentDeck:setButtonImage(i, button['image'])
-            button['_hasAppliedStaticImage'] = true
-        end
+        -- hs.alert("STATIC: updating image for " .. i, 4)
+        currentDeck:setButtonImage(i, button['image'])
     else
         -- hs.alert("DYNAMIC: updating image for " .. i, 4)
 
@@ -113,9 +109,6 @@ function streamdeck_wake()
     updateTimers()
     if currentDeck == nil then return end
     currentDeck:setBrightness(30)
-    for index, button in pairs(buttons) do
-        button['_hasAppliedStaticImage'] = nil
-    end
 end
 
 local function updateButtons()
