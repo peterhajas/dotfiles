@@ -31,6 +31,7 @@ require "pass"
 require "stream_deck"
 require "link_replace"
 require "home"
+require "pinboard"
 
 profileStop('imports')
 profileStart('globals')
