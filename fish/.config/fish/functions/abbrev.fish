@@ -1,6 +1,9 @@
 function abbrev -d "Install fish abbreviations"
+    # dirs
+    abbr d cd ~/dotfiles
     # git
     abbr g git
+    abbr ga git add
     abbr gb 'git branch | fzf | xargs git checkout'
     abbr gc git checkout
     abbr gl git log
