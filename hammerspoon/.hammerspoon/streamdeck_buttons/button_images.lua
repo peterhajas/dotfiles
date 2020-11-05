@@ -1,5 +1,5 @@
-local buttonWidth = 96
-local buttonHeight = 96
+buttonWidth = 96
+buttonHeight = 96
 
 -- Returns an image with the specified text, color, and background color
 function streamdeck_imageFromText(text, options)

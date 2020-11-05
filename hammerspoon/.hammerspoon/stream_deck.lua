@@ -59,7 +59,7 @@ buttons = {
     memoryButton,
     pinboardButton,
     youtubeDLButton,
-    peekButtonFor('com.apple.iCal'),
+    calendarPeekButton(),
     peekButtonFor('com.reederapp.5.macOS'),
     lockButton,
     audioDeviceButton(false),
@@ -67,8 +67,6 @@ buttons = {
     itunesPreviousButton(),
     itunesPlayPuaseButton(),
     itunesNextButton(),
-    monthButton,
-    dayButton,
     clockButton
 }
 
