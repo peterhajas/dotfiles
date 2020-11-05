@@ -22,11 +22,7 @@ end
 function itunesPlayPuaseButton()
     return {
         ['imageProvider'] = function (pressed)
-            local image = currentiTunesArtwork()
-            if image == nil then
-                image = streamdeck_imageFromText("􀊄")
-            end
-            return image
+            return streamdeck_imageFromText("􀊄")
         end,
         ['pressUp'] = function()
             hs.itunes.playpause()
