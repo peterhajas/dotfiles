@@ -1,5 +1,8 @@
 require "hyper"
 
+-- requires the python "pinboard" module:
+-- pip install pinboard
+
 function addToPinboard(url)
     -- Make a request to find the title
     hs.http.doAsyncRequest(url, "GET", nil, nil, function(response, body, headers)
