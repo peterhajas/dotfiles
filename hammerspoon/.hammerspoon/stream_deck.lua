@@ -57,8 +57,6 @@ buttons = {
     weatherButton,
     cpuButton,
     memoryButton,
-    pinboardButton,
-    youtubeDLButton,
     calendarPeekButton(),
     peekButtonFor('com.reederapp.5.macOS'),
     lockButton,

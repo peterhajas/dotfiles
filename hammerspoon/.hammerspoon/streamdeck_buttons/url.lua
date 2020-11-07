@@ -20,10 +20,3 @@ weatherButton = urlButton('https://wttr.in', {
     ['updateInterval'] = 60 * 60 * 10,
 })
 
-pinboardButton = urlButton('https://pinboard.in/add/', {
-    ['image'] = streamdeck_imageFromText('􀎧', {['backgroundColor'] = hs.drawing.color.blue}),
-    ['pressUp'] = function()
-        hs.eventtap.keyStroke({"cmd"}, "v")
-    end
-})
-

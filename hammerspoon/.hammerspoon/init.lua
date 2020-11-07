@@ -32,6 +32,7 @@ require "stream_deck"
 require "link_replace"
 require "home"
 require "pinboard"
+require "youtubedl"
 
 profileStop('imports')
 profileStart('globals')
