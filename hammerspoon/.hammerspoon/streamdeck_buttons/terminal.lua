@@ -1,4 +1,5 @@
 require "streamdeck_buttons.button_images"
+require "color_support"
 require "terminal"
 
 local function terminalButton(commandProvider, button)
@@ -21,8 +22,15 @@ end
 
 cpuButton = terminalButton(function() return 'htop' end, {
     ['imageProvider'] = function()
-        local output = hs.execute('cpu.10s.sh', true)
-        return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+        local value = math.floor(hs.execute('cpu_usage.sh', true))
+        local text = "🖥️" .. value .. "%"
+        local color = severityColorForFraction(value/100.0)
+        local options = {
+            ['backgroundColor'] = color,
+            ['textColor'] = hs.drawing.color.black,
+            ['fontSize'] = 40
+        }
+        return streamdeck_imageFromText(text, options)
     end,
     ['performAfter'] = function()
         hs.eventtap.keyStrokes("P")
@@ -32,8 +40,15 @@ cpuButton = terminalButton(function() return 'htop' end, {
 
 memoryButton = terminalButton(function() return 'htop' end, {
     ['imageProvider'] = function()
-        local output = hs.execute('memory.10s.sh', true)
-        return streamdeck_imageFromText(output, {['fontSize'] = 40 })
+        local value = math.floor(hs.execute('mem_usage.sh', true))
+        local text = "🧠" .. value .. "%"
+        local color = severityColorForFraction(value/100.0)
+        local options = {
+            ['backgroundColor'] = color,
+            ['textColor'] = hs.drawing.color.black,
+            ['fontSize'] = 40
+        }
+        return streamdeck_imageFromText(text, options)
     end,
     ['performAfter'] = function()
         hs.eventtap.keyStrokes("M")
