@@ -26,6 +26,6 @@ weatherButton = urlButton('https://wttr.in', {
         }
         return streamdeck_imageFromText(output, options)
     end,
-    ['updateInterval'] = 60 * 60 * 10,
+    ['updateInterval'] = 60,
 })
 
