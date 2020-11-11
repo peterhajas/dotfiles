@@ -36,4 +36,5 @@ alias confedit "mate ~/.config/fish/config.fish"
 
 config_editor_aliases
 
-abbrev
+alias mutt neomutt
+
