@@ -6,6 +6,7 @@ require "streamdeck_buttons.peek"
 require "streamdeck_buttons.url"
 require "streamdeck_buttons.lock"
 require "streamdeck_buttons.clock"
+require "streamdeck_buttons.camera"
 
 require "profile"
 
@@ -65,7 +66,9 @@ buttons = {
     itunesPreviousButton(),
     itunesPlayPuaseButton(),
     itunesNextButton(),
-    clockButton
+    clockButton,
+    camera1Button,
+    camera2Button
 }
 
 local function disableTimers()
