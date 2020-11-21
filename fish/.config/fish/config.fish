@@ -21,6 +21,9 @@ set EDITOR (which vim)
 
 alias mate mvim
 
+# Abbreviations
+abbrev
+
 # Shell management
 
 ## Set LC_ALL for unicode detection in Ubuntu
