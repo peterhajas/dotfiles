@@ -30,7 +30,6 @@ arch -x86_64 brew install rg
 arch -x86_64 brew install graphviz
 arch -x86_64 brew install pass
 arch -x86_64 brew install pass-otp
-arch -x86_64 brew install syncthing
 arch -x86_64 brew install exa
 
 # Hi Peter! Are you adding software here? If so, make sure to add it to linux_apt_get.bash if it makes sense. Sincerely, Past Peter

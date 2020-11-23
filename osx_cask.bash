@@ -14,3 +14,4 @@ brew cask install karabiner-elements
 brew cask install hammerspoon
 brew cask install blender
 brew cask install gnucash
+brew cask install syncthing
