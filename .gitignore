@@ -44,5 +44,13 @@ newsboat/.newsboat/cache*
 newsboat/.newsboat/history*
 newsboat/.newsboat/cookies*
 
+# mpd
+
+mpd/.mpd/database
+mpd/.mpd/log
+mpd/.mpd/pid
+mpd/.mpd/state
+mpd/.mpd/sticker.sql
+
 # Karabiner related
 karabiner/.config/karabiner/automatic_backups
