@@ -1,0 +1,4 @@
+playlist_display_mode = columns
+browser_display_mode = columns
+media_library_primary_tag = album_artist
+startup_screen = "media_library"
