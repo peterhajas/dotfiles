@@ -38,6 +38,9 @@ defaults write com.apple.finder FXEnableExtensionChangeWarning -bool false
 ## Hide desktop icons
 defaults write com.apple.finder CreateDesktop -bool false
 
+## Proxy icon
+defaults write com.apple.Finder NSToolbarTitleViewRolloverDelay -float 0
+
 # Dock
 
 ## Hide the Dock
