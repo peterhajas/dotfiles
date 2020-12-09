@@ -3,6 +3,8 @@ browser_display_mode = columns
 media_library_primary_tag = album_artist
 startup_screen = "media_library"
 
+allow_for_physical_item_deletion = "no"
+
 autocenter_mode = "yes"
 follow_now_playing_lyrics = "yes"
 ignore_leading_the = "yes"
