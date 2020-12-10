@@ -1,5 +1,3 @@
-playlist_display_mode = columns
-browser_display_mode = columns
 media_library_primary_tag = album_artist
 startup_screen = "media_library"
 
@@ -11,8 +9,10 @@ ignore_leading_the = "yes"
 ignore_diacritics = "yes"
 default_place_to_search_in = "database"
 
-alternative_header_first_line_format = "$0$aqqu$/a {$6%a$9 - }{$3%t$9}|{$8%f$9} $0$atqq$/a$9"
-alternative_header_second_line_format = "{{$4%b$9}{ [$8%y$9]}}|{%D}"
+# First line - the title in white
+alternative_header_first_line_format = "{$8%t$9}"
+# Second line - artist (in red) and album (in green)
+alternative_header_second_line_format = "{$2%A$9} - {$3%b$9}"
 user_interface = "alternative"
 
 song_status_format = " $6%a $7⟫⟫ $3%t $7⟫⟫ $4%b "
@@ -23,3 +23,43 @@ jump_to_now_playing_song_at_start = "yes"
 lines_scrolled = "2"
 
 enable_window_title = "yes"
+
+# Display Modes
+playlist_display_mode = "columns"
+browser_display_mode = "columns"
+search_engine_display_mode = "columns"
+playlist_editor_display_mode = "columns"
+
+# Queue Format
+song_columns_list_format = "(25)[white]{t} (10)[blue]{l} (25)[red]{A} (25)[green]{b} (15)[yellow]{g}"
+
+# Colors
+colors_enabled = "yes"
+main_window_color = "white"
+header_window_color = "magenta"
+volume_color = "green"
+statusbar_color = "white"
+progressbar_color = "cyan"
+progressbar_elapsed_color = "white"
+
+# Progress Bar
+# This is "where we're at, where we are, and where we're going"
+# Mine is just a filled track
+progressbar_look = "██ "
+
+# Current Item
+# This is used for what we have highlighted in the UI 
+current_item_prefix = "$(magenta)$r"
+# This will always keep the selection cursor in the vertical center
+centered_cursor = "yes"
+
+# Now Playing
+now_playing_prefix = "- "
+now_playing_suffix = " -"
+
+# Selected
+selected_item_prefix = "* "
+discard_colors_if_item_is_selected = "yes"
+
+# Visualizer
+visualizer_look = "•█"
