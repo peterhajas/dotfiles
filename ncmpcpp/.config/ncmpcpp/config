@@ -2,6 +2,8 @@ media_library_primary_tag = album_artist
 startup_screen = "media_library"
 
 allow_for_physical_item_deletion = "no"
+# Don't ask before clearing playlists
+ask_before_clearing_playlists = "no"
 
 autocenter_mode = "yes"
 follow_now_playing_lyrics = "yes"
