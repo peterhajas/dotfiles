@@ -1,13 +1,21 @@
 -- Replaces links that are found on the clipboard, if applicable
 
+local replacements = {
+    ['twitter.com'] = 'nitter.net',
+    ['reddit.com'] = 'teddit.net',
+    ['instagram.com'] = 'bibliogram.art'
+}
+
 function replacePasteboardLinkIfNecessary(contents)
     if contents == nil then
         return
     end
-    if string.find(contents, 'twitter.com') then
-        -- Replace twitter.com with nitter.net
-        newContents = contents:gsub('twitter.com', 'nitter.net')
-        hs.pasteboard.setContents(newContents)
-        hs.alert("Nitter Replaced")
+
+    for key, replacement in pairs(replacements) do
+        if string.find(contents, key) then
+            newContents = contents:gsub(key, replacement)
+            hs.pasteboard.setContents(newContents)
+            hs.alert("Replaced")
+        end
     end
 end
