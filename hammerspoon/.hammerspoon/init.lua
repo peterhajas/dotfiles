@@ -377,7 +377,8 @@ end
 popclickListening = false
 local fn = popclickHandler
 listener = hs.noises.new(fn)
-hs.hotkey.bind(hyper, "Q", function()
+-- "s" for listening
+hs.hotkey.bind(hyper, "s", function()
     popclickPlayPause()
 end)
 -- }}}
@@ -447,3 +448,29 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "b", function()
 end)
 -- }}}
 profileStop('configTotal')
+
+local webview = nil
+function go()
+   local url = "http://peterhajas.com"
+
+   -- Persist the window between calls to reduce startup time on subsequent calls
+   if webview == nil then
+      local rect = hs.geometry.rect(0, 0, 768, 768)
+      rect.center = hs.screen.mainScreen():frame().center
+      webview=hs.webview.new(rect)
+          :allowTextEntry(true)
+          :windowStyle(hs.webview.windowMasks.utility|hs.webview.windowMasks.HUD|hs.webview.windowMasks.titled|hs.webview.windowMasks.closable)
+          :closeOnEscape(true)
+   end
+   webview:url(url)
+      :bringToFront()
+      :show()
+   webview:hswindow():focus()
+   hs.timer.doAfter(1, function() 
+         hs.eventtap.keyStroke({"cmd"}, "v")
+      end)
+   hs.timer.doAfter(1.5, function() 
+         hs.eventtap.keyStroke({}, "tab")
+      end)
+end
+
