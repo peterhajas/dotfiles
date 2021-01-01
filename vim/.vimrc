@@ -406,10 +406,14 @@ nmap vv :FZF <CR>
 " vimwiki
 " We want a wiki in ~/.vimwiki that uses Markdown and the .md extension
 let g:vimwiki_list = [{'path': '~/.vimwiki',
-                   \ 'syntax': 'markdown', 'ext': '.md'}]
+                      \'auto_tags' : 1,
+                      \'syntax': 'markdown', 'ext': '.md'}]
 
 " Disable the auto-syntax detection for everything but my actual Wiki
 let g:vimwiki_global_ext = 0
+
+" For links made by vimwiki, append the markdown file extension
+let g:vimwiki_markdown_link_ext = 1
 
 " }}}
 " Prose mode configuration {{{
