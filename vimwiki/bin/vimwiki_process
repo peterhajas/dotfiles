@@ -1,0 +1,5 @@
+#!/bin/sh
+# Performs standard operations on our vimwiki
+
+# Regenerate diary
+vim -c "VimwikiDiaryIndex" -c "VimwikiDiaryGenerateLinks" -c "wq"

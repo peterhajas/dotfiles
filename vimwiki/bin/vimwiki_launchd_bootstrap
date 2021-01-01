@@ -1,0 +1,6 @@
+#!/bin/sh
+echo "Unloading..."
+launchctl unload -w ~/Library/LaunchAgents/phajas.vimwiki.plist
+echo "Loading..."
+launchctl load -w ~/Library/LaunchAgents/phajas.vimwiki.plist
+echo "Done."

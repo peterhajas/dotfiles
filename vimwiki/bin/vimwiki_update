@@ -1,5 +1,4 @@
 #!/bin/sh
-# Updates our vimwiki
+# Updates vimwiki
 
-# Regenerate diary
-vim -c "VimwikiDiaryIndex" -c "VimwikiDiaryGenerateLinks" -c "wq"
+vimwiki_process && vimwiki_pull && vimwiki_push
