@@ -2,7 +2,7 @@
 # Performs standard operations on our vimwiki
 
 # Update tags and quit
-vim -c "VimwikiIndex" -c "VimwikiRebuildTags!" -c "VimwikiGenerateTagLinks" -c "wq"
+vim -c "VimwikiIndex" -c "VimwikiRebuildTags!" -c "wq"
 
 # Update diary and quit
 vim -c "VimwikiDiaryIndex" -c "VimwikiDiaryGenerateLinks" -c "wq"
