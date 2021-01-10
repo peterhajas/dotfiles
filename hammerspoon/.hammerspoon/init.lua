@@ -49,7 +49,7 @@ end
 
 -- }}}
 -- Global variables {{{
-hs.window.animationDuration = 0.1
+hs.window.animationDuration = 0.0
 caffeinateWatcher = nil
 pasteboardWatcher = nil
 -- }}}
