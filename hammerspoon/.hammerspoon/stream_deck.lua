@@ -66,9 +66,7 @@ buttons = {
     itunesPreviousButton(),
     itunesPlayPuaseButton(),
     itunesNextButton(),
-    clockButton,
-    camera1Button,
-    camera2Button
+    clockButton
 }
 
 local function disableTimers()
