@@ -22,6 +22,7 @@ vim/.vim/plugged
 *.un~
 *.swp
 *.netrwhist
+vim/.vim/undodir
 
 # fish related
 

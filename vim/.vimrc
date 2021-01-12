@@ -4,12 +4,26 @@
 
 " vim:fdm=marker
 
-" Tabs, spaces and indenting {{{
+" Sourcing
 
+" Source local .vimrcs
+set exrc
+
+" Errors
+set noerrorbells
+
+" Wrapping
+set nowrap
+
+" Tabs, spaces and indenting {{{
 set tabstop=4
 set shiftwidth=4
 set softtabstop=4
 set expandtab
+
+" Numbers
+set number
+set relativenumber
 
 " }}}
 " Key remapping {{{
@@ -47,17 +61,14 @@ vnoremap <leader>p "_dP
 " Searching / Moving {{{
 
 set ignorecase
+set smartcase
 set gdefault
 set incsearch
 set showmatch
 
-" Highlight all the matches for the current search query
+" Don't highlight all the matches for the current search query
 
-set hlsearch
-
-" Clear the current query when hitting leader-<space>
-
-nnoremap <silent> <leader><space> :noh<cr>
+set nohlsearch
 
 " When searching for things, keep the current match in the middle of the
 " window and pulse the line when moving to them
@@ -225,33 +236,6 @@ set statusline+=\%L
 " Always hide the status line. This can always be re-enabled.
 
 set laststatus=0
-
-" }}}
-" Line numbers {{{
-
-let g:NumbersShowing = exists('w:NumbersShowing') ? w:NumbersShowing : 0
-
-function ShowLineNumbers()
-    let g:NumbersShowing = 1
-    set number
-    set relativenumber
-endfunction
-
-function HideLineNumbers()
-    let g:NumbersShowing = 0
-    set nonumber
-    set norelativenumber
-endfunction
-
-function ToggleNumbers()
-    if g:NumbersShowing
-        call HideLineNumbers()
-    else
-        call ShowLineNumbers()
-    endif
-endfunction
-
-nmap <silent> <leader>n :call ToggleNumbers() <CR>
 
 " }}}
 " Mouse Support {{{
@@ -481,8 +465,8 @@ set shell=bash
 " Change vim's character encoding to UTF-8
 set encoding=utf-8
 
-" Never let there be less than 15 spaces above/below the insertion point
-set scrolloff=15
+" Never let there be less than 12 spaces above/below the insertion point
+set scrolloff=12
 
 " Automatically indent
 set autoindent
@@ -504,7 +488,13 @@ set backspace=indent,eol,start
 " Only show the tab line if there are >1 tabs
 set showtabline=1
 
+" Turn on colorcolumn and the lint column
+set colorcolumn=80
+highlight ColorColumn ctermbg=0
+set signcolumn=yes
+
 " Keep an undo file. TODO: Do we need this? Seems annoying...
+set undodir=~/.vim/undodir
 set undofile
 
 " Don't keep a backup file or swap file
