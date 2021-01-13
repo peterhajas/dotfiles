@@ -33,6 +33,7 @@ end
 -- `input` controls whether this is an input device
 --         or an output device button
 function audioDeviceButton(input)
+    -- This draws a button with a list of devices in it
     local name = "audio_"
     if input then
         name = name .. 'input'
@@ -41,36 +42,41 @@ function audioDeviceButton(input)
     end
     return {
         ['imageProvider'] = function (pressed)
-            local deviceName = hs.audiodevice.current(input)['name']
-            local indexAndCount = indexAndCountOfAudioDevices(input)
-            local empty = "􀀀"
-            local full = ""
-            if input then
-                full = "􀊱"
-            else
-                full = "􀊩"
+            local currentDeviceName = hs.audiodevice.current(input)['name']
+
+            local imageCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
+            local elements = { }
+
+            local yOffset = 0
+            local fontSize = 14
+            local yOffsetAmount = 13
+
+            for k,v in pairs(allAudioDevices(input)) do
+                local text = empty
+                local color = hs.drawing.color.white
+                if v:name() == currentDeviceName then
+                    text = full
+                    color = hs.drawing.color.lists()['Apple']['Orange']
+                end
+
+                deviceItem = {
+                    frame = { x = 10, y = yOffset, w = 100000, h = buttonHeight },
+                    text = hs.styledtext.new(v:name(), {
+                        font = { name = ".AppleSystemUIFont", size = fontSize },
+                        paragraphStyle = { alignment = "left" },
+                        color = color
+                    }),
+                    type = "text",
+                }
+                table.insert(elements, indicatorItem)
+                table.insert(elements, deviceItem)
+
+                yOffset = yOffset + yOffsetAmount
             end
-            local pageIndicator = ""
-            local fillProgress = 1
 
-            -- Add in empty circles until we hit the selected index
-            while fillProgress < indexAndCount['index'] do
-                pageIndicator = pageIndicator .. empty
-                fillProgress = fillProgress + 1
-            end
+            imageCanvas:appendElements(elements)
 
-            -- Add in full circle
-            pageIndicator = pageIndicator .. full
-            fillProgress = fillProgress + 1
-
-            -- Add in empty circles until we hit the count
-            while fillProgress <= indexAndCount['count'] do
-                pageIndicator = pageIndicator .. empty
-                fillProgress = fillProgress + 1
-            end
-
-            local text = '\n' .. pageIndicator .. '\n' .. deviceName
-            return streamdeck_imageFromText(text, { ['fontSize'] = 15 })
+            return imageCanvas:imageFromCanvas()
         end,
         ['pressUp'] = function()
             local allDevices = allAudioDevices(input)
