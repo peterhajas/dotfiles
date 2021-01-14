@@ -68,7 +68,9 @@ buttons = {
     itunesPlayPuaseButton(),
     itunesNextButton(),
     clockButton,
-    officeToggle
+    officeToggle,
+    officeNormal,
+    officeMood
 }
 
 local function disableTimers()
