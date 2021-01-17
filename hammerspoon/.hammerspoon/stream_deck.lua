@@ -101,6 +101,13 @@ local function updateTimers()
     end
 end
 
+local function updateButtons()
+    profileStart('streamdeckButtonUpdate_all')
+    for index, button in pairs(buttons) do
+        updateButton(index, false)
+    end
+    profileStop('streamdeckButtonUpdate_all')
+end
 
 function streamdeck_sleep()
     asleep = true
@@ -114,14 +121,7 @@ function streamdeck_wake()
     updateTimers()
     if currentDeck == nil then return end
     currentDeck:setBrightness(30)
-end
-
-local function updateButtons()
-    profileStart('streamdeckButtonUpdate_all')
-    for index, button in pairs(buttons) do
-        updateButton(index, false)
-    end
-    profileStop('streamdeckButtonUpdate_all')
+    updateButtons()
 end
 
 function streamdeck_updateButton(matching)
