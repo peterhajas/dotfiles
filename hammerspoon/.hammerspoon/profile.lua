@@ -1,3 +1,4 @@
+local profileEnabled = false
 local profileLogger = hs.logger.new('profile', 'debug')
 local profileLogStartTimes = { }
 
@@ -12,6 +13,8 @@ function profileStop(name)
     local delta = now - profileLogStartTimes[name]
     local deltaNormalized = delta / 1000000000.0
     local logString = name .. ': ' .. deltaNormalized .. 's'
-    profileLogger.i(logString)
+    if profileEnabled then
+        profileLogger.i(logString)
+    end
 end
 
