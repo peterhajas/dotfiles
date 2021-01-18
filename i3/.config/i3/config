@@ -29,9 +29,6 @@ font pango:DejaVu Sans Mono 8
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
 
-# Fire up our compositor
-exec --no-startup-id compton --config ~/.config/compton.conf -b
-
 # start a terminal
 bindsym $mod+Return exec i3-sensible-terminal
 
