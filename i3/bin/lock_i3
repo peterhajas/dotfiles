@@ -7,4 +7,4 @@ scrot /tmp/screen.png
 convert /tmp/screen.png -scale 5% -scale 2000% /tmp/screen.png
 
 # Lock with it
-i3lock -u -e -f --image=/tmp/screen.png
+i3lock -e -f --image=/tmp/screen.png
