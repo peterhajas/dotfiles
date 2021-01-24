@@ -109,7 +109,7 @@ function calendarPeekButton()
 
         return imageCanvas:imageFromCanvas()
     end
-    button['updateInterval'] = 120
+    button['updateInterval'] = 3600
     return button
 end
 
