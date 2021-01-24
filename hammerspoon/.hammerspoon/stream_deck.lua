@@ -57,17 +57,13 @@ end
 
 buttons = {
     weatherButton,
-    cpuButton,
-    memoryButton,
     calendarPeekButton(),
     peekButtonFor('com.reederapp.5.macOS'),
     lockButton,
     audioDeviceButton(false),
     audioDeviceButton(true),
     itunesPreviousButton(),
-    itunesPlayPuaseButton(),
     itunesNextButton(),
-    clockButton,
     officeToggle,
     officeNormal,
     officeMood
