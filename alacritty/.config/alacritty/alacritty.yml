@@ -1,0 +1,31 @@
+font:
+  size: 8
+
+# These are from phajas.terminal
+colors:
+  # Default colors
+  primary:
+    background: '0x1a1a1a'
+    foreground: '0xe6e6dc'
+
+  # Normal colors
+  normal:
+    black:   '0x2d2d2d'
+    red:     '0xf2777a'
+    green:   '0x99cc99'
+    yellow:  '0xffcc66'
+    blue:    '0x6699cc'
+    magenta: '0xcc99cc'
+    cyan:    '0x66cccc'
+    white:   '0xcccccc'
+
+  # Bright colors
+  bright:
+    black:   '0x747369'
+    red:     '0x995151'
+    green:   '0x709970'
+    yellow:  '0x997a3d'
+    blue:    '0x517099'
+    magenta: '0x997099'
+    cyan:    '0x519999'
+    white:   '0xcccccc'

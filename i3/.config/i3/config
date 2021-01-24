@@ -29,11 +29,8 @@ font pango:DejaVu Sans Mono 8
 # Use Mouse+$mod to drag floating windows to their wanted position
 floating_modifier $mod
 
-# Fire up our compositor
-exec --no-startup-id compton --config ~/.config/compton.conf -b
-
 # start a terminal
-bindsym $mod+Return exec i3-sensible-terminal
+bindsym $mod+Return exec alacritty
 
 # kill focused window
 bindsym $mod+x kill
@@ -184,3 +181,5 @@ bindsym XF86AudioMute exec "pactl set-sink-mute 0 toggle"
 # Brightness
 bindsym XF86MonBrightnessUp exec xbacklight -inc 20 # increase screen brightness
 bindsym XF86MonBrightnessDown exec xbacklight -dec 20 # decrease screen brightness
+
+exec "~/bin/x_friends.sh"
