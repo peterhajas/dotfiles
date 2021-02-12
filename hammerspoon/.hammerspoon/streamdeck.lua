@@ -30,12 +30,14 @@ local function updateButton(i, pressed)
     local isStatic = button['image'] ~= nil
     if isStatic then
         -- hs.alert("STATIC: updating image for " .. i, 4)
+
         currentDeck:setButtonImage(i, button['image'])
     else
         -- hs.alert("DYNAMIC: updating image for " .. i, 4)
 
         -- Otherwise, call the provider
         local image = button['imageProvider'](pressed)
+        button['_cachedImage'] = image
         if image ~= nil then
             currentDeck:setButtonImage(i, image)
         end
@@ -54,6 +56,7 @@ end
 -- 'name': the name of the button
 -- Internal values:
 -- '_timer': the timer that is updating this button
+-- '_cachedImage': cached image for this button
 
 buttons = {
     weatherButton,
