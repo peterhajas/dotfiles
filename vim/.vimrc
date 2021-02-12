@@ -13,7 +13,7 @@ set exrc
 set noerrorbells
 
 " Wrapping
-set nowrap
+set wrap
 
 " Tabs, spaces and indenting {{{
 set tabstop=4
