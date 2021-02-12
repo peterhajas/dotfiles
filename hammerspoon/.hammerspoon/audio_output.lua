@@ -1,4 +1,4 @@
-require 'stream_deck'
+require 'streamdeck'
 
 local lastSeenName = ""
 
