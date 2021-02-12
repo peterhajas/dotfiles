@@ -56,5 +56,8 @@ mpd/.mpd/pid
 mpd/.mpd/state
 mpd/.mpd/sticker.sql
 
+# ncmpcpp
+ncmpcpp/.config/ncmpcpp/error.log
+
 # Karabiner related
 karabiner/.config/karabiner/automatic_backups
