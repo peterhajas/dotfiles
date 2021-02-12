@@ -11,6 +11,7 @@ require "streamdeck_buttons.office_lights"
 require "streamdeck_buttons.weather"
 require "streamdeck_buttons.numpad"
 require "streamdeck_buttons.app_switcher"
+require "streamdeck_buttons.window_switcher"
 
 require "profile"
 
@@ -108,7 +109,8 @@ buttons = {
     officeNormal,
     officeMood,
     numpad(),
-    appSwitcher()
+    appSwitcher(),
+    windowSwitcher()
 }
 
 -- Disables all timers for all buttons
