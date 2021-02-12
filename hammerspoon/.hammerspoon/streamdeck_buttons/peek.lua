@@ -5,6 +5,7 @@ require "streamdeck_buttons.button_images"
 local peekDownTimes = {}
 function peekButtonFor(bundleID)
     return {
+        ['name'] = "Peek " .. bundleID,
         ['image'] = hs.image.imageFromAppBundle(bundleID),
         ['pressDown'] = function()
             local app = hs.application.get(bundleID)
