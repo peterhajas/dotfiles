@@ -3,6 +3,7 @@
 ## ~/bin is where personal executables are stored
 
 set PATH $PATH (find -L ~/bin -type d)
+set PATH $PATH (find /opt/homebrew/bin)
 
 ## ~/.bitbar/plugins is where bitbar plugs are stored
 set PATH $PATH ~/.bitbar/plugins
