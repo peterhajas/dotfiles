@@ -1,14 +1,4 @@
--- from https://stackoverflow.com/a/7615129
-function mysplit (inputstr, sep)
-if sep == nil then
-    sep = "%s"
-end
-local t={}
-for str in string.gmatch(inputstr, "([^"..sep.."]+)") do
-    table.insert(t, str)
-end
-return t
-end
+require 'util' 
 
 local chosen = nil
 local exited = false
@@ -22,7 +12,7 @@ function prepareChooser(args)
     end)
 
     local choices = {}
-    local argsSplit = mysplit(args, "|")
+    local argsSplit = split(args, "|")
     for k,v in pairs(argsSplit) do
         table.insert(choices, { text = v })
     end

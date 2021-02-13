@@ -13,6 +13,7 @@ require "streamdeck_buttons.numpad"
 require "streamdeck_buttons.app_switcher"
 require "streamdeck_buttons.window_switcher"
 require "streamdeck_buttons.animation_demo"
+require "streamdeck_buttons.home_assistant"
 
 require "profile"
 
@@ -113,6 +114,7 @@ buttons = {
     appSwitcher(),
     windowSwitcher(),
     animationDemo(),
+    homeAssistant(),
 }
 
 -- Disables all timers for all buttons

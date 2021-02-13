@@ -1,4 +1,5 @@
 require 'hs.json'
+-- require 'streamdeck'
 
 -- Runs a command in Home Assistant, returning its output (if any)
 -- Example usage:
@@ -22,6 +23,12 @@ function homeAssistantRun(method, endpoint, parameters)
     commandString = commandString .. '\''
 
     output, status, exitType, rc = hs.execute(commandString)
+    -- Update buttons
+    if method == 'POST' then
+        streamdeck_updateButton('home')
+    end
+    
+    -- Return output
     outputTable = hs.json.decode(output)
     return outputTable
 end
