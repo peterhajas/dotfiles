@@ -111,7 +111,6 @@ buttons = {
     numpad(),
     appSwitcher(),
     windowSwitcher(),
-    animationDemo(),
     homeAssistant(),
 }
 
