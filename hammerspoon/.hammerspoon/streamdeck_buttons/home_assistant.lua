@@ -34,6 +34,9 @@ function homeAssistant()
                                 ['textColor'] = hs.drawing.color.white,
                                 ['backgroundColor'] = hs.drawing.color.black
                             }
+                            if entityType == 'light' then
+                                options['textColor'] = hs.drawing.color.lists()['Apple']['Yellow']
+                            end
                             if entityType == 'scene' then
                                 options['textColor'] = hs.drawing.color.blue
                             end
