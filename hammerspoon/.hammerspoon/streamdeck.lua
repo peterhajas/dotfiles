@@ -12,6 +12,7 @@ require "streamdeck_buttons.weather"
 require "streamdeck_buttons.numpad"
 require "streamdeck_buttons.app_switcher"
 require "streamdeck_buttons.window_switcher"
+require "streamdeck_buttons.animation_demo"
 
 require "profile"
 
@@ -110,7 +111,8 @@ buttons = {
     officeMood,
     numpad(),
     appSwitcher(),
-    windowSwitcher()
+    windowSwitcher(),
+    animationDemo(),
 }
 
 -- Disables all timers for all buttons
@@ -186,12 +188,14 @@ function pushButtonState(newState)
     -- Push current buttons back 
     buttonStack[#buttonStack+1] = buttons
     -- Empty the buttons and update
+    disableTimers()
     buttons = { }
     updateButtons()
     -- Replace
     buttons = newState
     -- Update
     updateButtons()
+    updateTimers()
 
     inTransition = false
 end
@@ -209,6 +213,7 @@ function popButtonState()
     -- Remove from stack
     buttonStack[#buttonStack] = nil
     -- Empty the buttons and update
+    disableTimers()
     buttons = { }
     updateButtons()
     -- Replace
@@ -216,6 +221,7 @@ function popButtonState()
     -- Update
     if currentDeck ~= nil then
         updateButtons()
+        updateTimers()
     end
     inTransition = false
 end
