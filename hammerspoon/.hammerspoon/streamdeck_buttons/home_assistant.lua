@@ -16,31 +16,41 @@ function homeAssistant()
                 end
                 local entityType = split(entityID, '.')[1]
                 local buttonText = name .. '\n(' .. entityType .. ')'
-                if string.find(entityID, 'light.') or string.find(entityID, 'switch.') or string.find(entityID, 'scene') then
+                if string.find(entityID, 'light.') or string.find(entityID, 'switch.') or string.find(entityID, 'scene') or string.find(entityID, 'script') then
                     table.insert(children, {
                         ['name'] = 'home_assistant_toggle/' .. entityID,
                         ['imageProvider'] = function()
                             local stateNow = homeAssistantRun('GET', 'states' .. '/' .. entityID)
                             local options = {
                                 ['fontSize'] = 20,
+                                ['textColor'] = hs.drawing.color.white,
+                                ['backgroundColor'] = hs.drawing.color.black
                             }
                             if entityType == 'scene' then
                                 options['textColor'] = hs.drawing.color.blue
                             end
+                            if entityType == 'group' then
+                                options['textColor'] = hs.drawing.color.green
+                            end
                             if stateNow['state'] == 'on' then
-                                options['backgroundColor'] = hs.drawing.color.white
-                                options['textColor'] = hs.drawing.color.black
+                                local newTextColor = options['backgroundColor']
+                                options['backgroundColor'] = options['textColor']
+                                options['textColor'] = newTextColor
                             end
                             return streamdeck_imageFromText(buttonText, options)
                         end,
                         ['pressUp'] = function()
-                             if string.find(entityID, 'light.') then
+                            if entityType == 'light' then
                                 homeAssistantRun('POST', 'services/light/toggle', { ['entity_id'] = entityID })
-                             elseif string.find(entityID, 'switch.') then
+                            elseif entityType == 'switch' then
                                 homeAssistantRun('POST', 'services/switch/toggle', { ['entity_id'] = entityID })
-                             elseif string.find(entityID, 'scene.') then
+                            elseif entityType == 'scene' then
                                 homeAssistantRun('POST', 'services/scene/turn_on', { ['entity_id'] = entityID })
-                             end
+                            elseif entityType == 'script' then
+                                homeAssistantRun('POST', "services/script/turn_on", { ['entity_id'] = entityID })
+                            else
+                                homeAssistantRun('POST', 'services/light/toggle', { ['entity_id'] = entityID })
+                            end
                         end
                     })
                 end

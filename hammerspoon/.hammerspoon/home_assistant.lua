@@ -27,7 +27,7 @@ function homeAssistantRun(method, endpoint, parameters)
     if method == 'POST' then
         streamdeck_updateButton('home')
     end
-    
+
     -- Return output
     outputTable = hs.json.decode(output)
     return outputTable
