@@ -16,7 +16,15 @@ function homeAssistant()
                 end
                 local entityType = split(entityID, '.')[1]
                 local buttonText = name .. '\n(' .. entityType .. ')'
-                if string.find(entityID, 'light.') or string.find(entityID, 'switch.') or string.find(entityID, 'scene') or string.find(entityID, 'script') then
+                local includedEntityTypes = { 'light', 'switch', 'scene', 'script', 'group' }
+                local include = false
+                for index, includedEntityType in pairs(includedEntityTypes) do
+                    if string.find(entityType, includedEntityType) then
+                        include = true
+                        break
+                    end
+                end
+                if include then
                     table.insert(children, {
                         ['name'] = 'home_assistant_toggle/' .. entityID,
                         ['imageProvider'] = function()
@@ -31,6 +39,9 @@ function homeAssistant()
                             end
                             if entityType == 'group' then
                                 options['textColor'] = hs.drawing.color.green
+                            end
+                            if entityType == 'script' then
+                                options['textColor'] = hs.drawing.color.red
                             end
                             if stateNow['state'] == 'on' then
                                 local newTextColor = options['backgroundColor']
