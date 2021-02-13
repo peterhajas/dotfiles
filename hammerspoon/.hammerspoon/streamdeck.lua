@@ -108,8 +108,6 @@ buttons = {
     itunesPreviousButton(),
     itunesNextButton(),
     officeToggle,
-    officeNormal,
-    officeMood,
     numpad(),
     appSwitcher(),
     windowSwitcher(),

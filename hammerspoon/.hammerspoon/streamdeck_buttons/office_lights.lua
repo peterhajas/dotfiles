@@ -14,17 +14,3 @@ officeToggle = {
     end
 }
 
-officeNormal = {
-    ['image'] = streamdeck_imageFromText("􀝓", imageOptions),
-    ['pressUp'] = function()
-        homeAssistantRun('POST', 'services/scene/turn_on', { ['entity_id'] = 'scene.office_regular' })
-    end
-}
-
-officeMood = {
-    ['image'] = streamdeck_imageFromText("􀜍", imageOptions),
-    ['pressUp'] = function()
-        homeAssistantRun('POST', 'services/scene/turn_on', { ['entity_id'] = 'scene.office_mood' })
-    end
-}
-
