@@ -65,7 +65,8 @@ function homeAssistant()
                             else
                                 homeAssistantRun('POST', 'services/light/toggle', { ['entity_id'] = entityID })
                             end
-                        end
+                        end,
+                        ['updateInterval'] = 5
                     })
                 end
             end
