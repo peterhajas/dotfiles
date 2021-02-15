@@ -16,3 +16,17 @@ function tableLength(T)
   for _ in pairs(T) do count = count + 1 end
   return count
 end
+
+-- Converts a boolean to a number
+function boolToNumber(value)
+  return value and 1 or 0
+end
+
+-- Clones a table
+function cloneTable(oldTable)
+    local newTable = {}
+    for k,v in pairs(oldTable) do
+        newTable[k] = v
+    end
+    return newTable
+end

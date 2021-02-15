@@ -16,20 +16,7 @@ require "streamdeck_buttons.animation_demo"
 require "streamdeck_buttons.home_assistant"
 
 require "profile"
-
--- Converts a boolean to a number
-function bool_to_number(value)
-  return value and 1 or 0
-end
-
--- Clones a table
-function cloneTable(oldTable)
-    local newTable = {}
-    for k,v in pairs(oldTable) do
-        newTable[k] = v
-    end
-    return newTable
-end
+require "util"
 
 local streamdeckLogger = hs.logger.new('streamdeck', 'debug')
 
