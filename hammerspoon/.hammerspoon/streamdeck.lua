@@ -50,7 +50,6 @@ local function updateButton(i, pressed)
 
             -- Otherwise, call the provider
             local image = button['imageProvider'](pressed)
-            button['_cachedImage'] = image
             if image ~= nil then
                 currentDeck:setButtonImage(i, image)
             end
@@ -79,7 +78,6 @@ end
 
 -- Internal values:
 -- '_timer': the timer that is updating this button
--- '_cachedImage': cached image for this button
 
 -- Initial Button Definitions
 buttons = {
