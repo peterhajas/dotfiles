@@ -9,7 +9,6 @@ require "streamdeck_buttons.clock"
 require "streamdeck_buttons.camera"
 require "streamdeck_buttons.office_lights"
 require "streamdeck_buttons.weather"
-require "streamdeck_buttons.numpad"
 require "streamdeck_buttons.app_switcher"
 require "streamdeck_buttons.window_switcher"
 require "streamdeck_buttons.animation_demo"
@@ -93,7 +92,6 @@ buttons = {
     itunesPreviousButton(),
     itunesNextButton(),
     officeToggle,
-    numpad(),
     appSwitcher(),
     windowSwitcher(),
     homeAssistant(),
