@@ -7,6 +7,7 @@ local imageOptions = {
 }
 
 officeToggle = {
+    ['name'] = 'Office Toggle',
     ['image'] = streamdeck_imageFromText("􀛮", imageOptions),
     ['pressUp'] = function()
         -- This posts the same event that my iOS / watch action does

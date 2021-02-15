@@ -4,6 +4,7 @@ require 'util'
 
 function homeAssistant()
     return {
+        ['name'] = 'Home Assistant',
         ['image'] = streamdeck_imageFromText("􀎟"),
         ['children'] = function()
             allStates = homeAssistantRun('GET', 'states')

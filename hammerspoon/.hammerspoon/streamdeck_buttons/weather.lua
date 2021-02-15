@@ -8,6 +8,7 @@ end
 
 local function weatherButtonForLocation(location)
     return {
+        ['name'] = 'Weather',
         ['imageProvider'] = function()
             local url = "wttr.in?format=1"
             if location ~= nil then

@@ -3,6 +3,7 @@ require "streamdeck_buttons.button_images"
 function animationDemo()
     local button = { }
     button = {
+        ['name'] = "Animation Demo",
         ['imageProvider'] = function(pressed)
             local fraction = button['fraction']
             local goingUp = button['goingUp']
