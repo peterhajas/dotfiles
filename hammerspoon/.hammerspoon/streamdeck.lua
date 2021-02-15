@@ -1,5 +1,6 @@
 require "streamdeck_buttons.button_images"
 require "streamdeck_buttons.initial_buttons"
+require "streamdeck_buttons.nonce"
 
 require "profile"
 require "util"
@@ -16,6 +17,7 @@ local asleep = false
 -- Keys:
 -- - 'buttons' - the buttons
 -- - 'name' - the name
+-- - 'scrollOffset' - the scroll offset, which may wrap around, in rows
 local currentButtonState = { }
 
 -- The stack of button states behind this one
@@ -31,7 +33,22 @@ end
 
 -- Returns the currently visible buttons
 function currentlyVisibleButtons()
-    local currentButtons = cloneTable(currentButtonState['buttons'] or { })
+    profileStart('streamDeckVisible')
+    local providedButtons = (currentButtonState['buttons'] or { })
+
+    local currentButtons = cloneTable(providedButtons)
+    local effectiveScrollAmount = currentButtonState['scrollOffset'] or 0
+    columns, rows = currentDeck:buttonLayout()
+    if effectiveScrollAmount > 0 then
+        for i = 0,effectiveScrollAmount,1 do
+            -- Drop columns-1 buttons
+            for j = 1,columns-1,1 do
+                table.remove(currentButtons, 1)
+            end
+        end
+    end
+
+    local totalButtons = columns * rows
 
     -- If we have a pushed button state, then add a back button
     if tableLength(buttonStateStack) > 1 then
@@ -43,6 +60,39 @@ function currentlyVisibleButtons()
         }
         table.insert(currentButtons, 1, closeButton)
     end
+
+    -- Pad with nonces
+    while tableLength(currentButtons) < totalButtons do
+        table.insert(currentButtons, nonceButton())
+    end
+
+    -- If we need to scroll, then insert buttons at the right indices
+    -- This should be the far left, under the top left button
+    if tableLength(providedButtons) > totalButtons then
+        local scrollUp = {
+            ['image'] = streamdeck_imageFromText('􀃾'),
+            ['pressUp'] = function()
+                scrollBy(-1)
+            end
+        }
+        local scrollDown = {
+            ['image'] = streamdeck_imageFromText('􀄀'),
+            ['pressUp'] = function()
+                scrollBy(1)
+            end
+        }
+        -- Add scroll up, scroll down, and a nonce to pad
+        table.insert(currentButtons, columns + 1, scrollUp)
+        table.insert(currentButtons, columns * 2 + 1, scrollDown)
+        table.insert(currentButtons, columns * 3 + 1, nonceButton())
+    end
+
+    -- Remove until we're at the desired length
+    while tableLength(currentButtons) > totalButtons do
+        table.remove(currentButtons)
+    end
+
+    profileStop('streamDeckVisible')
 
     return currentButtons
 end
@@ -70,14 +120,6 @@ local function updateButton(i, pressed)
                 currentDeck:setButtonImage(i, image)
             end
         end
-    else
-        -- Just do a dinky little sign-of-life
-        local color = hs.drawing.color.black
-        if pressed then
-            color = hs.drawing.color.lists()['Apple']['Orange']
-        end
-        currentDeck:setButtonColor(i, color)
-        return
     end
 
     profileStop('streamdeckButtonUpdate_' .. i)
@@ -98,19 +140,19 @@ end
 
 -- Updates all timers for all buttons
 local function updateTimers()
+    disableTimers()
     if asleep or currentDeck == nil then
-        disableTimers()
-    else
-        disableTimers()
-        for index, button in pairs(currentlyVisibleButtons()) do
-            local desiredUpdateInterval = button['updateInterval']
-            if desiredUpdateInterval ~= nil then
-                local timer = hs.timer.new(desiredUpdateInterval, function()
-                    updateButton(index)
-                end)
-                timer:start()
-                button['_timer'] = timer
-            end
+        return
+    end
+
+    for index, button in pairs(currentlyVisibleButtons()) do
+        local desiredUpdateInterval = button['updateInterval']
+        if desiredUpdateInterval ~= nil then
+            local timer = hs.timer.new(desiredUpdateInterval, function()
+                updateButton(index)
+            end)
+            timer:start()
+            button['_timer'] = timer
         end
     end
 end
@@ -188,6 +230,14 @@ function popButtonState()
         updateButtons()
         updateTimers()
     end
+end
+
+function scrollBy(amount)
+    local currentScrollAmount = currentButtonState['scrollOffset'] or 0
+    currentScrollAmount = currentScrollAmount + amount
+    currentScrollAmount = math.max(0, currentScrollAmount)
+    currentButtonState['scrollOffset'] = currentScrollAmount
+    updateButtons()
 end
 
 -- Returns a buttonState for pushing pushButton's children onto the stack
