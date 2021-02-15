@@ -25,8 +25,6 @@ local streamdeckLogger = hs.logger.new('streamdeck', 'debug')
 local currentDeck = nil
 -- Whether or not the machine is asleep
 local asleep = false
--- Whether we're in a button transition
-local inTransition = false
 
 -- The currently visible buttons
 local buttons = { }
@@ -71,7 +69,6 @@ local function updateButton(i, pressed)
     profileStop('streamdeckButtonUpdate_' .. i)
 end
 
--- Initial Button Definitions
 -- Buttons are defined as tables, with some values:
 -- 'image': the image
 -- 'imageProvider': the function returning the image
@@ -85,6 +82,7 @@ end
 -- '_timer': the timer that is updating this button
 -- '_cachedImage': cached image for this button
 
+-- Initial Button Definitions
 buttons = {
     weatherButton(),
     calendarPeekButton(),
@@ -169,8 +167,6 @@ end
 
 -- Pushes `newState` onto the stack of buttons
 function pushButtonState(newState)
-    inTransition = true
-
     -- Push current buttons back 
     buttonStack[#buttonStack+1] = buttons
     -- Empty the buttons and update
@@ -182,13 +178,10 @@ function pushButtonState(newState)
     -- Update
     updateButtons()
     updateTimers()
-
-    inTransition = false
 end
 
 -- Pops back to the last button state
 function popButtonState()
-    inTransition = true
     -- Don't pop back past the first state
     if #buttonStack == 0 then
         return
@@ -209,7 +202,6 @@ function popButtonState()
         updateButtons()
         updateTimers()
     end
-    inTransition = false
 end
 
 -- Returns a buttonState for pushing pushButton's children onto the stack
@@ -255,7 +247,7 @@ local function streamdeck_button(deck, buttonID, pressed)
     else
         pressUp()
         local pushedState = buttonStateForPushedButton(buttonForID)
-        if pushedState ~= nil and inTransition == false then
+        if pushedState ~= nil then
             pushButtonState(pushedState)
         else
             updateButton(buttonID, false)
