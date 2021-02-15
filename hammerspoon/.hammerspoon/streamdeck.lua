@@ -28,6 +28,11 @@ local asleep = false
 -- The currently visible button state
 local currentButtonState = { }
 
+-- Returns the currently visible buttons
+function currentlyVisibleButtons()
+    return currentButtonState['buttons'] or { }
+end
+
 -- The stack of button states behind this one
 -- This is an array
 local buttonStateStack = { }
@@ -39,7 +44,7 @@ local function updateButton(i, pressed)
 
     profileStart('streamdeckButtonUpdate_' .. i)
 
-    local button = currentButtonState[i]
+    local button = currentlyVisibleButtons()[i]
     if button ~= nil then
         local isStatic = button['image'] ~= nil
         if isStatic then
@@ -81,7 +86,7 @@ end
 -- '_timer': the timer that is updating this button
 
 -- Initial Button Definitions
-currentButtonState = {
+currentButtonState['buttons'] = {
     weatherButton(),
     calendarPeekButton(),
     peekButtonFor('com.reederapp.5.macOS'),
@@ -98,7 +103,7 @@ currentButtonState = {
 
 -- Disables all timers for all buttons
 local function disableTimers()
-    for index, button in pairs(currentButtonState) do
+    for index, button in pairs(currentlyVisibleButtons()) do
         local currentTimer = button['_timer']
         if currentTimer ~= nil then
             currentTimer:stop()
@@ -113,7 +118,7 @@ local function updateTimers()
         disableTimers()
     else
         disableTimers()
-        for index, button in pairs(currentButtonState) do
+        for index, button in pairs(currentlyVisibleButtons()) do
             local desiredUpdateInterval = button['updateInterval']
             if desiredUpdateInterval ~= nil then
                 local timer = hs.timer.new(desiredUpdateInterval, function()
@@ -152,7 +157,7 @@ function streamdeck_wake()
 end
 
 function streamdeck_updateButton(matching)
-    for index, button in pairs(currentButtonState) do
+    for index, button in pairs(currentlyVisibleButtons()) do
         title = button['name']
         if title ~= nil then
             if string.match(title, matching) then
@@ -203,9 +208,9 @@ end
 
 -- Returns a buttonState for pushing pushButton's children onto the stack
 local function buttonStateForPushedButton(pushedButton)
-    local state = pushedButton['children']
-    if state == nil then return nil end
-    state = state()
+    local children = pushedButton['children']
+    if children == nil then return nil end
+    children = children()
 
     -- Add a back button
     local closeButton = {
@@ -214,9 +219,14 @@ local function buttonStateForPushedButton(pushedButton)
             popButtonState()
         end
     }
-    table.insert(state, 1, closeButton)
+    table.insert(children, 1, closeButton)
 
-    return state
+    local outState = {
+        ['name'] = pushedButton['name'],
+        ['buttons'] = children
+    }
+
+    return outState
 end
 
 -- Button callback from hs.streamdeck
@@ -227,7 +237,7 @@ local function streamdeck_button(deck, buttonID, pressed)
     end
 
     -- Grab the button
-    local buttonForID = currentButtonState[buttonID]
+    local buttonForID = currentlyVisibleButtons()[buttonID]
     if buttonForID == nil then
         updateButton(buttonID, pressed)
         return
