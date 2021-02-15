@@ -18,15 +18,30 @@ local asleep = false
 -- - 'name' - the name
 local currentButtonState = { }
 
--- Returns the currently visible buttons
-function currentlyVisibleButtons()
-    local currentButtons = currentButtonState['buttons'] or { }
-    return currentButtons
-end
-
 -- The stack of button states behind this one
 -- This is an array
 local buttonStateStack = { }
+
+-- Returns all the button states managed by the system
+function allButtonStates()
+    local allStates = cloneTable(buttonStateStack)
+    table.insert(allStates, 1, currentButtonState)
+    return allStates
+end
+
+-- Returns the currently visible buttons
+function currentlyVisibleButtons()
+    local currentButtons = cloneTable(currentButtonState['buttons'] or { })
+
+    table.insert(currentButtons, 1, {
+        ['image'] = streamdeck_imageFromText('!'),
+        ['pressUp'] = function()
+            hs.alert("WOAH")
+        end
+    })
+
+    return currentButtons
+end
 
 -- Updates the button at the StreamDeck index `i`.
 local function updateButton(i, pressed)
@@ -64,15 +79,16 @@ local function updateButton(i, pressed)
     profileStop('streamdeckButtonUpdate_' .. i)
 end
 
-
 -- Disables all timers for all buttons
 local function disableTimers()
-    for index, button in pairs(currentlyVisibleButtons()) do
-        local currentTimer = button['_timer']
-        if currentTimer ~= nil then
-            currentTimer:stop()
+    for i, state in pairs(allButtonStates()) do
+        for index, button in pairs(state['buttons'] or {}) do
+            local currentTimer = button['_timer']
+            if currentTimer ~= nil then
+                currentTimer:stop()
+            end
+            button['_timer'] = nil
         end
-        button['_timer'] = nil
     end
 end
 
@@ -86,7 +102,7 @@ local function updateTimers()
             local desiredUpdateInterval = button['updateInterval']
             if desiredUpdateInterval ~= nil then
                 local timer = hs.timer.new(desiredUpdateInterval, function()
-                    updateButton(index, false)
+                    updateButton(index)
                 end)
                 timer:start()
                 button['_timer'] = timer
@@ -100,7 +116,7 @@ local function updateButtons()
     profileStart('streamdeckButtonUpdate_all')
     columns, rows = currentDeck:buttonLayout()
     for i=1,columns*rows+1,1 do
-        updateButton(i, false)
+        updateButton(i)
     end
     profileStop('streamdeckButtonUpdate_all')
 end
@@ -125,7 +141,7 @@ function streamdeck_updateButton(matching)
         title = button['name']
         if title ~= nil then
             if string.match(title, matching) then
-                updateButton(index, false)
+                updateButton(index)
             end
         end
     end
@@ -136,7 +152,7 @@ function pushButtonState(newState)
     -- Push current buttons back 
     buttonStateStack[#buttonStateStack+1] = currentButtonState
     -- Empty the buttons and update
-    disableTimers()
+    updateTimers()
     currentButtonState = { }
     updateButtons()
     -- Replace
@@ -158,7 +174,7 @@ function popButtonState()
     -- Remove from stack
     buttonStateStack[#buttonStateStack] = nil
     -- Empty the buttons and update
-    disableTimers()
+    updateTimers()
     currentButtonState = { }
     updateButtons()
     -- Replace
