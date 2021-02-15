@@ -25,20 +25,21 @@ local currentDeck = nil
 -- Whether or not the machine is asleep
 local asleep = false
 
--- The currently visible buttons
-local buttons = { }
+-- The currently visible button state
+local currentButtonState = { }
 
 -- The stack of button states behind this one
 -- This is an array
-local buttonStack = { }
+local buttonStateStack = { }
 
+-- Updates the button at the StreamDeck index `i`.
 local function updateButton(i, pressed)
     -- No StreamDeck? No update
     if currentDeck == nil then return end
 
     profileStart('streamdeckButtonUpdate_' .. i)
 
-    local button = buttons[i]
+    local button = currentButtonState[i]
     if button ~= nil then
         local isStatic = button['image'] ~= nil
         if isStatic then
@@ -69,7 +70,7 @@ end
 
 -- Buttons are defined as tables, with some values:
 -- 'image': the image
--- 'imageProvider': the function returning the image
+-- 'imageProvider': the function returning the image, taking some context
 -- 'pressDown': the function to perform on press down
 -- 'pressUp': the function to perform on press up
 -- 'updateInterval': the desired update interval (if any) in seconds
@@ -80,7 +81,7 @@ end
 -- '_timer': the timer that is updating this button
 
 -- Initial Button Definitions
-buttons = {
+currentButtonState = {
     weatherButton(),
     calendarPeekButton(),
     peekButtonFor('com.reederapp.5.macOS'),
@@ -97,7 +98,7 @@ buttons = {
 
 -- Disables all timers for all buttons
 local function disableTimers()
-    for index, button in pairs(buttons) do
+    for index, button in pairs(currentButtonState) do
         local currentTimer = button['_timer']
         if currentTimer ~= nil then
             currentTimer:stop()
@@ -112,7 +113,7 @@ local function updateTimers()
         disableTimers()
     else
         disableTimers()
-        for index, button in pairs(buttons) do
+        for index, button in pairs(currentButtonState) do
             local desiredUpdateInterval = button['updateInterval']
             if desiredUpdateInterval ~= nil then
                 local timer = hs.timer.new(desiredUpdateInterval, function()
@@ -151,7 +152,7 @@ function streamdeck_wake()
 end
 
 function streamdeck_updateButton(matching)
-    for index, button in pairs(buttons) do
+    for index, button in pairs(currentButtonState) do
         title = button['name']
         if title ~= nil then
             if string.match(title, matching) then
@@ -164,13 +165,13 @@ end
 -- Pushes `newState` onto the stack of buttons
 function pushButtonState(newState)
     -- Push current buttons back 
-    buttonStack[#buttonStack+1] = buttons
+    buttonStateStack[#buttonStateStack+1] = currentButtonState
     -- Empty the buttons and update
     disableTimers()
-    buttons = { }
+    currentButtonState = { }
     updateButtons()
     -- Replace
-    buttons = newState
+    currentButtonState = newState
     -- Update
     updateButtons()
     updateTimers()
@@ -179,20 +180,20 @@ end
 -- Pops back to the last button state
 function popButtonState()
     -- Don't pop back past the first state
-    if #buttonStack == 0 then
+    if #buttonStateStack == 0 then
         return
     end
 
     -- Grab new state
-    newState = buttonStack[#buttonStack]
+    newState = buttonStateStack[#buttonStateStack]
     -- Remove from stack
-    buttonStack[#buttonStack] = nil
+    buttonStateStack[#buttonStateStack] = nil
     -- Empty the buttons and update
     disableTimers()
-    buttons = { }
+    currentButtonState = { }
     updateButtons()
     -- Replace
-    buttons = newState
+    currentButtonState = newState
     -- Update
     if currentDeck ~= nil then
         updateButtons()
@@ -226,7 +227,7 @@ local function streamdeck_button(deck, buttonID, pressed)
     end
 
     -- Grab the button
-    local buttonForID = buttons[buttonID]
+    local buttonForID = currentButtonState[buttonID]
     if buttonForID == nil then
         updateButton(buttonID, pressed)
         return
@@ -238,10 +239,10 @@ local function streamdeck_button(deck, buttonID, pressed)
 
     -- Dispatch
     if pressed then
-        pressDown()
+        pressDown(deck)
         updateButton(buttonID, true)
     else
-        pressUp()
+        pressUp(deck)
         local pushedState = buttonStateForPushedButton(buttonForID)
         if pushedState ~= nil then
             pushButtonState(pushedState)
