@@ -1,18 +1,5 @@
 require "streamdeck_buttons.button_images"
-require "streamdeck_buttons.audio_devices"
-require "streamdeck_buttons.itunes"
-require "streamdeck_buttons.terminal"
-require "streamdeck_buttons.peek"
-require "streamdeck_buttons.url"
-require "streamdeck_buttons.lock"
-require "streamdeck_buttons.clock"
-require "streamdeck_buttons.camera"
-require "streamdeck_buttons.office_lights"
-require "streamdeck_buttons.weather"
-require "streamdeck_buttons.app_switcher"
-require "streamdeck_buttons.window_switcher"
-require "streamdeck_buttons.animation_demo"
-require "streamdeck_buttons.home_assistant"
+require "streamdeck_buttons.initial_buttons"
 
 require "profile"
 require "util"
@@ -26,11 +13,15 @@ local currentDeck = nil
 local asleep = false
 
 -- The currently visible button state
+-- Keys:
+-- - 'buttons' - the buttons
+-- - 'name' - the name
 local currentButtonState = { }
 
 -- Returns the currently visible buttons
 function currentlyVisibleButtons()
-    return currentButtonState['buttons'] or { }
+    local currentButtons = currentButtonState['buttons'] or { }
+    return currentButtons
 end
 
 -- The stack of button states behind this one
@@ -84,22 +75,6 @@ end
 
 -- Internal values:
 -- '_timer': the timer that is updating this button
-
--- Initial Button Definitions
-currentButtonState['buttons'] = {
-    weatherButton(),
-    calendarPeekButton(),
-    peekButtonFor('com.reederapp.5.macOS'),
-    lockButton,
-    audioDeviceButton(false),
-    audioDeviceButton(true),
-    itunesPreviousButton(),
-    itunesNextButton(),
-    officeToggle,
-    appSwitcher(),
-    windowSwitcher(),
-    homeAssistant(),
-}
 
 -- Disables all timers for all buttons
 local function disableTimers()
@@ -269,9 +244,10 @@ local function streamdeck_discovery(connected, deck)
         deck:buttonCallback(streamdeck_button)
         deck:reset()
 
-        -- columns, rows = deck:buttonLayout()
         updateButtons()
         updateTimers()
+
+        pushButtonState(initialButtonState)
     else
         currentDeck = nil
         updateTimers()
