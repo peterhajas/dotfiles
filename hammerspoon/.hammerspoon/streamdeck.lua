@@ -33,12 +33,16 @@ end
 function currentlyVisibleButtons()
     local currentButtons = cloneTable(currentButtonState['buttons'] or { })
 
-    table.insert(currentButtons, 1, {
-        ['image'] = streamdeck_imageFromText('!'),
-        ['pressUp'] = function()
-            hs.alert("WOAH")
-        end
-    })
+    -- If we have a pushed button state, then add a back button
+    if tableLength(buttonStateStack) > 1 then
+        local closeButton = {
+            ['image'] = streamdeck_imageFromText('􀯶'),
+            ['pressUp'] = function()
+                popButtonState()
+            end
+        }
+        table.insert(currentButtons, 1, closeButton)
+    end
 
     return currentButtons
 end
@@ -191,15 +195,6 @@ local function buttonStateForPushedButton(pushedButton)
     local children = pushedButton['children']
     if children == nil then return nil end
     children = children()
-
-    -- Add a back button
-    local closeButton = {
-        ['image'] = streamdeck_imageFromText('􀁲'),
-        ['pressUp'] = function()
-            popButtonState()
-        end
-    }
-    table.insert(children, 1, closeButton)
 
     local outState = {
         ['name'] = pushedButton['name'],
