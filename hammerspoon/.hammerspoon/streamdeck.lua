@@ -297,6 +297,7 @@ local function streamdeck_discovery(connected, deck)
         updateButtons()
         updateTimers()
 
+        buttonStateStack = { }
         pushButtonState(initialButtonState)
     else
         currentDeck = nil
