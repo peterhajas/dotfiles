@@ -2,14 +2,36 @@ require "streamdeck_buttons.button_images"
 require 'home_assistant'
 require 'util'
 
+local lastHomeAssistantState = nil
+local lastHomeAssistantUpdateTime = 0
+
+local function updateHomeAssistantStateIfNecessary()
+    local now = hs.timer.absoluteTime()
+    -- in ms
+    local elapsed = (now - lastHomeAssistantUpdateTime) * 0.000001
+    if elapsed > 1000 then
+        lastHomeAssistantUpdateTime = hs.timer.absoluteTime()
+        lastHomeAssistantState = homeAssistantRun('GET', 'states')
+    end
+end
+
+local function currentStateForEntity(entityID)
+    for index, state in pairs(lastHomeAssistantState) do
+        if state['entity_id'] == entityID then
+            return state
+        end
+    end
+    return nil
+end
+
 function homeAssistant()
     return {
         ['name'] = 'Home Assistant',
         ['image'] = streamdeck_imageFromText("􀎟"),
         ['children'] = function()
-            allStates = homeAssistantRun('GET', 'states')
+            updateHomeAssistantStateIfNecessary()
             children = { }
-            for index, state in pairs(allStates) do
+            for index, state in pairs(lastHomeAssistantState) do
                 local entityID = state['entity_id']
                 local name = state['attributes']['friendly_name']
                 if name == nil then
@@ -29,7 +51,8 @@ function homeAssistant()
                     table.insert(children, {
                         ['name'] = 'home_assistant_toggle/' .. entityID,
                         ['imageProvider'] = function()
-                            local stateNow = homeAssistantRun('GET', 'states' .. '/' .. entityID)
+                            updateHomeAssistantStateIfNecessary()
+                            local stateNow = currentStateForEntity(entityID)
                             local options = {
                                 ['fontSize'] = 20,
                                 ['textColor'] = hs.drawing.color.white,
@@ -67,7 +90,7 @@ function homeAssistant()
                                 homeAssistantRun('POST', 'services/light/toggle', { ['entity_id'] = entityID })
                             end
                         end,
-                        ['updateInterval'] = 5
+                        ['updateInterval'] = 1
                     })
                 end
             end
