@@ -78,17 +78,19 @@ function homeAssistant()
                             return streamdeck_imageFromText(buttonText, options)
                         end,
                         ['pressUp'] = function()
-                            if entityType == 'light' then
-                                homeAssistantRun('POST', 'services/light/toggle', { ['entity_id'] = entityID })
-                            elseif entityType == 'switch' then
-                                homeAssistantRun('POST', 'services/switch/toggle', { ['entity_id'] = entityID })
+                            local parameters = { ['entity_id'] = entityID }
+                            local method = 'POST'
+                            local endpoint = 'services/light/toggle'
+
+                            if entityType == 'switch' then
+                                endpoint = 'services/switch/toggle'
                             elseif entityType == 'scene' then
-                                homeAssistantRun('POST', 'services/scene/turn_on', { ['entity_id'] = entityID })
+                                endpoint = 'services/scene/turn_on'
                             elseif entityType == 'script' then
-                                homeAssistantRun('POST', "services/script/turn_on", { ['entity_id'] = entityID })
-                            else
-                                homeAssistantRun('POST', 'services/light/toggle', { ['entity_id'] = entityID })
+                                endpoint = 'services/script/turn_on'
                             end
+
+                            homeAssistantRun(method, endpoint, parameters)
                         end,
                         ['updateInterval'] = 1
                     })
