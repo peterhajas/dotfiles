@@ -9,6 +9,7 @@ function streamdeck_imageFromText(text, options)
     local options = options or { }
     textColor = options['textColor'] or hs.drawing.color.white
     backgroundColor = options["backgroundColor"] or hs.drawing.color.black
+    font = options['font'] or ".AppleSystemUIFont"
     fontSize = options['fontSize'] or 70
     sharedCanvas[1] = {
         action = "fill",
@@ -19,7 +20,7 @@ function streamdeck_imageFromText(text, options)
     sharedCanvas[2] = {
         frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
         text = hs.styledtext.new(text, {
-            font = { name = ".AppleSystemUIFont", size = fontSize },
+            font = { name = font, size = fontSize },
             paragraphStyle = { alignment = "center" },
             color = textColor,
         }),
