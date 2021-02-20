@@ -74,7 +74,9 @@ function audioDeviceButton(input)
                 yOffset = yOffset + yOffsetAmount
             end
 
-            imageCanvas:appendElements(elements)
+            if next(elements) ~= nil then
+                imageCanvas:appendElements(elements)
+            end
 
             return imageCanvas:imageFromCanvas()
         end,
