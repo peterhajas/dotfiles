@@ -30,3 +30,9 @@ function cloneTable(oldTable)
     end
     return newTable
 end
+
+-- Debug print
+function dbg(string)
+    local debugLogger = hs.logger.new('debug', 'debug')
+    debugLogger:i(hs.inspect(string))
+end
