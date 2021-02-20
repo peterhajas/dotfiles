@@ -40,7 +40,7 @@ function currentlyVisibleButtons()
     local effectiveScrollAmount = currentButtonState['scrollOffset'] or 0
     columns, rows = currentDeck:buttonLayout()
     if effectiveScrollAmount > 0 then
-        for i = 0,effectiveScrollAmount,1 do
+        for i = 1,effectiveScrollAmount,1 do
             -- Drop columns-1 buttons
             for j = 1,columns-1,1 do
                 table.remove(currentButtons, 1)
