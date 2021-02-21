@@ -1,4 +1,4 @@
-require "streamdeck_buttons.button_images"
+require "streamdeck_util.ha_mdi_icon"
 require 'home_assistant'
 require 'util'
 
@@ -39,7 +39,7 @@ function homeAssistant()
                 end
                 local entityType = split(entityID, '.')[1]
                 local buttonText = name .. '\n(' .. entityType .. ')'
-                local includedEntityTypes = { 'light', 'switch', 'scene', 'script', 'group' }
+                local includedEntityTypes = { 'light', 'switch', 'scene', 'script', 'group', 'person', 'sensor' }
                 local include = false
                 for index, includedEntityType in pairs(includedEntityTypes) do
                     if string.find(entityType, includedEntityType) then
@@ -53,29 +53,7 @@ function homeAssistant()
                         ['imageProvider'] = function()
                             updateHomeAssistantStateIfNecessary()
                             local stateNow = currentStateForEntity(entityID)
-                            local options = {
-                                ['fontSize'] = 20,
-                                ['textColor'] = hs.drawing.color.white,
-                                ['backgroundColor'] = hs.drawing.color.black
-                            }
-                            if entityType == 'light' then
-                                options['textColor'] = hs.drawing.color.lists()['Apple']['Yellow']
-                            end
-                            if entityType == 'scene' then
-                                options['textColor'] = hs.drawing.color.blue
-                            end
-                            if entityType == 'group' then
-                                options['textColor'] = hs.drawing.color.green
-                            end
-                            if entityType == 'script' then
-                                options['textColor'] = hs.drawing.color.red
-                            end
-                            if stateNow['state'] == 'on' then
-                                local newTextColor = options['backgroundColor']
-                                options['backgroundColor'] = options['textColor']
-                                options['textColor'] = newTextColor
-                            end
-                            return streamdeck_imageFromText(buttonText, options)
+                            return homeAssistantEntityIcon(stateNow)
                         end,
                         ['pressUp'] = function()
                             local parameters = { ['entity_id'] = entityID }
