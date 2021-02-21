@@ -29,6 +29,8 @@ local function indexAndCountOfAudioDevices(input)
     }
 end
 
+local imageCanvas = hs.canvas.new { w = buttonWidth, h = buttonHeight }
+
 -- Returns a button for controlling audio devices
 -- `input` controls whether this is an input device
 --         or an output device button
@@ -44,7 +46,6 @@ function audioDeviceButton(input)
         ['imageProvider'] = function (pressed)
             local currentDeviceName = hs.audiodevice.current(input)['name']
 
-            local imageCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
             local elements = { }
 
             local yOffset = 0
@@ -75,7 +76,7 @@ function audioDeviceButton(input)
             end
 
             if next(elements) ~= nil then
-                imageCanvas:appendElements(elements)
+                imageCanvas:replaceElements(elements)
             end
 
             return imageCanvas:imageFromCanvas()
