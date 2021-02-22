@@ -27,7 +27,7 @@ end
 function homeAssistant()
     return {
         ['name'] = 'Home Assistant',
-        ['image'] = streamdeck_imageFromText("􀎟"),
+        ['image'] = hs.image.imageFromAppBundle('io.robbie.HomeAssistant'),
         ['children'] = function()
             updateHomeAssistantStateIfNecessary()
             children = { }
