@@ -39,7 +39,7 @@ function homeAssistant()
                 end
                 local entityType = split(entityID, '.')[1]
                 local buttonText = name .. '\n(' .. entityType .. ')'
-                local includedEntityTypes = { 'light', 'switch', 'scene', 'script', 'group', 'person', 'sensor' }
+                local includedEntityTypes = { 'light', 'switch', 'scene', 'script', 'group', 'person' }
                 local include = false
                 for index, includedEntityType in pairs(includedEntityTypes) do
                     if string.find(entityType, includedEntityType) then
