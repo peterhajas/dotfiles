@@ -32,16 +32,16 @@ local function colorFor(entityDictionary)
     local entityID = entityIDFor(entityDictionary)
     local entityType = split(entityID, '.')[1]
     if entityType == 'light' then
-        return hs.drawing.color.lists()['Apple']['Yellow']
+        return hs.drawing.color.lists()['System']['systemYellowColor']
     end
     if entityType == 'scene' then
-        return hs.drawing.color.blue
+        return hs.drawing.color.lists()['System']['systemBlueColor']
     end
     if entityType == 'group' then
-        return hs.drawing.color.green
+        return hs.drawing.color.lists()['System']['systemGreenColor']
     end
     if entityType == 'script' then
-        return hs.drawing.color.red
+        return hs.drawing.color.lists()['System']['systemRedColor']
     end
 
     return hs.drawing.color.white

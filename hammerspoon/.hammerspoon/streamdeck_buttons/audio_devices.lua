@@ -57,7 +57,7 @@ function audioDeviceButton(input)
                 local color = hs.drawing.color.white
                 if v:name() == currentDeviceName then
                     text = full
-                    color = hs.drawing.color.lists()['Apple']['Orange']
+                    color = hs.drawing.color.lists()['System']['systemOrangeColor']
                 end
 
                 deviceItem = {
