@@ -7,7 +7,7 @@ local sharedCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
 -- Returns an image with the specified text, color, and background color
 function streamdeck_imageFromText(text, options)
     local options = options or { }
-    textColor = options['textColor'] or hs.drawing.color.white
+    textColor = options['textColor'] or hs.drawing.color.lists()['System']['systemOrangeColor']
     backgroundColor = options["backgroundColor"] or hs.drawing.color.black
     font = options['font'] or ".AppleSystemUIFont"
     fontSize = options['fontSize'] or 70
