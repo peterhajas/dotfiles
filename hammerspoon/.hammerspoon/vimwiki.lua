@@ -83,14 +83,6 @@ local function queryCallback(query)
 
     local beginningCommands = {
         {
-            ["text"] = "Open Diary",
-            ["subText"] = "Opens today's diary",
-            ["command"] = "diaryNote"
-        },
-    }
-
-    local endCommands = {
-        {
             ["text"] = "Add to Diary",
             ["subText"] = "Adds this string to today's Diary",
             ["command"] = "addToDiary"
@@ -99,6 +91,14 @@ local function queryCallback(query)
             ["text"] = "Add To-Do",
             ["subText"] = "Adds this string to today's Diary as a ToDo",
             ["command"] = "addToDo"
+        },
+    }
+
+    local endCommands = {
+        {
+            ["text"] = "Open Diary",
+            ["subText"] = "Opens today's diary",
+            ["command"] = "diaryNote"
         },
     }
 
