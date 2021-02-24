@@ -33,6 +33,7 @@ require "link_replace"
 require "home"
 require "pinboard"
 require "youtubedl"
+require "vimwiki"
 
 profileStop('imports')
 profileStart('globals')
