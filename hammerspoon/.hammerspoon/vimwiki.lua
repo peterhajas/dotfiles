@@ -54,6 +54,9 @@ local function chooserComplete(result)
         local toWrite = "- [ ] " .. query
         writeToDiary(toWrite)
     end
+    if command == "diaryNote" then
+        runInNewTerminal('vim -c VimwikiMakeDiaryNote', true)
+    end
 end
 
 -- The query callback
@@ -76,7 +79,15 @@ local function queryCallback(query)
     end
 
     -- We've build all our choices for files
-    -- Add some commands at the end
+    -- Add some commands at the beginning and end
+
+    local beginningCommands = {
+        {
+            ["text"] = "Open Diary",
+            ["subText"] = "Opens today's diary",
+            ["command"] = "diaryNote"
+        },
+    }
 
     local endCommands = {
         {
@@ -90,6 +101,10 @@ local function queryCallback(query)
             ["command"] = "addToDo"
         },
     }
+
+    for i, command in pairs(beginningCommands) do
+        table.insert(newChoices, i, command)
+    end
 
     for i, command in pairs(endCommands) do
         table.insert(newChoices, command)
