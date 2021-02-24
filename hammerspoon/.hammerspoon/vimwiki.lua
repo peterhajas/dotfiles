@@ -5,27 +5,108 @@ require "terminal"
 -- Path to our vimwiki
 local vimwikiPath = "/Users/phajas/.vimwiki"
 
+-- Some caches
+-- The chooser
+local chooser = nil
+
+-- The choices for our files
+local fileChoices = { }
+local function allChoices()
+    return fileChoices
+end
+
+local function diaryPath()
+    local diaryFilename = os.date('%Y-%m-%d') .. '.md'
+    local diaryFullPath = vimwikiPath .. '/diary/' .. diaryFilename
+    return diaryFullPath
+end
+
+local function openDiary()
+    return io.open(diaryPath(), 'a')
+end
+
+local function writeToDiary(string)
+    -- plh-evil: these diary appends always add an extra newline at
+    -- the start...
+    local diary = openDiary()
+    diary:write('\n' .. string)
+    diary:close()
+end
 
 -- Completion callback for the chooser
 local function chooserComplete(result)
+    local query = chooser:query()
     -- Result is nil if we escaped out
     if result == nil then return end
 
     -- Check if we should open a file
     local filePathToOpen = result['filePath']
     if filePathToOpen ~= nil then
-        runInNewTerminal('vim ' .. filePathToOpen)
+        runInNewTerminal('vim ' .. filePathToOpen, true)
+    end
+
+    -- Check if we should run a command
+    local command = result['command']
+    if command == "addToDiary" then
+        writeToDiary(query)
+    end
+    if command == "addToDo" then
+        local toWrite = "- [ ] " .. query
+        writeToDiary(toWrite)
     end
 end
 
+-- The query callback
+local function queryCallback(query)
+    query = string.lower(query)
+    local newChoices = { }
+    -- See if any of our choices contain this query, split by spaces
+    for i, choice in pairs(fileChoices) do
+        local choiceSearchString = string.lower(choice['subText'])
+        -- Make sure we match the query first
+        for j, queryElement in pairs(split(query, ' ')) do
+            if not string.find(choiceSearchString, queryElement) then
+                goto continue
+            end
+        end
+
+        table.insert(newChoices, choice)
+
+        ::continue::
+    end
+
+    -- We've build all our choices for files
+    -- Add some commands at the end
+
+    local endCommands = {
+        {
+            ["text"] = "Add to Diary",
+            ["subText"] = "Adds this string to today's Diary",
+            ["command"] = "addToDiary"
+        },
+        {
+            ["text"] = "Add To-Do",
+            ["subText"] = "Adds this string to today's Diary as a ToDo",
+            ["command"] = "addToDo"
+        },
+    }
+
+    for i, command in pairs(endCommands) do
+        table.insert(newChoices, command)
+    end
+    
+    chooser:choices(newChoices)
+
+end
+
 function showVimwikiMenu()
+    -- Nix the found choices
+    for k,v in pairs(fileChoices) do fileChoices[k]=nil end
+
     -- Find all the vimwiki files
     local command = "find " .. vimwikiPath .. " |grep .md"
     local allFilesNewlineSeparated = hs.execute(command)
     local allFilePaths = split(allFilesNewlineSeparated, '\n')
-
-    -- Make our choices for files
-    local choices = { }
 
     for index, filePath in pairs(allFilePaths) do
         -- For the text, strip the vimwiki path
@@ -41,7 +122,7 @@ function showVimwikiMenu()
         subText = string.gsub(subText, "  ", " ")
         subText = title .. subText
 
-        table.insert(choices,
+        table.insert(fileChoices,
         {
             ["text"] = title,
             ["subText"] = subText,
@@ -49,9 +130,10 @@ function showVimwikiMenu()
         })
     end
 
-    local chooser = hs.chooser.new(chooserComplete)
+    chooser = hs.chooser.new(chooserComplete)
+        :queryChangedCallback(queryCallback)
         :searchSubText(true)
-        :choices(choices)
+        :choices(allChoices)
 
     chooser:show()
 end
