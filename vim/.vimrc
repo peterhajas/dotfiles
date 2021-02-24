@@ -322,6 +322,7 @@ Plug 'vimwiki/vimwiki'
 
 Plug 'jremmen/vim-ripgrep'
 Plug 'junegunn/fzf.vim'
+Plug 'junegunn/fzf'
 Plug 'junegunn/vim-peekaboo'
 Plug 'ludovicchabant/vim-gutentags'
 Plug 'mbbill/undotree'
