@@ -56,7 +56,7 @@ function showVimwikiMenu()
     chooser:show()
 end
 
--- F for Vimwiki is freally cool
-hs.hotkey.bind(hyper, 'f', function()
+-- Bind hyper-space
+hs.hotkey.bind(hyper, 'space', function()
     showVimwikiMenu()
 end)
