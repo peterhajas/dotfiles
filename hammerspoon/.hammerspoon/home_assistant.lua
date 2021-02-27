@@ -1,5 +1,5 @@
 require 'hs.json'
--- require 'streamdeck'
+require 'util'
 
 -- Runs a command in Home Assistant, returning its output (if any)
 -- Example usage:
@@ -31,4 +31,17 @@ function homeAssistantRun(method, endpoint, parameters)
     -- Return output
     outputTable = hs.json.decode(output)
     return outputTable
+end
+
+-- Returns the HA url for the specified endpoint
+function homeAssistantURL(endpoint)
+    local commandString = '/Users/phajas/bin/home_assistant_url.bash'
+
+    -- Add arguments to shell script
+    commandString = commandString .. ' \'' 
+    commandString = commandString .. endpoint 
+    commandString = commandString .. '\''
+
+    output, status, exitType, rc = hs.execute(commandString)
+    return output
 end

@@ -61,6 +61,13 @@ local glyphHeight = 64
 local textHeight = 38
 
 function homeAssistantEntityIcon(entityDictionary)
+    -- If the entity has a picture, then let's grab that
+    local entityPictureAttribute = entityDictionary['attributes']['entity_picture']
+    local entityPicture = nil
+    if entityPictureAttribute ~= nil then
+        local entityPictureURL = homeAssistantURL(entityPictureAttribute)
+        entityPicture = hs.image.imageFromURL(entityPictureURL)
+    end
     local mdiName = entityDictionary['attributes']['icon']
     if mdiName == nil or not string.find(mdiName, 'mdi:') then
         -- Fallback icon
@@ -94,16 +101,25 @@ function homeAssistantEntityIcon(entityDictionary)
         type = "rectangle",
     }
 
-    -- Glyph
-    sharedHACanvas[2] = {
-        frame = { x = 0, y = 0, w = buttonWidth, h = glyphHeight },
-        text = hs.styledtext.new(mdi, {
-            font = { name = 'MaterialDesignIcons', size = 50 },
-            paragraphStyle = { alignment = "center" },
-            color = textColor,
-        }),
-        type = "text",
-    }
+    -- Image
+    local imageFrame = { x = 0, y = 0, w = buttonWidth, h = glyphHeight }
+    if entityPicture ~= nil then
+        sharedHACanvas[2] = {
+            type = "image",
+            frame = imageFrame,
+            image = entityPicture,
+        }
+    else
+        sharedHACanvas[2] = {
+            type = "text",
+            frame = imageFrame,
+            text = hs.styledtext.new(mdi, {
+                font = { name = 'MaterialDesignIcons', size = 50 },
+                paragraphStyle = { alignment = "center" },
+                color = textColor,
+            }),
+        }
+    end
 
     -- Name
     sharedHACanvas[3] = {
