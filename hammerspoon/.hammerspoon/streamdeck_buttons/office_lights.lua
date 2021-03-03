@@ -10,8 +10,7 @@ officeToggle = {
     ['name'] = 'Office Toggle',
     ['image'] = streamdeck_imageFromText("􀛮", imageOptions),
     ['pressUp'] = function()
-        -- This posts the same event that my iOS / watch action does
-        homeAssistantRun('POST', 'events/ios.action_fired', { ['actionName'] = 'Office Toggle' })
+        homeAssistantRun('POST', 'services/homeassistant/toggle', { ['area_id'] = 'office' })
     end
 }
 
