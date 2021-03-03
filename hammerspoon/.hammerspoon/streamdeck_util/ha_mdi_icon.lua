@@ -56,7 +56,6 @@ local function nameFor(entityDictionary)
     return name
 end
 
-local sharedHACanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
 local glyphHeight = 64
 local textHeight = 38
 
@@ -93,24 +92,26 @@ function homeAssistantEntityIcon(entityDictionary)
         textColor = newTextColor
     end
 
+    local elements = { }
+
     -- Background color
-    sharedHACanvas[1] = {
+    table.insert(elements, {
         action = "fill",
         frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
         fillColor = backgroundColor,
         type = "rectangle",
-    }
+    })
 
     -- Image
     local imageFrame = { x = 0, y = 0, w = buttonWidth, h = glyphHeight }
     if entityPicture ~= nil then
-        sharedHACanvas[2] = {
+        table.insert(elements, {
             type = "image",
             frame = imageFrame,
             image = entityPicture,
-        }
+        })
     else
-        sharedHACanvas[2] = {
+        table.insert(elements, {
             type = "text",
             frame = imageFrame,
             text = hs.styledtext.new(mdi, {
@@ -118,11 +119,11 @@ function homeAssistantEntityIcon(entityDictionary)
                 paragraphStyle = { alignment = "center" },
                 color = textColor,
             }),
-        }
+        })
     end
 
     -- Name
-    sharedHACanvas[3] = {
+    table.insert(elements, {
         frame = { x = 0, y = buttonHeight - textHeight, w = buttonWidth, h = textHeight },
         text = hs.styledtext.new(nameFor(entityDictionary), {
             font = { name = '.AppleSystemUIFont', size = 15 },
@@ -130,7 +131,7 @@ function homeAssistantEntityIcon(entityDictionary)
             color = textColor,
         }),
         type = "text",
-    }
+    })
 
-    return sharedHACanvas:imageFromCanvas()
+    return streamdeck_imageWithCanvasContents(elements)
 end

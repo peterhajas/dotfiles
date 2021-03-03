@@ -14,18 +14,18 @@ function windowSwitcher()
                     ['imageProvider'] = function()
                         local snap = window:snapshot()
                         local icon = hs.image.imageFromAppBundle(bundleID)
-                        local imageCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
-                        imageCanvas[1] = {
+                        local elements = {}
+                        table.insert(elements, {
                             type = "image",
                             image = snap,
                             imageScaling = "scaleToFill"
-                        }
-                        imageCanvas[2] = {
+                        })
+                        table.insert(elements, {
                             type = "image",
                             image = icon,
                             frame = { x = 5, y = 5, w = 30, h = 30 }
-                        }
-                        return imageCanvas:imageFromCanvas()
+                        })
+                        return streamdeck_imageWithCanvasContents(elements)
                     end,
                     ['pressUp'] = function()
                         window:unminimize()

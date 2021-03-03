@@ -59,26 +59,26 @@ function calendarPeekButton()
 
     button['image'] = nil
     button['imageProvider'] = function(pressed)
-        local imageCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
+        local elements = {}
 
         -- White background
-        imageCanvas[1] = {
+        table.insert(elements, {
             action = "fill",
             frame = { x = x, y = y, w = calendarButtonDimension, h = calendarButtonDimension },
             fillColor = hs.drawing.color.white,
             type = "rectangle",
-        }
+        })
 
         -- Red header
-        imageCanvas[2] = {
+        table.insert(elements, {
             action = "fill",
             frame = { x = x, y = y, w = calendarButtonDimension, h = headerHeight },
             fillColor = { red = 249.0/255.0, green = 86.0/255.0, blue = 78.0/255.0, alpha = 1.0},
             type = "rectangle"
-        }
+        })
 
         -- Header text
-        imageCanvas[3] = {
+        table.insert(elements, {
             frame = { x = x, y = y, w = calendarButtonDimension, h = headerHeight },
             text = hs.styledtext.new(headerText, {
                 font = { name = ".AppleSystemUIFont", size = headerFontSize },
@@ -86,10 +86,10 @@ function calendarPeekButton()
                 color = hs.drawing.color.white,
             }),
             type = "text"
-        }
+        })
 
         -- Body text
-        imageCanvas[4] = {
+        table.insert(elements, {
             frame = { x = x, y = y + headerHeight, w = calendarButtonDimension, h = calendarButtonDimension - headerHeight },
             text = hs.styledtext.new(bodyText, {
                 font = { name = ".AppleSystemUIFont", size = bodyFontSize },
@@ -97,18 +97,18 @@ function calendarPeekButton()
                 color = hs.drawing.color.black,
             }),
             type = "text"
-        }
+        })
 
         -- Clip
         -- This doesn't work, and I don't know why
-        imageCanvas[5] = {
+        table.insert(elements, {
             action = "clip",
             frame = { x = x, y = y, w = calendarButtonDimension, h = calendarButtonDimension },
             roundedRectRadii = { xRadius = radius, yRadius = radius },
             type = "rectangle",
-        }
+        })
 
-        return imageCanvas:imageFromCanvas()
+        return streamdeck_imageWithCanvasContents(elements)
     end
     button['updateInterval'] = 3600
     return button

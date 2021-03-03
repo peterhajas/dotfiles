@@ -4,6 +4,13 @@ buttonHeight = 96
 -- Shared cached canvas
 local sharedCanvas = hs.canvas.new{ w = buttonWidth, h = buttonHeight }
 
+-- Returns an image with the specified canvas contents
+-- Canvas contents are a table of canvas commands
+function streamdeck_imageWithCanvasContents(contents)
+    sharedCanvas:replaceElements(contents)
+    return sharedCanvas:imageFromCanvas()
+end
+
 -- Returns an image with the specified text, color, and background color
 function streamdeck_imageFromText(text, options)
     local options = options or { }
@@ -11,13 +18,14 @@ function streamdeck_imageFromText(text, options)
     backgroundColor = options["backgroundColor"] or hs.drawing.color.black
     font = options['font'] or ".AppleSystemUIFont"
     fontSize = options['fontSize'] or 70
-    sharedCanvas[1] = {
+    local elements = { }
+    table.insert(elements, {
         action = "fill",
         frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
         fillColor = backgroundColor,
         type = "rectangle",
-    }
-    sharedCanvas[2] = {
+    })
+    table.insert(elements, {
         frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
         text = hs.styledtext.new(text, {
             font = { name = font, size = fontSize },
@@ -25,6 +33,6 @@ function streamdeck_imageFromText(text, options)
             color = textColor,
         }),
         type = "text",
-    }
-    return sharedCanvas:imageFromCanvas()
+    })
+    return streamdeck_imageWithCanvasContents(elements)
 end
