@@ -11,6 +11,9 @@ end
 
 function mdiUnicodeCodepoint(name)
     loadMDIJSONFileIfNecessary()
+    if mdiNameToUnicodeMapping == nil then
+        return nil
+    end
     return mdiNameToUnicodeMapping[name]
 end
 
@@ -73,15 +76,7 @@ function homeAssistantEntityIcon(entityDictionary)
         mdiName = 'mdi:dots-vertical'
     end
 
-    -- Find the MDI glyph
-    -- Shave off the 'mdi:'
-    local iconName = string.sub(mdiName, 5)
-    local codepoint = mdiUnicodeCodepoint(iconName)
-    local integer = tonumber(codepoint, 16)
-    local mdi = utf8.char(integer)
-
     options = { }
-    font = 'MaterialDesignIcons'
     textColor = colorFor(entityDictionary)
     backgroundColor = hs.drawing.color.black
 
@@ -111,15 +106,34 @@ function homeAssistantEntityIcon(entityDictionary)
             image = entityPicture,
         })
     else
-        table.insert(elements, {
-            type = "text",
-            frame = imageFrame,
-            text = hs.styledtext.new(mdi, {
-                font = { name = 'MaterialDesignIcons', size = 50 },
-                paragraphStyle = { alignment = "center" },
-                color = textColor,
-            }),
-        })
+        -- Find the MDI glyph
+        -- Shave off the 'mdi:'
+        local iconName = string.sub(mdiName, 5)
+        local codepoint = mdiUnicodeCodepoint(iconName)
+
+        if codepoint ~= nil then
+            local integer = tonumber(codepoint, 16)
+            local mdi = utf8.char(integer)
+            table.insert(elements, {
+                type = "text",
+                frame = imageFrame,
+                text = hs.styledtext.new(mdi, {
+                    font = { name = 'MaterialDesignIcons', size = 50 },
+                    paragraphStyle = { alignment = "center" },
+                    color = textColor,
+                }),
+            })
+        else
+            table.insert(elements, {
+                type = "text",
+                frame = imageFrame,
+                text = hs.styledtext.new('•', {
+                    font = { name = '.AppleSystemUIFont', size = 50 },
+                    paragraphStyle = { alignment = "center" },
+                    color = textColor,
+                }),
+            })
+        end
     end
 
     -- Name
