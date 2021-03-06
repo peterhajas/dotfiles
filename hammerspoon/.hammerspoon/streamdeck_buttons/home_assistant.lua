@@ -31,6 +31,10 @@ function homeAssistant()
         ['children'] = function()
             updateHomeAssistantStateIfNecessary()
             children = { }
+            if lastHomeAssistantState == nil then
+                return children
+            end
+
             for index, state in pairs(lastHomeAssistantState) do
                 local entityID = state['entity_id']
                 local name = state['attributes']['friendly_name']
