@@ -159,6 +159,9 @@ end
 
 -- Updates all buttons
 local function updateButtons()
+    -- No StreamDeck? No update
+    if currentDeck == nil then return end
+
     profileStart('streamdeckButtonUpdate_all')
     columns, rows = currentDeck:buttonLayout()
     for i=1,columns*rows+1,1 do
