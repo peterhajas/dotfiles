@@ -1,5 +1,6 @@
 require "streamdeck_buttons.button_images"
 require 'util'
+require "colors"
 
 local mdiNameToUnicodeMapping = nil
 local function loadMDIJSONFileIfNecessary()
@@ -35,16 +36,16 @@ local function colorFor(entityDictionary)
     local entityID = entityIDFor(entityDictionary)
     local entityType = split(entityID, '.')[1]
     if entityType == 'light' then
-        return hs.drawing.color.lists()['System']['systemYellowColor']
+        return systemYellowColor
     end
     if entityType == 'scene' then
-        return hs.drawing.color.lists()['System']['systemBlueColor']
+        return systemBlueColor
     end
     if entityType == 'group' then
-        return hs.drawing.color.lists()['System']['systemGreenColor']
+        return systemGreenColor
     end
     if entityType == 'script' then
-        return hs.drawing.color.lists()['System']['systemRedColor']
+        return systemRedColor
     end
 
     return hs.drawing.color.white

@@ -1,3 +1,4 @@
+require "colors"
 require "streamdeck_buttons.button_images"
 
 local function allAudioDevices(input)
@@ -55,7 +56,7 @@ function audioDeviceButton(input)
                 local color = hs.drawing.color.white
                 if v:name() == currentDeviceName then
                     text = full
-                    color = hs.drawing.color.lists()['System']['systemOrangeColor']
+                    color = systemOrangeColor
                 end
 
                 deviceItem = {

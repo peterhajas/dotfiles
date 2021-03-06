@@ -1,3 +1,5 @@
+require "colors"
+
 -- Lerps between `a` and `b` by `fraction`
 function lerp(a, b, fraction)
     local range = b - a
@@ -26,9 +28,7 @@ end
 -- Returns a color mapping the floating point value from `fraction` to a
 -- representative color. `fraction` is assumed to be in the range 0 to 1 (inc.)
 function severityColorForFraction(fraction)
-    local green = hs.drawing.color.lists()['hammerspoon']['osx_green']
-    local red = hs.drawing.color.lists()['hammerspoon']['osx_red']
-    local low = green
-    local high = red
+    local low = systemGreenColor
+    local high = systemRedColor
     return colorBetween(low, high, fraction)
 end
