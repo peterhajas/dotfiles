@@ -25,9 +25,13 @@ local function currentStateForEntity(entityID)
 end
 
 function homeAssistant()
+    local bundleID = 'io.robbie.HomeAssistant'
     return {
         ['name'] = 'Home Assistant',
-        ['image'] = hs.image.imageFromAppBundle('io.robbie.HomeAssistant'),
+        ['image'] = hs.image.imageFromAppBundle(bundleID),
+        ['onLongPress'] = function()
+            hs.application.open(bundleID)
+        end,
         ['children'] = function()
             updateHomeAssistantStateIfNecessary()
             children = { }
