@@ -1,38 +1,40 @@
 require "streamdeck_buttons.button_images"
 
--- Key: bundleID
--- Value: last "press down" nanoseconds
-local peekDownTimes = {}
 function peekButtonFor(bundleID)
     return {
         ['name'] = "Peek " .. bundleID,
         ['image'] = hs.image.imageFromAppBundle(bundleID),
-        ['pressDown'] = function()
+        ['onClick'] = function()
             local app = hs.application.get(bundleID)
-            local shouldLaunch = true
-            if app ~= nil then
-                if app:isFrontmost() then
-                    shouldLaunch = false
-                    app:hide()
-                end
+            if app == nil then
+                hs.application.open(bundleID)
+                return
             end
-            if shouldLaunch then
+            if app:isRunning() then
+                if app:isFrontmost() then
+                    app:hide()
+                else
+                    hs.application.open(bundleID)
+                    app:activate()
+                end
+            else
                 hs.application.open(bundleID)
             end
-            peekDownTimes[bundleID] = hs.timer.absoluteTime()
         end,
-        ['pressUp'] = function()
-            local upTime = hs.timer.absoluteTime()
-            local downTime = peekDownTimes[bundleID]
-
-            if downTime ~= nil then
-                local elapsed = (upTime - downTime) * .000001
-                -- If we've held the button down for > 300ms, hide
-                if elapsed > 300 then
-                    local app = hs.application.get(bundleID)
-                    if app ~= nil then
-                        app:hide()
-                    end
+        ['onLongPress'] = function(holding)
+            local app = hs.application.get(bundleID)
+            if app == nil then
+                hs.application.open(bundleID)
+                return
+            end
+            if holding then
+                hs.application.open(bundleID)
+                if app:isRunning() then
+                    app:activate()
+                end
+            else
+                if app:isRunning() then
+                    app:hide()
                 end
             end
         end

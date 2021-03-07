@@ -125,15 +125,20 @@ local function updateButton(i, pressed)
     profileStop('streamdeckButtonUpdate_' .. i)
 end
 
+local function stopTimer(timer)
+    if timer ~= nil then
+        timer:stop()
+    end
+end
+
 -- Disables all timers for all buttons
 local function disableTimers()
     for i, state in pairs(allButtonStates()) do
         for index, button in pairs(state['buttons'] or {}) do
-            local currentTimer = button['_timer']
-            if currentTimer ~= nil then
-                currentTimer:stop()
-            end
+            stopTimer(button['_timer'])
+            stopTimer(button['_holdTimer'])
             button['_timer'] = nil
+            button['_holdTimer'] = nil
         end
     end
 end
@@ -274,13 +279,29 @@ local function streamdeck_button(deck, buttonID, pressed)
     -- Grab its actions
     local pressDown = buttonForID['pressDown'] or function() end
     local pressUp = buttonForID['pressUp'] or function() end
+    local click = buttonForID['onClick'] or function() end
+    local hold = buttonForID['onLongPress'] or function() end
 
     -- Dispatch
     if pressed then
         pressDown(deck)
         updateButton(buttonID, true)
+        buttonForID['_holdTimer'] = hs.timer.new(0.3, function()
+            hold(true)
+            buttonForID['_isHolding'] = true
+            stopTimer(buttonForID['_holdTimer'])
+        end)
+        buttonForID['_holdTimer']:start()
     else
         pressUp(deck)
+        if buttonForID['_isHolding'] ~= nil then
+            hold(false)
+        else
+            click()
+        end
+
+        stopTimer(buttonForID['_holdTimer'])
+        buttonForID['_isHolding'] = nil
         local pushedState = buttonStateForPushedButton(buttonForID)
         if pushedState ~= nil then
             pushButtonState(pushedState)
