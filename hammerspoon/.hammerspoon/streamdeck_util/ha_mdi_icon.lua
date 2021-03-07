@@ -23,6 +23,13 @@ local function entityIDFor(entityDictionary)
     return entityID
 end
 
+-- A type ('switch', 'light', etc.) for the entity
+local function typeFor(entityDictionary)
+    local entityID = entityIDFor(entityDictionary)
+    local entityType = split(entityID, '.')[1]
+    return entityType
+end
+
 local function colorFor(entityDictionary)
     -- If we have a color set, let's use that
     local entityColor = entityDictionary['attributes']['rgb_color']
@@ -32,9 +39,9 @@ local function colorFor(entityDictionary)
         entityColor['blue'] = entityColor[3] / 255.0
         return entityColor
     end
+
+    local entityType = typeFor(entityDictionary)
     
-    local entityID = entityIDFor(entityDictionary)
-    local entityType = split(entityID, '.')[1]
     if entityType == 'light' then
         return systemYellowColor
     end
@@ -74,7 +81,18 @@ function homeAssistantEntityIcon(entityDictionary)
     local mdiName = entityDictionary['attributes']['icon']
     if mdiName == nil or not string.find(mdiName, 'mdi:') then
         -- Fallback icon
-        mdiName = 'mdi:dots-vertical'
+        local entityType = typeFor(entityDictionary)
+        if entityType == 'light' then
+            mdiName = 'mdi:floor-lamp'
+        elseif entityType == 'scene' then
+            mdiName = 'mdi:palette'
+        elseif entityType == 'group' then
+            mdiName = 'mdi:dots-vertical'
+        elseif entityType == 'script' then
+            mdiName = 'mdi:script-text'
+        else
+            mdiName = 'mdi:dots-vertical'
+        end
     end
 
     options = { }
