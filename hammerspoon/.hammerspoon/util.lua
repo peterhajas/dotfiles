@@ -67,6 +67,15 @@ function linesInFile(file)
     return lines
 end
 
+function writeLinesToFile(file, lines)
+    handle = io.open(file, 'w')
+    for i, line in pairs(lines) do
+        handle:write(line)
+        handle:write('\n')
+    end
+    handle:close()
+end
+
 -- Debug print
 function dbg(string)
     local debugLogger = hs.logger.new('debug', 'debug')

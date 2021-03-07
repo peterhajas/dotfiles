@@ -11,8 +11,73 @@ local chooser = nil
 
 -- The choices for our files
 local fileChoices = { }
-local function allChoices()
-    return fileChoices
+
+-- The choices for our todos
+local todoChoices = { }
+
+-- The mode we're in
+-- Possible values:
+-- nil - normal (file choosing / menu mode)
+-- "todo" - todo picking mode
+local mode = nil
+
+-- Some regexes for todos:
+local outstandingPattern = '%- %[ %]'
+local donePattern = '%- %[X%]'
+
+-- Applies extra choices based on mode
+local function applyExtraChoices(inChoices)
+    local choices = cloneTable(inChoices)
+    local beginningCommands = { }
+    local endCommands = { }
+
+    -- Add in extras
+    if mode == nil then
+        beginningCommands =
+        {
+            {
+                ["text"] = "Add to Diary",
+                ["subText"] = "Adds this string to today's Diary",
+                ["command"] = "addToDiary"
+            },
+            {
+                ["text"] = "Add To-Do",
+                ["subText"] = "Adds this string to today's Diary as a ToDo",
+                ["command"] = "addToDo"
+            },
+            {
+                ["text"] = "To-Do Triage",
+                ["subText"] = "Look through outstanding to-dos",
+                ["command"] = "showToDos"
+            }
+        }
+
+        endCommands = {
+            {
+                ["text"] = "Open Diary",
+                ["subText"] = "Opens today's diary",
+                ["command"] = "diaryNote"
+            },
+        }
+    end
+
+    if mode ~= nil then
+        table.insert(endCommands, {
+            ["text"] = "Back",
+            ["subText"] = "Go back",
+            ["command"] = "clearMode"
+        })
+    end
+
+    for i, command in pairs(beginningCommands) do
+        table.insert(choices, i, command)
+    end
+
+    for i, command in pairs(endCommands) do
+        table.insert(choices, command)
+    end
+
+    return choices
 end
 
 local function diaryPath()
@@ -33,20 +98,58 @@ local function writeToDiary(string)
     diary:close()
 end
 
+-- Updates choices
+local function updateChoices(query)
+    if query ~= nil then
+        query = string.lower(query)
+    end
+
+    local effectiveChoices = fileChoices
+    if mode == 'todo' then
+        effectiveChoices = todoChoices
+    end
+
+    local newChoices = { }
+    -- See if any of our choices contain the query, split by spaces
+    for i, choice in pairs(effectiveChoices) do
+        if query ~= nil then
+            local choiceSearchString = string.lower(choice['subText'] .. choice['text'])
+            -- Make sure we match the query first
+            for j, queryElement in pairs(split(query, ' ')) do
+                if not string.find(choiceSearchString, queryElement) then
+                    goto continue
+                end
+            end
+        end
+
+        table.insert(newChoices, choice)
+
+        ::continue::
+    end
+
+    newChoices = applyExtraChoices(newChoices)
+
+    chooser:choices(newChoices)
+
+end
+
 -- Completion callback for the chooser
 local function chooserComplete(result)
     local query = chooser:query()
     -- Result is nil if we escaped out
     if result == nil then return end
 
-    -- Check if we should open a file
     local filePathToOpen = result['filePath']
-    if filePathToOpen ~= nil then
-        runInNewTerminal('vim ' .. filePathToOpen, true)
+    local command = result['command']
+
+    -- Check if we should open a file
+    if command == nil then
+        if filePathToOpen ~= nil then
+            runInNewTerminal('vim ' .. filePathToOpen, true)
+        end
     end
 
     -- Check if we should run a command
-    local command = result['command']
     if command == "addToDiary" then
         writeToDiary(query)
     end
@@ -57,66 +160,44 @@ local function chooserComplete(result)
     if command == "diaryNote" then
         runInNewTerminal('vim -c VimwikiMakeDiaryNote', true)
     end
+    if command == "showToDos" then
+        mode = "todo"
+        updateChoices()
+        chooser:show()
+    end
+    if command == "clearMode" then
+        mode = nil
+        updateChoices()
+        chooser:show()
+    end
+    if command == "todoToggle" then
+        -- Grab the line
+        local lineNum = result['lineNum']
+        local lines = linesInFile(filePathToOpen)
+        local line = lines[lineNum]
+        if result['outstanding'] then
+            line = string.gsub(line, outstandingPattern, '- [X]')
+        else
+            line = string.gsub(line, donePattern, '- [ ]')
+        end
+        lines[lineNum] = line
+        writeLinesToFile(filePathToOpen, lines)
+    end
+
 end
 
 -- The query callback
 local function queryCallback(query)
-    query = string.lower(query)
-    local newChoices = { }
-    -- See if any of our choices contain this query, split by spaces
-    for i, choice in pairs(fileChoices) do
-        local choiceSearchString = string.lower(choice['subText'])
-        -- Make sure we match the query first
-        for j, queryElement in pairs(split(query, ' ')) do
-            if not string.find(choiceSearchString, queryElement) then
-                goto continue
-            end
-        end
-
-        table.insert(newChoices, choice)
-
-        ::continue::
-    end
-
-    -- We've build all our choices for files
-    -- Add some commands at the beginning and end
-
-    local beginningCommands = {
-        {
-            ["text"] = "Add to Diary",
-            ["subText"] = "Adds this string to today's Diary",
-            ["command"] = "addToDiary"
-        },
-        {
-            ["text"] = "Add To-Do",
-            ["subText"] = "Adds this string to today's Diary as a ToDo",
-            ["command"] = "addToDo"
-        },
-    }
-
-    local endCommands = {
-        {
-            ["text"] = "Open Diary",
-            ["subText"] = "Opens today's diary",
-            ["command"] = "diaryNote"
-        },
-    }
-
-    for i, command in pairs(beginningCommands) do
-        table.insert(newChoices, i, command)
-    end
-
-    for i, command in pairs(endCommands) do
-        table.insert(newChoices, command)
-    end
-    
-    chooser:choices(newChoices)
-
+    updateChoices(query)
 end
 
 function showVimwikiMenu()
+    -- Clear mode
+    mode = nil
+
     -- Nix the found choices
     for k,v in pairs(fileChoices) do fileChoices[k]=nil end
+    for k,v in pairs(todoChoices) do todoChoices[k]=nil end
 
     -- Find all the vimwiki files
     local command = "find " .. vimwikiPath .. " |grep .md"
@@ -132,6 +213,32 @@ function showVimwikiMenu()
         local subText = ""
         for j, line in pairs(lines) do
             subText = subText .. ' ' .. line
+
+            -- Build our todo choice for this line
+            if string.find(line, outstandingPattern) or string.find(line, donePattern) then
+                local isOutstanding = string.find(line, outstandingPattern) ~= nil
+
+                todoChoiceLine = line
+                todoChoiceLine = string.gsub(todoChoiceLine, '  ', '')
+                todoChoiceLine = string.gsub(todoChoiceLine, outstandingPattern, '')
+                todoChoiceLine = string.gsub(todoChoiceLine, donePattern, '')
+
+                if isOutstanding then
+                    todoChoiceLine = '􀓔' .. todoChoiceLine
+                else
+                    todoChoiceLine = '􀃳' .. todoChoiceLine
+                end
+                
+                table.insert(todoChoices,
+                {
+                    ["text"] = todoChoiceLine,
+                    ["subText"] = title,
+                    ["filePath"] = filePath,
+                    ["lineNum"] = j,
+                    ["command"] = "todoToggle",
+                    ["outstanding"] = isOutstanding,
+                })
+            end
         end
 
         subText = string.gsub(subText, "  ", " ")
@@ -148,7 +255,7 @@ function showVimwikiMenu()
     chooser = hs.chooser.new(chooserComplete)
         :queryChangedCallback(queryCallback)
         :searchSubText(true)
-        :choices(allChoices)
+        :choices(fileChoices)
 
     chooser:show()
 end
