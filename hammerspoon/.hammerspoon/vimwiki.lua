@@ -91,10 +91,13 @@ local function openDiary()
 end
 
 local function writeToDiary(string)
-    -- plh-evil: these diary appends always add an extra newline at
-    -- the start...
+    local stringToWrite = string
+    -- Add a newline if we're appending
+    if fileExists(diaryPath()) then
+        stringToWrite = ' \n' .. string
+    end
     local diary = openDiary()
-    diary:write('\n' .. string)
+    diary:write(stringToWrite)
     diary:close()
 end
 
