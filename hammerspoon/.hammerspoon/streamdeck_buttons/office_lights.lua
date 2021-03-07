@@ -9,7 +9,7 @@ local imageOptions = {
 officeToggle = {
     ['name'] = 'Office Toggle',
     ['image'] = streamdeck_imageFromText("􀛮", imageOptions),
-    ['pressUp'] = function()
+    ['onClick'] = function()
         homeAssistantRun('POST', 'services/homeassistant/toggle', { ['area_id'] = 'office' })
     end
 }

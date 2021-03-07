@@ -27,7 +27,7 @@ function windowSwitcher()
                         })
                         return streamdeck_imageWithCanvasContents(elements)
                     end,
-                    ['pressUp'] = function()
+                    ['onClick'] = function()
                         window:unminimize()
                         window:becomeMain()
                         window:focus()

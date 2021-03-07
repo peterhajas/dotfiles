@@ -16,7 +16,7 @@ function appSwitcher()
                 if string.find(path, 'XPCServices') then goto continue end
                 appButton = {
                     ['image'] = hs.image.imageFromAppBundle(app:bundleID()),
-                    ['pressUp'] = function()
+                    ['onClick'] = function()
                         hs.application.open(app:bundleID())
                         popButtonState()
                     end

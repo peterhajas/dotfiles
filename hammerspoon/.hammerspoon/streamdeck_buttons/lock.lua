@@ -1,7 +1,7 @@
 lockButton = {
     ['name'] = 'Lock',
     ['image'] = streamdeck_imageFromText('􀎡'),
-    ['pressUp'] = function()
+    ['onClick'] = function()
         hs.caffeinate.lockScreen()
     end
 }

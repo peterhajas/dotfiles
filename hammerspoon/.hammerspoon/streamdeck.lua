@@ -54,7 +54,7 @@ function currentlyVisibleButtons()
     if tableLength(buttonStateStack) > 1 then
         local closeButton = {
             ['image'] = streamdeck_imageFromText('􀯶'),
-            ['pressUp'] = function()
+            ['onClick'] = function()
                 popButtonState()
             end
         }
@@ -71,13 +71,13 @@ function currentlyVisibleButtons()
     if tableLength(providedButtons) > totalButtons then
         local scrollUp = {
             ['image'] = streamdeck_imageFromText('􀃾'),
-            ['pressUp'] = function()
+            ['onClick'] = function()
                 scrollBy(-1)
             end
         }
         local scrollDown = {
             ['image'] = streamdeck_imageFromText('􀄀'),
-            ['pressUp'] = function()
+            ['onClick'] = function()
                 scrollBy(1)
             end
         }
@@ -277,14 +277,11 @@ local function streamdeck_button(deck, buttonID, pressed)
     end
 
     -- Grab its actions
-    local pressDown = buttonForID['pressDown'] or function() end
-    local pressUp = buttonForID['pressUp'] or function() end
     local click = buttonForID['onClick'] or function() end
     local hold = buttonForID['onLongPress'] or function() end
 
     -- Dispatch
     if pressed then
-        pressDown(deck)
         updateButton(buttonID, true)
         buttonForID['_holdTimer'] = hs.timer.new(0.3, function()
             hold(true)
@@ -293,21 +290,20 @@ local function streamdeck_button(deck, buttonID, pressed)
         end)
         buttonForID['_holdTimer']:start()
     else
-        pressUp(deck)
+        updateButton(buttonID, false)
         if buttonForID['_isHolding'] ~= nil then
             hold(false)
         else
             click()
+
+            local pushedState = buttonStateForPushedButton(buttonForID)
+            if pushedState ~= nil then
+                pushButtonState(pushedState)
+            end
         end
 
         stopTimer(buttonForID['_holdTimer'])
         buttonForID['_isHolding'] = nil
-        local pushedState = buttonStateForPushedButton(buttonForID)
-        if pushedState ~= nil then
-            pushButtonState(pushedState)
-        else
-            updateButton(buttonID, false)
-        end
     end
 end
 

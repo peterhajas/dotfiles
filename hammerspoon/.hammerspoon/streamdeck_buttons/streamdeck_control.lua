@@ -6,7 +6,7 @@ function streamdeckControl()
         ['children'] = {
             {
                 ['image'] = streamdeck_imageFromText('􀆫'),
-                ['pressUp'] = function(deck) 
+                ['onClick'] = function(deck) 
                     
                 end
             }

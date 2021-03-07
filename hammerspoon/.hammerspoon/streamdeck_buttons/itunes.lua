@@ -5,7 +5,7 @@ function itunesPreviousButton()
     return {
         ['name'] = 'iTunes Previous',
         ['image'] = streamdeck_imageFromText("􀊊"),
-        ['pressUp'] = function()
+        ['onClick'] = function()
             hs.itunes.previous()
         end
     }
@@ -15,7 +15,7 @@ function itunesNextButton()
     return {
         ['name'] = 'iTunes Next',
         ['image'] = streamdeck_imageFromText("􀊌"),
-        ['pressUp'] = function()
+        ['onClick'] = function()
             hs.itunes.next()
         end
     }
@@ -27,7 +27,7 @@ function itunesPlayPuaseButton()
         ['imageProvider'] = function (pressed)
             return streamdeck_imageFromText("􀊄")
         end,
-        ['pressUp'] = function()
+        ['onClick'] = function()
             hs.itunes.playpause()
         end,
         ['updateInterval'] = 10,

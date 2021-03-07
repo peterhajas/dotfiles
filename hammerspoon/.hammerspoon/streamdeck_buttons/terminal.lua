@@ -4,7 +4,7 @@ require "terminal"
 
 local function terminalButton(commandProvider, button)
     local out = button
-    out['pressUp'] = function()
+    out['onClick'] = function()
         local command = commandProvider()
         if command == nil then
             return

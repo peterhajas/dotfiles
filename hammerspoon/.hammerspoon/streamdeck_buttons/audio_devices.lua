@@ -76,7 +76,7 @@ function audioDeviceButton(input)
 
             return streamdeck_imageWithCanvasContents(elements)
         end,
-        ['pressUp'] = function()
+        ['onClick'] = function()
             local allDevices = allAudioDevices(input)
             local indexAndCount = indexAndCountOfAudioDevices(input)
             local index = indexAndCount['index']

@@ -4,8 +4,6 @@ Buttons are defined as tables, with some values:
 - `onClick`: the function to perform when being clicked
 - `onLongPress`: the function to perform when being held down
     - passed a boolean for if we're being held or released
-- `pressDown`: the function to perform on press down
-- `pressUp`: the function to perform on press up
 - `updateInterval`: the desired update interval (if any) in seconds
 - `name`: the name of the button
 - `children`: function returning child buttons, which will be pushed

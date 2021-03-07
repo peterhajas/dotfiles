@@ -59,7 +59,7 @@ function homeAssistant()
                             local stateNow = currentStateForEntity(entityID)
                             return homeAssistantEntityIcon(stateNow)
                         end,
-                        ['pressUp'] = function()
+                        ['onClick'] = function()
                             local parameters = { ['entity_id'] = entityID }
                             local method = 'POST'
                             local endpoint = 'services/light/toggle'
