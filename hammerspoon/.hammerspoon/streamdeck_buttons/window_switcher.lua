@@ -18,7 +18,7 @@ function windowSwitcher()
                         table.insert(elements, {
                             type = "image",
                             image = snap,
-                            imageScaling = "scaleToFill"
+                            imageScaling = "shrinkToFit"
                         })
                         table.insert(elements, {
                             type = "image",
