@@ -41,17 +41,20 @@ local function applyExtraChoices(inChoices)
             {
                 ["text"] = "Add to Diary",
                 ["subText"] = "Adds this string to today's Diary",
-                ["command"] = "addToDiary"
+                ["command"] = "addToDiary",
+                ["placement"] = 1
             },
             {
                 ["text"] = "Add To-Do",
                 ["subText"] = "Adds this string to today's Diary as a ToDo",
-                ["command"] = "addToDo"
+                ["command"] = "addToDo",
+                ["placement"] = 2
             },
             {
                 ["text"] = "To-Do Triage",
                 ["subText"] = "Look through outstanding to-dos",
-                ["command"] = "showToDos"
+                ["command"] = "showToDos",
+                ["placement"] = 3
             }
         }
 
@@ -59,7 +62,8 @@ local function applyExtraChoices(inChoices)
             {
                 ["text"] = "Open Diary",
                 ["subText"] = "Opens today's diary",
-                ["command"] = "diaryNote"
+                ["command"] = "diaryNote",
+                ["placement"] = 999999,
             },
         }
     end
@@ -68,7 +72,8 @@ local function applyExtraChoices(inChoices)
         table.insert(endCommands, {
             ["text"] = "Back",
             ["subText"] = "Go back",
-            ["command"] = "clearMode"
+            ["command"] = "clearMode",
+            ["placement"] = 999999,
         })
     end
 
@@ -80,6 +85,56 @@ local function applyExtraChoices(inChoices)
         table.insert(choices, command)
     end
 
+    return choices
+end
+
+local function sortChoices(choices, query)
+    -- Sort our choices
+    -- Return whether a must come before b
+    table.sort(choices, function(a, b)
+        local aCommand = a['command']
+        local bCommand = b['command']
+
+        local aPlacement = a['placement'] or 0
+        local bPlacement = b['placement'] or 0
+
+        if aCommand and bCommand then
+            if aPlacement ~= bPlacement then
+                return aPlacement < bPlacement
+            end
+        end
+
+        if aCommand and not bCommand then
+            if aPlacement == 'end' then return false end
+            return true
+        end
+
+        if bCommand and not aCommand then
+            if bPlacement == 'end' then return true end
+            return false
+        end
+
+        local aOutstanding = a['outstanding']
+        local bOutstanding = b['outstanding']
+        
+        -- Prefer outstanding ToDos
+        if aOutstanding and not bOutstanding then
+            return true
+        end
+        if bOutstanding and not aOutstanding then
+            return false
+        end
+
+        local aIsDiaryEntry = string.find(a['filePath'], 'diary')
+        local bIsDiaryEntry = string.find(b['filePath'], 'diary')
+
+        -- If they're both diary entries, sort them in descending date order
+        if aIsDiaryEntry and bIsDiaryEntry then
+            return b['filePath'] < a['filePath']
+        end
+
+        return a['filePath'] < b['filePath']
+    end)
     return choices
 end
 
@@ -133,31 +188,8 @@ local function updateChoices(query)
         ::continue::
     end
 
-    -- Sort our choices
-    table.sort(newChoices, function(a, b)
-        local aOutstanding = a['outstanding']
-        local bOutstanding = b['outstanding']
-        
-        -- Prefer outstanding ToDos
-        if aOutstanding and not bOutstanding then
-            return true
-        end
-        if bOutstanding and not aOutstanding then
-            return false
-        end
-
-        local aIsDiaryEntry = string.find(a['filePath'], 'diary')
-        local bIsDiaryEntry = string.find(b['filePath'], 'diary')
-
-        -- If they're both diary entries, sort them in descending date order
-        if aIsDiaryEntry and bIsDiaryEntry then
-            return b['filePath'] < a['filePath']
-        end
-
-        return a['filePath'] < b['filePath']
-    end)
-
     newChoices = applyExtraChoices(newChoices)
+    newChoices = sortChoices(newChoices, query)
 
     chooser:choices(newChoices)
     currentChoices = newChoices
