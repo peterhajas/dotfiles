@@ -191,6 +191,7 @@ function streamdeck_wake()
 end
 
 function streamdeck_updateButton(matching)
+    if currentDeck == nil then return end
     for index, button in pairs(currentlyVisibleButtons()) do
         title = button['name']
         if title ~= nil then
