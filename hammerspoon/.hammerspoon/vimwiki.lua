@@ -233,10 +233,10 @@ local function chooserComplete(result)
     end
 
     -- Check if we should run a command
-    if command == "addToDiary" then
+    if command == "addToDiary" and string.len(query) > 0 then
         writeToDiary(query)
     end
-    if command == "addToDo" then
+    if command == "addToDo" and string.len(query) > 0 then
         local toWrite = "- [ ] " .. query
         writeToDiary(toWrite)
     end
