@@ -15,6 +15,9 @@ local fileChoices = { }
 -- The choices for our todos
 local todoChoices = { }
 
+-- The current choices
+local currentChoices = { }
+
 -- The mode we're in
 -- Possible values:
 -- nil - normal (file choosing / menu mode)
@@ -130,10 +133,51 @@ local function updateChoices(query)
         ::continue::
     end
 
+    -- Sort our choices
+    table.sort(newChoices, function(a, b)
+        local aOutstanding = a['outstanding']
+        local bOutstanding = b['outstanding']
+        
+        -- Prefer outstanding ToDos
+        if aOutstanding and not bOutstanding then
+            return true
+        end
+        if bOutstanding and not aOutstanding then
+            return false
+        end
+
+        local aIsDiaryEntry = string.find(a['filePath'], 'diary')
+        local bIsDiaryEntry = string.find(b['filePath'], 'diary')
+
+        -- If they're both diary entries, sort them in descending date order
+        if aIsDiaryEntry and bIsDiaryEntry then
+            return b['filePath'] < a['filePath']
+        end
+
+        return a['filePath'] < b['filePath']
+    end)
+
     newChoices = applyExtraChoices(newChoices)
 
     chooser:choices(newChoices)
+    currentChoices = newChoices
+end
 
+local function openTerminalTo(choice)
+    local filePathToOpen = choice['filePath']
+    if filePathToOpen ~= nil then
+        runInNewTerminal('vim ' .. filePathToOpen, true)
+    end
+end
+
+-- The callback for shift-selection / right-clicking
+local function alternateSelectionCallback(choice)
+    openTerminalTo(choice)
+end
+
+local function rightClickCallback(index)
+    local choice = currentChoices[index]
+    alternateSelectionCallback(choice)
 end
 
 -- Completion callback for the chooser
@@ -142,14 +186,18 @@ local function chooserComplete(result)
     -- Result is nil if we escaped out
     if result == nil then return end
 
+    local modifiers = hs.eventtap.checkKeyboardModifiers()
+    local hasShift = modifiers['shift'] ~= nil
+    if hasShift then
+        alternateSelectionCallback(result)
+    end
+
     local filePathToOpen = result['filePath']
     local command = result['command']
 
     -- Check if we should open a file
     if command == nil then
-        if filePathToOpen ~= nil then
-            runInNewTerminal('vim ' .. filePathToOpen, true)
-        end
+        openTerminalTo(result)
     end
 
     -- Check if we should run a command
@@ -186,7 +234,6 @@ local function chooserComplete(result)
         lines[lineNum] = line
         writeLinesToFile(filePathToOpen, lines)
     end
-
 end
 
 -- The query callback
@@ -257,6 +304,7 @@ function showVimwikiMenu()
 
     chooser = hs.chooser.new(chooserComplete)
         :queryChangedCallback(queryCallback)
+        :rightClickCallback(rightClickCallback)
         :searchSubText(true)
         :choices(fileChoices)
 
