@@ -1,4 +1,5 @@
 require "hyper"
+require "home_assistant"
 
 -- Volume Control {{{
 
@@ -22,7 +23,24 @@ end
 
 -- Changing volume
 
+local function shouldChangeTVVolume()
+    local connectedToSamsung = hs.screen.primaryScreen():name() == 'SAMSUNG'
+    local audioOutputIsSamsung = hs.audiodevice.current(false)['name'] == 'SAMSUNG'
+    return connectedToSamsung and audioOutputIsSamsung
+end
+
 function changeVolumeByAmount(amount)
+    if shouldChangeTVVolume() then
+        local scriptName = 'script.office_samsung_volume_up'
+        if amount < 0 then
+            scriptName = 'script.office_samsung_volume_down'
+        end
+
+        local parameters = { ['entity_id'] = scriptName }
+        homeAssistantRun('POST', 'services/script/toggle', parameters)
+
+        return
+    end
     vol = currentVolume()
     delta = (100 / volumeTicks()) * amount
     newVol = currentVolume() + delta
