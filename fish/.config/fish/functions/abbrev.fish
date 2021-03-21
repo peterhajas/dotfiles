@@ -30,7 +30,7 @@ function abbrev -d "Install fish abbreviations"
     abbr l exa -l
     abbr ll exa -l
 
-    # scratchpad
+    # util
     ## sync music to lighthouse
     abbr musicsync rsync -avvz ~/Music/peter lighthouse.local:/var/media/music/
 end
