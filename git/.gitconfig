@@ -1,6 +1,6 @@
 [user]
 	name = Peter Hajas
-	email = peterhajas@gmail.com
+	email = peter@haj.as
 [core]
 	editor = vim
 	excludesfile = /Users/phajas/.gitignore_global
