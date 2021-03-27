@@ -5,9 +5,9 @@ require "streamdeck_buttons.button_images"
 function nonceButton()
     return {
         ['name'] = 'Nonce',
-        ['imageProvider'] = function(pressed)
+        ['imageProvider'] = function(context)
             local options = { }
-            if pressed then
+            if context['isPressed'] then
                 options = { ['backgroundColor'] = tintColor }
             end
             return streamdeck_imageFromText('', options)

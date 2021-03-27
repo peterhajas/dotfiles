@@ -60,7 +60,10 @@ function calendarPeekButton()
     local bodyText = os.date("%d") + 0
 
     button['image'] = nil
-    button['imageProvider'] = function(pressed)
+    button['stateProvider'] = function()
+        return os.date("%d") + 0
+    end
+    button['imageProvider'] = function(state)
         local elements = {}
 
         -- White background

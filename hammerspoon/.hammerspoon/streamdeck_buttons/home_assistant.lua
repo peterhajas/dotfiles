@@ -58,10 +58,14 @@ function homeAssistant()
                 if include then
                     table.insert(children, {
                         ['name'] = 'home_assistant_toggle/' .. entityID,
-                        ['imageProvider'] = function()
+                        ['stateProvider'] = function()
                             updateHomeAssistantStateIfNecessary()
                             local stateNow = currentStateForEntity(entityID)
-                            return homeAssistantEntityIcon(stateNow)
+                            return stateNow
+                        end,
+                        ['imageProvider'] = function(context)
+                            local state = context['state']
+                            return homeAssistantEntityIcon(state)
                         end,
                         ['onClick'] = function()
                             local parameters = { ['entity_id'] = entityID }

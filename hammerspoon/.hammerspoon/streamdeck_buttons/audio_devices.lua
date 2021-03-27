@@ -42,8 +42,11 @@ function audioDeviceButton(input)
         name = name .. 'output'
     end
     return {
-        ['imageProvider'] = function (pressed)
-            local currentDeviceName = hs.audiodevice.current(input)['name']
+        ['stateProvider'] = function ()
+            return hs.audiodevice.current(input)['name']
+        end,
+        ['imageProvider'] = function (context)
+            local currentDeviceName = context['state']
 
             local elements = { }
 

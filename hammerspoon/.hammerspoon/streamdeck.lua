@@ -107,15 +107,29 @@ local function updateButton(i, pressed)
     local button = currentlyVisibleButtons()[i]
     if button ~= nil then
         local isStatic = button['image'] ~= nil
+        local currentState = {}
         if isStatic then
-            -- hs.alert("STATIC: updating image for " .. i, 4)
-
             currentDeck:setButtonImage(i, button['image'])
         else
-            -- hs.alert("DYNAMIC: updating image for " .. i, 4)
-
-            -- Otherwise, call the provider
-            local image = button['imageProvider'](pressed)
+            local isDirty = false
+            local stateProvider = button['stateProvider']
+            if stateProvider == nil then
+                isDirty = true
+            else
+                currentState = stateProvider() or { }
+                local lastState = button['_lastState'] or { }
+                isDirty = not equals(currentState, lastState, false)
+                button['_lastState']  = currentState
+            end
+            if isDirty then
+                local context = {
+                    ['isPressed'] = pressed,
+                    ['state'] = currentState
+                }
+                local image = button['imageProvider'](context)
+                button['_lastImage'] = image
+            end
+            local image = button['_lastImage']
             if image ~= nil then
                 currentDeck:setButtonImage(i, image)
             end
