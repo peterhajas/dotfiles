@@ -1,4 +1,9 @@
 function fish_prompt
+    # Print the status if non-zero
+    # (thanks James!)
+    if test $status -gt 0
+        set_color yellow; echo -n "$status " 
+    end
     set_color cyan; echo -n (prompt_current_user)
     set_color red; echo -n (prompt_current_hostname)
     set_color normal
