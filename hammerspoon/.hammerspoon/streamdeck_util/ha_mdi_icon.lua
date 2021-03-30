@@ -33,10 +33,13 @@ end
 local function fallbackColorFor(entityDictionary)
     -- If we have a color set, let's use that
     local entityColor = entityDictionary['attributes']['rgb_color']
+    local brightness = entityDictionary['attributes']['brightness'] or 255.0
+    brightness = brightness  / 255.0
     if entityColor ~= nil then
         entityColor['red'] = entityColor[1] / 255.0
         entityColor['green'] = entityColor[2] / 255.0
         entityColor['blue'] = entityColor[3] / 255.0
+        entityColor['alpha'] = brightness
         return entityColor
     end
 
