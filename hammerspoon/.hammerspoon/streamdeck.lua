@@ -246,9 +246,8 @@ end
 function pushButtonState(newState)
     -- Push current buttons back 
     buttonStateStack[#buttonStateStack+1] = currentButtonState
-    -- Empty the buttons and update
+    -- Empty the buttons
     currentButtonState = { }
-    updateButtons()
     -- Replace
     currentButtonState = newState
     -- Update
@@ -267,9 +266,8 @@ function popButtonState()
     newState = buttonStateStack[#buttonStateStack]
     -- Remove from stack
     buttonStateStack[#buttonStateStack] = nil
-    -- Empty the buttons and update
+    -- Empty the buttons
     currentButtonState = { }
-    updateButtons()
     -- Replace
     currentButtonState = newState
     -- Update
