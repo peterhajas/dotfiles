@@ -102,10 +102,11 @@ local function updateButton(i, pressed)
     -- No StreamDeck? No update
     if currentDeck == nil then return end
 
-    profileStart('streamdeckButtonUpdate_' .. i)
-
     local button = currentlyVisibleButtons()[i]
+
     if button ~= nil then
+        local buttonName = button['name'] or i
+        profileStart('streamdeckButtonUpdate_' .. buttonName)
         local isStatic = button['image'] ~= nil
         local currentState = {}
         if isStatic then
@@ -134,9 +135,8 @@ local function updateButton(i, pressed)
                 currentDeck:setButtonImage(i, image)
             end
         end
+        profileStop('streamdeckButtonUpdate_' .. buttonName)
     end
-
-    profileStop('streamdeckButtonUpdate_' .. i)
 end
 
 local function stopTimer(timer)
