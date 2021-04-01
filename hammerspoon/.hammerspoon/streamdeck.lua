@@ -100,6 +100,27 @@ function currentlyVisibleButtons()
     return currentButtons
 end
 
+local function contextForIndex(i)
+    columns, rows = currentDeck:buttonLayout()
+
+    local deckSize = {
+        ['w'] = columns,
+        ['h'] = rows,
+    }
+    local locationIndex = i - 1
+    local location = {
+        ['x'] = locationIndex % columns,
+        ['y'] = math.floor(locationIndex / columns),
+    }
+
+    local context = {
+        ['location'] = location,
+        ['size'] = deckSize,
+    }
+
+    return context
+end
+
 -- Updates the button at the StreamDeck index `i`.
 local function updateButton(i, pressed)
     -- No StreamDeck? No update
@@ -126,10 +147,9 @@ local function updateButton(i, pressed)
                 button['_lastState']  = currentState
             end
             if isDirty then
-                local context = {
-                    ['isPressed'] = pressed,
-                    ['state'] = currentState
-                }
+                local context = contextForIndex(i)
+                context['isPressed'] = pressed
+                context['state'] = currentState
                 local image = button['imageProvider'](context)
                 button['_lastImage'] = image
             end
@@ -271,7 +291,17 @@ end
 local function buttonStateForPushedButton(pushedButton)
     local children = pushedButton['children']
     if children == nil then return nil end
-    children = children()
+
+    columns, rows = currentDeck:buttonLayout()
+    local deckSize = {
+        ['w'] = columns,
+        ['h'] = rows,
+    }
+    local context = {
+        ['size'] = deckSize,
+    }
+
+    children = children(context)
 
     local outState = {
         ['name'] = pushedButton['name'],
@@ -295,6 +325,8 @@ local function streamdeck_button(deck, buttonID, pressed)
         return
     end
 
+    local context = contextForIndex(buttonID)
+
     -- Grab its actions
     local click = buttonForID['onClick'] or function() end
     local hold = buttonForID['onLongPress'] or function() end
@@ -313,7 +345,7 @@ local function streamdeck_button(deck, buttonID, pressed)
         if buttonForID['_isHolding'] ~= nil then
             hold(false)
         else
-            click()
+            click(context)
 
             local pushedState = buttonStateForPushedButton(buttonForID)
             if pushedState ~= nil then

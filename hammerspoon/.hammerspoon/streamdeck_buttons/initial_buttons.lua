@@ -12,6 +12,7 @@ require "streamdeck_buttons.app_switcher"
 require "streamdeck_buttons.window_switcher"
 require "streamdeck_buttons.animation_demo"
 require "streamdeck_buttons.home_assistant"
+require "streamdeck_buttons.numpad"
 
 initialButtonState = {
     ['name'] = 'Root',
@@ -28,5 +29,6 @@ initialButtonState = {
         appSwitcher(),
         windowSwitcher(),
         homeAssistant(),
+        numberPad(),
     }
 }

@@ -4,6 +4,9 @@ Buttons are defined as tables, with some values:
   be called when the state changes
 - `imageProvider`: the function returning the image, taking context in a table:
     - `isPressed` - whether the button is being pressed down
+    - `location` - table of `x` and `y` keys representing the button location 
+        - zero-indexed
+    - `size` - table of `w` and `h` keys representing the deck size 
     - `state` - the state to act on, as returned by `stateProvider`
 - `onClick`: the function to perform when being clicked
 - `onLongPress`: the function to perform when being held down
