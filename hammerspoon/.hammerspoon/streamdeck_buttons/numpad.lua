@@ -95,8 +95,12 @@ local function button()
             if number ~= nil then
                 text = number
             elseif symbol ~= nil then
+                textColor = hs.drawing.color.black
+                backgroundColor = tintColor
+
                 if symbol == 'return' then
-                    symbol = '↩'
+                    symbol = '='
+                    backgroundColor = systemBlueColor
                 end
                 if symbol == '/' then
                     symbol = '÷'
@@ -105,8 +109,6 @@ local function button()
                     symbol = 'x'
                 end
                 text = symbol
-                textColor = hs.drawing.color.black
-                backgroundColor = tintColor
             end
             local options = {
                 ['textColor'] = textColor,
