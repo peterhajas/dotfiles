@@ -7,10 +7,15 @@ function nonceButton()
         ['name'] = 'Nonce',
         ['imageProvider'] = function(context)
             local options = { }
-            if context['isPressed'] then
-                options = { ['backgroundColor'] = tintColor }
+            local color = systemBackgroundColor
+            if not context['isPressed'] then
+                color = randomColor() 
             end
+            local options = {
+                ['backgroundColor'] = color
+            }
             return streamdeck_imageFromText('', options)
-        end
+        end,
+        ['updateInterval'] = 5,
     }
 end
