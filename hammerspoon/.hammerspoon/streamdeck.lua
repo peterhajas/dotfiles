@@ -24,6 +24,9 @@ local currentButtonState = { }
 -- This is an array
 local buttonStateStack = { }
 
+-- Currently active update timers
+local currentUpdateTimers = { }
+
 -- Returns all the button states managed by the system
 function allButtonStates()
     local allStates = cloneTable(buttonStateStack)
@@ -147,17 +150,20 @@ end
 
 -- Disables all timers for all buttons
 local function disableTimers()
+    for i, timer in pairs(currentUpdateTimers) do
+        stopTimer(timer)
+    end
+    currentUpdateTimers = { }
+
     for i, state in pairs(allButtonStates()) do
         for index, button in pairs(state['buttons'] or {}) do
-            stopTimer(button['_timer'])
             stopTimer(button['_holdTimer'])
-            button['_timer'] = nil
             button['_holdTimer'] = nil
         end
     end
 end
 
--- Updates all timers for all buttons
+-- Updates button update timers for all buttons
 local function updateTimers()
     disableTimers()
     if asleep or currentDeck == nil then
@@ -171,7 +177,7 @@ local function updateTimers()
                 updateButton(index)
             end)
             timer:start()
-            button['_timer'] = timer
+            table.insert(currentUpdateTimers, timer)
         end
     end
 end
@@ -221,7 +227,6 @@ function pushButtonState(newState)
     -- Push current buttons back 
     buttonStateStack[#buttonStateStack+1] = currentButtonState
     -- Empty the buttons and update
-    updateTimers()
     currentButtonState = { }
     updateButtons()
     -- Replace
@@ -243,7 +248,6 @@ function popButtonState()
     -- Remove from stack
     buttonStateStack[#buttonStateStack] = nil
     -- Empty the buttons and update
-    updateTimers()
     currentButtonState = { }
     updateButtons()
     -- Replace

@@ -15,6 +15,5 @@ Buttons are defined as tables, with some values:
 Internal values:
 - `_lastState`: the last state we heard about for this button
 - `_lastImage`: the last image we grabbed for this button
-- `_timer`: the timer that is updating this button
 - `_holdTimer`: a timer for long-press events
 - `_isHolding`: whether this button is being held down
