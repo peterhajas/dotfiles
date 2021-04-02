@@ -6,7 +6,7 @@ require "home_assistant"
 -- Number of volume "ticks"
 
 function volumeTicks()
-    return 10
+    return 20
 end
 
 -- Getting the current volume
