@@ -33,13 +33,10 @@ end
 local function fallbackColorFor(entityDictionary)
     -- If we have a color set, let's use that
     local entityColor = entityDictionary['attributes']['rgb_color']
-    local brightness = entityDictionary['attributes']['brightness'] or 255.0
-    brightness = brightness  / 255.0
     if entityColor ~= nil then
         entityColor['red'] = entityColor[1] / 255.0
         entityColor['green'] = entityColor[2] / 255.0
         entityColor['blue'] = entityColor[3] / 255.0
-        entityColor['alpha'] = brightness
         return entityColor
     end
 
@@ -103,8 +100,20 @@ local function titleFor(entityDictionary)
     return name
 end
 
-local glyphHeight = 64
-local textHeight = 38
+-- Returns a logical fraction for the entity. For example, if it's a light,
+-- the brightness
+local function fractionFor(entityDictionary)
+    local brightness = entityDictionary['attributes']['brightness']
+    if brightness ~= nil then
+        return brightness / 255.0
+    end
+
+    if entityDictionary['state'] == 'on' then
+        return 1.0
+    end
+
+    return 0.0
+end
 
 function homeAssistantEntityIcon(entityDictionary)
     -- If the entity has a picture, then let's grab that
@@ -131,20 +140,23 @@ function homeAssistantEntityIcon(entityDictionary)
         end
     end
 
-    options = { }
     local textColor = textColorFor(entityDictionary)
     local iconColor = iconColorFor(entityDictionary)
     local backgroundColor = backgroundColorFor(entityDictionary)
-
-    -- Flip if we're on
-    if entityDictionary['state'] == 'on' then
-        local newTextColor = backgroundColor
-        backgroundColor = textColor
-        textColor = newTextColor
-        iconColor = newTextColor
-    end
+    local fraction = fractionFor(entityDictionary)
 
     local elements = { }
+
+    local strokeWidth = 20
+    local contentRect = {
+                          x = strokeWidth / 2,
+                          y = strokeWidth / 2,
+                          w = buttonWidth - strokeWidth,
+                          h = buttonHeight - strokeWidth,
+                        }
+
+    local textHeight = 36
+    local imageHeight = contentRect.h - textHeight
 
     -- Background color
     table.insert(elements, {
@@ -154,8 +166,24 @@ function homeAssistantEntityIcon(entityDictionary)
         type = "rectangle",
     })
 
+    if fraction > 0 then
+        local fractionColor = cloneTable(textColor)
+        fractionColor['alpha'] = fraction
+        local radius = 8
+        -- Fraction / on outline
+        table.insert(elements, {
+            frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
+            strokeColor = fractionColor,
+            type = "rectangle",
+            action = "stroke",
+            strokeJoinStyle = "round",
+            roundedRectRadii = { ["xRadius"] = radius, ["yRadius"] = radius },
+            strokeWidth = strokeWidth,
+        })
+    end
+
     -- Image
-    local imageFrame = { x = 0, y = 0, w = buttonWidth, h = glyphHeight }
+    local imageFrame = { x = contentRect.x, y = contentRect.y, w = contentRect.w, h = imageHeight }
     if entityPicture ~= nil then
         table.insert(elements, {
             type = "image",
@@ -168,6 +196,7 @@ function homeAssistantEntityIcon(entityDictionary)
         -- Shave off the 'mdi:'
         local iconName = string.sub(mdiName, 5)
         local codepoint = mdiUnicodeCodepoint(iconName)
+        local fontSize = 32
 
         if codepoint ~= nil then
             local integer = tonumber(codepoint, 16)
@@ -176,7 +205,7 @@ function homeAssistantEntityIcon(entityDictionary)
                 type = "text",
                 frame = imageFrame,
                 text = hs.styledtext.new(mdi, {
-                    font = { name = 'MaterialDesignIcons', size = 50 },
+                    font = { name = 'MaterialDesignIcons', size = fontSize },
                     paragraphStyle = { alignment = "center" },
                     color = iconColor,
                 }),
@@ -186,7 +215,7 @@ function homeAssistantEntityIcon(entityDictionary)
                 type = "text",
                 frame = imageFrame,
                 text = hs.styledtext.new('•', {
-                    font = { name = '.AppleSystemUIFont', size = 50 },
+                    font = { name = '.AppleSystemUIFont', size = fontSize },
                     paragraphStyle = { alignment = "center" },
                     color = iconColor,
                 }),
@@ -195,10 +224,11 @@ function homeAssistantEntityIcon(entityDictionary)
     end
 
     -- Name
+    local nameY = contentRect.y + contentRect.h - textHeight
     table.insert(elements, {
-        frame = { x = 0, y = buttonHeight - textHeight, w = buttonWidth, h = textHeight },
+        frame = { x = contentRect.x, y = nameY, w = contentRect.w, h = textHeight },
         text = hs.styledtext.new(titleFor(entityDictionary), {
-            font = { name = '.AppleSystemUIFont', size = 15 },
+            font = { name = '.AppleSystemUIFont', size = 14 },
             paragraphStyle = { alignment = "center" },
             color = textColor,
         }),
