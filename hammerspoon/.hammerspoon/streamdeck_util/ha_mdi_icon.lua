@@ -23,11 +23,16 @@ local function entityIDFor(entityDictionary)
     return entityID
 end
 
--- A type ('switch', 'light', etc.) for the entity
-local function typeFor(entityDictionary)
-    local entityID = entityIDFor(entityDictionary)
+-- A type ('switch', 'light', etc.) for the entityID
+function typeForID(entityID)
     local entityType = split(entityID, '.')[1]
     return entityType
+end
+
+-- A type ('switch', 'light', etc.) for the entity dictionary
+local function typeForDictionary(entityDictionary)
+    local entityID = entityIDFor(entityDictionary)
+    return typeForID(entityID)
 end
 
 local function fallbackColorFor(entityDictionary)
@@ -40,7 +45,7 @@ local function fallbackColorFor(entityDictionary)
         return entityColor
     end
 
-    local entityType = typeFor(entityDictionary)
+    local entityType = typeForDictionary(entityDictionary)
     
     if entityType == 'light' then
         return systemYellowColor
@@ -91,7 +96,7 @@ local function titleFor(entityDictionary)
         local entityID = entityIDFor(entityDictionary)
         name = entityID
     end
-    local entityType = typeFor(entityDictionary)
+    local entityType = typeForDictionary(entityDictionary)
     if entityType == 'person' then
         local location = entityDictionary['state']
         location = location:gsub('_', ' ')
@@ -126,7 +131,7 @@ function homeAssistantEntityIcon(entityDictionary)
     local mdiName = entityDictionary['attributes']['icon']
     if mdiName == nil or not string.find(mdiName, 'mdi:') then
         -- Fallback icon
-        local entityType = typeFor(entityDictionary)
+        local entityType = typeForDictionary(entityDictionary)
         if entityType == 'light' then
             mdiName = 'mdi:floor-lamp'
         elseif entityType == 'scene' then

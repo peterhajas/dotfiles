@@ -41,6 +41,7 @@ function homeAssistantEntity(entityID)
             local parameters = { ['entity_id'] = entityID }
             local method = 'POST'
             local endpoint = 'services/light/toggle'
+            local entityType = typeForID(entityID)
 
             if entityType == 'switch' then
                 endpoint = 'services/switch/toggle'
@@ -78,8 +79,7 @@ function homeAssistant()
                 if name == nil then
                     name = entityID
                 end
-                local entityType = split(entityID, '.')[1]
-                local buttonText = name .. '\n(' .. entityType .. ')'
+                local entityType = typeForID(entityID)
                 local includedEntityTypes = { 'light', 'switch', 'scene', 'script', 'group', 'person' }
                 local include = false
                 for index, includedEntityType in pairs(includedEntityTypes) do
