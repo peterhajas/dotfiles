@@ -30,5 +30,7 @@ initialButtonState = {
         windowSwitcher(),
         homeAssistant(),
         numberPad(),
+        homeAssistantEntity("scene.office_regular"),
+        homeAssistantEntity("scene.office_mood"),
     }
 }

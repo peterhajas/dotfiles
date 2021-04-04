@@ -24,6 +24,39 @@ local function currentStateForEntity(entityID)
     return nil
 end
 
+-- Returns a button corresponding to a HomeAssistant entity ID
+function homeAssistantEntity(entityID)
+    return {
+        ['name'] = 'HA/' .. entityID,
+        ['stateProvider'] = function()
+            updateHomeAssistantStateIfNecessary()
+            local stateNow = currentStateForEntity(entityID)
+            return stateNow
+        end,
+        ['imageProvider'] = function(context)
+            local state = context['state']
+            return homeAssistantEntityIcon(state)
+        end,
+        ['onClick'] = function()
+            local parameters = { ['entity_id'] = entityID }
+            local method = 'POST'
+            local endpoint = 'services/light/toggle'
+
+            if entityType == 'switch' then
+                endpoint = 'services/switch/toggle'
+            elseif entityType == 'scene' then
+                endpoint = 'services/scene/turn_on'
+            elseif entityType == 'script' then
+                endpoint = 'services/script/turn_on'
+            end
+
+            homeAssistantRun(method, endpoint, parameters)
+        end,
+        ['updateInterval'] = 1
+    }
+end
+
+-- Returns the general HomeAssistant button
 function homeAssistant()
     local bundleID = 'io.robbie.HomeAssistant'
     return {
@@ -56,34 +89,7 @@ function homeAssistant()
                     end
                 end
                 if include then
-                    table.insert(children, {
-                        ['name'] = 'home_assistant_toggle/' .. entityID,
-                        ['stateProvider'] = function()
-                            updateHomeAssistantStateIfNecessary()
-                            local stateNow = currentStateForEntity(entityID)
-                            return stateNow
-                        end,
-                        ['imageProvider'] = function(context)
-                            local state = context['state']
-                            return homeAssistantEntityIcon(state)
-                        end,
-                        ['onClick'] = function()
-                            local parameters = { ['entity_id'] = entityID }
-                            local method = 'POST'
-                            local endpoint = 'services/light/toggle'
-
-                            if entityType == 'switch' then
-                                endpoint = 'services/switch/toggle'
-                            elseif entityType == 'scene' then
-                                endpoint = 'services/scene/turn_on'
-                            elseif entityType == 'script' then
-                                endpoint = 'services/script/turn_on'
-                            end
-
-                            homeAssistantRun(method, endpoint, parameters)
-                        end,
-                        ['updateInterval'] = 1
-                    })
+                    table.insert(children, homeAssistantEntity(entityID))
                 end
             end
             return children
