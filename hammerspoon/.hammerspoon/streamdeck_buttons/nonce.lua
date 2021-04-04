@@ -6,15 +6,22 @@ function nonceButton()
     return {
         ['name'] = 'Nonce',
         ['imageProvider'] = function(context)
-            local options = { }
+            local inset = 24
+            local radius = 8
             local color = systemBackgroundColor
             if not context['isPressed'] then
                 color = randomColor() 
             end
-            local options = {
-                ['backgroundColor'] = color
-            }
-            return streamdeck_imageFromText('', options)
+
+            local elements = { }
+            table.insert(elements, {
+                action = "fill",
+                frame = { x = inset, y = inset, w = buttonWidth - 2 * inset, h = buttonHeight - 2 * inset },
+                type = "rectangle",
+                fillColor = color,
+                roundedRectRadii = { ["xRadius"] = radius, ["yRadius"] = radius },
+            })
+            return streamdeck_imageWithCanvasContents(elements)
         end,
         ['updateInterval'] = 5,
     }
