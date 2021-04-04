@@ -6,7 +6,6 @@ require "streamdeck_buttons.url"
 require "streamdeck_buttons.lock"
 require "streamdeck_buttons.clock"
 require "streamdeck_buttons.camera"
-require "streamdeck_buttons.office_lights"
 require "streamdeck_buttons.weather"
 require "streamdeck_buttons.app_switcher"
 require "streamdeck_buttons.window_switcher"
@@ -25,7 +24,6 @@ initialButtonState = {
         audioDeviceButton(true),
         itunesPreviousButton(),
         itunesNextButton(),
-        officeToggle,
         appSwitcher(),
         windowSwitcher(),
         homeAssistant(),
