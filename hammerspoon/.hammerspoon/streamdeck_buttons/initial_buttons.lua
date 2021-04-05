@@ -30,5 +30,6 @@ initialButtonState = {
         numberPad(),
         homeAssistantEntity("scene.office_regular"),
         homeAssistantEntity("scene.office_mood"),
+        homeAssistantEntity("scene.office_off"),
     }
 }
