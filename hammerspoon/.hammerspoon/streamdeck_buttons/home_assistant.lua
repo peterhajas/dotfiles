@@ -30,7 +30,9 @@ function homeAssistantEntity(entityID)
         ['name'] = 'HA/' .. entityID,
         ['stateProvider'] = function()
             updateHomeAssistantStateIfNecessary()
-            local stateNow = currentStateForEntity(entityID)
+            local stateNow = cloneTable(currentStateForEntity(entityID)) or { }
+            -- Nix the last_updated value - we will check other states
+            stateNow['last_updated'] = nil
             return stateNow
         end,
         ['imageProvider'] = function(context)
