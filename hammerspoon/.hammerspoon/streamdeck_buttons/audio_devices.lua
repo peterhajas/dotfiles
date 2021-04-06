@@ -49,6 +49,12 @@ function audioDeviceButton(input)
             local currentDeviceName = context['state']
 
             local elements = { }
+            table.insert(elements, {
+                action = "fill",
+                frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
+                fillColor = systemBackgroundColor,
+                type = "rectangle",
+            })
 
             local yOffset = 0
             local fontSize = 14
@@ -56,10 +62,10 @@ function audioDeviceButton(input)
 
             for k,v in pairs(allAudioDevices(input)) do
                 local text = empty
-                local color = hs.drawing.color.white
+                local color = systemTextColor
                 if v:name() == currentDeviceName then
                     text = full
-                    color = systemOrangeColor
+                    color = tintColor
                 end
 
                 deviceItem = {

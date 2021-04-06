@@ -87,7 +87,7 @@ local function iconColorFor(entityDictionary)
 end
 
 local function backgroundColorFor(entityDictionary)
-    return colorSetFor(entityDictionary, 'background_color', hs.drawing.color.black)
+    return colorSetFor(entityDictionary, 'background_color', systemBackgroundColor)
 end
 
 local function titleFor(entityDictionary)

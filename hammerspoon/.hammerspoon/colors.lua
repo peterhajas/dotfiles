@@ -31,8 +31,8 @@ local function updateThemeColors()
     systemOrangeColor = hs.drawing.color.lists()['System']['systemOrangeColor']
 
     systemTextColor = hs.drawing.color.lists()['System']['textColor']
+    systemBackgroundColor = hs.drawing.color.lists()['System']['windowBackgroundColor']
 
-    -- Bit of a hack for now
     tintColor = systemOrangeColor
 end
 

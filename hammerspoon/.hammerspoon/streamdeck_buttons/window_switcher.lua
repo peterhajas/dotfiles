@@ -1,4 +1,5 @@
 require "streamdeck_buttons.button_images"
+
 function windowSwitcher()
     return {
         ['name'] = "Window Switcher",

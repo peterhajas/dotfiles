@@ -8,12 +8,20 @@ function nonceButton()
         ['imageProvider'] = function(context)
             local inset = 24
             local radius = 8
-            local color = systemBackgroundColor
-            if not context['isPressed'] then
-                color = randomColor() 
+            local color = randomColor()
+            local background = systemBackgroundColor
+            if context['isPressed'] then
+                background = color
+                color = systemBackgroundColor
             end
 
             local elements = { }
+            table.insert(elements, {
+                action = "fill",
+                frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
+                fillColor = background,
+                type = "rectangle",
+            })
             table.insert(elements, {
                 action = "fill",
                 frame = { x = inset, y = inset, w = buttonWidth - 2 * inset, h = buttonHeight - 2 * inset },

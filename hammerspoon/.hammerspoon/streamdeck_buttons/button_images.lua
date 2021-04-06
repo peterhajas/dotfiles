@@ -17,7 +17,7 @@ end
 function streamdeck_imageFromText(text, options)
     local options = options or { }
     textColor = options['textColor'] or tintColor
-    backgroundColor = options["backgroundColor"] or hs.drawing.color.black
+    backgroundColor = options["backgroundColor"] or systemBackgroundColor
     font = options['font'] or ".AppleSystemUIFont"
     fontSize = options['fontSize'] or 70
     local elements = { }
