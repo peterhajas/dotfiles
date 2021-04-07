@@ -76,6 +76,9 @@ function currentlyVisibleButtons()
             ['image'] = streamdeck_imageFromText('􀃾'),
             ['onClick'] = function()
                 scrollBy(-1)
+            end,
+            ['onLongPress'] = function()
+                scrollToTop()
             end
         }
         local scrollDown = {
@@ -275,6 +278,11 @@ function popButtonState()
         updateButtons()
         updateTimers()
     end
+end
+
+function scrollToTop()
+    currentButtonState['scrollOffset'] = 0
+    updateButtons()
 end
 
 function scrollBy(amount)
