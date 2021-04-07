@@ -13,6 +13,7 @@ require "streamdeck_buttons.animation_demo"
 require "streamdeck_buttons.home_assistant"
 require "streamdeck_buttons.numpad"
 require "streamdeck_buttons.window_clone"
+require "streamdeck_buttons.function_keys"
 
 initialButtonState = {
     ['name'] = 'Root',
@@ -30,6 +31,7 @@ initialButtonState = {
         homeAssistant(),
         numberPad(),
         windowClone(),
+        functionKeys(),
         homeAssistantEntity("scene.office_regular"),
         homeAssistantEntity("scene.office_mood"),
         homeAssistantEntity("scene.office_off"),
