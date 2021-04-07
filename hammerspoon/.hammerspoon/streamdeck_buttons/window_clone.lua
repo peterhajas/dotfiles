@@ -4,11 +4,16 @@ require "streamdeck_util.panel"
 local lastWindowImage = nil
 local lastWindowImageTime = 0
 
+local sizeMultiplier = 1.0
+
+local itemWidth = buttonWidth * sizeMultiplier
+local itemHeight = buttonHeight * sizeMultiplier
+
 local function updateWindowImageIfNecessary(window, size)
     local now = hs.timer.absoluteTime()
     -- in ms
     local elapsed = (now - lastWindowImageTime) * 0.000001
-    if elapsed > 10 then
+    if elapsed >= 33 then
         lastWindowImageTime = hs.timer.absoluteTime()
         lastWindowImage = window:snapshot():copy():size(size)
     end
@@ -23,16 +28,14 @@ local function button(window)
             local w = context['size']['w']
             local h = context['size']['h']
 
-            local destinationSize = { ['w'] = w * buttonWidth,
-                                      ['h'] = h * buttonHeight }
-
-            updateWindowImageIfNecessary(window, destinationSize)
+            local destinationSize = { ['w'] = w * itemWidth,
+                                      ['h'] = h * itemHeight }
 
             local elements = { }
             table.insert(elements, {
                 frame = {
-                    x = -1 * x * buttonWidth,
-                    y = -1 * y * buttonHeight,
+                    x = -1 * x * itemWidth,
+                    y = -1 * y * itemHeight,
                     w = destinationSize['w'],
                     h = destinationSize['h']
                 },
@@ -40,7 +43,14 @@ local function button(window)
                 image = lastWindowImage,
             })
 
-            return streamdeck_imageWithCanvasContents(elements)
+            local resized = streamdeck_imageWithCanvasContents(elements)
+
+            if x == context['size']['w'] - 1 and
+               y == context['size']['h'] - 1 then
+                updateWindowImageIfNecessary(window, destinationSize)
+            end
+
+            return resized
         end,
         ['onClick'] = function()
             -- A bit of a hack, but pop twice to go back to the menun above the
@@ -48,7 +58,7 @@ local function button(window)
             popButtonState()
             popButtonState()
         end,
-        ['updateInterval'] = 0.01
+        ['updateInterval'] = 0.033
     }
 end
 
