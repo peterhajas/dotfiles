@@ -43,10 +43,13 @@ function audioDeviceButton(input)
     end
     return {
         ['stateProvider'] = function ()
-            return hs.audiodevice.current(input)['name']
+            return {
+                ['name'] = hs.audiodevice.current(input)['name'],
+                ['indexCount'] = indexAndCountOfAudioDevices(input)
+            }
         end,
         ['imageProvider'] = function (context)
-            local currentDeviceName = context['state']
+            local currentDeviceName = context['state']['name']
 
             local elements = { }
             table.insert(elements, {
