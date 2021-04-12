@@ -3,10 +3,12 @@ require 'util'
 require "colors"
 
 local mdiNameToUnicodeMapping = nil
+local hasLoadedMDIMapping = false
 local function loadMDIJSONFileIfNecessary()
-    if mdiNameToUnicodeMapping == nil then
+    if not hasLoadedMDIMapping then
         local path = '/Users/phajas/.hammerspoon/streamdeck_util/mdi.json'
         mdiNameToUnicodeMapping = hs.json.read(path)
+        hasLoadedMDIMapping = true
     end
 end
 
