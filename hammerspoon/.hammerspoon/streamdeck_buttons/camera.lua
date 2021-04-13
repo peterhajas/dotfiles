@@ -1,15 +1,29 @@
+require 'home_assistant'
+require "streamdeck_buttons.button_images"
+require "util"
+
+-- These require a special payload - not totally sure why
+
 camera1Button = {
     ['name'] = 'Camera 1',
-    ['imageProvider'] = function()
-        return hs.image.imageFromURL("http://192.168.0.167/cgi-bin/currentpic.cgi")
-    end,
-    ['updateInterval'] = 30
+    ['image'] = streamdeck_imageFromText('􀍊 1', { ['fontSize'] = 45 }),
+    ['onClick'] = function()
+        homeAssistantRun('POST', 'events/dash_cam_1', { [''] = '' })
+    end
 }
 
 camera2Button = {
     ['name'] = 'Camera 2',
-    ['imageProvider'] = function()
-        return hs.image.imageFromURL("http://192.168.0.196/cgi-bin/currentpic.cgi")
-    end,
-    ['updateInterval'] = 30
+    ['image'] = streamdeck_imageFromText('􀍊 2', { ['fontSize'] = 45 }),
+    ['onClick'] = function()
+        homeAssistantRun('POST', 'events/dash_cam_2', { [''] = '' })
+    end
+}
+
+dashClose = {
+    ['name'] = 'DashClose',
+    ['image'] = streamdeck_imageFromText('DX', { ['fontSize'] = 45 }),
+    ['onClick'] = function()
+        homeAssistantRun('POST', 'events/dash_close', { [''] = '' })
+    end
 }

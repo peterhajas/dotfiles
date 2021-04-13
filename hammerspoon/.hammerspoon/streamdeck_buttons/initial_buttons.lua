@@ -35,5 +35,8 @@ initialButtonState = {
         homeAssistantEntity("scene.office_regular"),
         homeAssistantEntity("scene.office_mood"),
         homeAssistantEntity("scene.office_off"),
+        camera1Button,
+        camera2Button,
+        dashClose
     }
 }
