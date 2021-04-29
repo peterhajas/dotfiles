@@ -315,6 +315,7 @@ Plug 'godlygeek/tabular'
 Plug 'jpalardy/vim-slime'
 Plug 'w0rp/ale'
 Plug 'ap/vim-css-color'
+Plug 'ledger/vim-ledger'
 
 " PIM:
 Plug 'vimwiki/vimwiki'

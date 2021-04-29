@@ -27,10 +27,12 @@ function abbrev -d "Install fish abbreviations"
 
     # misc.
     abbr c cd
-    abbr l exa -l
     abbr ll exa -l
 
     # util
     ## sync music to lighthouse
     abbr musicsync rsync -avvz ~/Music/peter lighthouse.local:/var/media/music/
+
+    ## ledger
+    abbr l ledger -f ~/.vimwiki/ledger/peter.ledger
 end
