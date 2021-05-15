@@ -34,5 +34,8 @@ function abbrev -d "Install fish abbreviations"
     abbr musicsync rsync -avvz ~/Music/peter lighthouse.local:/var/media/music/
 
     ## ledger
-    abbr l ledger -f ~/.vimwiki/ledger/peter.ledger
+    abbr l 'src/ledger_utils/ledger_build.py && ledger -f ~/.vimwiki/ledger/peter.ledger'
+    abbr lb 'src/ledger_utils/ledger_build.py && ledger -f ~/.vimwiki/ledger/peter.ledger balance'
+    abbr lr 'src/ledger_utils/ledger_build.py && ledger -f ~/.vimwiki/ledger/peter.ledger register'
+    abbr lv 'src/ledger_utils/ledger_build.py && vim ~/.vimwiki/ledger/peter.ledger'
 end
