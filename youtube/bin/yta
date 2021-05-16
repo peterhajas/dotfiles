@@ -1,0 +1,3 @@
+#!/bin/sh
+
+youtube-dl --download-archive "~/.vimwiki/logged/yta.txt" --add-metadata --embed-thumbnail --extract-audio --audio-format mp3 --audio-quality 0 "$*"
