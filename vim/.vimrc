@@ -76,11 +76,6 @@ set nohlsearch
 nnoremap n nzzzv
 nnoremap N Nzzzv
 
-" Move up and down visually. I'm not totally sold on this...
-
-nnoremap j gj
-nnoremap k gk
-
 " }}}
 " Split windows {{{
 
@@ -485,7 +480,7 @@ set wildmode=list:longest
 " Instead of beeping, use the visual bell
 set visualbell
 
-" Not sure.
+" Have backspace delete indentationm eol markers, and the start of insert mode
 set backspace=indent,eol,start
 
 " Only show the tab line if there are >1 tabs
@@ -538,7 +533,7 @@ endif
 " Turn on "smarttab" for tab insertion / deletion
 set smarttab
 
-" For combos, give me 100 units of time (ms?) to hit a combo
+" For combos, give me 100ms time to hit a combo
 set ttimeout
 set ttimeoutlen=100
 
