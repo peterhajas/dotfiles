@@ -32,7 +32,9 @@ require "streamdeck"
 require "link_replace"
 require "pinboard"
 require "youtubedl"
-require "vimwiki"
+require "vimwiki.picker"
+require "vimwiki.sticky"
+require "server"
 
 profileStop('imports')
 profileStart('globals')
