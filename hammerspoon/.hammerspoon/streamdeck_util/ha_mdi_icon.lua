@@ -61,6 +61,9 @@ local function fallbackColorFor(entityDictionary)
     if entityType == 'script' then
         return systemRedColor
     end
+    if entityType == 'cover' then
+        return systemPurpleColor
+    end
 
     return hs.drawing.color.white
 end
@@ -115,7 +118,8 @@ local function fractionFor(entityDictionary)
         return brightness / 255.0
     end
 
-    if entityDictionary['state'] == 'on' then
+    if entityDictionary['state'] == 'on' or
+        entityDictionary['state'] == 'open' then
         return 1.0
     end
 

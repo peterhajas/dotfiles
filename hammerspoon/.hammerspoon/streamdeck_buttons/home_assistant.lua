@@ -51,6 +51,8 @@ function homeAssistantEntity(entityID)
                 endpoint = 'services/scene/turn_on'
             elseif entityType == 'script' then
                 endpoint = 'services/script/turn_on'
+            elseif entityType == 'cover' then
+                endpoint = 'services/cover/toggle'
             end
 
             homeAssistantRun(method, endpoint, parameters)
@@ -82,7 +84,7 @@ function homeAssistant()
                     name = entityID
                 end
                 local entityType = typeForID(entityID)
-                local includedEntityTypes = { 'light', 'switch', 'scene', 'script', 'group', 'person' }
+                local includedEntityTypes = { 'light', 'switch', 'scene', 'script', 'group', 'person', 'cover' }
                 local include = false
                 for index, includedEntityType in pairs(includedEntityTypes) do
                     if string.find(entityType, includedEntityType) then
