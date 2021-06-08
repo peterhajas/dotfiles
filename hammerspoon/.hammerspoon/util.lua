@@ -10,6 +10,10 @@ function split(inputstr, sep)
     return t
 end
 
+function linesInString(str)
+    return split(str, '\n')
+end
+
 -- https://stackoverflow.com/questions/2705793/how-to-get-number-of-entries-in-a-lua-table
 function tableLength(T)
   local count = 0

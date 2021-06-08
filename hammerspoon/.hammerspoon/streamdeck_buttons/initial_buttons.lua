@@ -14,6 +14,7 @@ require "streamdeck_buttons.home_assistant"
 require "streamdeck_buttons.numpad"
 require "streamdeck_buttons.window_clone"
 require "streamdeck_buttons.function_keys"
+require "streamdeck_buttons.shortcuts"
 
 initialButtonState = {
     ['name'] = 'Root',
@@ -35,6 +36,7 @@ initialButtonState = {
         homeAssistantEntity("scene.office_regular"),
         homeAssistantEntity("scene.office_mood"),
         homeAssistantEntity("scene.office_off"),
+        shortcuts(),
         camera1Button,
         camera2Button,
         dashClose
