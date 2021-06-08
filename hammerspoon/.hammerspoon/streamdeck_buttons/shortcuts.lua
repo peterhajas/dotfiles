@@ -9,7 +9,10 @@ function buttonForShortcut(name)
         ['image'] = streamdeck_imageFromText(name, options),
         ['onClick'] = function()
             runShortcut(name)
-        end
+        end,
+        ['onLongPress'] = function()
+            viewShortcut(name)
+        end,
     }
 end
 
@@ -19,7 +22,6 @@ function buttonsForShortcuts(listOfShortcutNames)
         local button = buttonForShortcut(shortcut)
         table.insert(buttons, button)
     end
-    dbg(buttons)
     return buttons
 end
 
@@ -41,7 +43,6 @@ function buttonsForFolders(folders)
         local button = buttonForFolder(folder)
         table.insert(buttons, button)
     end
-    dbg(buttons)
     return buttons
 end
 

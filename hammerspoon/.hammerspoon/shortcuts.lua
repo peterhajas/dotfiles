@@ -50,3 +50,9 @@ function runShortcut(name)
     local command = "shortcuts run " .. name
     hs.execute(command)
 end
+
+-- Views the Shortcut with the specified name
+function viewShortcut(name)
+    local command = "shortcuts view " .. name
+    hs.execute(command)
+end
