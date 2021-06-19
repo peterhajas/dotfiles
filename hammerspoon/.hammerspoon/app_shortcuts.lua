@@ -29,4 +29,9 @@ hs.hotkey.bind({"alt"}, "t", function()
     hs.application.launchOrFocus("Textual 5")
 end)
 
+-- Option-H for HomeAssistant
+hs.hotkey.bind({"alt"}, "h", function()
+    hs.application.launchOrFocus("Home Assistant")
+end)
+
 -- }}}
