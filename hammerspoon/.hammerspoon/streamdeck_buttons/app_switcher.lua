@@ -1,4 +1,5 @@
 require "streamdeck_buttons.button_images"
+require "streamdeck_buttons.peek"
 function appSwitcher()
     return {
         ['name'] = "App Switcher",
@@ -14,13 +15,7 @@ function appSwitcher()
                 if string.find(path, '/System/Library') then goto continue end
                 if string.find(path, 'appex') then goto continue end
                 if string.find(path, 'XPCServices') then goto continue end
-                appButton = {
-                    ['image'] = hs.image.imageFromAppBundle(app:bundleID()),
-                    ['onClick'] = function()
-                        hs.application.open(app:bundleID())
-                        popButtonState()
-                    end
-                }
+                appButton = peekButtonFor(app:bundleID())
                 out[#out+1] = appButton
                 ::continue::
             end
