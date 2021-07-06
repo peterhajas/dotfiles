@@ -20,7 +20,6 @@ require "vim_movement"
 require "app_shortcuts"
 require "footpedals"
 require "preferred_screen"
-require "media_control"
 require "volume_control"
 require "brightness_control"
 require "grid"
@@ -35,6 +34,7 @@ require "youtubedl"
 require "vimwiki.picker"
 require "vimwiki.sticky"
 require "server"
+require "tunes"
 
 profileStop('imports')
 profileStart('globals')
@@ -112,21 +112,6 @@ hs.urlevent.bind("notifyUrgently", function(eventName, params)
     if text then
         notifyUrgently(text)
     end
-end)
-
--- }}}
--- Mission Control and Launchpad {{{
-
--- Hyper-3 for Mission Control
-
-hs.hotkey.bind(hyper, "3", function()
-    hs.application.launchOrFocus("Mission Control")
-end)
-
--- Hyper-4 for Launchpad
-
-hs.hotkey.bind(hyper, "4", function()
-    hs.application.launchOrFocus("Launchpad")
 end)
 
 -- }}}
