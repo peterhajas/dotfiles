@@ -198,7 +198,7 @@ end
 local function openTerminalTo(choice)
     local filePathToOpen = choice['filePath']
     if filePathToOpen ~= nil then
-        runInNewTerminal('vim ' .. filePathToOpen, true)
+        runInNewTerminal('/usr/bin/env vim ' .. filePathToOpen, true)
     end
 end
 
