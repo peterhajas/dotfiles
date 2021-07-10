@@ -41,3 +41,5 @@ config_editor_aliases
 
 alias mutt neomutt
 
+fish_add_path /opt/homebrew/bin
+fish_add_path /opt/homebrew/sbin
