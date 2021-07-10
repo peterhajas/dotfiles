@@ -24,6 +24,12 @@ function clearShelfWithID(id)
     end
 end
 
+function allShelfIDs()
+    local ids = hs.execute("ls ~/.shelves")
+    ids = split(ids, '\n')
+    return ids
+end
+
 local function extension(url)
     local components = split(url, '.')
     return components[#components]
