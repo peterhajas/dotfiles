@@ -15,6 +15,7 @@ require "streamdeck_buttons.numpad"
 require "streamdeck_buttons.window_clone"
 require "streamdeck_buttons.function_keys"
 require "streamdeck_buttons.shortcuts"
+require "streamdeck_buttons.shelf"
 
 initialButtonState = {
     ['name'] = 'Root',
@@ -39,6 +40,9 @@ initialButtonState = {
         shortcuts(),
         camera1Button,
         camera2Button,
-        dashClose
+        dashClose,
+        shelfButtonForShelfWithID("a"),
+        shelfButtonForShelfWithID("b"),
+        shelfButtonForShelfWithID("c"),
     }
 }
