@@ -1,17 +1,6 @@
 require "hyper"
 require "util"
 
-function toggleDarkMode()
-    local applescript = [[
-        tell application "System Events"
-            tell appearance preferences
-                set dark mode to not dark mode
-            end tell
-        end tell
-    ]]
-    hs.osascript.applescript(applescript)
-end
-
 function isInDarkMode()
     -- Read defaults
     local defaultsCommand = "defaults read -g AppleInterfaceStyle"
@@ -21,6 +10,19 @@ function isInDarkMode()
     else
         return false
     end
+end
+
+function toggleDarkMode()
+    local applescript = [[
+        tell application "System Events"
+            tell appearance preferences
+                set dark mode to not dark mode
+            end tell
+        end tell
+    ]]
+    hs.osascript.applescript(applescript)
+
+    hs.console.darkMode(isInDarkMode())
 end
 
 -- Hyper-\ for toggling theme
