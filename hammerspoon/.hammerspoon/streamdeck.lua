@@ -125,7 +125,7 @@ local function contextForIndex(i)
 end
 
 -- Updates the button at the StreamDeck index `i`.
-local function updateButton(i, pressed)
+local function updateStreamdeckButton(i, pressed)
     -- No StreamDeck? No update
     if currentDeck == nil then return end
 
@@ -197,7 +197,7 @@ local function updateTimers()
         local desiredUpdateInterval = button['updateInterval']
         if desiredUpdateInterval ~= nil then
             local timer = hs.timer.new(desiredUpdateInterval, function()
-                updateButton(index)
+                updateStreamdeckButton(index)
             end)
             timer:start()
             table.insert(currentUpdateTimers, timer)
@@ -206,14 +206,14 @@ local function updateTimers()
 end
 
 -- Updates all buttons
-local function updateButtons()
+local function updateStreamdeckButtons()
     -- No StreamDeck? No update
     if currentDeck == nil then return end
 
     profileStart('streamdeckButtonUpdate_all')
     columns, rows = currentDeck:buttonLayout()
     for i=1,columns*rows+1,1 do
-        updateButton(i)
+        updateStreamdeckButton(i)
     end
     profileStop('streamdeckButtonUpdate_all')
 end
@@ -230,7 +230,7 @@ function streamdeck_wake()
     updateTimers()
     if currentDeck == nil then return end
     currentDeck:setBrightness(30)
-    updateButtons()
+    updateStreamdeckButtons()
 end
 
 function streamdeck_updateButton(matching)
@@ -239,7 +239,7 @@ function streamdeck_updateButton(matching)
         title = button['name']
         if title ~= nil then
             if string.match(title, matching) then
-                updateButton(index)
+                updateStreamdeckButton(index)
             end
         end
     end
@@ -254,7 +254,7 @@ function pushButtonState(newState)
     -- Replace
     currentButtonState = newState
     -- Update
-    updateButtons()
+    updateStreamdeckButtons()
     updateTimers()
 end
 
@@ -275,14 +275,14 @@ function popButtonState()
     currentButtonState = newState
     -- Update
     if currentDeck ~= nil then
-        updateButtons()
+        updateStreamdeckButtons()
         updateTimers()
     end
 end
 
 function scrollToTop()
     currentButtonState['scrollOffset'] = 0
-    updateButtons()
+    updateStreamdeckButtons()
 end
 
 function scrollBy(amount)
@@ -290,7 +290,7 @@ function scrollBy(amount)
     currentScrollAmount = currentScrollAmount + amount
     currentScrollAmount = math.max(0, currentScrollAmount)
     currentButtonState['scrollOffset'] = currentScrollAmount
-    updateButtons()
+    updateStreamdeckButtons()
 end
 
 -- Returns a buttonState for pushing pushButton's children onto the stack
@@ -327,7 +327,7 @@ local function streamdeck_button(deck, buttonID, pressed)
     -- Grab the button
     local buttonForID = currentlyVisibleButtons()[buttonID]
     if buttonForID == nil then
-        updateButton(buttonID, pressed)
+        updateStreamdeckButton(buttonID, pressed)
         return
     end
 
@@ -339,7 +339,7 @@ local function streamdeck_button(deck, buttonID, pressed)
 
     -- Dispatch
     if pressed then
-        updateButton(buttonID, true)
+        updateStreamdeckButton(buttonID, true)
         buttonForID['_holdTimer'] = hs.timer.new(0.3, function()
             hold(true)
             buttonForID['_isHolding'] = true
@@ -347,7 +347,7 @@ local function streamdeck_button(deck, buttonID, pressed)
         end)
         buttonForID['_holdTimer']:start()
     else
-        updateButton(buttonID, false)
+        updateStreamdeckButton(buttonID, false)
         if buttonForID['_isHolding'] ~= nil then
             hold(false)
         else
@@ -371,7 +371,7 @@ local function streamdeck_discovery(connected, deck)
         deck:buttonCallback(streamdeck_button)
         deck:reset()
 
-        updateButtons()
+        updateStreamdeckButtons()
         updateTimers()
 
         buttonStateStack = { }
