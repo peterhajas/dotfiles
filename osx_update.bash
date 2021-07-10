@@ -1,5 +1,10 @@
 #!/bin/sh
 
+echo "Clearing Karabiner Preferences..."
+
+rm ~/Library/Preferences/org.pqrs.Karabiner.plist
+rm ~/Library/Application\ Support/Karabiner/private.xml
+
 echo "Installing Homebrew..."
 
 if which brew 2>/dev/null 1>/dev/null; then

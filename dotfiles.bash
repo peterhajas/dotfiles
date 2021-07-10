@@ -1,14 +1,10 @@
 #!/bin/bash
 
-echo "Clearing Karabiner Preferences..."
-rm ~/Library/Preferences/org.pqrs.Karabiner.plist
-rm ~/Library/Application\ Support/Karabiner/private.xml
+echo "Restowing all apps..."
 
-echo "Configuring stow..."
 stow -D stow
 stow stow
 
-echo "Restowing all apps..."
 for dir in */
 do
     echo Unstowing $dir
