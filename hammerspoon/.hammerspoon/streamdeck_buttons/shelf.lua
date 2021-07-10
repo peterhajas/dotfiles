@@ -15,9 +15,11 @@ function shelfButtonForShelfWithID(id)
         ['onClick'] = function()
             -- If we have a shelf item, then perform the action with it
             if shelfExistsWithID(id) then
-                -- plh-evil: do this!
+                dbg("act")
+                actOnShelf(id)
             -- Otherwise, put stuff on the shelf
             else
+                dbg("grab")
                 grabShelf(id)
             end
         end,

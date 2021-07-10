@@ -16,6 +16,19 @@ local function existingShelfPathWithID(id)
     end
 end
 
+function clearShelfWithID(id)
+    local path = existingShelfPathWithID(id)
+    if path ~= nil then
+        dbg("DELETE COMMAND FOR " .. path)
+        os.execute('rm ' .. path)
+    end
+end
+
+local function extension(url)
+    local components = split(url, '.')
+    return components[#components]
+end
+
 function utiForShelfWithID(id)
     local path = existingShelfPathWithID(id)
     if path ~= nil then
@@ -36,11 +49,11 @@ function existingShelfIconWithID(id)
     return hs.image.iconForFile(path)
 end
 
-function writeTextToShelfWithID(id, text)
+function outputPathForShelfWithIDAndExtension(id, extension)
     -- Grab the path
     local path = existingShelfPathWithID(id)
     if path == nil then 
-        path = '~/.shelves/' .. id .. '.txt'
+        path = '~/.shelves/' .. id .. '.' .. extension
     end
 
     -- Strike the ~, replace with the home dir
@@ -48,25 +61,59 @@ function writeTextToShelfWithID(id, text)
     path = os.getenv("HOME") .. path
     path:gsub("~", "")
 
-    dbg(path)
+    return path
+end
 
+function writeTextToShelfWithID(id, text)
+    local path = outputPathForShelfWithIDAndExtension(id, 'txt')
     local shelf = io.open(path, 'w')
-    dbg(shelf)
     shelf:write(text)
     shelf:close()
 end
 
+function writeFileURLToShelfWithID(id, url)
+    clearShelfWithID(id)
+    local path = outputPathForShelfWithIDAndExtension(id, extension(url))
+
+    os.execute('cp ' .. url .. ' ' .. path)
+end
+
+function writeRemoteURLToShelfWithID(id, url)
+    clearShelfWithID(id)
+    local path = outputPathForShelfWithIDAndExtension(id, extension(url))
+
+    os.execute('curl ' .. url .. ' >' .. path)
+end
+
 -- Grabs the shelf data and writes it to id
 function grabShelf(id)
-    local text = hs.pasteboard.getContents()
-    if text ~= nil then
+    local url = hs.pasteboard.readURL()
+    local text = hs.pasteboard.readString()
+    if url ~= nil then
+        dbg("URL")
+        dbg(url)
+        local fileURL = url['filePath']
+        local remoteURL = url['url']
+        if fileURL ~= nil then
+            writeFileURLToShelfWithID(id, filePath)
+        else
+            writeRemoteURLToShelfWithID(id, remoteURL)
+        end
+    elseif text ~= nil then
+        dbg("TEXT")
+        dbg(text)
         writeTextToShelfWithID(id, text)
     end
 end
 
-function clearShelfWithID(id)
+-- Acts on the shelf data for id
+function actOnShelf(id)
     local path = existingShelfPathWithID(id)
-    dbg("DELETE COMMAND FOR " .. path)
-    os.execute('rm ' .. path)
+    path = outputPathForShelfWithIDAndExtension(id, extension(path))
+    if path ~= nil then
+        local out = hs.execute('open ' .. path)
+        dbg(out)
+    end
 end
+
 
