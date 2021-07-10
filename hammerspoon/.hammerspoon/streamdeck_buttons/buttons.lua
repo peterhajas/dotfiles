@@ -30,3 +30,12 @@ function updateButton(button, context)
     end
     profileStop('buttonUpdate_' .. buttonName)
 end
+
+-- Returns an update timer for button, if appropriate, and start it
+function updateTimerForButton(button, updateFunction)
+    local updateInterval = button['updateInterval']
+    if updateInterval == nil then return nil end
+    local timer = hs.timer.new(updateInterval, updateFunction)
+    timer:start()
+    return timer
+end

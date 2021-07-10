@@ -118,3 +118,11 @@ function dbg(string)
     local debugLogger = hs.logger.new('debug', 'debug')
     debugLogger:i(hs.inspect(string))
 end
+
+-- Stops a timer from running
+function stopTimer(timer)
+    if timer ~= nil then
+        timer:stop()
+    end
+end
+

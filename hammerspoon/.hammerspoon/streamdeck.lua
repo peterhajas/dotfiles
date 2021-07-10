@@ -147,12 +147,6 @@ local function updateStreamdeckButton(i, pressed)
     end
 end
 
-local function stopTimer(timer)
-    if timer ~= nil then
-        timer:stop()
-    end
-end
-
 -- Disables all timers for all buttons
 local function disableTimers()
     for i, timer in pairs(currentUpdateTimers) do
@@ -178,10 +172,9 @@ local function updateTimers()
     for index, button in pairs(currentlyVisibleButtons()) do
         local desiredUpdateInterval = button['updateInterval']
         if desiredUpdateInterval ~= nil then
-            local timer = hs.timer.new(desiredUpdateInterval, function()
+            local timer = updateTimerForButton(button, function()
                 updateStreamdeckButton(index)
             end)
-            timer:start()
             table.insert(currentUpdateTimers, timer)
         end
     end
