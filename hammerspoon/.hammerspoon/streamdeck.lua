@@ -1,6 +1,7 @@
 require "streamdeck_buttons.button_images"
 require "streamdeck_buttons.initial_buttons"
 require "streamdeck_buttons.nonce"
+require "streamdeck_buttons.buttons"
 
 require "profile"
 require "util"
@@ -119,6 +120,7 @@ local function contextForIndex(i)
     local context = {
         ['location'] = location,
         ['size'] = deckSize,
+        ['isPressed'] = false,
     }
 
     return context
@@ -128,40 +130,20 @@ end
 local function updateStreamdeckButton(i, pressed)
     -- No StreamDeck? No update
     if currentDeck == nil then return end
-
     local button = currentlyVisibleButtons()[i]
 
+    local context = contextForIndex(i)
+    if pressed ~= nil then
+        context['isPressed'] = pressed
+    end
+
+    updateButton(button, context)
+
     if button ~= nil then
-        local buttonName = button['name'] or i
-        profileStart('streamdeckButtonUpdate_' .. buttonName)
-        local isStatic = button['image'] ~= nil
-        local currentState = {}
-        if isStatic then
-            currentDeck:setButtonImage(i, button['image'])
-        else
-            local isDirty = false
-            local stateProvider = button['stateProvider']
-            if stateProvider == nil then
-                isDirty = true
-            else
-                currentState = stateProvider() or { }
-                local lastState = button['_lastState'] or { }
-                isDirty = not equals(currentState, lastState, false)
-                button['_lastState']  = currentState
-            end
-            if isDirty then
-                local context = contextForIndex(i)
-                context['isPressed'] = pressed
-                context['state'] = currentState
-                local image = button['imageProvider'](context)
-                button['_lastImage'] = image
-            end
-            local image = button['_lastImage']
-            if image ~= nil then
-                currentDeck:setButtonImage(i, image)
-            end
+        local image = button['_lastImage']
+        if image ~= nil then
+            currentDeck:setButtonImage(i, image)
         end
-        profileStop('streamdeckButtonUpdate_' .. buttonName)
     end
 end
 
