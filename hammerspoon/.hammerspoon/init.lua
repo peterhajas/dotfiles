@@ -34,7 +34,6 @@ require "youtubedl"
 require "vimwiki.picker"
 require "vimwiki.sticky"
 require "server"
-require "tunes"
 
 profileStop('imports')
 profileStart('globals')
