@@ -15,6 +15,7 @@ function updateBackgroundForScreens()
     :allowNewWindows(false)
     :allowTextEntry(false)
     :url("http://localhost:9000")
+    :transparent(true)
     :show()
 end
 
