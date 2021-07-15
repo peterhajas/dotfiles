@@ -78,12 +78,12 @@ function audioDeviceButton(input)
                 frame = { x = 0,
                           y = 0,
                           w = volumeIndicatorWidth,
-                          h = 10 },
+                          h = 5 },
                 fillColor = volumeIndicatorColor,
                 type = "rectangle",
             })
 
-            local yOffset = 15
+            local yOffset = 10
             local fontSize = 14
             local yOffsetAmount = 13
 
