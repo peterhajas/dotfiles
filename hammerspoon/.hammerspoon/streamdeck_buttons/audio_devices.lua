@@ -1,5 +1,6 @@
 require "colors"
 require "streamdeck_buttons.button_images"
+require "util"
 
 local function allAudioDevices(input)
     local devices
@@ -45,11 +46,14 @@ function audioDeviceButton(input)
         ['stateProvider'] = function ()
             return {
                 ['name'] = hs.audiodevice.current(input)['name'],
-                ['indexCount'] = indexAndCountOfAudioDevices(input)
+                ['indexCount'] = indexAndCountOfAudioDevices(input),
+                -- Set a default volume for devices without one
+                ['volume'] = hs.audiodevice.current(input)['volume'],
             }
         end,
         ['imageProvider'] = function (context)
             local currentDeviceName = context['state']['name']
+            local volume = context['state']['volume']
 
             local elements = { }
             table.insert(elements, {
@@ -59,13 +63,33 @@ function audioDeviceButton(input)
                 type = "rectangle",
             })
 
-            local yOffset = 0
+            local volumeIndicatorYOffset = 0
+            local volumeIndicatorWidth = buttonWidth
+            local volumeIndicatorColor = cloneTable(tintColor)
+
+            if volume ~= nil then
+                volumeIndicatorWidth = volume * buttonWidth * 0.01
+            else
+                volumeIndicatorColor['alpha'] = 0.4
+            end
+            
+            table.insert(elements, {
+                action = "fill",
+                frame = { x = 0,
+                          y = 0,
+                          w = volumeIndicatorWidth,
+                          h = 10 },
+                fillColor = volumeIndicatorColor,
+                type = "rectangle",
+            })
+
+            local yOffset = 15
             local fontSize = 14
             local yOffsetAmount = 13
 
             for k,v in pairs(allAudioDevices(input)) do
                 local text = empty
-                local color = systemTextColor
+                local color = secondaryLabelColor
                 if v:name() == currentDeviceName then
                     text = full
                     color = tintColor
@@ -108,5 +132,6 @@ function audioDeviceButton(input)
             end
         end,
         ['name'] = name,
+        ['updateInterval'] = 30, -- The watcher that updates us isn't called when volume changes
     }
 end
