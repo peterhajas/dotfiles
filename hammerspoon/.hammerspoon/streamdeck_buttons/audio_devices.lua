@@ -47,7 +47,6 @@ function audioDeviceButton(input)
             return {
                 ['name'] = hs.audiodevice.current(input)['name'],
                 ['indexCount'] = indexAndCountOfAudioDevices(input),
-                -- Set a default volume for devices without one
                 ['volume'] = hs.audiodevice.current(input)['volume'],
             }
         end,
