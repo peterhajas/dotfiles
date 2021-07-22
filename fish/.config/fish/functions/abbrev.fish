@@ -1,3 +1,7 @@
+# Variables used below
+set ledgerBuild src/ledger_utils/ledger_build.py
+set ledgerFile /tmp/peter.ledger
+
 function abbrev -d "Install fish abbreviations"
     # dirs
     abbr d cd ~/dotfiles
@@ -38,8 +42,9 @@ function abbrev -d "Install fish abbreviations"
     abbr musicsync rsync -avvz ~/Music/peter lighthouse.local:/var/media/music/
 
     ## ledger
-    abbr l 'src/ledger_utils/ledger_build.py && ledger -f ~/.vimwiki/ledger/peter.ledger'
-    abbr lb 'src/ledger_utils/ledger_build.py && ledger -f ~/.vimwiki/ledger/peter.ledger balance'
-    abbr lr 'src/ledger_utils/ledger_build.py && ledger -f ~/.vimwiki/ledger/peter.ledger register'
-    abbr lv 'src/ledger_utils/ledger_build.py && vim ~/.vimwiki/ledger/peter.ledger'
+    abbr l '$ledgerBuild && ledger -f $ledgerFile'
+    abbr lb '$ledgerBuild && ledger -f $ledgerFile balance'
+    abbr lr '$ledgerBuild && ledger -f $ledgerFile register'
+    abbr lv '$ledgerBuild && vim $ledgerFile'
+    abbr ll '$ledgerBuild && less $ledgerFile'
 end
