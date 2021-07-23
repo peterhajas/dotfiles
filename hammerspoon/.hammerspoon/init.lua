@@ -376,6 +376,7 @@ profileStart('screenChanges')
 
 function handleScreenEvent()
     updateGridsForScreens()
+    updateStickyVimwikiForScreens()
 end
 
 screenWatcher = hs.screen.watcher.new(handleScreenEvent)

@@ -1,25 +1,21 @@
 require "util"
 
-local rect = hs.geometry.rect(0, 0, 500, 500)
+-- plh-evil: multiple displays?
+local sharedWebView = hs.webview.new(hs.geometry.rect(0,0,0,0))
 
-function pinVimwikiEntry(filePath)
-    local handle = io.open(filePath, 'rb')
-
-    -- Grab the contents of the path
-    local contents = handle:read('*all')
-    handle:close()
-
-    -- HTML-ify it
-    local html = hs.doc.markdown.convert(contents)
-
-    -- Load and show it
-    webview = hs.webview.new(rect)
-        :html(html)
-        :windowStyle(15)
-        :deleteOnClose(true)
-        :show()
+function updateWebView(webView, screen)
+    webView
+    :frame(screen:frame())
+    :allowGestures(false)
+    :url('http://localhost:9000')
+    :level(hs.drawing.windowLevels.desktopIcon-1)
+    :transparent(true)
+    :show()
 end
 
-function hideVimwikiEntry()
-    
+function updateStickyVimwikiForScreens()
+    updateWebView(sharedWebView, hs.screen.mainScreen())
 end
+
+updateStickyVimwikiForScreens()
+
