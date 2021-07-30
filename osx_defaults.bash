@@ -40,6 +40,7 @@ defaults write com.apple.finder CreateDesktop -bool false
 
 ## Proxy icon
 defaults write com.apple.Finder NSToolbarTitleViewRolloverDelay -float 0
+defaults write com.apple.universalaccess showWindowTitlebarIcons -bool true
 
 # Dock
 
