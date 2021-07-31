@@ -119,17 +119,22 @@ end
 -- Bindings for flux toggle setting
 
 hs.hotkey.bind(hyper, "f", function()
-    local overrideNewStateName = "?"
     local onNow = shouldHaveFluxEnabled()
     -- Determine new state
     if overrideFluxSetting == nil then
         overrideFluxSetting = not onNow
-        overrideNewStateName = "TO ON"
     elseif overrideFluxSetting == true then
         overrideFluxSetting = false
-        overrideNewStateName = "TO OFF"
     else 
         overrideFluxSetting = nil
+    end
+
+    local overrideNewStateName = "?"
+    if overrideFluxSetting == true then
+        overrideNewStateName = "TO ON"
+    elseif overrideFluxSetting == false then
+        overrideNewStateName = "TO OFF"
+    else 
         overrideNewStateName = "<nil>"
     end
 
