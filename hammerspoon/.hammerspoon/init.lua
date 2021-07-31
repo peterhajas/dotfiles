@@ -9,6 +9,8 @@ hs.console.clearConsole()
 -- Start profiling
 require("profile")
 
+hs.alert.show("hs...")
+
 profileStart('imports')
 profileStart('configTotal')
 
@@ -34,6 +36,7 @@ require "youtubedl"
 require "vimwiki.picker"
 require "vimwiki.sticky"
 require "server"
+require "flux"
 
 profileStop('imports')
 profileStart('globals')
@@ -377,6 +380,7 @@ profileStart('screenChanges')
 function handleScreenEvent()
     updateGridsForScreens()
     updateStickyVimwikiForScreens()
+    updateFluxiness()
 end
 
 screenWatcher = hs.screen.watcher.new(handleScreenEvent)
@@ -390,6 +394,7 @@ profileStart('caffeinate')
 function caffeinateCallback(eventType)
     if (eventType == hs.caffeinate.watcher.screensDidSleep) then
     elseif (eventType == hs.caffeinate.watcher.screensDidWake) then
+        fluxSignificantTimeDidChange()
     elseif (eventType == hs.caffeinate.watcher.screensDidLock) then
         streamdeck_sleep()
     elseif (eventType == hs.caffeinate.watcher.screensDidUnlock) then
@@ -417,7 +422,6 @@ function reload_config(files)
 end
 
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reload_config):start()
-hs.alert.show("hs ready", 1)
 
 -- }}}
 profileStop('reloading')
@@ -434,5 +438,28 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "b", function()
  end
 end)
 -- }}}
+
+-- {{ Bootstrapping
+
+-- Flux setup
+-- Disable flux
+updateFluxinessEnabled(false)
+
+-- Note that the location update immediately after reloading doesn't always work. Update after a delay
+
+local delayedLocationTimer = nil
+delayedLocationTimer = hs.timer.new(1, function()
+    updateFluxiness()
+    hs.timer.new(1.5, function()
+        updateFluxiness()
+
+        hs.alert.show("hs ready!")
+    end)
+    :start()
+    stopTimer(delayedLocationTimer)
+end):start()
+
+-- }}}
+
 profileStop('configTotal')
 
