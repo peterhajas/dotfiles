@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Grab the URL
-url=$(sort -R .tunes | head -n 1)
+url=$(sort -R ~/.tunes | head -n 1)
 
 # Kill old pmv
 ps -ax |grep mpv |grep geometry | awk '{print $1}' | xargs kill
