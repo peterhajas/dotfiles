@@ -4,6 +4,7 @@ local replacements = {
     ['twitter.com'] = 'nitter.net',
     ['/reddit.com'] = '/teddit.net',
     ['old.reddit.com'] = 'teddit.net',
+    ['reddit.com'] = 'teddit.net',
     ['instagram.com'] = 'bibliogram.art'
 }
 
