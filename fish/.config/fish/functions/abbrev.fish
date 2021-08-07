@@ -5,6 +5,10 @@ set ledgerFile /tmp/peter.ledger
 function abbrev -d "Install fish abbreviations"
     # dirs
     abbr d cd ~/dotfiles
+
+    # fish
+    abbr bu 'brew update && brew upgrade'
+
     # git
     abbr g git
     abbr ga git add
@@ -40,6 +44,8 @@ function abbrev -d "Install fish abbreviations"
     # util
     ## sync music to lighthouse
     abbr musicsync rsync -avvz ~/Music/peter lighthouse.local:/var/media/music/
+    ## listen to current lighthouse stream
+    abbr music mpv "http://lighthouse.local:3689/stream.mp3"
 
     ## ledger
     abbr l '$ledgerBuild && ledger -f $ledgerFile'
