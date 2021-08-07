@@ -441,25 +441,11 @@ end)
 
 -- {{ Bootstrapping
 
--- Flux setup
--- Disable flux
-updateFluxinessEnabled(false)
-
--- Note that the location update immediately after reloading doesn't always work. Update after a delay
-
-local delayedLocationTimer = nil
-delayedLocationTimer = hs.timer.new(1, function()
-    updateFluxiness()
-    hs.timer.new(1.5, function()
-        updateFluxiness()
-
-        hs.alert.show("hs ready!")
-    end)
-    :start()
-    stopTimer(delayedLocationTimer)
-end):start()
-
+-- Flux setup {{{
+updateFluxiness()
 -- }}}
+
+hs.alert.show("hs ready!")
 
 profileStop('configTotal')
 

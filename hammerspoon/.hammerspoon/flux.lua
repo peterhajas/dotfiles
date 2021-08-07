@@ -100,14 +100,12 @@ function updateFluxinessEnabled(shouldBeEnabled)
 
     for i,screen in next,screens do
         local screenGamma = screen:getGamma()
-        
-        if (screenGamma['whitepoint'] ~= whitepoint) or (screenGamma['blackpoint'] ~= blackpoint) then
-            screen:setGamma(whitepoint, blackpoint)
-        end
+        screen:setGamma(whitepoint, blackpoint)
     end
 end
 
 function updateFluxiness()
+    hs.screen.restoreGamma()
     updateFluxinessEnabled(shouldHaveFluxEnabled())
 end
 
