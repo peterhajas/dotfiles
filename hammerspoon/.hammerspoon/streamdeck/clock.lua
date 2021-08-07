@@ -1,5 +1,3 @@
-require "streamdeck.button_images"
-
 clockButton = {
     ['name'] = 'Clock',
     ['imageProvider'] = function()

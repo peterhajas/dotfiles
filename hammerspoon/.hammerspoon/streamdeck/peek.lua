@@ -1,5 +1,3 @@
-require "streamdeck.button_images"
-
 function peekButtonFor(bundleID)
     return {
         ['name'] = "Peek " .. bundleID,

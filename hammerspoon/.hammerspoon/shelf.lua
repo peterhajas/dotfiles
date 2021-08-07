@@ -1,5 +1,3 @@
-require 'util'
-
 -- Returns the existing shelf with this ID
 local function existingShelfPathWithID(id)
     -- Always make shelves directory

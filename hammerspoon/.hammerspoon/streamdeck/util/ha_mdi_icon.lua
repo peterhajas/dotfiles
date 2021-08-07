@@ -1,7 +1,3 @@
-require "streamdeck.button_images"
-require 'util'
-require "colors"
-
 local mdiNameToUnicodeMapping = nil
 local hasLoadedMDIMapping = false
 local function loadMDIJSONFileIfNecessary()

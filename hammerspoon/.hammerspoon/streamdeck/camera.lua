@@ -1,6 +1,4 @@
 require 'home_assistant'
-require "streamdeck.button_images"
-require "util"
 
 -- These require a special payload - not totally sure why
 

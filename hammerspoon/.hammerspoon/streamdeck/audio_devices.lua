@@ -1,7 +1,3 @@
-require "colors"
-require "streamdeck.button_images"
-require "util"
-
 local function allAudioDevices(input)
     local devices
     if input then

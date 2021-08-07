@@ -1,4 +1,3 @@
-require "streamdeck.button_images"
 function streamdeckControl()
     return {
         ['name'] = 'StreamDeck Control',

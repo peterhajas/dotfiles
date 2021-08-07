@@ -1,6 +1,3 @@
-require "colors"
-require "streamdeck.button_images"
-
 -- A nonce button
 function nonceButton()
     return {

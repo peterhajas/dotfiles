@@ -1,5 +1,3 @@
-require "util"
-
 -- Returns a list of Shortcuts
 function allShortcuts()
     local listOfShortcuts = hs.execute("shortcuts list")

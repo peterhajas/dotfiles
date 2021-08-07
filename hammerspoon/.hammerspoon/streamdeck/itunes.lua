@@ -1,5 +1,4 @@
 require "itunes_albumart"
-require "streamdeck.button_images"
 
 function itunesPreviousButton()
     return {

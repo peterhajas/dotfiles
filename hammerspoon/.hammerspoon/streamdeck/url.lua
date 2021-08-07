@@ -1,5 +1,3 @@
-require "streamdeck.button_images"
-
 local function urlButton(url, button)
     local out = button
     out['onClick'] = function()

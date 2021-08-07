@@ -1,5 +1,4 @@
 require "shelf"
-require "streamdeck.button_images"
 
 function shelfButtonForShelfWithID(id)
     return {

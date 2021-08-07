@@ -1,6 +1,4 @@
 require "streamdeck.util.panel"
-require "colors"
-require 'util'
 
 local function numberFor(context)
     local x = context['location']['x']

@@ -1,4 +1,3 @@
-require "streamdeck.button_images"
 require "shortcuts"
 
 function buttonForShortcut(name)

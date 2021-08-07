@@ -1,6 +1,3 @@
-require "streamdeck.button_images"
-require "streamdeck.util.panel"
-
 local lastWindowImage = nil
 local lastWindowImageTime = 0
 

@@ -1,6 +1,3 @@
-require "colors"
-require "streamdeck.button_images"
-
 local function fKeyForNumber(number)
     return {
         ['name'] = 'F' .. number,

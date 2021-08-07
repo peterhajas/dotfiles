@@ -1,4 +1,3 @@
-require "streamdeck.button_images"
 require "streamdeck.peek"
 function appSwitcher()
     return {
