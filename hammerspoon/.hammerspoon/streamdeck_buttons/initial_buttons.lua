@@ -44,5 +44,6 @@ initialButtonState = {
         shelfButtonForShelfWithID("a"),
         shelfButtonForShelfWithID("b"),
         shelfButtonForShelfWithID("c"),
+        homeAssistantEntity("media_player.forked_daapd_server")
     }
 }
