@@ -1,5 +1,5 @@
 require "colors"
-require "streamdeck_buttons.button_images"
+require "streamdeck.button_images"
 
 local function fKeyForNumber(number)
     return {

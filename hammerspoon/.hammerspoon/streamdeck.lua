@@ -1,7 +1,7 @@
-require "streamdeck_buttons.button_images"
-require "streamdeck_buttons.initial_buttons"
-require "streamdeck_buttons.nonce"
-require "streamdeck_buttons.buttons"
+require "streamdeck.button_images"
+require "streamdeck.initial_buttons"
+require "streamdeck.nonce"
+require "streamdeck.buttons"
 
 require "profile"
 require "util"

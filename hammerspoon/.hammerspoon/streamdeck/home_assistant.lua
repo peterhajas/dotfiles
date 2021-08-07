@@ -1,4 +1,4 @@
-require "streamdeck_util.ha_mdi_icon"
+require "streamdeck.util.ha_mdi_icon"
 require 'home_assistant'
 require 'util'
 

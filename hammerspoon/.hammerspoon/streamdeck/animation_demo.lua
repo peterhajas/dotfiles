@@ -1,4 +1,4 @@
-require "streamdeck_buttons.button_images"
+require "streamdeck.button_images"
 
 function animationDemo()
     local button = { }

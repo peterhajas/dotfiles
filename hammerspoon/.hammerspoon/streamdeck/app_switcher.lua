@@ -1,5 +1,5 @@
-require "streamdeck_buttons.button_images"
-require "streamdeck_buttons.peek"
+require "streamdeck.button_images"
+require "streamdeck.peek"
 function appSwitcher()
     return {
         ['name'] = "App Switcher",

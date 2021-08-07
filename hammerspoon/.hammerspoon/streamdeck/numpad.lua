@@ -1,4 +1,4 @@
-require "streamdeck_util.panel"
+require "streamdeck.util.panel"
 require "colors"
 require 'util'
 

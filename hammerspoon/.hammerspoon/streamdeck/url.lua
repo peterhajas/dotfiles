@@ -1,4 +1,4 @@
-require "streamdeck_buttons.button_images"
+require "streamdeck.button_images"
 
 local function urlButton(url, button)
     local out = button

@@ -1,4 +1,4 @@
-require "streamdeck_buttons.button_images"
+require "streamdeck.button_images"
 require "color_support"
 
 -- from https://stackoverflow.com/questions/59561776/how-do-i-insert-a-string-into-another-string-in-lua

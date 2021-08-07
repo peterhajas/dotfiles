@@ -1,4 +1,4 @@
-require "streamdeck_buttons.button_images"
+require "streamdeck.button_images"
 require 'util'
 require "colors"
 
@@ -6,7 +6,7 @@ local mdiNameToUnicodeMapping = nil
 local hasLoadedMDIMapping = false
 local function loadMDIJSONFileIfNecessary()
     if not hasLoadedMDIMapping then
-        local path = '/Users/phajas/.hammerspoon/streamdeck_util/mdi.json'
+        local path = '/Users/phajas/.hammerspoon/streamdeck/util/mdi.json'
         mdiNameToUnicodeMapping = hs.json.read(path)
         hasLoadedMDIMapping = true
     end
