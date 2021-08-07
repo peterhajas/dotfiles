@@ -64,6 +64,9 @@ local function fallbackColorFor(entityDictionary)
     if entityType == 'cover' then
         return systemPurpleColor
     end
+    if entityType == 'media_player' then
+        return systemTealColor
+    end
 
     return hs.drawing.color.white
 end
