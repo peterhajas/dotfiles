@@ -16,6 +16,7 @@ require "streamdeck.window_clone"
 require "streamdeck.function_keys"
 require "streamdeck.shortcuts"
 require "streamdeck.shelf"
+require "streamdeck.soundboard"
 
 initialButtonState = {
     ['name'] = 'Root',
@@ -44,6 +45,7 @@ initialButtonState = {
         shelfButtonForShelfWithID("a"),
         shelfButtonForShelfWithID("b"),
         shelfButtonForShelfWithID("c"),
-        homeAssistantEntity("media_player.forked_daapd_server")
+        soundboardButton(),
+        homeAssistantEntity("media_player.forked_daapd_server"),
     }
 }
