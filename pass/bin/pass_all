@@ -10,8 +10,7 @@ PASSWORD_STORE_PATH=~/.password-store
 # - replaces the password store path with nothing using `sed`
 # - trims the leading / using `cut`
 # - grabs just the path and filename with awk and a `.gpg` delimeter
-# - pipes this to the `choose` script I wrote
-# - pipes this to `pass -c`
+# - sorts
 # I am sure there are faster ways
 
-find $PASSWORD_STORE_PATH | grep -v ".git" | grep ".gpg" | grep -v "/.gpg" | sed -e "s|$PASSWORD_STORE_PATH||" | cut -d "/" -f 2- | awk -F ".gpg" '{print $1}'
+find $PASSWORD_STORE_PATH | grep -v ".git" | grep ".gpg" | grep -v "/.gpg" | sed -e "s|$PASSWORD_STORE_PATH||" | cut -d "/" -f 2- | awk -F ".gpg" '{print $1}' | sort
