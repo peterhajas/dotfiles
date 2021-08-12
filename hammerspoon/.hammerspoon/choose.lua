@@ -1,28 +1,48 @@
 require 'util' 
 
+-- Prepares the chooser for some options, calling `completion` with the chosen
+-- item
+function showChooser(choices, completion)
+    local chooser = hs.chooser.new(function(picked)
+        local pickedContents = nil
+        if picked ~= nil then
+            pickedContents = picked['text']
+        end
+        completion(pickedContents)
+    end)
+
+    -- We need to format the choices for hs.chooser
+    local chooserChoices = { }
+    for k,v in pairs(choices) do
+        table.insert(chooserChoices, { text = v })
+    end
+
+    chooser:width(20)
+    chooser:choices(chooserChoices)
+    chooser:show()
+end
+
 local chosen = nil
 local exited = false
-function prepareChooser(args)
+
+function showChooserCLI(args)
     chosen = nil
     exited = false
-    local chooser = hs.chooser.new(function(picked)
-        exited = true
-        if not picked then return end
-        chosen = picked["text"]
-    end)
 
     local choices = {}
     local argsSplit = split(args, "|")
     for k,v in pairs(argsSplit) do
-        table.insert(choices, { text = v })
+        table.insert(choices, v)
     end
 
-    chooser:width(20)
-    chooser:choices(choices)
-    chooser:show()
+    showChooser(choices, function(picked)
+        exited = true
+        if not picked then return end
+        chosen = picked
+    end)
 end
 
-function getChosen()
+function getCLIChosen()
     local out = nil
     if exited then
         if chosen then
