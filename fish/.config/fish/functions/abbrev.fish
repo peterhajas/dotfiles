@@ -2,6 +2,10 @@
 set ledgerBuild src/ledger_utils/ledger_build.py
 set ledgerFile /tmp/peter.ledger
 
+function sync_music -d "Sync Music"
+    rsync -avvz ~/Music/peter lighthouse.local:/var/media/music/
+end
+
 function abbrev -d "Install fish abbreviations"
     # dirs
     abbr d cd ~/dotfiles
@@ -11,7 +15,7 @@ function abbrev -d "Install fish abbreviations"
 
     # git
     abbr g git
-    abbr ga git add
+    abbr ga 'git add -p'
     abbr gb 'git branch | fzf | xargs git checkout'
     abbr gc git checkout
     abbr gd git diff
@@ -43,9 +47,11 @@ function abbrev -d "Install fish abbreviations"
 
     # util
     ## sync music to lighthouse
-    abbr musicsync rsync -avvz ~/Music/peter lighthouse.local:/var/media/music/
     ## listen to current lighthouse stream
     abbr music mpv "http://lighthouse.local:3689/stream.mp3"
+
+    ## grabs radio and syncs
+    abbr radio '~/Music/peter/_radio/grab.sh && sync_music'
 
     ## ledger
     abbr l '$ledgerBuild && ledger -f $ledgerFile'
