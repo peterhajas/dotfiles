@@ -14,7 +14,8 @@ function abbrev -d "Install fish abbreviations"
     abbr bu 'brew update && brew upgrade'
 
     # git
-    abbr g git
+    abbr g git status
+    abbr gm git commit
     abbr ga 'git add -p'
     abbr gb 'git branch | fzf | xargs git checkout'
     abbr gc git checkout
