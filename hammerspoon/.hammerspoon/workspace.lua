@@ -116,7 +116,7 @@ local function windowFocused(window)
     end
 end
 
-for k,i in pairs({1,2,3,4,5}) do
+for k,i in pairs({1,2,3,4,5,6,7,8,9}) do
     spaceMap[i] = { }
 
     hs.hotkey.bind({"alt"}, tostring(i), function()
