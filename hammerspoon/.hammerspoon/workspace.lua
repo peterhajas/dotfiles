@@ -1,7 +1,7 @@
 
 -- Key: window ID
 -- Value: table:
---   Keys: 'space', 'shownFrame'
+--   Keys: 'space', 'shownUnitFrame'
 windowMap = { }
 
 -- Key: space number (1-indexed)
@@ -28,11 +28,21 @@ end
 
 local function sendWindowAway(windowID)
     if windowMap[windowID] == nil then return end
-    if windowMap[windowID]['shownFrame'] ~= nil then return end
+    if windowMap[windowID]['shownUnitFrame'] ~= nil then return end
 
     local window = hs.window(windowID)
     if window == nil then return end
-    windowMap[windowID]['shownFrame'] = window:frame()
+
+    local screen = window:screen()
+    local unitFrame = window:frame()
+    local scaleFactor = screen:frame()
+
+    unitFrame.x = unitFrame.x / scaleFactor.w
+    unitFrame.y = unitFrame.y / scaleFactor.h
+    unitFrame.w = unitFrame.w / scaleFactor.w
+    unitFrame.h = unitFrame.h / scaleFactor.h
+
+    windowMap[windowID]['shownUnitFrame'] = unitFrame
 
     local newFrame = window:frame()
     newFrame.x = 10000
@@ -42,12 +52,22 @@ end
 
 local function bringWindowBack(windowID)
     if windowMap[windowID] == nil then return end
+    if windowMap[windowID]['shownUnitFrame'] == nil then return end
+
     local window = hs.window(windowID)
     if window == nil then return end
-    if windowMap[windowID]['shownFrame'] == nil then return end
 
-    window:setFrame(windowMap[windowID]['shownFrame'])
-    windowMap[windowID]['shownFrame'] = nil
+    local screen = window:screen()
+    local windowFrame = windowMap[windowID]['shownUnitFrame']
+    local scaleFactor = screen:frame()
+
+    windowFrame.x = windowFrame.x * scaleFactor.w
+    windowFrame.y = windowFrame.y * scaleFactor.h
+    windowFrame.w = windowFrame.w * scaleFactor.w
+    windowFrame.h = windowFrame.h * scaleFactor.h
+
+    window:setFrame(windowFrame)
+    windowMap[windowID]['shownUnitFrame'] = nil
 end
 
 local function update()
