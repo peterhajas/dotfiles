@@ -12,6 +12,9 @@ spaceMap = { }
 -- The current space, 1-indexed
 currentSpace = 1
 
+-- Our menu item
+workspaceMenuItem = hs.menubar.new()
+
 function spacesDebug()
     print('Current space: ' .. currentSpace)
     print('windowMap:')
@@ -71,9 +74,13 @@ local function bringWindowBack(windowID)
 end
 
 local function update()
+    local populatedSpaces = { }
+    
+    -- Update windows
     local someWindowInCurrentSpace = nil
     for windowID, windowInfo in pairs(windowMap) do
         local space = windowInfo['space']
+        populatedSpaces[space] = true
         if space ~= currentSpace then
             sendWindowAway(windowID)
         else
@@ -82,6 +89,24 @@ local function update()
         end
     end
 
+    -- Update menu item
+    local menuItemText = hs.styledtext.new('')
+    for spaceNumber, spaceInfo in pairs(spaceMap) do
+        local textForSpaceNumber = ' ' .. tostring(spaceNumber) .. ' '
+        if spaceNumber == currentSpace then
+            -- If we're in this space, then add it
+            menuItemText = menuItemText .. hs.styledtext.new(textForSpaceNumber, { ['color'] = tintColor })
+        else
+            -- Only add if there are windows in this space
+            if populatedSpaces[spaceNumber] ~= nil then
+                menuItemText = menuItemText .. hs.styledtext.new(textForSpaceNumber)
+            end
+        end
+        dbg(menuItemText)
+    end
+    workspaceMenuItem:setTitle(menuItemText)
+
+    -- Update focus (disabled - see below)
     local spaceInfo = spaceMap[currentSpace] or { }
     local windowIDToFocus = spaceInfo['focusedWindowID']
     if windowIDToFocus ~= nil then
@@ -158,4 +183,6 @@ workspaceWindowFilter = hs.window.filter.copy(hs.window.filter.default)
         -- windowFocused(window)
     end
 end, true)
+
+update()
 
