@@ -95,7 +95,6 @@ local function update()
                 menuItemText = menuItemText .. hs.styledtext.new(textForSpaceNumber)
             end
         end
-        dbg(menuItemText)
     end
     workspaceMenuItem:setTitle(menuItemText)
 
