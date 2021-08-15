@@ -1,5 +1,6 @@
 #!/bin/bash
 
 pkill -9 Hammerspoon
+sleep 0.5
 open -a Hammerspoon
 
