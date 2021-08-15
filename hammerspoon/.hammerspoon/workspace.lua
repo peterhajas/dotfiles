@@ -76,6 +76,8 @@ local function switchToSpace(space)
     if space ~= currentSpace then
         currentSpace = space
         update()
+    else
+        hs.sound.getByName("Tink"):play()
     end
 end
 
