@@ -80,6 +80,9 @@ local function switchToSpace(space)
 end
 
 local function moveWindowToSpace(window, space)
+    if windowMap[window:id()] == nil then
+        windowMap[window:id()] = { }
+    end
     windowMap[window:id()]['space'] = space
     update()
 end
