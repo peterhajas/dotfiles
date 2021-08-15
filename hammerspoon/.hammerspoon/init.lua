@@ -37,6 +37,7 @@ require "vimwiki.picker"
 require "vimwiki.sticky"
 require "server"
 require "flux"
+require "workspace"
 
 profileStop('imports')
 profileStart('globals')
