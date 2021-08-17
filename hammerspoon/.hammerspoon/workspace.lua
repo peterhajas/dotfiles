@@ -153,6 +153,16 @@ local function windowFocused(window)
     end
 end
 
+-- Resets the workspaces so windows all come back
+function workspaceReset()
+    local newSpace = 1
+    switchToSpace(newSpace)
+    for windowID, windowInfo in pairs(windowMap) do
+        windowMap[windowID]['space'] = newSpace
+    end
+    update()
+end
+
 for k,i in pairs({1,2,3,4,5,6,7,8,9,0}) do
     spaceMap[i] = { }
 
