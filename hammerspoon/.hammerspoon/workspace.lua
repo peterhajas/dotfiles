@@ -1,12 +1,11 @@
 
 -- Key: window ID
 -- Value: table:
---   Keys: 'space', 'shownUnitTopLeft'
+--   Keys: 'space', 'shownUnitTopLeft', 'lastFocusTime'
 windowMap = { }
 
 -- Key: space number (1-indexed)
 -- Value: table:
---   Keys: 'focusedWindowID'
 spaceMap = { }
 
 -- The current space, 1-indexed
@@ -68,9 +67,11 @@ end
 
 local function update()
     local populatedSpaces = { }
+
+    local windowIDToFocusInSpace = nil
+    local windowIDToFocusInSpaceLastFocusTime = 0
     
     -- Update windows
-    local someWindowInCurrentSpace = nil
     for windowID, windowInfo in pairs(windowMap) do
         local space = windowInfo['space']
         populatedSpaces[space] = true
@@ -78,7 +79,11 @@ local function update()
             sendWindowAway(windowID)
         else
             bringWindowBack(windowID)
-            someWindowInCurrentSpace = window
+            local lastFocusTime = windowInfo['lastFocusTime'] or -1
+            if windowIDToFocusInSpaceLastFocusTime < lastFocusTime then
+                windowIDToFocusInSpace = windowID
+                windowIDToFocusInSpaceLastFocusTime = lastFocusTime
+            end
         end
     end
 
@@ -98,11 +103,9 @@ local function update()
     end
     workspaceMenuItem:setTitle(menuItemText)
 
-    -- Update focus (disabled - see below)
-    local spaceInfo = spaceMap[currentSpace] or { }
-    local windowIDToFocus = spaceInfo['focusedWindowID']
-    if windowIDToFocus ~= nil then
-        local windowToFocus = hs.window(windowID)
+    -- Update focus
+    if windowIDToFocusInSpace ~= nil then
+        local windowToFocus = hs.window(windowIDToFocusInSpace)
         if windowToFocus ~= nil then
             windowToFocus:focus()
         end
@@ -118,16 +121,21 @@ local function switchToSpace(space)
     end
 end
 
-local function moveWindowToSpace(window, space)
+-- Faults in any storage we might need
+local function windowManipulated(window)
     if windowMap[window:id()] == nil then
         windowMap[window:id()] = { }
     end
+end
+
+local function moveWindowToSpace(window, space)
+    windowManipulated(window)
     windowMap[window:id()]['space'] = space
     update()
 end
 
 local function windowCreated(window)
-    windowMap[window:id()] = { }
+    windowManipulated(window)
     windowMap[window:id()]['space'] = currentSpace
 end
 
@@ -136,21 +144,9 @@ local function windowDestroyed(window)
 end
 
 local function windowFocused(window)
-    -- plh-evil: this needs some fixes, so it is disabled below
-    -- what needs to change::
-    -- - if a window is moving spaces, we need to remove it from our focused
-    --   window tracking, and find the next window to focus for our space
-
-    -- Switch to that space, or mark this window as focused for this space
-    local windowSpace = spaceForWindowID(window:id())
-    if windowSpace == nil then return end
-
-    if windowSpace ~= currentSpace then
-        switchToSpace(windowSpace)
-    else
-        spaceMap[currentSpace] = { }
-        spaceMap[currentSpace]['focusedWindowID'] = window:id()
-    end
+    windowManipulated(window)
+    -- Update our last-focused time
+    windowMap[window:id()]['lastFocusTime'] = hs.timer.secondsSinceEpoch()
 end
 
 -- Resets the workspaces so windows all come back
@@ -182,7 +178,7 @@ workspaceWindowFilter = hs.window.filter.copy(hs.window.filter.default)
     elseif event == hs.window.filter.windowDestroyed then
         windowDestroyed(window)
     elseif event == hs.window.filter.windowFocused then
-        -- windowFocused(window)
+        windowFocused(window)
     end
 end, true)
 
