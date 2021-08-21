@@ -380,10 +380,10 @@ let g:slime_default_config = {"socket_name": "default", "target_pane": ":.1"}
 set rtp+=/usr/local/opt/fzf
 
 " Map leader-, to FZF (kind of like my old Ctrl-P configuration)
-nmap <leader>, :FZF <CR>
+nmap <leader>, :FZF -i <CR>
 
 " Map vv to FZF also
-nmap vv :FZF <CR>
+nmap vv :FZF -i <CR>
 
 " vimwiki
 " We want a wiki in ~/.vimwiki that uses Markdown and the .md extension

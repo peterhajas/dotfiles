@@ -17,7 +17,7 @@ function abbrev -d "Install fish abbreviations"
     abbr g git status
     abbr gm git commit
     abbr ga 'git add -p'
-    abbr gb 'git branch | fzf | xargs git checkout'
+    abbr gb 'git branch | fzf -i | xargs git checkout'
     abbr gc git checkout
     abbr gd git diff
     abbr gi git init
@@ -31,11 +31,11 @@ function abbrev -d "Install fish abbreviations"
     abbr leaderboard git shortlog -sn
     
     # vim
-    abbr vv 'find . | fzf | xargs -o vim'
+    abbr vv 'find . | fzf -i | xargs -o vim'
 
     # vimwikki
     abbr w 'vim -c "VimwikiIndex"'
-    abbr ww 'find ~/.vimwiki | fzf | xargs -o vim'
+    abbr ww 'find ~/.vimwiki | fzf -i | xargs -o vim'
     abbr wd 'vim -c "VimwikiMakeDiaryNote"'
     abbr wp 'vimwiki_update'
 
