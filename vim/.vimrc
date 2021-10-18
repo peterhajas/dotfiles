@@ -328,7 +328,6 @@ Plug 'vimwiki/vimwiki'
 
 " Misc:
 
-Plug 'jremmen/vim-ripgrep'
 Plug 'junegunn/fzf.vim'
 Plug 'junegunn/fzf'
 Plug 'junegunn/vim-peekaboo'
