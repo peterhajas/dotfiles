@@ -30,7 +30,7 @@ set relativenumber
 
 " Make leader the , key
 
-let mapleader = ","
+let mapleader = " "
 
 " I don't use ;, I don't even know what it does! Let's just use :
 
@@ -264,6 +264,13 @@ let g:ale_virtualtext_cursor = 1
 
 
 " }}}
+
+" Testing {{{
+
+" Map <leader>-u to run the tests
+nnoremap <leader>u :TestFile<CR>
+
+" }}}
 " vim-plug auto-downloading {{{
 " This is a handy way to nab vim-plug when we launch
 if empty(glob('~/.vim/autoload/plug.vim'))
@@ -312,7 +319,11 @@ Plug 'w0rp/ale'
 Plug 'ap/vim-css-color'
 Plug 'ledger/vim-ledger'
 
+" Writing Code:
+Plug 'vim-test/vim-test'
+
 " PIM:
+
 Plug 'vimwiki/vimwiki'
 
 " Misc:
