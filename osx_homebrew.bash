@@ -31,5 +31,6 @@ brew install graphviz
 brew install pass
 brew install pass-otp
 brew install exa
+brew install yt-dlp/taps/yt-dlp
 
 # Hi Peter! Are you adding software here? If so, make sure to add it to linux_apt_get.bash if it makes sense. Sincerely, Past Peter
