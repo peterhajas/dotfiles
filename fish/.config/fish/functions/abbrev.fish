@@ -3,7 +3,7 @@ set ledgerBuild src/ledger_utils/ledger_build.py
 set ledgerFile /tmp/peter.ledger
 
 function sync_music -d "Sync Music"
-    rsync -avvz ~/Music/peter lighthouse.local:/var/media/music/
+    rsync -avvz ~/Music/peter beacon:/mnt/media/music/
 end
 
 function abbrev -d "Install fish abbreviations"
@@ -49,7 +49,7 @@ function abbrev -d "Install fish abbreviations"
     # util
     ## sync music to lighthouse
     ## listen to current lighthouse stream
-    abbr music mpv "http://lighthouse.local:3689/stream.mp3"
+    abbr music mpv "http://beacon:3689/stream.mp3"
 
     ## grabs radio and syncs
     abbr radio '~/Music/peter/_radio/grab.sh && sync_music'
