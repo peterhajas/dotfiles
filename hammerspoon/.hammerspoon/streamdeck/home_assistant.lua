@@ -2,7 +2,7 @@ require "streamdeck.util.ha_mdi_icon"
 require 'home_assistant'
 require 'util'
 
-local lastHomeAssistantState = nil
+local lastHomeAssistantState = { }
 local lastHomeAssistantUpdateTime = 0
 
 local function updateHomeAssistantStateIfNecessary()
@@ -11,7 +11,7 @@ local function updateHomeAssistantStateIfNecessary()
     local elapsed = (now - lastHomeAssistantUpdateTime) * 0.000001
     if elapsed > 1000 then
         lastHomeAssistantUpdateTime = hs.timer.absoluteTime()
-        lastHomeAssistantState = homeAssistantRun('GET', 'states')
+        lastHomeAssistantState = homeAssistantRun('GET', 'states') or { }
     end
 end
 
@@ -21,7 +21,7 @@ local function currentStateForEntity(entityID)
             return state
         end
     end
-    return nil
+    return { }
 end
 
 -- Returns a button corresponding to a HomeAssistant entity ID
