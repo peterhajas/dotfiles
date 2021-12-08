@@ -35,9 +35,6 @@ initialButtonState = {
         numberPad(),
         windowClone(),
         functionKeys(),
-        homeAssistantEntity("scene.office_regular"),
-        homeAssistantEntity("scene.office_mood"),
-        homeAssistantEntity("scene.office_off"),
         shortcuts(),
         camera1Button,
         camera2Button,
@@ -46,6 +43,5 @@ initialButtonState = {
         shelfButtonForShelfWithID("b"),
         shelfButtonForShelfWithID("c"),
         soundboardButton(),
-        homeAssistantEntity("media_player.forked_daapd_server"),
     }
 }
