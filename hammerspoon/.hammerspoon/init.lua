@@ -34,7 +34,6 @@ require "link_replace"
 require "pinboard"
 require "youtubedl"
 require "vimwiki.picker"
-require "vimwiki.sticky"
 require "server"
 require "flux"
 
