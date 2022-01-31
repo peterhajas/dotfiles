@@ -55,9 +55,9 @@ function abbrev -d "Install fish abbreviations"
     abbr radio '~/Music/peter/_radio/grab.sh && sync_music'
 
     ## ledger
-    abbr l '$ledgerBuild && ledger -f $ledgerFile'
-    abbr lb '$ledgerBuild && ledger -f $ledgerFile balance'
-    abbr lr '$ledgerBuild && ledger -f $ledgerFile register'
+    abbr l '$ledgerBuild && hledger-web -f $ledgerFile'
+    abbr lb '$ledgerBuild && hledger -f $ledgerFile balance'
+    abbr lr '$ledgerBuild && hledger -f $ledgerFile register'
     abbr lv '$ledgerBuild && vim $ledgerFile'
     abbr ll '$ledgerBuild && less $ledgerFile'
 end
