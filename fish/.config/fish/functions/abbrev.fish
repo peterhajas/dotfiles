@@ -1,5 +1,5 @@
 # Variables used below
-set ledgerBuild src/ledger_utils/ledger_build.py
+set ledgerBuild ~/src/ledger_utils/ledger_build.py
 set ledgerFile /tmp/peter.ledger
 
 function sync_music -d "Sync Music"
