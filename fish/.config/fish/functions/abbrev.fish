@@ -36,9 +36,8 @@ function abbrev -d "Install fish abbreviations"
 
     # vimwikki
     abbr w 'vim -c "VimwikiIndex"'
-    abbr ww 'find ~/.vimwiki | fzf -i | xargs -o vim'
+    abbr ww 'find -H ~/.vimwiki | fzf -i | xargs -o vim'
     abbr wd 'vim -c "VimwikiMakeDiaryNote"'
-    abbr wp 'vimwiki_update'
 
     # youtube-dl
     abbr y 'ytd "'
