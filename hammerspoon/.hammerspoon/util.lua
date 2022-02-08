@@ -115,6 +115,7 @@ end
 
 -- Debug print
 function dbg(string)
+    -- Note that this may do _nothing_ if this is a 0-length string!
     local debugLogger = hs.logger.new('debug', 'debug')
     debugLogger:i(hs.inspect(string))
 end

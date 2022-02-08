@@ -17,6 +17,7 @@ require "streamdeck.function_keys"
 require "streamdeck.shortcuts"
 require "streamdeck.shelf"
 require "streamdeck.soundboard"
+require "streamdeck.owntone"
 
 initialButtonState = {
     ['name'] = 'Root',
@@ -43,5 +44,6 @@ initialButtonState = {
         shelfButtonForShelfWithID("b"),
         shelfButtonForShelfWithID("c"),
         soundboardButton(),
+        owntoneButton('http://192.168.1.2', '3689'),
     }
 }
