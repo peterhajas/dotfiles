@@ -33,6 +33,16 @@ function owntoneButton(server, port)
                 imageScaling = 'shrinkToFit',
             })
 
+            local volumeFraction = playerState['volume'] / 100
+            local progressFraction = playerState['item_progress_ms'] / playerState['item_length_ms'] 
+
+            table.insert(elements, {
+                type = "rectangle",
+                frame = { x = 0, y = buttonHeight - 5, w = buttonWidth * progressFraction, h = 5 },
+                action = "fill",
+                fillColor = tintColor,
+            })
+
             return streamdeck_imageWithCanvasContents(elements)
         end,
         ['onClick'] = function()
