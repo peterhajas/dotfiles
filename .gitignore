@@ -35,6 +35,7 @@ vim/.vim/undodir
 fish_history
 fishd.*
 *.menu
+fish/.config/fish/fish_variables
 
 # cmus
 
