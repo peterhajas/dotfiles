@@ -28,102 +28,54 @@ task_template = { 'text' : '', 'done': False, 'tags': [], 'line_number': -1, 'ch
 # - tasks: [Task]
 project_template = { 'name' : '', 'tasks': [], 'line_number': -1 ,'children' : [] }
 
-out = { }
-
-# Returns the depth of a particular line
-def line_depth(line, prefix):
-    if line.startswith(prefix):
-        return 1 + line_depth(line.removeprefix(prefix), prefix)
-    return 0
-
-def lines_into_task(all_lines, lines):
-    if len(lines) == 0:
-        return None
-    task = task_template.copy()
-    line = lines[0]['text']
-    if line.strip().startswith('- [X]'):
-        task['done'] = True
-    task['text'] = line.strip().removeprefix('- [X]').removeprefix('- [ ]').removeprefix('- [O]').strip()
-
-    tags = re.findall(r'@\S*', line)
-    if len(tags) > 0:
-        task['tags'] = tags
-
-    return task
-
-# Takes an array of line dictionaries and returns an array of lines
+# Takes an array of line dictionaries and returns an array of tasks
 def lines_into_tasks(all_lines, lines, depth=0):
     tasks = [ ]
-    # Find all the task line numbers. We'll use these to parse ranges of
-    # lines into tasks
-    task_line_numbers = [ ]
     prefix = (depth * '    ') + '- ['
     for line in lines:
         if line['text'].startswith(prefix):
-            task_line_numbers.append(line['line_number'])
-
-    print(depth)
-    print(task_line_numbers)
-    # Now, take the numbers and parse each range into a task with children
-    for line_number_index in range(0, len(task_line_numbers)):
-        line_number_start = task_line_numbers[line_number_index]
-        line_number_end = line_number_start
-        if line_number_index < len(task_line_numbers)-1:
-            line_number_end = task_line_numbers[line_number_index+1]
-
-        task_lines = all_lines[line_number_start:line_number_end]
-        task = lines_into_task(all_lines, task_lines)
-        if task != None:
-            task['line_number'] = line_number_start+1
-            task['children'] = lines_into_tasks(all_lines, task_lines, depth+1)
+            task = task_template.copy()
+            task['text'] = line['text'].strip().removeprefix('- [X]').removeprefix('- [ ]').removeprefix('- [O]').strip()
+            task['line_number'] = line['line_number']
+            if line['text'].strip().startswith('- [X]'):
+                task['done'] = True
+            task['tags'] = re.findall(r'@\S*', line['text'])
             tasks.append(task)
 
+    for task_index in range(0, len(tasks)):
+        task = tasks[task_index]
+        task_line_end = lines[-1]['line_number']
+        if task_index < len(tasks) - 1:
+            task_line_end = tasks[task_index+1]['line_number']
+        task['children'] = lines_into_tasks(all_lines, all_lines[task['line_number']:task_line_end], depth+1)
+
     return tasks
-
-def lines_into_project(all_lines, lines):
-    project = project_template.copy()
-    project_line_start = -1
-    project_line_end = -1
-
-    for line in lines[1:]:
-        if project_line_start == -1:
-            project_line_start = line['line_number']
-        text = line['text']
-        # If we find a sub-project, bail - we don't have more to do here
-        if text.startswith('#'):
-            break
-        project_line_end = line['line_number']
-    if project_line_start != -1 and project_line_end != -1:
-        project['tasks'] = lines_into_tasks(all_lines, all_lines[project_line_start:project_line_end])
-
-    project['s'] = project_line_start
-    project['e'] = project_line_end
-    return project
 
 # Takes an array of line dictionaries and returns an array of projects
 def lines_into_projects(all_lines, lines, depth=0):
     projects = [ ]
-    # Find all the project line numbers. We'll use these to parse ranges of
-    # lines into projects
-    project_line_numbers = [ ]
     prefix = "#" * (depth+1) + ' '
     for line in lines:
         if line['text'].startswith(prefix):
-            project_line_numbers.append(line['line_number'])
+            project = project_template.copy()
+            project['name'] = line['text'].removeprefix(prefix).strip()
+            project['line_number'] = line['line_number']
+            projects.append(project)
 
-    # Now, take the numbers and parse each range into a project with children
-    for line_number_index in range(0, len(project_line_numbers)):
-        line_number_start = project_line_numbers[line_number_index]
-        line_number_end = all_lines[-1]['line_number']
-        if line_number_index < len(project_line_numbers)-1:
-            line_number_end = project_line_numbers[line_number_index+1]
+    for project_index in range(0, len(projects)):
+        project = projects[project_index]
+        project_line_end = lines[-1]['line_number']
+        if project_index < len(projects) - 1:
+            project_line_end = projects[project_index+1]['line_number']
 
-        project_lines = all_lines[line_number_start:line_number_end]
-        project = lines_into_project(all_lines, project_lines)
-        project['name'] = all_lines[line_number_start]['text'].strip('#').strip()
-        project['line_number'] = line_number_start+1
-        project['children'] = lines_into_projects(all_lines, project_lines, depth+1)
-        projects.append(project)
+        project['children'] = lines_into_projects(all_lines, all_lines[project['line_number']:project_line_end], depth+1)
+
+        project_specific_line_end = project_line_end
+        if len(project['children']) > 0:
+            project_specific_line_end = project['children'][0]['line_number']
+
+        info_lines = all_lines[project['line_number']:project_specific_line_end]
+        project['tasks'] = lines_into_tasks(all_lines, info_lines)
 
     return projects
 
@@ -132,6 +84,7 @@ for line_number in range(0, len(projects_text_lines)):
     line = projects_text_lines[line_number]
     lines_with_numbers.append({'text' : line, 'line_number' : line_number})
 
+out = { }
 out['projects'] = lines_into_projects(lines_with_numbers, lines_with_numbers)
 
 print(json.dumps(out, indent=2))
