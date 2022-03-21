@@ -63,4 +63,5 @@ function abbrev -d "Install fish abbreviations"
     abbr lr '$ledgerBuild && hledger -f $ledgerFile register'
     abbr lv '$ledgerBuild && vim $ledgerFile'
     abbr ll '$ledgerBuild && less $ledgerFile'
+    abbr ld '$ledgerBuild && rsync /tmp/peter.ledger beacon:services/hledger/data/hledger.journal'
 end
