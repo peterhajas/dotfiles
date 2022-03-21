@@ -36,6 +36,7 @@ fish_history
 fishd.*
 *.menu
 fish/.config/fish/fish_variables
+fish/.config/fish/functions/secrets.fish
 
 # cmus
 
