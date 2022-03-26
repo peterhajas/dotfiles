@@ -378,7 +378,6 @@ profileStart('screenChanges')
 
 function handleScreenEvent()
     updateGridsForScreens()
-    updateStickyVimwikiForScreens()
     updateFluxiness()
 end
 
