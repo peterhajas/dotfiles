@@ -113,7 +113,7 @@ function calendarPeekButton()
 
         return streamdeck_imageWithCanvasContents(elements)
     end
-    button['updateInterval'] = 60
+    button['updateInterval'] = 10
     return button
 end
 
