@@ -1,0 +1,7 @@
+shift + ctrl + alt - h : yabai -m window --focus west
+shift + ctrl + alt - l : yabai -m window --focus east
+shift + ctrl + alt - k : yabai -m window --focus north
+shift + ctrl + alt - j : yabai -m window --focus south
+shift + ctrl + alt - f : yabai -m window --toggle zoom-fullscreen
+shift + ctrl + alt - x : yabai -m window --close
+shift + ctrl + alt - r : yabai -m space --rotate 90
