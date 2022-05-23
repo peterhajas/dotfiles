@@ -2,26 +2,8 @@ require "streamdeck.util.ha_mdi_icon"
 require 'home_assistant'
 require 'util'
 
-local lastHomeAssistantState = { }
-local lastHomeAssistantUpdateTime = 0
-
-local function updateHomeAssistantStateIfNecessary()
-    local now = hs.timer.absoluteTime()
-    -- in ms
-    local elapsed = (now - lastHomeAssistantUpdateTime) * 0.000001
-    if elapsed > 1000 then
-        lastHomeAssistantUpdateTime = hs.timer.absoluteTime()
-        lastHomeAssistantState = homeAssistantRun('GET', 'states') or { }
-    end
-end
-
 local function currentStateForEntity(entityID)
-    for index, state in pairs(lastHomeAssistantState) do
-        if state['entity_id'] == entityID then
-            return state
-        end
-    end
-    return { }
+    return homeAssistantRun('GET', 'states/' .. entityID) or { }
 end
 
 -- Returns a button corresponding to a HomeAssistant entity ID
@@ -29,8 +11,7 @@ function homeAssistantEntity(entityID)
     return {
         ['name'] = 'HA/' .. entityID,
         ['stateProvider'] = function()
-            updateHomeAssistantStateIfNecessary()
-            local stateNow = cloneTable(currentStateForEntity(entityID)) or { }
+            local stateNow = currentStateForEntity(entityID)
             -- Nix the last_updated value - we will check other states
             stateNow['last_updated'] = nil
             return stateNow
@@ -73,13 +54,10 @@ function homeAssistant()
             hs.application.open(bundleID)
         end,
         ['children'] = function()
-            updateHomeAssistantStateIfNecessary()
+            local homeAssistantState = homeAssistantRun('GET', 'states') or { }
             children = { }
-            if lastHomeAssistantState == nil then
-                return children
-            end
 
-            for index, state in pairs(lastHomeAssistantState) do
+            for index, state in pairs(homeAssistantState) do
                 local entityID = state['entity_id']
                 local name = state['attributes']['friendly_name']
                 if name == nil then
