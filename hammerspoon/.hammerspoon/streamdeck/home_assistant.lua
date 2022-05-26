@@ -26,17 +26,7 @@ function homeAssistantEntity(entityID)
             local endpoint = 'services/light/toggle'
             local entityType = typeForID(entityID)
 
-            if entityType == 'switch' then
-                endpoint = 'services/switch/toggle'
-            elseif entityType == 'scene' then
-                endpoint = 'services/scene/turn_on'
-            elseif entityType == 'script' then
-                endpoint = 'services/script/turn_on'
-            elseif entityType == 'cover' then
-                endpoint = 'services/cover/toggle'
-            elseif entityType == 'media_player' then
-                endpoint = 'services/media_player/media_play_pause'
-            end
+            endpoint = 'services/homeassistant/toggle'
 
             homeAssistantRun(method, endpoint, parameters)
         end,

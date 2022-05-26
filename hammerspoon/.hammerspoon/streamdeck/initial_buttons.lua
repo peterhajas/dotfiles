@@ -45,6 +45,7 @@ initialButtonState = {
         shelfButtonForShelfWithID("c"),
         soundboardButton(),
         owntoneButton('http://192.168.1.2', '3689'),
-        homeAssistantEntity('switch.office_shelly_channel_1')
+        homeAssistantEntity('switch.office_shelly_channel_1'),
+        homeAssistantEntity('media_player.office_announcements')
     }
 }
