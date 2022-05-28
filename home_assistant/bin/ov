@@ -1,0 +1,3 @@
+#!/bin/bash
+
+mosquitto_pub -h beacon.local -t viewscreen/office -m "$1"
