@@ -29,40 +29,42 @@ local function spaceForWindowID(windowID)
 end
 
 local function sendWindowAway(windowID)
-    if windowMap[windowID] == nil then return end
-    if windowMap[windowID]['shownUnitTopLeft'] ~= nil then return end
+    -- if windowMap[windowID] == nil then return end
+    -- if windowMap[windowID]['shownUnitTopLeft'] ~= nil then return end
 
-    local window = hs.window(windowID)
-    if window == nil then return end
+    -- local window = hs.window(windowID)
+    -- if window == nil then return end
 
-    local screen = window:screen()
-    local unitPoint = window:topLeft()
-    local scaleFactor = screen:frame()
+    -- local screen = window:screen()
+    -- local unitPoint = window:topLeft()
+    -- local scaleFactor = screen:frame()
 
-    unitPoint.x = unitPoint.x / scaleFactor.w
-    unitPoint.y = unitPoint.y / scaleFactor.h
+    -- unitPoint.x = unitPoint.x / scaleFactor.w
+    -- unitPoint.y = unitPoint.y / scaleFactor.h
 
-    windowMap[windowID]['shownUnitTopLeft'] = unitPoint
+    -- windowMap[windowID]['shownUnitTopLeft'] = unitPoint
 
-    window:setTopLeft(hs.geometry.point(10000,10000))
+    -- window:setTopLeft(hs.geometry.point(10000,10000))
 end
 
 local function bringWindowBack(windowID)
     if windowMap[windowID] == nil then return end
-    if windowMap[windowID]['shownUnitTopLeft'] == nil then return end
+    -- if windowMap[windowID]['shownUnitTopLeft'] == nil then return end
 
     local window = hs.window(windowID)
     if window == nil then return end
 
-    local screen = window:screen()
-    local windowTopLeft = windowMap[windowID]['shownUnitTopLeft']
-    local scaleFactor = screen:frame()
+    window:focus()
 
-    windowTopLeft.x = windowTopLeft.x * scaleFactor.w
-    windowTopLeft.y = windowTopLeft.y * scaleFactor.h
+    -- local screen = window:screen()
+    -- local windowTopLeft = windowMap[windowID]['shownUnitTopLeft']
+    -- local scaleFactor = screen:frame()
 
-    window:setTopLeft(windowTopLeft)
-    windowMap[windowID]['shownUnitTopLeft'] = nil
+    -- windowTopLeft.x = windowTopLeft.x * scaleFactor.w
+    -- windowTopLeft.y = windowTopLeft.y * scaleFactor.h
+
+    -- window:setTopLeft(windowTopLeft)
+    -- windowMap[windowID]['shownUnitTopLeft'] = nil
 end
 
 local function update()
