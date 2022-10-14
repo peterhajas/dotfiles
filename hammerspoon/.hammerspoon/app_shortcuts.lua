@@ -1,4 +1,7 @@
+require('hyper')
+require('util')
 -- App Shortcuts {{{
+-- Option {{{
 
 -- Option-M for Mail
 
@@ -23,15 +26,27 @@ hs.hotkey.bind({"alt"}, "r", function()
     hs.application.launchOrFocus("Reeder")
 end)
 
--- Option-T for Textual
-
-hs.hotkey.bind({"alt"}, "t", function()
-    hs.application.launchOrFocus("Textual 5")
-end)
-
 -- Option-H for HomeAssistant
 hs.hotkey.bind({"alt"}, "h", function()
     hs.application.launchOrFocus("Home Assistant")
 end)
 
+-- }}}
+-- Hyper {{{
+local hyperAppShortcuts = {
+    ['a'] = 'Messages',
+    ['s'] = 'Safari',
+    ['d'] = 'Finder',
+    ['f'] = 'Terminal',
+    ['g'] = 'Mail',
+    ['c'] = 'Calendar',
+}
+
+for shortcut,app in pairs(hyperAppShortcuts) do
+    hs.hotkey.bind(hyper, shortcut, function()
+        hs.application.launchOrFocus(app)
+    end)
+end
+
+-- }}}
 -- }}}

@@ -28,14 +28,12 @@ require "grid"
 require "darkmode"
 require "audio_output"
 require "choose"
-require "pass"
 require "streamdeck"
 require "link_replace"
-require "pinboard"
 require "youtubedl"
-require "vimwiki.picker"
 require "server"
 require "flux"
+require "pass"
 
 profileStop('imports')
 profileStart('globals')
@@ -325,6 +323,12 @@ end)
 
 hs.hotkey.bind(hyper, "U", function()
     resizeForegroundWindowByAmount(hs.geometry.size(0, -1))
+end)
+
+-- Bind hyper-P to resize window to screen
+
+hs.hotkey.bind(hyper, "P", function()
+    hs.window.focusedWindow():maximize()
 end)
 
 -- }}}

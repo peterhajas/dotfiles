@@ -2,7 +2,7 @@ require "hyper"
 require "choose"
 require "util"
 
-hs.hotkey.bind(hyper, "p", function()
+hs.hotkey.bind(hyper, "q", function()
     -- Grab all the passwords
     local allPasswords = hs.execute('pass_all')
     allPasswords = split(allPasswords, '\n')
