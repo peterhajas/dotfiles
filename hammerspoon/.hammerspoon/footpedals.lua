@@ -51,11 +51,11 @@ function runFootpedalCommandsForFoot(commands, foot)
     end
 end
 
-hs.hotkey.bind({""}, "f9", function()
+hs.hotkey.bind({""}, "f18", function()
     runFootpedalCommandsForFoot(footpedalKeyCombos[frontmostAppName()], "left")
 end)
 
-hs.hotkey.bind({""}, "f10", function()
+hs.hotkey.bind({""}, "f19", function()
     runFootpedalCommandsForFoot(footpedalKeyCombos[frontmostAppName()], "right")
 end)
 
