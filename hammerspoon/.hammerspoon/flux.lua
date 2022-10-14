@@ -114,9 +114,9 @@ function fluxSignificantTimeDidChange()
     updateFluxiness()
 end
 
--- Bindings for flux toggle setting
+-- Function for flux toggle setting
 
-hs.hotkey.bind(hyper, "f", function()
+function fluxAdvance()
     local onNow = shouldHaveFluxEnabled()
     -- Determine new state
     if overrideFluxSetting == nil then
@@ -139,5 +139,5 @@ hs.hotkey.bind(hyper, "f", function()
     hs.alert("flux override " .. overrideNewStateName)
 
     updateFluxiness()
-end)
+end
 

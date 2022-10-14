@@ -365,10 +365,6 @@ end
 popclickListening = false
 local fn = popclickHandler
 listener = hs.noises.new(fn)
--- "s" for listening
-hs.hotkey.bind(hyper, "s", function()
-    popclickPlayPause()
-end)
 -- }}}
 profileStop('noises')
 profileStart('screenChanges')
