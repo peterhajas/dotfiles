@@ -1,0 +1,10 @@
+---
+- name: steamdeck cleanup
+  hosts: steamdeck
+  become: yes
+  tasks:
+    - name: stop and disable sshd
+      ansible.builtin.systemd:
+        state: stopped
+        name: sshd
+        enabled: false

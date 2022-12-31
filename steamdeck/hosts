@@ -1,0 +1,2 @@
+[steamdeck]
+steamdeck.local ansible_user=deck
