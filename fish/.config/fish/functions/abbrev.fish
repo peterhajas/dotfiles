@@ -9,6 +9,7 @@ end
 function abbrev -d "Install fish abbreviations"
     # dirs
     abbr d cd ~/dotfiles
+    abbr m cd ~/metrics
 
     # fish
     abbr bu 'brew update && brew upgrade'
