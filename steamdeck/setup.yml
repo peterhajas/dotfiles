@@ -3,6 +3,10 @@
   hosts: steamdeck
   become: yes
   tasks:
+    - name: start ssh
+      ansible.builtin.systemd:
+        state: started
+        name: sshd
     - name: install packages
       community.general.flatpak:
         name:
@@ -16,6 +20,12 @@
       ansible.builtin.get_url:
         url: https://www.emudeck.com/EmuDeck.desktop
         dest: /home/deck/Desktop/InstallEmuDeck.desktop
+    - name: emudeck files
+      become: false
+      ansible.posix.synchronize:
+        src: ~/Emulation
+        dest: /run/media/mmcblk0p1/
+        mode: push
     - name: grab sonic robo battle 2 sonic 2006
       ansible.builtin.get_url:
         url: https://mb.srb2.org/addons/sonic-2006-extended-port.157/version/5236/download?file=57797
