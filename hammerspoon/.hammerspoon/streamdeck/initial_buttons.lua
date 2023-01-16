@@ -5,7 +5,6 @@ require "streamdeck.peek"
 require "streamdeck.url"
 require "streamdeck.lock"
 require "streamdeck.clock"
-require "streamdeck.camera"
 require "streamdeck.weather"
 require "streamdeck.app_switcher"
 require "streamdeck.window_switcher"
@@ -37,9 +36,6 @@ initialButtonState = {
         windowClone(),
         functionKeys(),
         shortcuts(),
-        camera1Button,
-        camera2Button,
-        dashClose,
         shelfButtonForShelfWithID("a"),
         shelfButtonForShelfWithID("b"),
         shelfButtonForShelfWithID("c"),
