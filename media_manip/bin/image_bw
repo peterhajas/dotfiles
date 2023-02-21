@@ -1,0 +1,14 @@
+#!/bin/bash
+
+for file in "$@"
+do
+    filename=$(basename -- "$file")
+    extension="${filename##*.}"
+    filename="${filename%.*}"
+
+    tempfile="tmp.$extension"
+    echo $tempfile
+
+    ffmpeg -i $file -vf format=gray $tempfile
+    mv $tempfile $file
+done
