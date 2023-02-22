@@ -1,5 +1,7 @@
 require "util"
 
+local port = 8044
+
 commandToFunction = {
     ["lock"] = function() hs.caffeinate.lockScreen() end,
 
@@ -18,6 +20,8 @@ commandToFunction = {
     ["right"] = function() hs.eventtap.keyStroke({}, "right") end,
     ["pageup"] = function() hs.eventtap.keyStroke({}, "pageup") end,
     ["pagedown"] = function() hs.eventtap.keyStroke({}, "pagedown") end,
+    ["space"] = function() hs.eventtap.keyStroke({}, "space") end,
+    ["return"] = function() hs.eventtap.keyStroke({}, "return") end,
 }
 
 -- Returns true if parsed correctly, false otherwise
@@ -32,7 +36,7 @@ function parseHTTPCommand(cmd)
 end
 
 server = hs.httpserver.new()
-:setPort(8044)
+:setPort(port)
 :setCallback(function(requestType, path, headers, contents)
     local body = "OK"
     local responseCode = 200
@@ -49,3 +53,14 @@ end)
 :start()
 
 dbg(server)
+
+function printHomeAssistantYAML(host)
+    out = "\n"
+    out = out .. "rest_command:\n"
+    for name, _ in pairs(commandToFunction) do
+        out = out .. "  " .. "hammerspoon_" .. name .. ":\n"
+        out = out .. "    url: \"" .. host .. ":" .. port .. "/" .. name .. "\"\n"
+        out = out .. "    method: GET\n"
+    end
+    print(out)
+end
