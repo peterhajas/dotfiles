@@ -1,7 +1,35 @@
+# Hyper vim movement keys for focus
 shift + ctrl + alt - h : yabai -m window --focus west
 shift + ctrl + alt - l : yabai -m window --focus east
 shift + ctrl + alt - k : yabai -m window --focus north
 shift + ctrl + alt - j : yabai -m window --focus south
-shift + ctrl + alt - f : yabai -m window --toggle zoom-fullscreen
-shift + ctrl + alt - x : yabai -m window --close
-shift + ctrl + alt - r : yabai -m space --rotate 90
+
+# hyper n / m to focus between displays
+shift + ctrl + alt - n : yabai -m display --focus west
+shift + ctrl + alt - m : yabai -m display --focus east
+
+# hyper y / u to mirror on x and y axis
+shift + ctrl + alt - y : yabai -m space --mirror x-axis
+shift + ctrl + alt - u : yabai -m space --mirror y-axis
+
+# hyper i / o to move between displays
+shift + ctrl + alt - i : yabai -m window --display west
+shift + ctrl + alt - o : yabai -m window --display east
+
+# hyper p to rebalance
+shift + ctrl + alt - p : yabai -m space --balance
+
+# hyper semicolon for fullscreen
+shift + ctrl + alt - 0x29 : yabai -m window --toggle float --grid 16:16:1:1:14:14
+
+# option-shift to move windows to spaces
+shift + alt - 1 : yabai -m window --space 1
+shift + alt - 2 : yabai -m window --space 2
+shift + alt - 3 : yabai -m window --space 3
+shift + alt - 4 : yabai -m window --space 4
+shift + alt - 5 : yabai -m window --space 5
+shift + alt - 6 : yabai -m window --space 6
+shift + alt - 7 : yabai -m window --space 7
+shift + alt - 8 : yabai -m window --space 8
+shift + alt - 9 : yabai -m window --space 9
+shift + alt - 0 : yabai -m window --space 10

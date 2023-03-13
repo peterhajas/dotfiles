@@ -1,3 +1,35 @@
-yabai -m config layout bsp
-yabai -m config auto_balance on
-yabai -m config mouse_follows_focus on
+yabai -m config \
+    active_window_border_color 0xffff9800 \
+    auto_balance on \
+    layout bsp \
+    mouse_action1 move \
+    mouse_action2 resize \
+    mouse_drop_action swap \
+    mouse_follows_focus on \
+    mouse_modifier alt \
+    normal_window_border_color 0xff212121 \
+    window_border on \
+    window_placement second_child \
+
+yabai -m config --space 1 layout bsp
+yabai -m config --space 2 layout bsp
+yabai -m config --space 3 layout bsp
+yabai -m config --space 4 layout bsp
+yabai -m config --space 5 layout bsp
+yabai -m config --space 6 layout bsp
+yabai -m config --space 7 layout bsp
+yabai -m config --space 8 layout bsp
+yabai -m config --space 9 layout bsp
+yabai -m config --space 10 layout bsp
+yabai -m config --space 11 layout bsp
+yabai -m config --space 12 layout bsp
+yabai -m config --space 13 layout bsp
+yabai -m config --space 14 layout bsp
+yabai -m config --space 15 layout bsp
+yabai -m config --space 16 layout bsp
+yabai -m config --space 17 layout bsp
+yabai -m config --space 18 layout bsp
+yabai -m config --space 19 layout bsp
+yabai -m config --space 20 layout bsp
+
+yabai -m rule --add app="^System Settings$" manage=off
