@@ -14,7 +14,7 @@ local function weatherButtonForLocation(location)
                 url = "wttr.in/" .. location
                 url = url .. "?format=1"
             end
-            local command = 'curl -s ' .. url
+            local command = 'curl --max-time 0.5 --silent ' .. url
             command = command .. '| sed "s/+//" | sed "s/F//" | grep -v "Unknow"'
             local output = hs.execute(command)
             local fontSize = 40
