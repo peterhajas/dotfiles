@@ -7,9 +7,12 @@ shift + ctrl + alt - j : yabai -m window --focus south
 # hyper m to focus between displays
 shift + ctrl + alt - m : yabai -m display --focus recent
 
-# hyper y / u to mirror on x and y axis
-shift + ctrl + alt - y : yabai -m space --mirror x-axis
-shift + ctrl + alt - u : yabai -m space --mirror y-axis
+# hyper u / i to mirror on x and y axis
+shift + ctrl + alt - u : yabai -m space --mirror x-axis
+shift + ctrl + alt - i : yabai -m space --mirror y-axis
+
+# hyper y to rotate
+shift + ctrl + alt - y : yabai -m space --rotate 270
 
 # hyper n to move between displays
 shift + ctrl + alt - n : yabai -m window --display recent
