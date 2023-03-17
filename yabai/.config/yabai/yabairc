@@ -7,7 +7,7 @@ yabai -m config \
     mouse_action2 resize \
     mouse_drop_action swap \
     mouse_follows_focus on \
-    mouse_modifier alt \
+    mouse_modifier ctrl \
     normal_window_border_color 0xff212121 \
     window_border on \
     window_placement second_child \
