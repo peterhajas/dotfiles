@@ -1,0 +1,35 @@
+PLUGIN_DIR="$HOME/.config/sketchybar/plugins"
+
+sketchybar --bar \
+color=0xff212121 \
+height=30 \
+
+sketchybar -m --add event window_focus \
+              --add event title_change
+
+sketchybar --default \
+label.font=Menlo:Bold:16 \
+label.padding_right=8 \
+label.padding_left=8 \
+
+sketchybar --add item test left
+sketchybar --set test label="test2"
+
+sketchybar --add item time right \
+           --set time script="$PLUGIN_DIR/time.sh" \
+           --set time click_script="$PLUGIN_DIR/time_clicked.sh" \
+           --set time label.color=0xffcccccc update_freq=1
+
+sketchybar --add item date right \
+           --set date script="$PLUGIN_DIR/date.sh" \
+           --set date click_script="$PLUGIN_DIR/date_clicked.sh" \
+           --set date label.color=0xffc9c9c9 update_freq=1
+
+sketchybar --add item window center \
+           --set window script="$PLUGIN_DIR/window.sh" \
+           --set window click_script="$PLUGIN_DIR/window_clicked.sh" \
+           --subscribe window window_focus front_app_switched space_change title_change \
+           --set window label.color=0xfff2777a
+
+sketchybar --update
+
