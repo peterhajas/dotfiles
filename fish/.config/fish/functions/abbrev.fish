@@ -68,4 +68,7 @@ function abbrev -d "Install fish abbreviations"
 
     ## yabai
     abbr yr "brew services restart skhd && brew services restart yabai"
+
+    ## sketchybar
+    abbr sr "brew services restart sketchybar"
 end
