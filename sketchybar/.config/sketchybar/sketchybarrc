@@ -27,9 +27,13 @@ sketchybar --add item weather right \
            --set weather click_script="sketchybar -m --set \$NAME popup.drawing=toggle" \
            --set weather label.color=0xffffcc66 update_freq=600
 
-sketchybar --add item radar popup.weather \
-           --set radar script="$PLUGIN_DIR/radar.sh" \
-           --set radar label.color=0xffffcc66 update_freq=600
+sketchybar --add item weather.radar popup.weather \
+           --set weather.radar script="$PLUGIN_DIR/radar.sh" \
+           --set weather.radar label.color=0xffffcc66 update_freq=600
+
+sketchybar --add item weather.details popup.weather \
+           --set weather.details script="$PLUGIN_DIR/weather_details.sh" \
+           --set weather.details label.color=0xffffcc66 update_freq=600
 
 sketchybar --add item window center \
            --set window script="$PLUGIN_DIR/window.sh" \
