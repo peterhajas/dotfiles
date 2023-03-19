@@ -1,1 +1,3 @@
-sketchybar --set $NAME label="$(date '+%Y-%m-%d')"
+WEEKDAY=$(date | awk '{ print toupper($1) }')
+DATE=$(date '+%Y-%m-%d')
+sketchybar --set $NAME label="$WEEKDAY $DATE"
