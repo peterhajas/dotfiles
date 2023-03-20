@@ -1,6 +1,7 @@
 PLUGIN_DIR="$HOME/.config/sketchybar/plugins"
 
 sketchybar --bar \
+display=main \
 color=0xff212121 \
 height=30 \
 

@@ -1,7 +1,7 @@
 yabai -m config \
     active_window_border_color 0xffff9800 \
     auto_balance on \
-    external_bar all:30:0 \
+    external_bar main:30:0 \
     layout bsp \
     mouse_action1 move \
     mouse_action2 resize \
