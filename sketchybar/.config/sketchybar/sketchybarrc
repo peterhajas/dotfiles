@@ -46,20 +46,19 @@ sketchybar --add space space1 left \
            --set space1 associated_space=1 \
            --set space1 script="$PLUGIN_DIR/space.sh" \
            --set space1 click_script="$PLUGIN_DIR/space_clicked.sh" \
-           --set space1 label="main" \
            --subscribe space1 window_focus front_app_switched space_change title_change \
            --set space1 label.color=0xff99cc99 \
            --set space1 background.color=0xff99cc99 \
            --set space1 label.highlight_color=0xff212121
 
 sketchybar --clone space2 space1
-sketchybar --set space2 associated_space=2 label="sub" label.color="0xffffcc66" background.color="0xffffcc66"
+sketchybar --set space2 associated_space=2 label.color="0xffffcc66" background.color="0xffffcc66"
 sketchybar --clone space3 space1
-sketchybar --set space3 associated_space=3 label="comms" label.color="0xff6699cc" background.color="0xff6699cc" 
+sketchybar --set space3 associated_space=3 label.color="0xff6699cc" background.color="0xff6699cc" 
 sketchybar --clone space4 space1
-sketchybar --set space4 associated_space=4 label="rss" label.color="0xffcc99cc" background.color="0xffcc99cc"
+sketchybar --set space4 associated_space=4 label.color="0xffcc99cc" background.color="0xffcc99cc"
 sketchybar --clone space5 space1
-sketchybar --set space5 associated_space=5 label="ha" label.color="0xff66cccc" background.color="0xff66cccc"
+sketchybar --set space5 associated_space=5 label.color="0xff66cccc" background.color="0xff66cccc"
 
 sketchybar --update
 
