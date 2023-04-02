@@ -12,6 +12,7 @@ sketchybar --default \
 label.font=Menlo:Bold:16 \
 label.padding_right=4 \
 label.padding_left=4 \
+background.color=0xff212121
 
 sketchybar --add item time right \
            --set time script="$PLUGIN_DIR/time.sh" \
