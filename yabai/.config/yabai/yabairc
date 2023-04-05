@@ -1,15 +1,23 @@
+BAR_HEIGHT=30
+PADDING=0
+
 yabai -m config \
     active_window_border_color 0xffff9800 \
     auto_balance on \
-    external_bar main:30:0 \
+    bottom_padding $PADDING \
+    external_bar main:$BAR_HEIGHT:0 \
     layout bsp \
+    left_padding $PADDING \
     mouse_action1 move \
     mouse_action2 resize \
     mouse_drop_action swap \
     mouse_follows_focus on \
     mouse_modifier ctrl \
     normal_window_border_color 0xff212121 \
+    right_padding $PADDING \
+    top_padding $PADDING \
     window_border on \
+    window_gap $PADDING\
     window_placement second_child \
 
 yabai -m config --space 1 layout bsp
