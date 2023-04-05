@@ -1,3 +1,5 @@
+ITEM_PADDING=3
+
 PLUGIN_DIR="$HOME/.config/sketchybar/plugins"
 
 sketchybar --bar \
@@ -9,9 +11,9 @@ sketchybar -m --add event window_focus \
               --add event title_change
 
 sketchybar --default \
-label.font=Menlo:Bold:16 \
-label.padding_right=4 \
-label.padding_left=4 \
+label.font=Menlo:Bold:14 \
+label.padding_right=$ITEM_PADDING \
+label.padding_left=$ITEM_PADDING \
 background.color=0xff212121
 
 sketchybar --add item time right \
@@ -23,6 +25,11 @@ sketchybar --add item date right \
            --set date script="$PLUGIN_DIR/date.sh" \
            --set date click_script="$PLUGIN_DIR/date_clicked.sh" \
            --set date label.color=0xffc9c9c9 update_freq=600
+
+sketchybar --add item battery right \
+           --set battery script="$PLUGIN_DIR/battery.sh" \
+           --subscribe battery power_source_change \
+           --set battery label.color=0xff6699cc update_freq=600
 
 sketchybar --add item weather right \
            --set weather script="$PLUGIN_DIR/weather.sh" \
