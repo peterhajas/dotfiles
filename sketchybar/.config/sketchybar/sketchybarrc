@@ -47,14 +47,14 @@ sketchybar --add item weather.details popup.weather \
 sketchybar --add item window center \
            --set window script="$PLUGIN_DIR/window.sh" \
            --set window click_script="$PLUGIN_DIR/window_clicked.sh" \
-           --subscribe window window_focus front_app_switched space_change title_change \
+           --subscribe window window_focus front_app_switched title_change \
            --set window label.color=0xffd3d0c8
 
 sketchybar --add space space1 left \
            --set space1 associated_space=1 \
            --set space1 script="$PLUGIN_DIR/space.sh" \
            --set space1 click_script="$PLUGIN_DIR/space_clicked.sh" \
-           --subscribe space1 window_focus front_app_switched space_change title_change \
+           --subscribe space1 window_focus space_change \
            --set space1 label.color=0xfff2777a \
            --set space1 background.color=0xfff2777a \
            --set space1 label.highlight_color=0xff212121
