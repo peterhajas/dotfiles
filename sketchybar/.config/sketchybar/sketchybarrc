@@ -16,6 +16,8 @@ label.padding_right=$ITEM_PADDING \
 label.padding_left=$ITEM_PADDING \
 background.color=0xff212121
 
+sketchybar --add event weather_update
+
 sketchybar --add item time right \
            --set time script="$PLUGIN_DIR/time.sh" \
            --set time click_script="$PLUGIN_DIR/time_clicked.sh" \
@@ -33,7 +35,7 @@ sketchybar --add item battery right \
 
 sketchybar --add item weather right \
            --set weather script="$PLUGIN_DIR/weather.sh" \
-           --set weather click_script="sketchybar -m --set \$NAME popup.drawing=toggle" \
+           --set weather click_script="$PLUGIN_DIR/weather_clicked.sh" \
            --set weather label.color=0xffffcc66 update_freq=600
 
 sketchybar --add item weather.radar popup.weather \
@@ -42,6 +44,7 @@ sketchybar --add item weather.radar popup.weather \
 
 sketchybar --add item weather.details popup.weather \
            --set weather.details script="$PLUGIN_DIR/weather_details.sh" \
+           --set weather.details updates=when_shown
            --set weather.details label.color=0xffffcc66 update_freq=600
 
 sketchybar --add item window center \
