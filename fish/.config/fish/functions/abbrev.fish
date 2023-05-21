@@ -71,4 +71,7 @@ function abbrev -d "Install fish abbreviations"
 
     ## sketchybar
     abbr sr "brew services restart sketchybar"
+
+    ## ansible
+    abbr ap "find /Users/phajas/dotfiles |grep yml | grep -v undodir | grep -v plugged | fzf | xargs ansible-playbook"
 end
