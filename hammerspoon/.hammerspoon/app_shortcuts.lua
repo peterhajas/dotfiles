@@ -31,6 +31,11 @@ require('util')
 --     hs.application.launchOrFocus("Home Assistant")
 -- end)
 
+-- -- Option-` for Logseq
+hs.hotkey.bind({"alt"}, "`", function()
+    peekAtApp("Logseq")
+end)
+
 -- }}}
 -- Hyper {{{
 local hyperAppShortcuts = {
@@ -43,25 +48,12 @@ local hyperAppShortcuts = {
     ['b'] = 'Home Assistant',
     ['r'] = 'Reeder',
     ['space'] = 'Logseq',
+    ['`'] = 'Logseq',
 }
 
 for shortcut,appString in pairs(hyperAppShortcuts) do
     hs.hotkey.bind(hyper, shortcut, function()
-        local app = hs.application.get(appString)
-        if app == nil then
-            hs.application.open(appString)
-            return
-        end
-        if app:isRunning() then
-            if app:isFrontmost() then
-                app:hide()
-            else
-                hs.application.open(appString)
-                app:activate()
-            end
-        else
-            hs.application.open(app)
-        end
+        peekAtApp(appString)
     end)
 end
 

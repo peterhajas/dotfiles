@@ -1,40 +1,30 @@
+function peekAtApp(appString)
+    local app = hs.application.get(appString)
+    if app == nil then
+        hs.application.open(appString)
+        return
+    end
+    if app:isRunning() then
+        if app:isFrontmost() then
+            app:hide()
+        else
+            hs.application.open(appString)
+            app:activate()
+        end
+    else
+        hs.application.open(app)
+    end
+end
+
 function peekButtonFor(bundleID)
     return {
         ['name'] = "Peek " .. bundleID,
         ['image'] = hs.image.imageFromAppBundle(bundleID),
         ['onClick'] = function()
-            local app = hs.application.get(bundleID)
-            if app == nil then
-                hs.application.open(bundleID)
-                return
-            end
-            if app:isRunning() then
-                if app:isFrontmost() then
-                    app:hide()
-                else
-                    hs.application.open(bundleID)
-                    app:activate()
-                end
-            else
-                hs.application.open(bundleID)
-            end
+            peekAtApp(bundleID)
         end,
         ['onLongPress'] = function(holding)
-            local app = hs.application.get(bundleID)
-            if app == nil then
-                hs.application.open(bundleID)
-                return
-            end
-            if holding then
-                hs.application.open(bundleID)
-                if app:isRunning() then
-                    app:activate()
-                end
-            else
-                if app:isRunning() then
-                    app:hide()
-                end
-            end
+            peekAtApp(bundleID)
         end
     }
 end
