@@ -30,6 +30,7 @@ function abbrev -d "Install fish abbreviations"
     abbr gre git remote
     abbr gs git status
     abbr gsh git show
+    abbr gac 'git commit -a -m "autocommit" && git push'
     abbr leaderboard git shortlog -sn
     
     # vim
@@ -74,4 +75,7 @@ function abbrev -d "Install fish abbreviations"
 
     ## ansible
     abbr ap "find /Users/phajas/dotfiles |grep yml | grep -v undodir | grep -v plugged | fzf | xargs ansible-playbook"
+
+    ## logseq
+    abbr b "cd ~/brain"
 end
