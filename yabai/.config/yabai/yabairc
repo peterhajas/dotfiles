@@ -43,6 +43,7 @@ yabai -m config --space 20 layout bsp
 
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Steam$" manage=off
+yabai -m rule --add app="^Logseq" manage=off
 
 # Events for SketchyBar
 yabai -m signal --add event=window_focused action="sketchybar -m --trigger window_focus &> /dev/null"
