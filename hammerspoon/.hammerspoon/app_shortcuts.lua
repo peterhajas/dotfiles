@@ -44,9 +44,23 @@ local hyperAppShortcuts = {
     ['r'] = 'Reeder',
 }
 
-for shortcut,app in pairs(hyperAppShortcuts) do
+for shortcut,appString in pairs(hyperAppShortcuts) do
     hs.hotkey.bind(hyper, shortcut, function()
-        hs.application.launchOrFocus(app)
+        local app = hs.application.get(appString)
+        if app == nil then
+            hs.application.open(appString)
+            return
+        end
+        if app:isRunning() then
+            if app:isFrontmost() then
+                app:hide()
+            else
+                hs.application.open(appString)
+                app:activate()
+            end
+        else
+            hs.application.open(app)
+        end
     end)
 end
 
