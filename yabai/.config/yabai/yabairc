@@ -4,7 +4,7 @@ PADDING=0
 yabai -m config \
     active_window_border_color 0xffff9800 \
     auto_balance on \
-    bottom_padding $PADDING \
+    bottom_padding 180 \
     external_bar main:$BAR_HEIGHT:0 \
     layout bsp \
     left_padding $PADDING \
