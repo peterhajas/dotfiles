@@ -1,13 +1,14 @@
 BAR_HEIGHT=30
 PADDING=0
+WIDGET_PADDING=180
 
 yabai -m config \
     active_window_border_color 0xffff9800 \
     auto_balance on \
-    bottom_padding 180 \
+    bottom_padding $PADDING \
     external_bar main:$BAR_HEIGHT:0 \
     layout bsp \
-    left_padding $PADDING \
+    left_padding $WIDGET_PADDING \
     mouse_action1 move \
     mouse_action2 resize \
     mouse_drop_action swap \
