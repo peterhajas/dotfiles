@@ -1,6 +1,6 @@
 BAR_HEIGHT=30
 PADDING=0
-WIDGET_PADDING=180
+WIDGET_PADDING=360
 
 yabai -m config \
     active_window_border_color 0xffff9800 \
