@@ -68,7 +68,7 @@ function abbrev -d "Install fish abbreviations"
     abbr ld '$ledgerBuild && rsync /tmp/peter.ledger beacon:services/hledger/data/hledger.journal'
 
     ## yabai
-    abbr yr "brew services restart skhd && brew services restart yabai"
+    abbr yr "yabai --stop-service && yabai --start-service && skhd --stop-service && skhd --start-service"
 
     ## sketchybar
     abbr sr "brew services restart sketchybar"
