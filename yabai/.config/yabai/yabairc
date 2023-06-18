@@ -8,7 +8,7 @@ yabai -m config \
     bottom_padding $PADDING \
     external_bar main:$BAR_HEIGHT:0 \
     layout bsp \
-    left_padding $WIDGET_PADDING \
+    left_padding $PADDING \
     mouse_action1 move \
     mouse_action2 resize \
     mouse_drop_action swap \
@@ -21,26 +21,17 @@ yabai -m config \
     window_gap $PADDING\
     window_placement second_child \
 
-yabai -m config --space 1 layout bsp
-yabai -m config --space 2 layout bsp
-yabai -m config --space 3 layout bsp
-yabai -m config --space 4 layout bsp
-yabai -m config --space 5 layout bsp
-yabai -m config --space 6 layout bsp
-yabai -m config --space 7 layout bsp
-yabai -m config --space 8 layout bsp
-yabai -m config --space 9 layout bsp
-yabai -m config --space 10 layout bsp
-yabai -m config --space 11 layout bsp
-yabai -m config --space 12 layout bsp
-yabai -m config --space 13 layout bsp
-yabai -m config --space 14 layout bsp
-yabai -m config --space 15 layout bsp
-yabai -m config --space 16 layout bsp
-yabai -m config --space 17 layout bsp
-yabai -m config --space 18 layout bsp
-yabai -m config --space 19 layout bsp
-yabai -m config --space 20 layout bsp
+# Apply bsp layout everywhere
+for (( i=1; i<=30; i++ ))
+do
+    yabai -m config --space $i layout bsp
+done
+
+# Pad for widgets just on the main display's 10 spaces
+for (( i=1; i<=10; i++ ))
+do
+    yabai -m config --space $i left_padding $WIDGET_PADDING
+done
 
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Steam$" manage=off
