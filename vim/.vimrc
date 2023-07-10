@@ -242,6 +242,9 @@ set mouse=a
 " }}}
 " Folding {{{
 
+" Disable folds
+set nofoldenable
+
 " Toggle folds with Space
 
 nnoremap <Space> za
