@@ -4,7 +4,7 @@ sketchybar -m --set weather popup.drawing=toggle
 
 sketchybar --remove "/weather.details.*/"
 
-CITIES=$(cat ~/.phajas/weather)
+CITIES=$(cat ~/brain/pages/data___weather_locations.md | sed 's/- //')
 
 for CITY in $CITIES
 do
