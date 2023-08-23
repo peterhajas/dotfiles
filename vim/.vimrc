@@ -93,11 +93,21 @@ nnoremap <C-j> <C-\><C-N><C-w>j
 nnoremap <C-k> <C-\><C-N><C-w>k
 nnoremap <C-l> <C-\><C-N><C-w>l
 
+tnoremap <C-h> <C-\><C-N><C-w>h
+tnoremap <C-j> <C-\><C-N><C-w>j
+tnoremap <C-k> <C-\><C-N><C-w>k
+tnoremap <C-l> <C-\><C-N><C-w>l
+
 " Map arrow keys to move to adjacent splits also
 nnoremap <silent><left> <C-\><C-N><C-w>h
 nnoremap <silent><down> <C-\><C-N><C-w>j
 nnoremap <silent><up> <C-\><C-N><C-w>k
 nnoremap <silent><right> <C-\><C-N><C-w>l
+
+tnoremap <silent><left> <C-\><C-N><C-w>h
+tnoremap <silent><down> <C-\><C-N><C-w>j
+tnoremap <silent><up> <C-\><C-N><C-w>k
+tnoremap <silent><right> <C-\><C-N><C-w>l
 
 " Resize splits when resizing vim
 
@@ -452,18 +462,6 @@ nmap <silent> <leader>m :call OpenInMarked2() <CR> <CR>
 " }}}
 " Terminal Setup {{{
 if has('terminal')
-    " Remap ctrl-movement keys to move to adjacent splits
-    tnoremap <C-h> <C-\><C-N><C-w>h
-    tnoremap <C-j> <C-\><C-N><C-w>j
-    tnoremap <C-k> <C-\><C-N><C-w>k
-    tnoremap <C-l> <C-\><C-N><C-w>l
-
-    " Map arrow keys to move to adjacent splits also
-    tnoremap <silent><left> <C-\><C-N><C-w>h
-    tnoremap <silent><down> <C-\><C-N><C-w>j
-    tnoremap <silent><up> <C-\><C-N><C-w>k
-    tnoremap <silent><right> <C-\><C-N><C-w>l
-
     " Leader-a to launch a terminal into a fish shell
     nmap <leader>a :term fish<CR>
 endif
