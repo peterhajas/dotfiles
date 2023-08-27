@@ -342,7 +342,7 @@ Plug 'vimwiki/vimwiki'
 " Misc:
 
 Plug 'junegunn/fzf.vim'
-Plug 'junegunn/fzf'
+Plug 'junegunn/fzf', { 'do': { -> fzf#install() } }
 Plug 'junegunn/vim-peekaboo'
 Plug 'ludovicchabant/vim-gutentags'
 Plug 'mbbill/undotree'
