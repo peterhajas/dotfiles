@@ -1,0 +1,24 @@
+---
+- name: setup office-music
+  hosts: office-music
+  become: yes
+  tasks:
+  - name: install shairport-sync
+    ansible.builtin.package:
+      name:
+        - shairport-sync
+      state: latest
+  - name: copy config file
+    ansible.builtin.copy:
+      src: shairport-sync.conf
+      dest: /etc/shairport-sync.conf
+  - name: ensure the service is running
+    ansible.builtin.service:
+      name: shairport-sync
+      state: started
+    become: yes
+  - name: Restart the service
+    ansible.builtin.service:
+      name: shairport-sync
+      state: restarted
+    become: yes

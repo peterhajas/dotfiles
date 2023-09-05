@@ -1,0 +1,7 @@
+---
+- name: setup office-music
+  hosts: office-music
+  become: yes
+  tasks:
+  - name: shut down
+    ansible.builtin.command: shutdown -h now
