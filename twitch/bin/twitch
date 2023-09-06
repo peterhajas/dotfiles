@@ -1,0 +1,2 @@
+#!/bin/sh
+cat ~/brain/pages/data___twitch.md | sort | sed 's/- /https:\/\/twitch.tv\//' | fzf --preview 'mpv --no-focus-on-open {}'
