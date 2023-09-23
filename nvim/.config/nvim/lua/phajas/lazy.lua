@@ -13,6 +13,11 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 plugins = {
+    { 'tpope/vim-fugitive' },
+    { 'tpope/vim-commentary' },
+    { 'tpope/vim-surround' },
+    { 'tpope/vim-unimpaired' },
+	{ 'nvim-telescope/telescope.nvim', tag = '0.1.3', dependencies = { 'nvim-lua/plenary.nvim' } },
 	{ 'nvim-telescope/telescope.nvim', tag = '0.1.3', dependencies = { 'nvim-lua/plenary.nvim' } },
 	{ 'nvim-treesitter/nvim-treesitter', cmd = { 'TSUpdate' } },
 	{
