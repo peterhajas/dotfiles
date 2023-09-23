@@ -28,8 +28,11 @@ vim.opt.wrap = true
 vim.opt.hlsearch = false
 vim.opt.incsearch = true
 vim.opt.showmatch = true
+vim.opt.smartcase = true
 
+-- Misc.
 vim.opt.scrolloff = 12
-vim.opt.updatetime = 50
 vim.opt.colorcolumn = "81"
+vim.opt.autoread = true
+vim.opt.autowrite = true
 
