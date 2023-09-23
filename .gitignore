@@ -23,6 +23,9 @@ vim/.vim/bundle/NeoBundle.lock
 vim/.vim/autoload/plug.vim
 vim/.vim/plugged
 
+# nvim
+*lazy-lock*
+
 ## Temp files
 
 *.un~
