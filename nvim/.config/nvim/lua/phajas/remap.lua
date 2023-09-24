@@ -19,3 +19,6 @@ vim.keymap.set("n", "[w", vim.cmd.tabprevious)
 
 -- Folds
 vim.keymap.set("n", "<leader>f", "za")
+
+-- Editing
+vim.keymap.set("n", "S", "i<cr><esc><right>")
