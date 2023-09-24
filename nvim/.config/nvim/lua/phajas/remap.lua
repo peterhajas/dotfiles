@@ -2,8 +2,8 @@ vim.g.mapleader = " "
 vim.keymap.set("n", "<leader>pv", vim.cmd.Ex)
 
 -- Splits
-vim.keymap.set("n", "<leader>w", vim.cmd.vsp)
-vim.keymap.set("n", "<leader>W", vim.cmd.sp)
+vim.keymap.set("n", "<leader>w", "<C-w>v<C-w>l")
+vim.keymap.set("n", "<leader>W", "<C-w>s<C-w>j")
 
 -- Window movement
 vim.keymap.set("n", "<left>", "<C-w>h")
