@@ -37,4 +37,5 @@ vim.opt.colorcolumn = "81"
 vim.opt.autoread = true
 vim.opt.autowrite = true
 vim.opt.visualbell = true
+vim.opt.signcolumn = "auto:1"
 

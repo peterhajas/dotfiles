@@ -12,7 +12,7 @@ end
 
 vim.opt.rtp:prepend(lazypath)
 
-plugins = {
+local plugins = {
     {'tpope/vim-fugitive'},
     {'tpope/vim-commentary'},
     {'tpope/vim-surround'},
@@ -41,7 +41,7 @@ plugins = {
     {'theprimeagen/harpoon'}
 }
 
-opts = {}
+local opts = {}
 
 -- Set up Lazy
 require("lazy").setup(plugins, opts)
