@@ -4,5 +4,5 @@ require("phajas.remap")
 require("phajas.plugins.telescope")
 require("phajas.plugins.treesitter")
 require("phajas.plugins.fugitive")
+require("phajas.plugins.lsp")
 
-print("hello from phajas")

@@ -20,7 +20,9 @@ plugins = {
     {'nvim-telescope/telescope.nvim', tag = '0.1.3', dependencies = {'nvim-lua/plenary.nvim'}},
     {'nvim-treesitter/nvim-treesitter', cmd = {'TSUpdate'}},
     {'nvim-treesitter/playground'},
-    {'VonHeikemen/lsp-zero.nvim', branch = 'v3.x'},
+    {'VonHeikemen/lsp-zero.nvim', branch = 'v3.x', dependencies = {
+
+    }},
     -- LSP Support
     {'neovim/nvim-lspconfig', dependencies = {
         'hrsh7th/cmp-nvim-lsp',
@@ -35,6 +37,8 @@ plugins = {
         'hrsh7th/cmp-nvim-lsp',
         'rafamadriz/friendly-snippets',
     }},
+    -- Harpoon
+    {'theprimeagen/harpoon'}
 }
 
 opts = {}
