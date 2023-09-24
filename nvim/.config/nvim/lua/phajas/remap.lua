@@ -19,6 +19,11 @@ vim.keymap.set("n", "[w", vim.cmd.tabprevious)
 
 -- Folds
 vim.keymap.set("n", "<leader>f", "za")
+vim.keymap.set("n", "<Space>", "za")
+vim.keymap.set("n", "<leader>F", function() vim.opt.foldenable = not vim.opt.foldenable end)
 
 -- Editing
+-- Split lines
 vim.keymap.set("n", "S", "i<cr><esc><right>")
+-- Backspace to % for matching bracket
+vim.keymap.set("n", "<BS>", "%")

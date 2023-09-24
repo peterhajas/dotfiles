@@ -18,6 +18,7 @@ vim.opt.relativenumber = true
 vim.opt.expandtab = true
 vim.opt.shiftwidth = 4
 vim.opt.smartindent = true
+vim.opt.smarttab = true
 vim.opt.softtabstop = 4
 vim.opt.tabstop = 4
 
@@ -35,4 +36,5 @@ vim.opt.scrolloff = 12
 vim.opt.colorcolumn = "81"
 vim.opt.autoread = true
 vim.opt.autowrite = true
+vim.opt.visualbell = true
 
