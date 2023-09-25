@@ -35,6 +35,7 @@ function abbrev -d "Install fish abbreviations"
     
     # vim
     abbr vv 'find . | fzf -i | xargs -o vim'
+    abbr vim nvim
 
     # vimwikki
     abbr w 'vim -c "VimwikiIndex"'
