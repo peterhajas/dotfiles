@@ -34,13 +34,12 @@ function abbrev -d "Install fish abbreviations"
     abbr leaderboard git shortlog -sn
     
     # vim
-    abbr vv 'find . | fzf -i | xargs -o vim'
-    abbr vim nvim
+    abbr vv 'find . | fzf -i | xargs -o nvim'
 
     # vimwikki
-    abbr w 'vim -c "VimwikiIndex"'
-    abbr ww 'find -H ~/.vimwiki | fzf -i | xargs -o vim'
-    abbr wd 'vim -c "VimwikiMakeDiaryNote"'
+    abbr w 'nvim -c "VimwikiIndex"'
+    abbr ww 'find -H ~/.vimwiki | fzf -i | xargs -o nvim'
+    abbr wd 'nvim -c "VimwikiMakeDiaryNote"'
 
     ## todo
     abbr tj 'vimwiki_gtd $vimwiki_projects_path'
@@ -64,7 +63,7 @@ function abbrev -d "Install fish abbreviations"
     abbr l 'open "http://127.0.0.1:5000" && $ledgerBuild && hledger-web -f $ledgerFile --serve'
     abbr lb '$ledgerBuild && hledger -f $ledgerFile balance'
     abbr lr '$ledgerBuild && hledger -f $ledgerFile register'
-    abbr lv '$ledgerBuild && vim $ledgerFile'
+    abbr lv '$ledgerBuild && nvim $ledgerFile'
     abbr ll '$ledgerBuild && less $ledgerFile'
     abbr ld '$ledgerBuild && rsync /tmp/peter.ledger beacon:services/hledger/data/hledger.journal'
 

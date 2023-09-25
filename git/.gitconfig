@@ -2,21 +2,16 @@
 	name = Peter Hajas
 	email = peter@haj.as
 [core]
-	editor = vim
+	editor = nvim
 	excludesfile = /Users/phajas/.gitignore_global
-[difftool "Kaleidoscope"]
-	cmd = ksdiff --partial-changeset --relative-path \"$MERGED\" -- \"$LOCAL\" \"$REMOTE\"
 [diff]
-	tool = vimdiff
+	tool = "nvim -d"
 [difftool]
 	prompt = false
-[mergetool "Kaleidoscope"]
-	cmd = ksdiff --merge --output \"$MERGED\" --base \"$BASE\" -- \"$LOCAL\" --snapshot \"$REMOTE\" --snapshot
-	trustExitCode = true
 [mergetool]
 	prompt = false
 [merge]
-	tool = vimdiff
+	tool = "nvim -d"
 [push]
 	default = matching
 [init]

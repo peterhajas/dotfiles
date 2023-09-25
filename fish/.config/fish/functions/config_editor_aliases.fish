@@ -1,12 +1,7 @@
 function config_editor_aliases
-    set editor "vim"
-    if test -f ~/bin/mvim
-        set editor "mvim"
-    end
-    
-    # Muscle memory is strong
+    alias vim nvim
 
-    alias mate $editor
-    alias subl $editor
-    alias mvim $editor
+    alias mate $EDITOR
+    alias subl $EDITOR
+    alias mvim $EDITOR
 end
