@@ -31,9 +31,12 @@ vim.opt.incsearch = true
 vim.opt.showmatch = true
 vim.opt.smartcase = true
 
+-- Colorcolumn
+vim.opt.colorcolumn = "81"
+vim.cmd 'highlight ColorColumn ctermbg=black guibg=black'
+
 -- Misc.
 vim.opt.scrolloff = 12
-vim.opt.colorcolumn = "81"
 vim.opt.autoread = true
 vim.opt.autowrite = true
 vim.opt.visualbell = true
