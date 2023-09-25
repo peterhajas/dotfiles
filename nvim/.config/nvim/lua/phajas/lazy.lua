@@ -41,6 +41,10 @@ local plugins = {
     {'theprimeagen/harpoon'},
     -- Git Signs
     {'lewis6991/gitsigns.nvim'},
+    -- Status Line
+    {'nvim-lualine/lualine.nvim', dependencies = {
+        'nvim-tree/nvim-web-devicons',
+    }},
 }
 
 local opts = {}
