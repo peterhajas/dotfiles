@@ -38,7 +38,9 @@ local plugins = {
         'rafamadriz/friendly-snippets',
     }},
     -- Harpoon
-    {'theprimeagen/harpoon'}
+    {'theprimeagen/harpoon'},
+    -- Git Signs
+    {'lewis6991/gitsigns.nvim'},
 }
 
 local opts = {}
@@ -46,5 +48,3 @@ local opts = {}
 -- Set up Lazy
 require("lazy").setup(plugins, opts)
 
--- Set up Mason
-require("mason").setup()
