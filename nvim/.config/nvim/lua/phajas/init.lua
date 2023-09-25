@@ -1,7 +1,10 @@
 require("phajas.set")
 require("phajas.lazy")
 require("phajas.remap")
+
+-- before LSP
 require("phajas.plugins.mason")
+
 require("phajas.plugins.telescope")
 require("phajas.plugins.treesitter")
 require("phajas.plugins.fugitive")
