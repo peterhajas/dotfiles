@@ -8,4 +8,5 @@ vim.keymap.set("n", "<leader>j", function() ui.nav_file(2) end)
 vim.keymap.set("n", "<leader>k", function() ui.nav_file(3) end)
 vim.keymap.set("n", "<leader>l", function() ui.nav_file(4) end)
 
--- vim.keymap.set("n", "<C-h>", function() ui.nav_file(1) end)
+require("telescope").load_extension('harpoon')
+
