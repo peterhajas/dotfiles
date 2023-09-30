@@ -24,6 +24,8 @@ local plugins = {
 
     {'nvim-treesitter/nvim-treesitter', cmd = {'TSUpdate'}},
     {'nvim-treesitter/playground'},
+    {'nvim-treesitter/nvim-treesitter-context'},
+
     -- LSP Support
     {'VonHeikemen/lsp-zero.nvim', branch = 'v3.x', dependencies = {
 
