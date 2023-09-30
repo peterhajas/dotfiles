@@ -1,3 +1,2 @@
 #!/bin/sh
-camera1
-camera2
+cat ~/brain/pages/data___cameras.md | sed 's/- //' | fzf --preview 'mpv --no-focus-on-open {}'
