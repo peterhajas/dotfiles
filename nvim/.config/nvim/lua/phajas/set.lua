@@ -35,6 +35,12 @@ vim.opt.smartcase = true
 vim.opt.colorcolumn = "81"
 vim.cmd 'highlight ColorColumn ctermbg=black guibg=black'
 
+-- Undo, Swap, Backup
+vim.opt.swapfile = false
+vim.opt.backup = false
+vim.opt.undodir = os.getenv("HOME") .. "/.vim/undodir"
+vim.opt.undofile = true
+
 -- Misc.
 vim.opt.scrolloff = 12
 vim.opt.autoread = true

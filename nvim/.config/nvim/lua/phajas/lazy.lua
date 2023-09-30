@@ -17,13 +17,17 @@ local plugins = {
     {'tpope/vim-commentary'},
     {'tpope/vim-surround'},
     {'tpope/vim-unimpaired'},
+
+    {'mbbill/undotree'},
+
     {'nvim-telescope/telescope.nvim', tag = '0.1.3', dependencies = {'nvim-lua/plenary.nvim'}},
+
     {'nvim-treesitter/nvim-treesitter', cmd = {'TSUpdate'}},
     {'nvim-treesitter/playground'},
+    -- LSP Support
     {'VonHeikemen/lsp-zero.nvim', branch = 'v3.x', dependencies = {
 
     }},
-    -- LSP Support
     {'neovim/nvim-lspconfig', dependencies = {
         'hrsh7th/cmp-nvim-lsp',
         'williamboman/mason.nvim',
