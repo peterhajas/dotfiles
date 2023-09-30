@@ -13,4 +13,5 @@ require("phajas.plugins.lualine")
 require("phajas.plugins.telescope")
 require("phajas.plugins.treesitter")
 require("phajas.plugins.undotree")
+require("phajas.plugins.harpoon")
 
