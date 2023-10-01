@@ -6,6 +6,7 @@ require("phajas.remap")
 require("phajas.plugins.mason")
 
 require("phajas.plugins.cmp")
+require("phajas.plugins.catppuccin")
 require("phajas.plugins.commentary")
 require("phajas.plugins.fugitive")
 require("phajas.plugins.gitsigns")
