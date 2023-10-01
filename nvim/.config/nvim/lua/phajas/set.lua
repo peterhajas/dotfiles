@@ -33,7 +33,11 @@ vim.opt.smartcase = true
 
 -- Colorcolumn
 vim.opt.colorcolumn = "81"
-vim.cmd 'highlight ColorColumn ctermbg=black guibg=black'
+vim.api.nvim_set_hl(0, "ColorColumn", { ctermbg="Black", bg="Black" })
+vim.api.nvim_set_hl(0, "SignColumn", { ctermbg="NONE", bg="NONE" })
+
+-- Signcolumn
+vim.opt.signcolumn = "auto:1"
 
 -- Undo, Swap, Backup
 vim.opt.swapfile = false
@@ -46,5 +50,4 @@ vim.opt.scrolloff = 12
 vim.opt.autoread = true
 vim.opt.autowrite = true
 vim.opt.visualbell = true
-vim.opt.signcolumn = "auto:1"
 
