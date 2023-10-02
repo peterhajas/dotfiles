@@ -15,6 +15,7 @@ vim.opt.rtp:prepend(lazypath)
 local plugins = {
     {'tpope/vim-fugitive'},
     {'tpope/vim-commentary'},
+    {'numToStr/Comment.nvim'},
     {'tpope/vim-surround'},
     {'tpope/vim-unimpaired'},
 
