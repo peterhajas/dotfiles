@@ -78,4 +78,7 @@ function abbrev -d "Install fish abbreviations"
 
     ## logseq
     abbr b "cd ~/brain"
+
+    ## pass
+    abbr p pass
 end
