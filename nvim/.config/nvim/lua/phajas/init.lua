@@ -1,6 +1,7 @@
 require("phajas.set")
 require("phajas.lazy")
 require("phajas.remap")
+require("phajas.globals")
 
 -- before LSP
 require("phajas.plugins.mason")
