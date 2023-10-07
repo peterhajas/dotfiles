@@ -17,6 +17,9 @@ set EDITOR (which nvim)
 # Abbreviations
 abbrev
 
+# Secrets
+secrets
+
 # Shell management
 
 ## Set LC_ALL for unicode detection in Ubuntu
