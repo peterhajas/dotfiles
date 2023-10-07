@@ -74,6 +74,12 @@ sketchybar --clone space6 space1
 sketchybar --set space6 associated_space=6 label.color="0xff66cccc" background.color="0xff66cccc"
 sketchybar --clone space7 space1
 sketchybar --set space7 associated_space=7 label.color="0xffd3d0c8" background.color="0xffd3d0c8"
+sketchybar --clone space8 space1
+sketchybar --set space8 associated_space=8 label.color="0xffd3d0c8" background.color="0xffd3d0c8"
+sketchybar --clone space9 space1
+sketchybar --set space9 associated_space=9 label.color="0xffd3d0c8" background.color="0xffd3d0c8"
+sketchybar --clone space10 space1
+sketchybar --set space10 associated_space=10 label.color="0xffd3d0c8" background.color="0xffd3d0c8"
 
 sketchybar --update
 
