@@ -4,5 +4,5 @@ vim.keymap.set('n', '<leader>pF', function() builtin.find_files({ hidden = true 
 vim.keymap.set('n', '<leader>pg', builtin.git_files, {})
 vim.keymap.set('n', '<leader>ps', builtin.live_grep, {})
 
-vim.keymap.set('n', '<leader>gb', builtin.git_branches, {})
+vim.keymap.set('n', '<leader>gB', builtin.git_branches, {})
 
