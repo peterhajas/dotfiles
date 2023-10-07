@@ -13,7 +13,6 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 local plugins = {
-    {'tpope/vim-fugitive'},
     {'tpope/vim-commentary'},
     {'numToStr/Comment.nvim'},
     {'tpope/vim-surround'},
@@ -51,8 +50,10 @@ local plugins = {
     }},
     -- Harpoon
     {'theprimeagen/harpoon'},
-    -- Git Signs
+    -- Git
+    {'tpope/vim-fugitive'},
     {'lewis6991/gitsigns.nvim'},
+    {'braxtons12/blame_line.nvim'},
     -- Status Line
     {'nvim-lualine/lualine.nvim', dependencies = {
         'nvim-tree/nvim-web-devicons',
