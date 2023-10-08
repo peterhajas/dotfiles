@@ -50,7 +50,7 @@ sketchybar --add item weather.details popup.weather \
 sketchybar --add item window center \
            --set window script="$PLUGIN_DIR/window.sh" \
            --set window click_script="$PLUGIN_DIR/window_clicked.sh" \
-           --subscribe window window_focus front_app_switched title_change \
+           --subscribe window window_focus title_change \
            --set window label.color=0xffd3d0c8
 
 sketchybar --add space space1 left \
