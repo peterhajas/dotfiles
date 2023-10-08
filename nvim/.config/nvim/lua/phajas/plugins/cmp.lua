@@ -1,5 +1,7 @@
 local cmp = require('cmp')
 
+local min_keyword_length = 5
+
 cmp.setup({
     select = {
         behavior = cmp.SelectBehavior.Select
@@ -22,8 +24,8 @@ cmp.setup({
     sources = {
         { name = "nvim_lua" },
         { name = "nvim_lsp" },
-        { name = "buffer" , keyword_length = 5},
-        { name = "path" },
+        { name = "buffer", keyword_length = min_keyword_length },
+        { name = "path", keyword_length = min_keyword_length },
         { name = "luasnip" },
     },
     snippet = {
