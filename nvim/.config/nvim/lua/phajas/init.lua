@@ -6,8 +6,9 @@ require("phajas.globals")
 -- before LSP
 require("phajas.plugins.mason")
 
-require("phajas.plugins.cmp")
+require("phajas.plugins.blame_line")
 require("phajas.plugins.catppuccin")
+require("phajas.plugins.cmp")
 require("phajas.plugins.commentary")
 require("phajas.plugins.fugitive")
 require("phajas.plugins.gitsigns")
@@ -17,5 +18,5 @@ require("phajas.plugins.lualine")
 require("phajas.plugins.telescope")
 require("phajas.plugins.treesitter")
 require("phajas.plugins.undotree")
-require("phajas.plugins.blame_line")
+require("phajas.plugins.oil")
 
