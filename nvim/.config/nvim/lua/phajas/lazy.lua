@@ -24,6 +24,8 @@ local plugins = {
 
     {'nvim-telescope/telescope.nvim', tag = '0.1.3', dependencies = {'nvim-lua/plenary.nvim'}},
 
+    {'stevearc/oil.nvim'},
+
     {'nvim-treesitter/nvim-treesitter', cmd = {'TSUpdate'}},
     {'nvim-treesitter/playground'},
     {'nvim-treesitter/nvim-treesitter-context'},
