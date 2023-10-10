@@ -51,3 +51,10 @@ vim.opt.autoread = true
 vim.opt.autowrite = true
 vim.opt.visualbell = true
 
+-- Window Resize Helpers
+vim.api.nvim_create_autocmd({"WinResized"}, {
+    group = vim.api.nvim_create_augroup("phajas-resize", { clear = true }),
+    callback = function()
+        vim.api.nvim_cmd(vim.api.nvim_parse_cmd("wincmd =", {}), {})
+    end,
+})
