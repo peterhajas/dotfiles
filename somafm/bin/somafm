@@ -1,0 +1,4 @@
+#!/bin/bash
+
+cat $HOME/.phajas/soma_stations | fzf | xargs mpv
+
