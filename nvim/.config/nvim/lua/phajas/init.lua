@@ -19,4 +19,5 @@ require("phajas.plugins.telescope")
 require("phajas.plugins.treesitter")
 require("phajas.plugins.undotree")
 require("phajas.plugins.oil")
+require("phajas.plugins.zen-mode")
 
