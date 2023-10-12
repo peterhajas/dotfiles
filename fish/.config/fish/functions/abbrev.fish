@@ -7,10 +7,6 @@ function sync_music -d "Sync Music"
 end
 
 function abbrev -d "Install fish abbreviations"
-    # dirs
-    abbr d cd ~/dotfiles
-    abbr m cd ~/metrics
-
     # fish
     abbr bu 'brew update && brew upgrade'
 
@@ -75,9 +71,6 @@ function abbrev -d "Install fish abbreviations"
 
     ## ansible
     abbr ap "find /Users/phajas/dotfiles |grep yml | grep -v undodir | grep -v plugged | fzf | xargs ansible-playbook"
-
-    ## logseq
-    abbr b "cd ~/brain"
 
     ## pass
     abbr p pass
