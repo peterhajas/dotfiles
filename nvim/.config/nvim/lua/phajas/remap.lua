@@ -62,7 +62,7 @@ local function loadBookmarks()
                 table.insert(elements, e)
             end
             vim.keymap.set("n", "<leader>f" .. elements[1], function()
-                require("telescope.builtin").find_files {
+                require("telescope.builtin").git_files {
                     cwd = elements[2],
                     shorten_path = false,
                     prompt_title = elements[2]
