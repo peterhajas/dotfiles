@@ -23,11 +23,6 @@ vim.keymap.set("n", "[w", vim.cmd.tabprevious)
 vim.keymap.set("t", "]w", vim.cmd.tabnext)
 vim.keymap.set("t", "[w", vim.cmd.tabprevious)
 
--- Folds
-vim.keymap.set("n", "<leader>f", "za")
-vim.keymap.set("n", "<Space>", "za")
-vim.keymap.set("n", "<leader>F", function() vim.opt.foldenable = not vim.opt.foldenable end)
-
 -- Finding
 vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
@@ -55,3 +50,30 @@ end
 
 vim.keymap.set("n", "<leader><CR>", function() terminal() end)
 vim.keymap.set("t", "<leader><CR>", function() terminal() end)
+
+-- Bookmarks!
+local function loadBookmarks()
+    local bookmarks = io.open("/Users/phajas/.phajas/bookmarks")
+    if bookmarks then
+        local lines = bookmarks:lines()
+        for line in lines do
+            local elements = {}
+            for e in string.gmatch(line, "%S+") do
+                table.insert(elements, e)
+            end
+            vim.keymap.set("n", "<leader>f" .. elements[1], function()
+                require("telescope.builtin").find_files {
+                    cwd = elements[2],
+                    shorten_path = false,
+                    prompt_title = elements[2]
+                }
+            end)
+        end
+
+        bookmarks:close()
+    else
+        print("could not load bookmarks")
+    end
+end
+
+loadBookmarks()

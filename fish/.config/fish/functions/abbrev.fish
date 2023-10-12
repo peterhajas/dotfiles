@@ -81,4 +81,11 @@ function abbrev -d "Install fish abbreviations"
 
     ## pass
     abbr p pass
+
+    ## bookmarks
+    for line in (cat ~/.phajas/bookmarks)
+        set abb_name (echo $line | awk '{print $1}')
+        set abb_path (echo $line | awk '{print $2}')
+        abbr $abb_name $abb_path
+    end
 end
