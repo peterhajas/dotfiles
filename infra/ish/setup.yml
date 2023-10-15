@@ -1,7 +1,0 @@
-- name: setup ish
-  hosts: localhost
-  tasks:
-  - name: APK update
-    command: apk update
-  - name: APK upgrade
-    command: apk upgrade
