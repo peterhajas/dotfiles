@@ -22,6 +22,8 @@ local plugins = {
 
     {'folke/zen-mode.nvim'},
 
+    {'dhruvasagar/vim-table-mode'},
+
     {'nvim-telescope/telescope.nvim', tag = '0.1.3', dependencies = {'nvim-lua/plenary.nvim'}},
 
     {'stevearc/oil.nvim'},
