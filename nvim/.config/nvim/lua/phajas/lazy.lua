@@ -62,7 +62,10 @@ local plugins = {
     {'nvim-lualine/lualine.nvim', dependencies = {
         'nvim-tree/nvim-web-devicons',
     }},
-    { 'catppuccin/nvim', name = "catppuccin", priority = 1000 },
+
+    -- Visuals
+    {'norcalli/nvim-colorizer.lua'},
+    {'catppuccin/nvim', priority = 1000 },
 }
 
 local opts = {}
