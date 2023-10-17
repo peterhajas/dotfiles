@@ -1,4 +1,5 @@
 local Paths = require("phajas.wiki_paths")
+local Backlinks = require("phajas.wiki_backlinks")
 local I = {}
 
 -- Key: Window number
@@ -27,7 +28,13 @@ end
 
 function I._UpdateInfoBuffer(infobufno, forPath)
     vim.api.nvim_buf_set_option(infobufno, 'modifiable', true)
-    vim.api.nvim_buf_set_lines(infobufno, 0, -1, false, {forPath})
+    local lines = {}
+    table.insert(lines, forPath)
+    table.insert(lines, "")
+    for _, b in ipairs(Backlinks.Backlinks(forPath)) do
+        table.insert(lines, b)
+    end
+    vim.api.nvim_buf_set_lines(infobufno, 0, -1, false, lines)
     vim.api.nvim_buf_set_option(infobufno, 'modifiable', false)
 end
 
