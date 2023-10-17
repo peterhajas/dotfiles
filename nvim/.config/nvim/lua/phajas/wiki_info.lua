@@ -29,10 +29,12 @@ end
 function I._UpdateInfoBuffer(infobufno, forPath)
     vim.api.nvim_buf_set_option(infobufno, 'modifiable', true)
     local lines = {}
-    table.insert(lines, forPath)
+    table.insert(lines, "# " .. Paths.FileName(forPath))
+    table.insert(lines, "")
+    table.insert(lines, "## Backlinks:")
     table.insert(lines, "")
     for _, b in ipairs(Backlinks.Backlinks(forPath)) do
-        table.insert(lines, b)
+        table.insert(lines, Paths.FileName(b))
     end
     vim.api.nvim_buf_set_lines(infobufno, 0, -1, false, lines)
     vim.api.nvim_buf_set_option(infobufno, 'modifiable', false)

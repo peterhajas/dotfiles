@@ -5,7 +5,7 @@ local B = {}
 -- Returns a list of files that point to `path`
 function B.Backlinks(path)
     local files = vim.fn.globpath(Paths.WikiPath(), '**/*.md', 1, 1)
-    local pattern = '%[%[' .. Paths.FileName(path) .. '%]%]'
+    local pattern = '%[%[' .. Paths.FileName(path):lower() .. '%]%]'
     local backlinks = {}
     for _, filepath in pairs(files) do
         if filepath ~= path then

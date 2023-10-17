@@ -11,7 +11,7 @@ end
 -- Returns the pretty "file name" for a path
 function P.FileName(path)
     local filename = path:match("^.+/([^/]+)$") or path
-    filename = filename:gsub("%..*", ""):lower()
+    filename = filename:gsub("%..*", "")
     return filename
 end
 
