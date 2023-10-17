@@ -1,3 +1,5 @@
+History = require("phajas.wiki_history")
+
 local wikiPath = vim.fn.expand("~") .. "/phajas-wiki"
 local wikipattern = vim.fn.expand("~") .. "/phajas-wiki/*"
 
@@ -18,8 +20,8 @@ end
 local function WikiNavigateToFile(winno, frombufno, title)
     DEBUG(title)
     local path = WikiFileWithTitle(title)
+    local fromPath = vim.api.nvim_buf_get_name(frombufno)
     if path == nil then
-        local fromPath = vim.api.nvim_buf_get_name(frombufno)
         local directory = vim.fn.fnamemodify(fromPath, ":h")
         local newPath = directory .. "/" .. title .. ".md"
         local file = io.open(newPath, 'w')
@@ -31,6 +33,8 @@ local function WikiNavigateToFile(winno, frombufno, title)
             return
         end
     end
+
+    History.PushHistory(winno, fromPath)
 
     vim.api.nvim_command("edit " .. path)
 end
@@ -56,12 +60,21 @@ local function WikiBufferOpenFileAtCursor(winno, bufno)
         end
     end
 
-    if startIndex < column and endIndex > column and title ~= nil then
+    if startIndex ~= nil and endIndex ~= nil and
+       startIndex < column+2 and endIndex > column-2 and
+       title ~= nil then
         title = string.gsub(title, "%[", "")
         title = string.gsub(title, "%]", "")
         WikiNavigateToFile(winno, bufno, title)
     else
         print("Not yet implemented") -- plh-evil: fix me, find selected text
+    end
+end
+
+local function WikiGoBack(winno)
+    local path = History.PopHistory(winno)
+    if path ~= nil then
+        vim.api.nvim_command("edit " .. path)
     end
 end
 
@@ -78,6 +91,12 @@ local function WikiBufferEnter(info)
         callback = function()
             local winno = vim.api.nvim_get_current_win()
             WikiBufferOpenFileAtCursor(winno, bufno)
+        end
+    })
+    vim.api.nvim_buf_set_keymap(bufno, 'n', '<BS>', '', {
+        callback = function()
+            local winno = vim.api.nvim_get_current_win()
+            WikiGoBack(winno)
         end
     })
 end
