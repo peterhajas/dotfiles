@@ -15,4 +15,15 @@ function P.FileName(path)
     return filename
 end
 
+-- Returns the file path with this name, or `nil` if none exists
+function P.FilePath(name)
+    local files = vim.fn.globpath(Paths.WikiPath(), '**/' .. name .. ".md", 1, 1)
+
+    if not files or #files == 0 then
+        return nil
+    end
+
+    return files[1]
+end
+
 return P
