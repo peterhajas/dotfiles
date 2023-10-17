@@ -101,7 +101,7 @@ local function WikiBufferEnter(info)
     vim.api.nvim_buf_set_keymap(bufno, 'n', '^', '', {
         callback = function()
             local winno = vim.api.nvim_get_current_win()
-            Info.ShowInfo(bufno, winno)
+            Info.ToggleInfo(bufno, winno)
         end
     })
 end
@@ -113,6 +113,7 @@ vim.api.nvim_create_autocmd({"BufEnter"}, {
         local extension = string.match(info.file, "%.([^%.]+)$")
         if extension and string.lower(extension) == "md" then
             WikiBufferEnter(info)
+            Info.UpdateInfoBuffer(info.buf, vim.api.nvim_get_current_win())
         end
     end,
 })
