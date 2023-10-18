@@ -1,3 +1,4 @@
+local Navigation = require("phajas.wiki_navigation")
 local Paths = require("phajas.wiki_paths")
 local Backlinks = require("phajas.wiki_backlinks")
 local I = {}
@@ -20,9 +21,19 @@ end
 
 function I._NewInfoBuffer(winno, bufno)
     local infobufno = vim.api.nvim_create_buf(false, true)
+    I._visibleInfos[winno].bufno = infobufno
+
     -- Mark it non-modifiable
     vim.api.nvim_buf_set_option(infobufno, 'modifiable', false)
-    I._visibleInfos[winno].bufno = infobufno
+    -- Register a key command so that when we hit enter, we open that file
+    vim.api.nvim_buf_set_keymap(infobufno, 'n', '<CR>', '', {
+        callback = function()
+            local infoWinno = vim.api.nvim_get_current_win()
+            Navigation.OpenFileAtCursor(infoWinno, winno, infobufno)
+            -- Switch focus back to the editor
+            vim.api.nvim_set_current_win(winno)
+        end
+    })
     return infobufno
 end
 

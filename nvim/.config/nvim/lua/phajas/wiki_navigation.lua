@@ -25,11 +25,9 @@ function N.NavigateToFile(winno, frombufno, title)
 
     -- Focus the window
     vim.api.nvim_win_call(winno, function()
-        vim.cmd("wincmd w")
+        -- Edit the file
+        vim.api.nvim_command("edit " .. path)
     end)
-
-    -- Edit the file
-    vim.api.nvim_command("edit " .. path)
 end
 
 function N.GoBack(winno)
