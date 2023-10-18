@@ -12,7 +12,7 @@ local function WikiBufferEnter(info)
             Navigation.OpenFileAtCursor(winno, winno, bufno)
         end
     })
-    vim.api.nvim_buf_set_keymap(bufno, 'v', '<CR>', '', {
+    vim.api.nvim_buf_set_keymap(bufno, 'x', '<CR>', '', {
         callback = function()
             local winno = vim.api.nvim_get_current_win()
             Navigation.OpenFileAtCursor(winno, winno, bufno)

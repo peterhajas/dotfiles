@@ -65,13 +65,45 @@ function N.OpenFileAtCursor(winno, intoWinno, bufno)
         title = string.gsub(title, "%]", "")
         Navigation.NavigateToFile(intoWinno, bufno, title)
     else
+        -- Keep track of what text we will need to replace with the
+        -- Wiki-fied link in the buffer
+        local startRow = row
+        local endRow = row
+        local startCol = column
+        local endCol = column
+
+        local visualMode = vim.fn.mode() == 'v' or vim.fn.mode() == 'V'
+        local wikiLink = line
+
         -- If there's just a filename on this line, then go with that
+        -- plh-evil - once we have word-level linkification, this should
+        -- create the file if it's not there (and remove the if-conditional)
         local lineFilePath = Paths.FilePath(line)
         if lineFilePath ~= nil then
-            Navigation.NavigateToFile(intoWinno, bufno, line)
+            startRow = row - 1
+            endRow = row - 1
+            startCol = 0
+            endCol = string.len(line)
+            wikiLink = line
+            -- Navigation.NavigateToFile(intoWinno, bufno, line)
+        elseif visualMode then
+            local startPos = vim.fn.getpos("'<")
+            local endPos = vim.fn.getpos("'>")
+            startRow = startPos[2] - 1
+            startCol = startPos[3]
+            endRow = endPos[2] - 1
+            endCol = endPos[3]
         else
-            print("Not yet implemented") -- plh-evil: fix me, find selected text
+            print("not yet implemented")
+            return
         end
+
+        wikiLink = vim.api.nvim_buf_get_text(bufno, startRow, startCol, endRow, endCol, {})[1]
+
+        -- plh-evil: this does not work in visual mode
+        wikiLink = "[[" .. wikiLink .. "]]"
+        P({startRow, startCol, endRow, endCol, wikiLink})
+        vim.api.nvim_buf_set_text(bufno, startRow, startCol, endRow, endCol, {wikiLink})
     end
 end
 
