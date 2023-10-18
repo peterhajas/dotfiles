@@ -75,18 +75,7 @@ function N.OpenFileAtCursor(winno, intoWinno, bufno)
         local visualMode = vim.fn.mode() == 'v' or vim.fn.mode() == 'V'
         local wikiLink = line
 
-        -- If there's just a filename on this line, then go with that
-        -- plh-evil - once we have word-level linkification, this should
-        -- create the file if it's not there (and remove the if-conditional)
-        local lineFilePath = Paths.FilePath(line)
-        if lineFilePath ~= nil then
-            startRow = row - 1
-            endRow = row - 1
-            startCol = 0
-            endCol = string.len(line)
-            wikiLink = line
-            -- Navigation.NavigateToFile(intoWinno, bufno, line)
-        elseif visualMode then
+        if visualMode then
             local startPos = vim.fn.getpos("'<")
             local endPos = vim.fn.getpos("'>")
             startRow = startPos[2] - 1
@@ -94,15 +83,23 @@ function N.OpenFileAtCursor(winno, intoWinno, bufno)
             endRow = endPos[2] - 1
             endCol = endPos[3]
         else
-            print("not yet implemented")
-            return
+            startRow = row - 1
+            endRow = row - 1
+            startCol = 0
+            endCol = string.len(line)
+            wikiLink = line
+            -- plh-evil: this should be unconditional when we can get visual
+            -- mode to work - it'll make the file for us
+            Navigation.NavigateToFile(intoWinno, bufno, line)
         end
 
         wikiLink = vim.api.nvim_buf_get_text(bufno, startRow, startCol, endRow, endCol, {})[1]
 
         -- plh-evil: this does not work in visual mode
         wikiLink = "[[" .. wikiLink .. "]]"
-        P({startRow, startCol, endRow, endCol, wikiLink})
+        -- local debug = vim.inspect({startRow, startCol, endRow, endCol, wikiLink})
+        -- P(debug)
+        -- vim.api.nvim_buf_set_text(bufno, startRow, startCol, endRow, endCol, {debug})
         vim.api.nvim_buf_set_text(bufno, startRow, startCol, endRow, endCol, {wikiLink})
     end
 end
