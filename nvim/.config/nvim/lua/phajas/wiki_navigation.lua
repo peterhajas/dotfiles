@@ -10,14 +10,7 @@ function N.NavigateToFile(winno, frombufno, title)
     if path == nil then
         local directory = vim.fn.fnamemodify(fromPath, ":h")
         local newPath = directory .. "/" .. title .. ".md"
-        local file = io.open(newPath, 'w')
-        if file then
-            path = newPath
-            file:close()
-        else
-            print('Failed to create the file:', newPath)
-            return
-        end
+        path = newPath
     end
 
     -- Log this in History
