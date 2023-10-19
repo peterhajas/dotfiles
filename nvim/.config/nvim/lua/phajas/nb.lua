@@ -28,6 +28,7 @@ vim.api.nvim_create_autocmd({"BufEnter"}, {
     group = vim.api.nvim_create_augroup("phajas-nb-enter", { clear = true }),
     pattern = NBNotebookPath() .. "/*",
     callback = function(evt)
+        vim.wo.linebreak = true
         require("gitsigns").detach(evt.buf)
     end,
 })
