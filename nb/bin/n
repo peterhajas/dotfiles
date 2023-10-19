@@ -7,10 +7,8 @@ else
     # do the NV thing with $*
     EXISTING=$(nb ls --no-id --no-indicator --no-header --no-footer --filename $* 2>>/dev/null)
     if [ -z "$EXISTING" ]; then
-        echo "NOT FOUND"
         nb add --title "$*" --edit
     else
-        echo "FOUND"
         nb edit $EXISTING
     fi
 fi
