@@ -24,8 +24,16 @@ vim.api.nvim_create_user_command('NBJournal', NBJournal, {})
 vim.keymap.set('n', '<leader>n', function() NB() end, {})
 vim.keymap.set('n', '<leader>j', function() NBJournal() end, {})
 
+vim.api.nvim_create_autocmd({"BufEnter"}, {
+    group = vim.api.nvim_create_augroup("phajas-nb-enter", { clear = true }),
+    pattern = NBNotebookPath() .. "/*",
+    callback = function(evt)
+        require("gitsigns").detach(evt.buf)
+    end,
+})
+
 vim.api.nvim_create_autocmd({"BufWritePost"}, {
-    group = vim.api.nvim_create_augroup("phajas-nb", { clear = true }),
+    group = vim.api.nvim_create_augroup("phajas-nb-write", { clear = true }),
     pattern = NBNotebookPath() .. "/*",
     callback = function()
         vim.fn.system("nb git checkpoint")
