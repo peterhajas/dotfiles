@@ -5,10 +5,10 @@ if [ $# -eq 0 ]; then
     nvim -c ":NB"
 else
     # do the NV thing with $*
-    EXISTING=$(nb ls --no-id --no-indicator --no-header --no-footer --filename $* 2>>/dev/null)
+    EXISTING=$(nb ls --no-id --no-indicator --no-header --no-footer --filename "$*" 2>>/dev/null)
     if [ -z "$EXISTING" ]; then
-        nb add --title "$*" --edit
+        nb add --title "$*" --filename "$*.md" --edit
     else
-        nb edit $EXISTING
+        nb edit "$EXISTING"
     fi
 fi
