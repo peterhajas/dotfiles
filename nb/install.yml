@@ -1,0 +1,14 @@
+- hosts: localhost
+  tasks:
+  - name: install nb and yarn
+    ansible.builtin.package:
+      name:
+        - nb
+        - yarn
+      state: latest
+  - name: install note link janitor
+    command: yarn global add @andymatuschak/note-link-janitor
+  - name: install nb completions
+    command: nb completions install --download
+  - name: install nb backlinks helper
+    command: nb plugins install https://github.com/xwmx/nb/blob/master/plugins/backlink.nb-plugin

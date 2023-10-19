@@ -2,6 +2,7 @@ require("phajas.set")
 require("phajas.lazy")
 require("phajas.remap")
 require("phajas.globals")
+require("phajas.nb")
 require("phajas.wiki")
 
 -- before LSP

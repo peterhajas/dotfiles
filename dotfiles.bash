@@ -7,9 +7,13 @@ stow stow
 
 for dir in */
 do
-    echo Unstowing $dir
-    stow -D $dir
-    echo Restowing $dir
-    stow $dir
+    if [ ! -e "$dir/install.yml" ]; then
+        echo Unstowing $dir
+        stow -D $dir
+        echo Restowing $dir
+        stow $dir
+    else
+        ansible-playbook $dir/install.yml
+    fi
 done
 
