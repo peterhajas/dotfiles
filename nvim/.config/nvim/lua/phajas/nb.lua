@@ -7,7 +7,8 @@ end
 local function NB()
     builtin.live_grep{
         cwd = NBNotebookPath(),
-        prompt_title = "nb search (start typing)"
+        prompt_title = "nb search (start typing)",
+        disable_coordinates = true,
     }
 end
 
