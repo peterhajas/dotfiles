@@ -3,5 +3,5 @@
 if [ $# -eq 0 ]; then
     echo "needs a url"
 else
-    nb bookmark read/ "$*"
+    nb bookmark "Read Later/" "$*"
 fi
