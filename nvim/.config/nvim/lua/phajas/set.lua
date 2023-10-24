@@ -31,6 +31,9 @@ vim.opt.incsearch = true
 vim.opt.showmatch = true
 vim.opt.smartcase = true
 
+-- Visuals
+vim.opt.termguicolors = true
+
 -- Colorcolumn
 vim.opt.colorcolumn = "81"
 vim.api.nvim_set_hl(0, "ColorColumn", { ctermbg="Black", bg="Black" })
