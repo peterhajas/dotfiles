@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.peterhajas.nb_sync.plist</string>
+    <key>Program</key>
+    <string>/opt/homebrew/bin/nb</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/opt/homebrew/bin/nb</string>
+        <string>sync</string>
+    </array>
+    <key>StartInterval</key>
+    <integer>60</integer>
+</dict>
+</plist>

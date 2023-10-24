@@ -12,3 +12,5 @@
     command: nb completions install --download
   - name: install nb backlinks helper
     command: nb plugins install https://github.com/xwmx/nb/blob/master/plugins/backlink.nb-plugin
+  - name: load launchd plist
+    command: launchctl load ~/Library/LaunchAgents/com.peterhajas.nb_sync.plist
