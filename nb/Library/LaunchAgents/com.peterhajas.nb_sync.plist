@@ -5,13 +5,8 @@
     <key>Label</key>
     <string>com.peterhajas.nb_sync.plist</string>
     <key>Program</key>
-    <string>/opt/homebrew/bin/nb</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/opt/homebrew/bin/nb</string>
-        <string>sync</string>
-    </array>
+    <string>/Users/phajas/bin/nb_sync</string>
     <key>StartInterval</key>
-    <integer>60</integer>
+    <integer>180</integer>
 </dict>
 </plist>

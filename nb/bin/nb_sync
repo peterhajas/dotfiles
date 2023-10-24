@@ -1,0 +1,16 @@
+#!/bin/bash
+
+checkNetwork() {
+    ping -c 1 peterhajas.com > /dev/null 2>&1
+}
+
+NB_COMMAND=$(which nb)
+
+if checkNetwork; then
+    $NB_COMMAND sync &
+    timeout=15
+    sleep $timeout
+    kill %1
+else
+    echo "No network connectivity. Command not executed."
+fi
