@@ -9,6 +9,7 @@ require("phajas.wiki")
 require("phajas.plugins.mason")
 
 require("phajas.plugins.blame_line")
+require("phajas.plugins.bufferline")
 require("phajas.plugins.catppuccin")
 require("phajas.plugins.cmp")
 require("phajas.plugins.commentary")

@@ -58,10 +58,12 @@ local plugins = {
     {'tpope/vim-fugitive'},
     {'lewis6991/gitsigns.nvim'},
     -- {'braxtons12/blame_line.nvim'} - disabled
-    -- Status Line
+
+    -- UI enhancements
     {'nvim-lualine/lualine.nvim', dependencies = {
         'nvim-tree/nvim-web-devicons',
     }},
+    {'akinsho/bufferline.nvim'},
 
     -- Visuals
     {'norcalli/nvim-colorizer.lua'},
