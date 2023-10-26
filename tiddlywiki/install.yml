@@ -1,0 +1,4 @@
+- hosts: localhost
+  tasks:
+  - name: load launchd plist
+    command: launchctl load ~/Library/LaunchAgents/com.peterhajas.tiddlywiki_sync.plist

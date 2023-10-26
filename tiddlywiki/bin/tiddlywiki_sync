@@ -1,0 +1,25 @@
+#!/bin/bash
+
+GIT=$(which git)
+
+pushd ~/phajas-wiki
+$GIT commit -a -m "auto commit from macOS"
+
+checkNetwork() {
+    ping -c 1 peterhajas.com > /dev/null 2>&1
+}
+
+if checkNetwork; then
+    $GIT pull --rebase origin master &
+    timeout=15
+    sleep $timeout
+    kill %1
+    $GIT push origin master &
+    timeout=15
+    sleep $timeout
+    kill %1
+else
+    echo "No network connectivity. Command not executed."
+fi
+
+popd
