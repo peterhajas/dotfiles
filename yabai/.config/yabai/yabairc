@@ -37,6 +37,3 @@ done
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Steam$" manage=off
 
-# Events for SketchyBar
-yabai -m signal --add event=window_focused action="sketchybar -m --trigger window_focus &> /dev/null"
-yabai -m signal --add event=window_title_changed action="sketchybar -m --trigger title_change &> /dev/null"
