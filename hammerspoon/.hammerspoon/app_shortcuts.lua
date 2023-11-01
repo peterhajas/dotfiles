@@ -47,8 +47,8 @@ local hyperAppShortcuts = {
     ['c'] = 'Calendar',
     ['b'] = 'Home Assistant',
     ['r'] = 'Reeder',
-    ['space'] = 'Logseq',
-    ['`'] = 'Logseq',
+    ['space'] = 'TiddlyDesktop',
+    ['`'] = 'TiddlyDesktop',
 }
 
 for shortcut,appString in pairs(hyperAppShortcuts) do
