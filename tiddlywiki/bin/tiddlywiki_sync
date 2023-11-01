@@ -10,12 +10,8 @@ checkNetwork() {
 }
 
 if checkNetwork; then
-    $GIT pull --rebase origin master &
-    timeout=15
-    sleep $timeout
-    kill %1
-    $GIT push origin master &
-    timeout=15
+    ($GIT pull --rebase origin master && $GIT push origin master) &
+    timeout=10
     sleep $timeout
     kill %1
 else
