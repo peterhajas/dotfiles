@@ -22,6 +22,12 @@ yabai -m config \
     window_gap $PADDING\
     window_placement second_child \
 
+# Apply bsp layout everywhere
+for (( i=1; i<=30; i++ ))
+do
+    yabai -m config --space $i layout bsp
+done
+
 # Pad for widgets just on the main display's 10 spaces
 for (( i=1; i<=10; i++ ))
 do
