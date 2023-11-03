@@ -34,6 +34,7 @@ require "youtubedl"
 require "server"
 require "flux"
 require "pass"
+require "tiddlywiki"
 
 profileStop('imports')
 profileStart('globals')
