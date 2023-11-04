@@ -15,7 +15,6 @@ local function update()
             ["ignoreLocalCache"] = "true"
         }
     })
-    hs.timer.doAfter(60, update)
 end
 
 local function layout()
@@ -34,6 +33,10 @@ local function setupWebView()
     webView:sendToBack()
     webView:show()
     wikiScreenWatcher:start()
+
+    hs.pathwatcher.new(wikiPath, function()
+        update()
+    end):start()
 
     layout()
     update()
