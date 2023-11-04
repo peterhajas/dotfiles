@@ -32,11 +32,6 @@ function abbrev -d "Install fish abbreviations"
     # vim
     abbr vv 'find . | fzf -i | xargs -o nvim'
 
-    # vimwikki
-    abbr w 'nvim -c "VimwikiIndex"'
-    abbr ww 'find -H ~/.vimwiki | fzf -i | xargs -o nvim'
-    abbr wd 'nvim -c "VimwikiMakeDiaryNote"'
-
     ## todo
     abbr tj 'vimwiki_gtd $vimwiki_projects_path'
 
