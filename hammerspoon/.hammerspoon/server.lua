@@ -40,7 +40,9 @@ server = hs.httpserver.new()
 :setCallback(function(requestType, path, headers, contents)
     local body = "OK"
     local responseCode = 200
-    local additionalHeaders = {}
+    local additionalHeaders = {
+        ["Access-Control-Allow-Origin"] = "*"
+    }
 
     command = path:sub(2)
     if parseHTTPCommand(command) == false then
