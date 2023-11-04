@@ -21,7 +21,7 @@ end
 
 local function layout()
     local screen = hs.screen.primaryScreen()
-    local rect = hs.geometry.rect(0,20,180,screen:frame().h - 20)
+    local rect = hs.geometry.rect(0,20,198,screen:frame().h - 20)
     webView:frame(rect)
 end
 
