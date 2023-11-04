@@ -1,3 +1,4 @@
+-- phajas: this is all unused currently
 local builtin = require('telescope.builtin')
 
 local function NBNotebookPath()
@@ -24,12 +25,7 @@ local function NBIndex()
 end
 
 vim.api.nvim_create_user_command('NB', NB, {})
-
 vim.api.nvim_create_user_command('NBJournal', NBJournal, {})
-
-vim.keymap.set('n', '<leader>n', function() NB() end, {})
-vim.keymap.set('n', '<leader>j', function() NBJournal() end, {})
-vim.keymap.set('n', '<leader>ni', function() NBIndex() end, {})
 
 vim.api.nvim_create_autocmd({"BufEnter"}, {
     group = vim.api.nvim_create_augroup("phajas-nb-enter", { clear = true }),
