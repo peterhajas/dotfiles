@@ -15,7 +15,6 @@ local function update()
             ["ignoreLocalCache"] = "true"
         }
     })
-    webView:evaluateJavaScript("document.body.style.zoom = 0.8")
     hs.timer.doAfter(60, update)
 end
 
