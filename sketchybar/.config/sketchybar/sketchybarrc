@@ -21,12 +21,14 @@ sketchybar --add event weather_update
 sketchybar --add item time right \
            --set time script="$PLUGIN_DIR/time.sh" \
            --set time click_script="$PLUGIN_DIR/time_clicked.sh" \
-           --set time label.color=0xffcccccc update_freq=10
+           --set time label.color=0xffcccccc update_freq=10 \
+           --subscribe time system_woke
 
 sketchybar --add item date right \
            --set date script="$PLUGIN_DIR/date.sh" \
            --set date click_script="$PLUGIN_DIR/date_clicked.sh" \
-           --set date label.color=0xffc9c9c9 update_freq=600
+           --set date label.color=0xffc9c9c9 update_freq=600 \
+           --subscribe date system_woke
 
 sketchybar --add item battery right \
            --set battery script="$PLUGIN_DIR/battery.sh" \
