@@ -35,12 +35,14 @@ sketchybar --add item date right \
 sketchybar --add item battery right \
            --set battery script="$PLUGIN_DIR/battery.sh" \
            --subscribe battery power_source_change \
-           --set battery label.color=0xff6699cc update_freq=600
+           --set battery label.color=0xff6699cc update_freq=600 \
+           --subscribe battery system_woke
 
 sketchybar --add item weather right \
            --set weather script="$PLUGIN_DIR/weather.sh" \
            --set weather click_script="$PLUGIN_DIR/weather_clicked.sh" \
-           --set weather label.color=0xffffcc66 update_freq=600
+           --set weather label.color=0xffffcc66 update_freq=600 \
+           --subscribe weather system_woke
 
 sketchybar --add item weather.radar popup.weather \
            --set weather.radar script="$PLUGIN_DIR/radar.sh" \
