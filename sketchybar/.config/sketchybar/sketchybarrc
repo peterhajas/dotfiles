@@ -1,3 +1,5 @@
+# vim: ft=bash
+
 ITEM_PADDING=3
 
 PLUGIN_DIR="$HOME/.config/sketchybar/plugins"
