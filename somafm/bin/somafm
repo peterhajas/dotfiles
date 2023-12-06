@@ -1,4 +1,4 @@
 #!/bin/bash
 
-cat $HOME/.phajas/soma_stations | fzf | xargs mpv
+curl --silent "https://somafm.com/listen/" |grep m3u |grep 64 |sed "s/<a href=\"/https:\/\/somafm.com/" | sed "s/\">64k<\/a>//" | sort --reverse | fzf | xargs mpv
 
