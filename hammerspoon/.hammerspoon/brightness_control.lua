@@ -3,7 +3,7 @@ require "hyper"
 -- Brightness Control {{{
 
 function changeBrightnessInDirection (d)
-    local brightnessChangeAmount = 16
+    local brightnessChangeAmount = 6
     local brightness = hs.brightness.get()
 
     brightness = brightness + (brightnessChangeAmount * d)
