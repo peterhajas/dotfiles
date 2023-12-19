@@ -4,7 +4,7 @@ sketchybar -m --set weather popup.drawing=toggle
 
 sketchybar --remove "/weather.details.*/"
 
-CITIES=$(cat ~/brain/pages/data___weather_locations.md | sed 's/- //')
+CITIES=$(~/bin/tiddlywiki_render "Weather Locations")
 
 for CITY in $CITIES
 do
