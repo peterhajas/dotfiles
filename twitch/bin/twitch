@@ -1,4 +1,14 @@
 #!/bin/sh
 
-tiddlywiki_render "Twitch Subscriptions" | sed 's/^/https:\/\/twitch.tv\//' | fzf --preview 'mpv --no-focus-on-open {}' | xargs mpv
+channels=$(tiddlywiki_render "Twitch Subscriptions" | sed 's/^/https:\/\/www.twitch.tv\//')
+
+live_channels=""
+while IFS= read -r url; do
+    curl_result=$(curl -A --silent "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36" "$url" 2>>/dev/null)
+    if echo "$curl_result" | grep -q "live_user"; then
+        live_channels+="$url\n"
+    fi
+done <<< "$channels"
+
+echo "$live_channels" | fzf --preview 'mpv --no-focus-on-open {}' | xargs mpv
 
