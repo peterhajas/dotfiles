@@ -10,6 +10,16 @@ function abbrev -d "Install fish abbreviations"
     # fish
     abbr bu 'brew update && brew upgrade'
 
+    # exa
+    abbr ll exa -l
+    abbr ls exa
+
+    # bat
+    abbr cat bat
+
+    # cd
+    abbr c cd
+
     # git
     abbr g git status
     abbr gm git commit
@@ -32,15 +42,8 @@ function abbrev -d "Install fish abbreviations"
     # vim
     abbr vv 'find . | fzf -i | xargs -o nvim'
 
-    ## todo
-    abbr tj 'vimwiki_gtd $vimwiki_projects_path'
-
     # youtube-dl
     abbr y 'ytd "'
-
-    # misc.
-    abbr c cd
-    abbr ll exa -l
 
     # util
     ## sync music to lighthouse
@@ -51,12 +54,12 @@ function abbrev -d "Install fish abbreviations"
     abbr radio '~/Music/peter/_radio/grab.sh && sync_music'
 
     ## ledger
-    abbr l 'open "http://127.0.0.1:5000" && $ledgerBuild && hledger-web -f $ledgerFile --serve'
-    abbr lb '$ledgerBuild && hledger -f $ledgerFile balance'
-    abbr lr '$ledgerBuild && hledger -f $ledgerFile register'
-    abbr lv '$ledgerBuild && nvim $ledgerFile'
-    abbr ll '$ledgerBuild && less $ledgerFile'
-    abbr ld '$ledgerBuild && rsync /tmp/peter.ledger beacon:services/hledger/data/hledger.journal'
+    abbr ledg 'open "http://127.0.0.1:5000" && $ledgerBuild && hledger-web -f $ledgerFile --serve'
+    abbr ledgb '$ledgerBuild && hledger -f $ledgerFile balance'
+    abbr ledgr '$ledgerBuild && hledger -f $ledgerFile register'
+    abbr ledgv '$ledgerBuild && nvim $ledgerFile'
+    abbr ledgl '$ledgerBuild && less $ledgerFile'
+    abbr ledgd '$ledgerBuild && rsync /tmp/peter.ledger beacon:services/hledger/data/hledger.journal'
 
     ## yabai
     abbr yr "yabai --stop-service && yabai --start-service && skhd --stop-service && skhd --start-service"
