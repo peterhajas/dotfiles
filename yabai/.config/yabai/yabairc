@@ -25,7 +25,7 @@ yabai -m config \
     window_placement second_child \
 
 # Apply bsp layout everywhere
-for (( i=1; i<=30; i++ ))
+for (( i=11; i<=30; i++ ))
 do
     yabai -m config --space $i layout bsp
 done
@@ -33,7 +33,7 @@ done
 # Pad for widgets just on the main display's 10 spaces
 for (( i=1; i<=10; i++ ))
 do
-    yabai -m config --space $i left_padding $WIDGET_PADDING
+    yabai -m config --space $i layout bsp left_padding $WIDGET_PADDING right_padding $WIDGET_PADDING
 done
 
 yabai -m rule --add app="^System Settings$" manage=off

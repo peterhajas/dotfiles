@@ -1,3 +1,8 @@
+-- Metrics
+
+local width = 199
+local yOffset = 20
+
 -- Bind hyper-space
 hs.hotkey.bind(hyper, 'space', function()
     peekAtApp("TiddlyDesktop")
@@ -27,7 +32,7 @@ local caffeinateWatcher = hs.caffeinate.watcher.new(handleMachineWake)
 
 local function layout()
     local screen = hs.screen.primaryScreen()
-    local rect = hs.geometry.rect(0,20,198,screen:frame().h - 20)
+    local rect = hs.geometry.rect(0,yOffset,width,screen:frame().h - yOffset)
     webView:frame(rect)
 end
 
