@@ -1,0 +1,52 @@
+#!/bin/bash
+
+summarize() {
+    echo "Thinking..."
+    local input="$1"
+    local prompt="You are an AI assistant. I am going to give you the text of a document. Your job is to summarize it into a few sentences. Be brief, do not use jargon, and do not embelish. The text is below. Summarize it into a few sentences. ===== $1"
+    prompt=$(echo "$prompt" | tr '\n' ' ')
+    prompt=$(jq --null-input --arg input "$prompt" '$input')
+    local data="{\"model\": \"stablelm-zephyr\", \"prompt\": $prompt, \"stream\" : false }"
+    response_full=$(curl --silent -X POST -H "Content-Type: application/json" -d "$data" http://localhost:11434/api/generate)
+    response=$(echo "$response_full" | jq -r '.response')
+    echo "$response"
+}
+
+if [ $# -eq 1 ]; then
+    input="$1"
+
+    # Check if the input is a filepath
+    if [ -f "$input" ]; then
+        filename=$(basename -- "$input")
+        extension="${filename##*.}"
+
+        contents=$(cat "$input")
+        summarize "$contents"
+
+    # Check if the input is a URL
+    elif [[ "$input" == "http"* || "$input" == "https"* ]]; then
+        echo "Grabbing url..."
+        wget --quiet --output-document=/tmp/ai_url.html "$input"
+        pandoc -f html -t plain /tmp/ai_url.html > /tmp/ai_string.txt
+        "$0" "/tmp/ai_string.txt"
+
+    # Check if the input is a string
+    elif [ -n "$input" ] && [ -z "$(echo "$input" | grep -E '^[[:space:]]*$')" ]; then
+        echo $input > /tmp/ai_string.txt
+        "$0" "/tmp/ai_string.txt"
+    else
+        echo "Please run with a string, file path, or URL"
+        exit 1
+    fi
+
+else
+    # Check if input comes from STDIN
+    if [ -p /dev/stdin ]; then
+        input=$(cat)
+        summarize "$input"
+    else
+        echo "Please run with a string, file path, or URL"
+        exit 1
+    fi
+fi
+
