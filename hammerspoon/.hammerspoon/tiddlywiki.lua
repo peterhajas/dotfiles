@@ -1,7 +1,7 @@
 -- Metrics
 
 local width = 199
-local yOffset = 20
+local yOffset = 30
 
 -- Bind hyper-space
 hs.hotkey.bind(hyper, 'space', function()
