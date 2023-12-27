@@ -1,4 +1,6 @@
 #!/bin/bash
+# URLs are like:
+# https://somafm.com/vaporwaves.pls
 
-curl --silent "https://somafm.com/listen/" |grep m3u |grep 64 |sed "s/<a href=\"/https:\/\/somafm.com/" | sed "s/\">64k<\/a>//" | sort --reverse | fzf | xargs mpv
+curl --silent "https://somafm.com/listen/" |grep m3u |grep 64 |sed -e "s/<a href=\"//" -e "s/\">64k<\/a>//" -e "s/m3u//g" -e "s/\///g" -e "s/\.//" -e "s/64//" -e "s/^/https:\/\/somafm.com\//" -e "s/$/\.pls/" | sort --reverse | fzf | xargs mpv
 
