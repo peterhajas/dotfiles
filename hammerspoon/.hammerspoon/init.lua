@@ -14,6 +14,8 @@ hs.alert.show("hs...")
 profileStart('imports')
 profileStart('configTotal')
 
+require "util"
+
 require("hs.ipc")
 hs.ipc.cliInstall()
 
