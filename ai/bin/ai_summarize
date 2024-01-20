@@ -6,7 +6,7 @@ summarize() {
     local prompt="You are an AI assistant. I am going to give you the text of a document. Your job is to summarize it into a few sentences. Be brief, do not use jargon, and do not embelish. The text is below. Summarize it into a few sentences. ===== $1"
     prompt=$(echo "$prompt" | tr '\n' ' ')
     prompt=$(jq --null-input --arg input "$prompt" '$input')
-    local data="{\"model\": \"stablelm-zephyr\", \"prompt\": $prompt, \"stream\" : false }"
+    local data="{\"model\": \"mistral\", \"prompt\": $prompt, \"stream\" : false }"
     response_full=$(curl --silent -X POST -H "Content-Type: application/json" -d "$data" http://localhost:11434/api/generate)
     response=$(echo "$response_full" | jq -r '.response')
     echo "$response"
