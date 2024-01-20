@@ -1,0 +1,18 @@
+#!/bin/bash
+
+cleanup() {
+    rm /tmp/recording.wav 2>>/dev/null
+    rm /tmp/transcode.wav 2>>/dev/null
+    rm /tmp/transcode.wav.txt 2>>/dev/null
+}
+
+cleanup
+
+rec /tmp/recording.wav 1>>/dev/null
+ffmpeg -i /tmp/recording.wav /tmp/transcode.wav 1>>/dev/null 2>>/dev/null
+# tdrz doesn't seem to super work but whatever
+whisper-cpp -m ~/.models/ggml-small.en-tdrz.bin -tdrz -otxt /tmp/transcode.wav 1>>/dev/null 2>>/dev/null
+
+cat /tmp/transcode.wav.txt
+
+cleanup

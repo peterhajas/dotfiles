@@ -1,0 +1,15 @@
+#!/bin/bash
+
+rm /tmp/recorded.txt 2>>/dev/null
+
+ai_recorder > /tmp/recorded.txt
+
+echo "TRANSCRIPT:"
+echo "-----------"
+cat /tmp/recorded.txt
+
+echo "SUMMARIZED:"
+echo "-----------"
+ai_summarize /tmp/recorded.txt
+
+rm /tmp/recorded.txt 2>>/dev/null
