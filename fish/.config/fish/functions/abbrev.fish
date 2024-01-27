@@ -3,7 +3,7 @@ set ledgerBuild ~/src/ledger_utils/ledger_build.py
 set ledgerFile /tmp/peter.ledger
 
 function sync_music -d "Sync Music"
-    rsync -avvz ~/Music/peter beacon:/mnt/media/music/
+    rsync -avvz --delete ~/Music/peter beacon:/mnt/media/music/
 end
 
 function abbrev -d "Install fish abbreviations"
