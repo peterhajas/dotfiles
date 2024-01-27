@@ -1,6 +1,6 @@
 -- Metrics
 
-local width = 199
+local width = 180
 local yOffset = 30
 
 -- Bind hyper-space
