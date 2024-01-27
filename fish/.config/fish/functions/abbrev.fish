@@ -8,7 +8,7 @@ end
 
 function abbrev -d "Install fish abbreviations"
     # fish
-    abbr bu 'brew update && brew upgrade'
+    abbr bu 'yabai --stop-service && brew update && brew upgrade && yabai --start-service'
 
     # exa
     abbr ll exa -l
