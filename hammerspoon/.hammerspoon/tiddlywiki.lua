@@ -22,20 +22,18 @@ local function update()
     })
 end
 
-local function handleMachineWake(eventType)
-    if eventType == hs.caffeinate.watcher.systemDidWake then
-        update()
-    end
-end
-
-local caffeinateWatcher = hs.caffeinate.watcher.new(handleMachineWake)
-
 local function layout()
+    update()
     local screen = hs.screen.primaryScreen()
     local rect = hs.geometry.rect(0,yOffset,width,screen:frame().h - yOffset)
     webView:frame(rect)
 end
 
+local function handleCaffeineCallback(eventType)
+    layout()
+end
+
+local caffeinateWatcher = hs.caffeinate.watcher.new(handleCaffeineCallback)
 local wikiScreenWatcher = hs.screen.watcher.new(layout)
 
 local function setupWebView()
@@ -49,7 +47,7 @@ local function setupWebView()
     caffeinateWatcher:start()
 
     hs.pathwatcher.new(wikiPath, function()
-        update()
+        layout()
     end):start()
 
     layout()
