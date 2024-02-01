@@ -35,6 +35,7 @@ end
 
 local caffeinateWatcher = hs.caffeinate.watcher.new(handleCaffeineCallback)
 local wikiScreenWatcher = hs.screen.watcher.new(layout)
+local pathWatcher = hs.pathwatcher.new(wikiPath, layout)
 
 local function setupWebView()
     local rect = hs.geometry.rect(0,0,0,0)
@@ -45,10 +46,7 @@ local function setupWebView()
     webView:show()
     wikiScreenWatcher:start()
     caffeinateWatcher:start()
-
-    hs.pathwatcher.new(wikiPath, function()
-        layout()
-    end):start()
+    pathWatcher:start()
 
     layout()
     update()
