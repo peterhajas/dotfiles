@@ -11,15 +11,15 @@ end)
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 local wikiPath = wikiDirectory .. "phajas-wiki.html"
 local webView = nil
-local tiddler = ""
 
 local function update()
-    webView:url({
-        ["URL"] = "file://" .. wikiPath .. "#" .. tiddler,
-        ["cachePolicy"] = {
-            ["ignoreLocalCache"] = "true"
-        }
-    })
+    local wikiFile = io.open(wikiPath, "r")
+    if wikiFile ~= nil then
+        local wikiContents = wikiFile:read("*a")
+        wikiContents = string.gsub(wikiContents, "SHOWHUDNO", "SHOWHUDYES_SIDEBARWIDGET")
+        wikiContents = string.gsub(wikiContents, "#2d2d2d", "unset")
+        webView:html(wikiContents)
+    end
 end
 
 local function layout()
