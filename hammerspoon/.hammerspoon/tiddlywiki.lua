@@ -29,7 +29,7 @@ local function layout()
     webView:frame(rect)
 end
 
-local function handleCaffeineCallback(eventType)
+local function handleCaffeineCallback()
     layout()
 end
 
