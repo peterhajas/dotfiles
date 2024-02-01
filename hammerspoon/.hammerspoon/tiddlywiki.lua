@@ -11,7 +11,7 @@ end)
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 local wikiPath = wikiDirectory .. "phajas-wiki.html"
 local webView = nil
-local tiddler = "Desktop%20Demo"
+local tiddler = ""
 
 local function update()
     webView:url({
