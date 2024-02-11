@@ -3,7 +3,8 @@ body
     text-align: center;
     font-family: Helvetica;
     font-size: large;
-    background-color: #dedede;
+    background-color: #212121;
+    color: white;
 }
 
 iframe {
@@ -55,11 +56,3 @@ a:active
     color: #ff7400;
     text-decoration:none;
 }
-
-@media (prefers-color-scheme: dark) {
-    body {
-        color: white;
-        background-color: #212121;
-    }
-}
-
