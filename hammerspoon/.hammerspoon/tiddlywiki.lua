@@ -29,13 +29,16 @@ local function layout()
     webView:frame(rect)
 end
 
-local function handleCaffeineCallback()
-    layout()
-end
-
-local caffeinateWatcher = hs.caffeinate.watcher.new(handleCaffeineCallback)
+local caffeinateWatcher = hs.caffeinate.watcher.new(layout)
 local wikiScreenWatcher = hs.screen.watcher.new(layout)
 local pathWatcher = hs.pathwatcher.new(wikiPath, layout)
+local everyMinute = hs.timer.doEvery(60, layout):stop()
+
+-- This is load-bearring and I don't know why
+function UPDATEWIKI()
+    layout()
+    dbg(everyMinute)
+end
 
 local function setupWebView()
     local rect = hs.geometry.rect(0,0,0,0)
@@ -44,12 +47,13 @@ local function setupWebView()
     webView:transparent(true)
     webView:sendToBack()
     webView:show()
+
     wikiScreenWatcher:start()
     caffeinateWatcher:start()
     pathWatcher:start()
+    everyMinute:start()
 
     layout()
-    update()
 end
 
 setupWebView()
