@@ -5,7 +5,6 @@ PADDING=0
 WIDGET_PADDING=180
 
 yabai -m config \
-    active_window_border_color 0xffff9800 \
     auto_balance on \
     bottom_padding $PADDING \
     external_bar main:$BAR_HEIGHT:0 \
@@ -16,7 +15,6 @@ yabai -m config \
     mouse_drop_action swap \
     mouse_follows_focus off \
     mouse_modifier ctrl \
-    normal_window_border_color 0xff212121 \
     right_padding $PADDING \
     split_ratio 0.382 \
     top_padding $PADDING \
