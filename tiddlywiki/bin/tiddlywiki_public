@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# set -e
+
+# rm 2>>/dev/null /tmp/public.json
+# rm 2>>/dev/null /tmp/notes.html
+
+# Export the tagged tiddlers from my Wiki
+/opt/homebrew/bin/tiddlywiki --verbose --load ~/phajas-wiki/phajas-wiki.html --output /tmp/ --render '.' public.json 'text/plain' '$:/core/templates/exporters/JsonFile' 'exportFilter' '[tag[Public]]'
+
+# Strip the public tag
+~/bin/tiddlywiki_strip_public_tag /tmp/public.json
+
+# Import them into the "base" wiki
+/opt/homebrew/bin/tiddlywiki --verbose --load ~/notes/base.html --import /tmp/public.json application/json --output /tmp/ --render "\$:/core/save/all" "notes.html" "text/plain"
+
+# Upload the "notes" wiki
+rsync -avvz /tmp/notes.html peterhajas.com:/var/www/html/
+
+# rm 2>>/dev/null /tmp/public.json
+# rm 2>>/dev/null /tmp/notes.html

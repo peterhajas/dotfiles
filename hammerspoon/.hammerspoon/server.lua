@@ -22,35 +22,39 @@ commandToFunction = {
     ["pagedown"] = function() hs.eventtap.keyStroke({}, "pagedown") end,
     ["space"] = function() hs.eventtap.keyStroke({}, "space") end,
     ["return"] = function() hs.eventtap.keyStroke({}, "return") end,
+
+    ["tw_publish"] = function() hs.execute("~/bin/tiddlywiki_public", true) end
 }
 
 -- Returns true if parsed correctly, false otherwise
 function parseHTTPCommand(cmd)
     local func = commandToFunction[cmd]
     if func ~= nil then
-        func()
-        return true
+        local output = func()
+        if output ~= nil then
+            return true, output
+        else
+            return true, "OK"
+        end
     end
     hs.application.open(cmd)
-    return true
+    return false, nil
 end
 
 server = hs.httpserver.new()
 :setPort(port)
 :setCallback(function(requestType, path, headers, contents)
-    local body = "OK"
-    local responseCode = 200
     local additionalHeaders = {
         ["Access-Control-Allow-Origin"] = "*"
     }
 
     command = path:sub(2)
-    if parseHTTPCommand(command) == false then
-        body = "FAIL"
-        responseCode = 400
+    success, output = parseHTTPCommand(command)
+    if success == false then
+        return "An error occurred", 400, additionalHeaders
     end
 
-    return body, responseCode, additionalHeaders
+    return output, 200, additionalHeaders
 end)
 :start()
 

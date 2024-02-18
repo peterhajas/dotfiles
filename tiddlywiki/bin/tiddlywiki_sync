@@ -14,6 +14,7 @@ if checkNetwork; then
     timeout=10
     sleep $timeout
     kill %1
+    curl -X GET localhost:8044/tw_publish
 else
     echo "No network connectivity. Command not executed."
 fi
