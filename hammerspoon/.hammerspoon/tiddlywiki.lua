@@ -18,7 +18,7 @@ local function update()
         local wikiContents = wikiFile:read("*a")
         wikiContents = string.gsub(wikiContents, "HUDNONE", "Heads Up Display")
         wikiContents = string.gsub(wikiContents, "HUDOPTIONSNONE", "HUDOPTIONS_SIDEBARWIDGET")
-        wikiContents = string.gsub(wikiContents, "#2d2d2d", "unset")
+        wikiContents = string.gsub(wikiContents, "#2d2d2d", "#2d2d2d99")
         webView:html(wikiContents)
     end
 end
