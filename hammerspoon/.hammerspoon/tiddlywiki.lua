@@ -38,7 +38,6 @@ local everyMinute = hs.timer.doEvery(60, layout):stop()
 -- This is load-bearring and I don't know why
 function UPDATEWIKI()
     layout()
-    dbg(everyMinute)
 end
 
 local function setupWebView()
