@@ -127,3 +127,10 @@ function stopTimer(timer)
     end
 end
 
+-- URL decode
+function url_decode(url)
+    return url:gsub('%%(%x%x)', function(hex)
+        return string.char(tonumber(hex, 16))
+    end)
+end
+
