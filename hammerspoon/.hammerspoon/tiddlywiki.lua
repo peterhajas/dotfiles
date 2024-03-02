@@ -16,7 +16,7 @@ local function update()
     local wikiFile = io.open(wikiPath, "r")
     if wikiFile ~= nil then
         local wikiContents = wikiFile:read("*a")
-        wikiContents = string.gsub(wikiContents, "HUDNONE", "Heads Up Display")
+        wikiContents = string.gsub(wikiContents, "HUDNONE", "Heads Up Display Desktop")
         wikiContents = string.gsub(wikiContents, "HUDOPTIONSNONE", "HUDOPTIONS_SIDEBARWIDGET")
         wikiContents = string.gsub(wikiContents, "#2d2d2d", "#2d2d2d99")
         webView:html(wikiContents)
