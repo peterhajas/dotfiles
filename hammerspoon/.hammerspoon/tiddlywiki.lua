@@ -56,4 +56,20 @@ local function setupWebView()
     layout()
 end
 
+function SaveWiki()
+    local app = hs.application.find("TiddlyDesktop")
+    local down = hs.eventtap.event.newKeyEvent({"cmd"}, string.lower("s"), true)
+    down:post(app)
+    local up = hs.eventtap.event.newKeyEvent({"cmd"}, string.lower("s"), false)
+    up:post(app)
+end
+
+wikiAppWatcher = hs.application.watcher.new(function(name, type, app)
+    local leavingTiddlyDesktop = name == "TiddlyDesktop" and type == hs.application.watcher.deactivated 
+    if leavingTiddlyDesktop then
+        SaveWiki()
+    end
+end)
+wikiAppWatcher:start()
+
 setupWebView()
