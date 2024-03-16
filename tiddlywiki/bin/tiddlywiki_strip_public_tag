@@ -9,10 +9,9 @@ out_tiddler_data = []
 with open(tiddler_path, 'r') as tiddler_file:
     tiddler_data = json.load(tiddler_file)
     for tiddler in tiddler_data:
-        tags = tiddler["tags"]
-        if tags != None:
-            tags = tags.replace("Public", "")
-            tags = tags.strip()
+        tags = tiddler.get("tags", "")
+        tags = tags.replace("Public", "")
+        tags = tags.strip()
         tiddler["tags"] = tags
         out_tiddler_data.append(tiddler)
 
