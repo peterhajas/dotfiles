@@ -4,7 +4,7 @@ function runInNewTerminal(command, exitAfterwards)
         effectiveCommand = command .. " && exit"
     end
 
-    hs.application.open("net.kovidgoyal.kitty")
+    hs.application.open("com.github.wez.wezterm")
     hs.eventtap.keyStroke({"cmd"}, "n")
     hs.eventtap.keyStrokes(effectiveCommand)
     hs.eventtap.keyStroke({}, "return")
