@@ -29,5 +29,7 @@ config.keys = {
   },
 }
 
+config.window_decorations = "RESIZE"
+
 return config
 
