@@ -33,7 +33,6 @@ end
 WikiCaffeinateWatcher = hs.caffeinate.watcher.new(layout)
 WikiScreenWatcher = hs.screen.watcher.new(layout)
 WikiPathWatcher = hs.pathwatcher.new(WikiPath, layout)
-local everyMinute = hs.timer.doEvery(60, layout):stop()
 
 -- This is load-bearring and I don't know why
 function UPDATEWIKI()
@@ -51,7 +50,6 @@ local function setupWebView()
     WikiScreenWatcher:start()
     WikiCaffeinateWatcher:start()
     WikiPathWatcher:start()
-    everyMinute:start()
 
     layout()
 end
