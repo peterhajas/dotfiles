@@ -9,11 +9,11 @@ hs.hotkey.bind(hyper, 'space', function()
 end)
 
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
-local wikiPath = wikiDirectory .. "phajas-wiki.html"
+WikiPath = wikiDirectory .. "phajas-wiki.html"
 local webView = nil
 
 local function update()
-    local wikiFile = io.open(wikiPath, "r")
+    local wikiFile = io.open(WikiPath, "r")
     if wikiFile ~= nil then
         local wikiContents = wikiFile:read("*a")
         wikiContents = string.gsub(wikiContents, "HUDNONE", "Heads Up Display Desktop")
@@ -30,9 +30,9 @@ local function layout()
     webView:frame(rect)
 end
 
-local caffeinateWatcher = hs.caffeinate.watcher.new(layout)
-local wikiScreenWatcher = hs.screen.watcher.new(layout)
-local pathWatcher = hs.pathwatcher.new(wikiPath, layout)
+WikiCaffeinateWatcher = hs.caffeinate.watcher.new(layout)
+WikiScreenWatcher = hs.screen.watcher.new(layout)
+WikiPathWatcher = hs.pathwatcher.new(WikiPath, layout)
 local everyMinute = hs.timer.doEvery(60, layout):stop()
 
 -- This is load-bearring and I don't know why
@@ -48,9 +48,9 @@ local function setupWebView()
     webView:sendToBack()
     webView:show()
 
-    wikiScreenWatcher:start()
-    caffeinateWatcher:start()
-    pathWatcher:start()
+    WikiScreenWatcher:start()
+    WikiCaffeinateWatcher:start()
+    WikiPathWatcher:start()
     everyMinute:start()
 
     layout()
