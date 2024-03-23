@@ -1,3 +1,3 @@
 function clock
-    tty-clock -ctrD -C 7
+    tty-clock -ctr -C 9
 end
