@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# set -e
+set -e
 
 # rm 2>>/dev/null /tmp/public.json
 # rm 2>>/dev/null /tmp/notes.html
