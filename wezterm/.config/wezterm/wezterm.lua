@@ -1,6 +1,7 @@
 local wezterm = require 'wezterm'
 local config = {}
 
+config.audible_bell = 'Disabled'
 -- Fonts
 config.font = wezterm.font 'Menlo'
 config.font_size = 16
