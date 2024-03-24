@@ -30,7 +30,26 @@ local function layout()
     webView:frame(rect)
 end
 
-WikiCaffeinateWatcher = hs.caffeinate.watcher.new(layout)
+local function caffeinateCallback(event)
+    layout()
+    if event == hs.caffeinate.watcher.screensDidLock or event == hs.caffeinate.watcher.screensaverDidStart or event == hs.caffeinate.watcher.systemWillSleep then
+        SaveWiki()
+        local tiddlyApp = hs.application.find("TiddlyDesktop")
+        if tiddlyApp ~= nil then
+            tiddlyApp:kill()
+        end
+    elseif event == hs.caffeinate.watcher.screensDidUnlock then
+        local front = hs.application.frontmostApplication()
+        hs.application.launchOrFocus("TiddlyDesktop")
+        if front ~= nil then
+            hs.timer.doAfter(2, function()
+                front:activate()
+            end)
+        end
+    end
+end
+
+WikiCaffeinateWatcher = hs.caffeinate.watcher.new(caffeinateCallback)
 WikiScreenWatcher = hs.screen.watcher.new(layout)
 WikiPathWatcher = hs.pathwatcher.new(WikiPath, layout)
 
