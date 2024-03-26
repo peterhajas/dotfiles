@@ -1,0 +1,11 @@
+#!/bin/bash
+
+FILE="$1"
+FILENAME=$(basename $1)
+FILEPATH=$(dirname $1)
+OUTPATH1="$FILEPATH/resize_1_$FILENAME"
+OUTPATH="$FILEPATH/resize_$FILENAME"
+
+magick "$FILE" -resize 1024x\> "$OUTPATH1"
+ffmpeg -i "$OUTPATH1" "$OUTPATH"
+exiftool -all= $OUTPATH
