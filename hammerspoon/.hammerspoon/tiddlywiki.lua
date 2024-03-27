@@ -1,3 +1,9 @@
+-- Rendering
+function TiddlyWikiRender(name)
+    local out, _, _, _ = hs.execute('~/bin/tiddlywiki_render ' .. name)
+    return out
+end
+
 -- Metrics
 
 local width = 180

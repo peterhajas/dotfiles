@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+# Generates an espanso yaml file
+# This should get put in the path where these go:
+# 
+# $ tiddlywiki_espanso > ~/Library/Application\ Support/espanso/match/base.yml
+
+import json
+import sys
+import os
+import subprocess
+import yaml
+
+# First, render the espanso tiddlers to disk
+command = "tiddlywiki --load '/Users/phajas/phajas-wiki/phajas-wiki.html' --output /tmp/ --render '.' expansions.json 'text/plain' '$:/core/templates/exporters/JsonFile' 'exportFilter' '[tag[Expansion]]'"
+subprocess.run(command, shell=True)
+
+# Next, load these up
+
+tiddler_path = "/tmp/expansions.json"
+out = {}
+out['matches'] = []
+
+with open(tiddler_path, 'r') as tiddler_file:
+    tiddler_data = json.load(tiddler_file)
+    for tiddler in tiddler_data:
+        title = tiddler['title'].replace("Expansion/", "")
+        entry = {}
+        entry['trigger'] = 'q' + title
+        entry['replace'] = '{{output}}'
+        entry['vars'] = []
+
+        variable = {}
+        variable['name'] = 'output'
+        variable['type'] = 'shell'
+        variable['params'] = {}
+        variable['params']['cmd'] = 'echo "TiddlyWikiRender(\\\"{}\\\")" | hs'.format(tiddler['title'])
+
+        entry['vars'].append(variable)
+
+        out['matches'].append(entry)
+
+print(yaml.dump(out))

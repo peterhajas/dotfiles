@@ -22,19 +22,32 @@ commandToFunction = {
     ["pagedown"] = function() hs.eventtap.keyStroke({}, "pagedown") end,
     ["space"] = function() hs.eventtap.keyStroke({}, "space") end,
     ["return"] = function() hs.eventtap.keyStroke({}, "return") end,
-
-    ["tw_publish"] = function() hs.execute("~/bin/tiddlywiki_public", true) end
+    ["shortcuts"] = function(args) dbg(args); hs.execute("shortcuts run \"" .. args["name"] .. "\"") end,
+    ["tw_publish"] = function() hs.execute("~/bin/tiddlywiki_public", true) end,
 }
 
 -- Returns true if parsed correctly, false otherwise
-function parseHTTPCommand(cmd)
-    local func = commandToFunction[cmd]
+function parseHTTPCommand(cmd, headers, contents)
+    local components = split(cmd, "?")
+    local command = components[1]
+    arguments = {}
+    if components[2] ~= nil then
+        local args = components[2]
+        args = url_decode(args)
+        local argElements = split(args, "&")
+        for _, v in pairs(argElements) do
+            argName = split(v, "=")[1]
+            argValue = split(v, "=")[2]
+            arguments[argName] = argValue
+        end
+    end
+    local func = commandToFunction[command]
     if func ~= nil then
-        local output = func()
+        local output = func(arguments)
         if output ~= nil then
             return true, output
         else
-            return true, "OK"
+            return true, ""
         end
     end
     hs.application.open(cmd)
@@ -49,7 +62,7 @@ server = hs.httpserver.new()
     }
 
     command = path:sub(2)
-    success, output = parseHTTPCommand(command)
+    success, output = parseHTTPCommand(command, headers, contents)
     if success == false then
         return "An error occurred", 400, additionalHeaders
     end
@@ -57,8 +70,6 @@ server = hs.httpserver.new()
     return output, 200, additionalHeaders
 end)
 :start()
-
-dbg(server)
 
 function printHomeAssistantYAML(host)
     out = "\n"
