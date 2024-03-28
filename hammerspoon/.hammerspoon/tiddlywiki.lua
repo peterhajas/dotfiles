@@ -16,17 +16,46 @@ end)
 
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
+local cachedWikiContents = ""
 local webView = nil
+local glanceWebView = nil
+local glanceTiddler = "HUDNONE"
+
+local needsHUDUpdate = false
+local needsGlanceUpdate = false
+
+local function updateHUD()
+    if needsHUDUpdate then
+        local hudWikiContents = cachedWikiContents
+        hudWikiContents = string.gsub(hudWikiContents, "HUDNONE", "Heads Up Display Desktop")
+        hudWikiContents = string.gsub(hudWikiContents, "HUDOPTIONSNONE", "HUDOPTIONS_SIDEBARWIDGET")
+        hudWikiContents = string.gsub(hudWikiContents, "#2d2d2d", "#2d2d2d99")
+        webView:html(hudWikiContents)
+    end
+    needsHUDUpdate = false
+end
+
+local function updateGlance()
+    if needsGlanceUpdate and glanceWebView ~= nil then
+        local glanceWikiContents = cachedWikiContents
+        glanceWikiContents = string.gsub(glanceWikiContents, "HUDNONE", glanceTiddler)
+        glanceWebView:html(glanceWikiContents)
+    end
+    needsGlanceUpdate = false
+end
 
 local function update()
     local wikiFile = io.open(WikiPath, "r")
     if wikiFile ~= nil then
         local wikiContents = wikiFile:read("*a")
-        wikiContents = string.gsub(wikiContents, "HUDNONE", "Heads Up Display Desktop")
-        wikiContents = string.gsub(wikiContents, "HUDOPTIONSNONE", "HUDOPTIONS_SIDEBARWIDGET")
-        wikiContents = string.gsub(wikiContents, "#2d2d2d", "#2d2d2d99")
-        webView:html(wikiContents)
+        if wikiContents ~= cachedWikiContents then
+            cachedWikiContents = wikiContents
+            needsHUDUpdate = true
+            needsGlanceUpdate = true
+        end
     end
+    updateHUD()
+    updateGlance()
 end
 
 local function layout()
@@ -55,8 +84,38 @@ local function caffeinateCallback(event)
     end
 end
 
+local function teardownGlance()
+    if glanceWebView ~= nil then
+        glanceWebView:hide()
+    end
+    glanceWebView = nil
+end
+
+local function screenCallback()
+    local showGlance = false
+    local glanceFrame = hs.geometry.rect(0,0,0,0)
+    if tableLength(hs.screen.allScreens()) > 1 then
+        if hs.screen.allScreens()[2]:name() == "Sidecar Display (AirPlay)" then
+            glanceFrame = hs.screen.allScreens()[2]:frame()
+            showGlance = true
+        end
+    end
+
+    if showGlance then
+        teardownGlance()
+        glanceWebView = hs.webview.new(glanceFrame)
+        glanceWebView:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
+        glanceWebView:sendToBack()
+        glanceWebView:show()
+    else
+        teardownGlance()
+    end
+
+    layout()
+end
+
 WikiCaffeinateWatcher = hs.caffeinate.watcher.new(caffeinateCallback)
-WikiScreenWatcher = hs.screen.watcher.new(layout)
+WikiScreenWatcher = hs.screen.watcher.new(screenCallback)
 WikiPathWatcher = hs.pathwatcher.new(WikiPath, layout)
 
 -- This is load-bearring and I don't know why
@@ -76,7 +135,7 @@ local function setupWebView()
     WikiCaffeinateWatcher:start()
     WikiPathWatcher:start()
 
-    layout()
+    screenCallback()
 end
 
 function SaveWiki()
@@ -94,5 +153,11 @@ wikiAppWatcher = hs.application.watcher.new(function(name, type, app)
     end
 end)
 wikiAppWatcher:start()
+
+function SendGlanceToTiddler(name)
+    glanceTiddler = name
+    needsGlanceUpdate = true
+    update()
+end
 
 setupWebView()
