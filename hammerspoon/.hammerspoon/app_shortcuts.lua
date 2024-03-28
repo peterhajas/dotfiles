@@ -31,11 +31,6 @@ require('util')
 --     hs.application.launchOrFocus("Home Assistant")
 -- end)
 
--- -- Option-` for Logseq
-hs.hotkey.bind({"alt"}, "`", function()
-    peekAtApp("Logseq")
-end)
-
 -- }}}
 -- Hyper {{{
 local hyperAppShortcuts = {
