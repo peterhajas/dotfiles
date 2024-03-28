@@ -22,7 +22,7 @@ commandToFunction = {
     ["pagedown"] = function() hs.eventtap.keyStroke({}, "pagedown") end,
     ["space"] = function() hs.eventtap.keyStroke({}, "space") end,
     ["return"] = function() hs.eventtap.keyStroke({}, "return") end,
-    ["shortcuts"] = function(args) dbg(args); hs.execute("shortcuts run \"" .. args["name"] .. "\"") end,
+    ["shortcuts"] = function(args) hs.execute("shortcuts run \"" .. args["name"] .. "\"") end,
     ["tw_publish"] = function() hs.execute("~/bin/tiddlywiki_public", true) end,
 }
 
