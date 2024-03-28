@@ -107,6 +107,7 @@ local function screenCallback()
         glanceWebView:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
         glanceWebView:sendToBack()
         glanceWebView:show()
+        needsGlanceUpdate = true
     else
         teardownGlance()
     end
