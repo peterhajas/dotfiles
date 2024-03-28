@@ -50,7 +50,7 @@ function parseHTTPCommand(cmd, headers, contents)
     end
     local func = commandToFunction[command]
     if func ~= nil then
-        local output = func(arguments)
+        local output = func(arguments, contents)
         if output ~= nil then
             return true, output
         else
