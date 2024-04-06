@@ -90,9 +90,14 @@ function audioDeviceButton(input)
                     color = tintColor
                 end
 
+                local label = ""
+                if v:name() ~= nil then
+                    label = v:name()
+                end
+
                 deviceItem = {
                     frame = { x = 10, y = yOffset, w = 100000, h = buttonHeight },
-                    text = hs.styledtext.new(v:name(), {
+                    text = hs.styledtext.new(label, {
                         font = { name = ".AppleSystemUIFont", size = fontSize },
                         paragraphStyle = { alignment = "left" },
                         color = color
