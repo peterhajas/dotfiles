@@ -7,6 +7,7 @@ local urlsToReplace = {
     'reddit.com',
     'old.reddit.com',
     'twitter.com',
+    'mobile.twitter.com',
     'x.com',
 }
 
