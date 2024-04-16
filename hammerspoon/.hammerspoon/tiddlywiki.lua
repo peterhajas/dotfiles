@@ -76,6 +76,9 @@ local function caffeinateCallback(event)
     elseif event == hs.caffeinate.watcher.screensDidUnlock then
         local front = hs.application.frontmostApplication()
         hs.application.launchOrFocus("TiddlyDesktop")
+        hs.timer.doAfter(1, function()
+            ActivateTopWikiIfNeeded()
+        end)
         if front ~= nil then
             hs.timer.doAfter(2, function()
                 front:activate()
@@ -159,6 +162,56 @@ function SendGlanceToTiddler(name)
     glanceTiddler = name
     needsGlanceUpdate = true
     update()
+end
+
+-- Activates the top Wiki in the "Main" window of TiddlyDesktop if needed
+-- "Needed" means that the "Main" window is visible.
+function ActivateTopWikiIfNeeded()
+    local mainWindow = hs.application.find("TiddlyDesktop"):mainWindow()
+    local mainWindowTitle = mainWindow:title()
+    if mainWindowTitle ~= "TiddlyDesktop – Main - NW.js" then
+        -- The main window is not the wiki list. Skip and early return
+        dbg("EARLY RETURN")
+        return
+    end
+
+    local windowAXElement = hs.axuielement.windowElement(mainWindow)
+    local callback = function(msg, results, count)
+
+        local found = results[1]
+        if found == nil then
+            dbg("EARLY RETURN 2")
+            return
+        end
+
+        -- This part is a bit gross
+        -- Grab the second child
+        local secondChild = found:attributeValue("AXChildren")[2]
+        -- and its first child
+        local thirdChildOfSecondChild = secondChild:attributeValue("AXChildren")[3]
+        -- and its third child
+        local firstChildOfThirdChildOfSecondChild = thirdChildOfSecondChild:attributeValue("AXChildren")[1]
+        -- This thing is the parent of the wiki list entries
+        -- Get the first child, for the wiki entry
+        local wikiEntry = firstChildOfThirdChildOfSecondChild:attributeValue("AXChildren")[1]
+        local wikiEntryInternals = wikiEntry:attributeValue("AXChildren")[1]
+        local openWikiButtonParent = wikiEntryInternals:attributeValue("AXChildren")[1]
+        local openWikiButton = openWikiButtonParent:attributeValue("AXChildren")[1]
+        openWikiButton:performAction("AXPress")
+
+        mainWindow:close()
+
+    end
+
+    local criteria = function(elem)
+        local role = elem:attributeValue("AXRole")
+        return role == "AXWebArea"
+    end
+
+
+    windowAXElement:elementSearch(callback, criteria, {
+        ["count"] = 1,
+    })
 end
 
 setupWebView()
