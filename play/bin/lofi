@@ -1,4 +1,0 @@
-#!/bin/sh
-# This script will start mpsyt playing the LoFi hiphop station
-
-mpsyt /lofi chilledcow,1
