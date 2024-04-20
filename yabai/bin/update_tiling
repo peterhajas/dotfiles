@@ -1,0 +1,14 @@
+#!/bin/bash
+
+WIDTH=$(yabai -m query --displays | jq ".[0].frame.w")
+LAYOUT="float"
+
+# less than 2000 means tile
+if awk -v num="$WIDTH" -v comp="2000" 'BEGIN { exit !(num < comp) }'; then
+    LAYOUT="bsp"
+fi
+
+for (( i=1; i<=30; i++ ))
+do
+    yabai -m config --space $i layout $LAYOUT
+done
