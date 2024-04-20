@@ -30,7 +30,7 @@ config.keys = {
   },
 }
 
-config.window_decorations = "RESIZE"
+config.window_decorations = "TITLE|RESIZE|MACOS_FORCE_ENABLE_SHADOW"
 
 return config
 
