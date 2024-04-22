@@ -1,14 +1,27 @@
 #!/bin/bash
 
+WIDGET_PADDING=180
+
 WIDTH=$(yabai -m query --displays | jq ".[0].frame.w")
 LAYOUT="float"
 
-# less than 2000 means tile
-if awk -v num="$WIDTH" -v comp="2000" 'BEGIN { exit !(num < comp) }'; then
+# less than 2000 means BSP
+if awk -v num="$WIDTH" -v comp="2100" 'BEGIN { exit !(num < comp) }'; then
     LAYOUT="bsp"
+    # Pad for widgets just on the main display's 10 spaces
+    for (( i=1; i<=10; i++ ))
+    do
+        yabai -m config --space $i layout $LAYOUT left_padding $WIDGET_PADDING right_padding $WIDGET_PADDING
+    done
+else
+    LAYOUT="float"
+    for (( i=1; i<=10; i++ ))
+    do
+        yabai -m config --space $i layout $LAYOUT
+    done
 fi
 
-for (( i=1; i<=30; i++ ))
+for (( i=11; i<=30; i++ ))
 do
     yabai -m config --space $i layout $LAYOUT
 done

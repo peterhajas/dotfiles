@@ -22,12 +22,6 @@ yabai -m config \
     window_gap $PADDING\
     window_placement second_child \
 
-# Pad for widgets just on the main display's 10 spaces
-for (( i=1; i<=10; i++ ))
-do
-    yabai -m config --space $i left_padding $WIDGET_PADDING right_padding $WIDGET_PADDING
-done
-
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Steam$" manage=off
 
