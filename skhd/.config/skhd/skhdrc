@@ -20,8 +20,8 @@ shift + ctrl + alt - n : yabai -m window --display next
 # hyper p to rebalance
 shift + ctrl + alt - p : yabai -m space --balance
 
-# hyper semicolon for fullscreen
-shift + ctrl + alt - 0x29 : yabai -m window --toggle float --grid 1:1:0:0:1:1
+# hyper f for fullscreen
+shift + ctrl + alt - f : yabai -m window --toggle float --grid 1:1:0:0:1:1
 
 # option-shift to move windows to spaces
 shift + alt - 1 : yabai -m window --space 1
