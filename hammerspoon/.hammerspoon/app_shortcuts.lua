@@ -46,11 +46,11 @@ local hyperAppShortcuts = {
     ['`'] = 'TiddlyDesktop',
 }
 
-for shortcut,appString in pairs(hyperAppShortcuts) do
-    hs.hotkey.bind(hyper, shortcut, function()
-        peekAtApp(appString)
-    end)
-end
+-- for shortcut,appString in pairs(hyperAppShortcuts) do
+--     hs.hotkey.bind(hyper, shortcut, function()
+--         peekAtApp(appString)
+--     end)
+-- end
 
 -- }}}
 -- }}}
