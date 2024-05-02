@@ -10,5 +10,5 @@ while IFS= read -r url; do
     fi
 done <<< "$channels"
 
-echo "$live_channels" | fzf --preview 'mpv --volume=0 --no-focus-on-open {}' | xargs mpv
+echo "$live_channels" | fzf --preview 'mpv --volume=0 --focus-on=never {}' | xargs mpv
 
