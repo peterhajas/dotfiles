@@ -36,7 +36,7 @@ local function updateHUD()
 end
 
 local function updateGlance()
-    if needsGlanceUpdate and glanceWebView ~= nil then
+    if needsGlanceUpdate then
         local glanceWikiContents = cachedWikiContents
         glanceWikiContents = string.gsub(glanceWikiContents, "HUDNONE", glanceTiddler)
         glanceWebView:html(glanceWikiContents)
@@ -87,13 +87,6 @@ local function caffeinateCallback(event)
     end
 end
 
-local function teardownGlance()
-    if glanceWebView ~= nil then
-        glanceWebView:hide()
-    end
-    glanceWebView = nil
-end
-
 local function screenCallback()
     local showGlance = false
     local glanceFrame = hs.geometry.rect(0,0,0,0)
@@ -105,14 +98,12 @@ local function screenCallback()
     end
 
     if showGlance then
-        teardownGlance()
-        glanceWebView = hs.webview.new(glanceFrame)
-        glanceWebView:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
+        glanceWebView:frame(glanceFrame)
         glanceWebView:sendToBack()
         glanceWebView:show()
         needsGlanceUpdate = true
     else
-        teardownGlance()
+        glanceWebView:hide()
     end
 
     layout()
@@ -134,6 +125,9 @@ local function setupWebView()
     webView:transparent(true)
     webView:sendToBack()
     webView:show()
+
+    glanceWebView = hs.webview.new(glanceFrame)
+    glanceWebView:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
 
     WikiScreenWatcher:start()
     WikiCaffeinateWatcher:start()
