@@ -29,7 +29,7 @@ local function updateHUD()
         local hudWikiContents = cachedWikiContents
         hudWikiContents = string.gsub(hudWikiContents, "HUDNONE", "Heads Up Display Desktop")
         hudWikiContents = string.gsub(hudWikiContents, "HUDOPTIONSNONE", "HUDOPTIONS_SIDEBARWIDGET")
-        hudWikiContents = string.gsub(hudWikiContents, "#2d2d2d", "#2d2d2d99")
+        hudWikiContents = string.gsub(hudWikiContents, "#2d2d2d", "#21212199")
         webView:html(hudWikiContents)
     end
     needsHUDUpdate = false
