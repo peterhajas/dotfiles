@@ -6,7 +6,7 @@ PLUGIN_DIR="$HOME/.config/sketchybar/plugins"
 
 sketchybar --bar \
 display=main \
-color=0xff212121 \
+color=0x99212121 \
 height=30
 
 sketchybar -m --add event window_focus \
@@ -15,8 +15,7 @@ sketchybar -m --add event window_focus \
 sketchybar --default \
 label.font=Menlo:Bold:14 \
 label.padding_right=$ITEM_PADDING \
-label.padding_left=$ITEM_PADDING \
-background.color=0xff212121
+label.padding_left=$ITEM_PADDING
 
 sketchybar --add event weather_update
 
