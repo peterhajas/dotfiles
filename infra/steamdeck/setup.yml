@@ -10,12 +10,12 @@
     - name: install packages
       community.general.flatpak:
         name:
+          - ca.parallel_launcher.ParallelLauncher
+          - com.github.iwalton3.jellyfin-media-player
           - com.heroicgameslauncher.hgl
-          - com.steamgriddb.steam-rom-manager
           - io.gitlab.librewolf-community
           - io.mpv.Mpv
           - org.prismlauncher.PrismLauncher
-          - com.github.iwalton3.jellyfin-media-player
     - name: grab emudeck installer
       ansible.builtin.get_url:
         url: https://www.emudeck.com/EmuDeck.desktop
