@@ -6,7 +6,6 @@ vim.opt.clipboard = "unnamed"
 
 -- Turn off gui stuff
 vim.opt.guicursor = ""
-vim.opt.guioptions = ""
 -- but leave on the mouse
 vim.opt.mouse = "a"
 
