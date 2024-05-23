@@ -380,7 +380,6 @@ profileStart('screenChanges')
 --screen configuration changes
 
 function handleScreenEvent()
-    updateGridsForScreens()
     updateFluxiness()
 end
 
