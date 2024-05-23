@@ -120,6 +120,7 @@ local function setupWebView()
     webView = hs.webview.new(rect)
     webView:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
     webView:transparent(true)
+    webView:allowTextEntry(true)
     webView:sendToBack()
     webView:show()
 
