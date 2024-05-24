@@ -31,6 +31,33 @@ commandToFunction = {
             SendGlanceToTiddler(tiddler)
         end
     end,
+    ["widgets"] = function()
+        local out = { }
+        local app = hs.application.find("Notification Center")
+        local appWindows = app:allWindows()
+        table.sort(appWindows, function(a, b)
+            local aX = a:frame().x
+            local bX = b:frame().x
+            local aY = a:frame().y
+            local bY = b:frame().y
+            if aX ~= bX then
+                return aX < bX
+            end
+            if aY ~= bY then
+                return aY < bY
+            end
+            return aX + aY < bX + bY
+        end)
+        for _, window in pairs(appWindows) do
+            if window:frame().w == 180 then
+                local windowEntry = { }
+                local snap = window:snapshot(true)
+                windowEntry["image"] = snap:encodeAsURLString()
+                table.insert(out, windowEntry)
+            end
+        end
+        return hs.json.encode(out)
+    end,
 }
 
 -- Returns true if parsed correctly, false otherwise
