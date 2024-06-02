@@ -50,8 +50,8 @@ defaults write com.apple.dock autohide -bool true
 ## Make Dock icons of hidden applications translucent
 defaults write com.apple.dock showhidden -bool true
 
-## Tune autohide duration
-defaults write com.apple.dock autohide-time-modifier -float 0.0
+## Default autohide duration
+defaults delete com.apple.dock autohide-time-modifier
 
 # Menu Bar
 
