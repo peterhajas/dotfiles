@@ -88,7 +88,8 @@ function parseHTTPCommand(cmd, headers, contents)
     return false, nil
 end
 
-server = hs.httpserver.new()
+server = hs.httpserver.new(false, false)
+:setInterface("localhost")
 :setPort(port)
 :setCallback(function(requestType, path, headers, contents)
     local additionalHeaders = {
