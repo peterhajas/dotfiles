@@ -4,10 +4,11 @@ local urlsToReplace = {
     'imgur.com',
     'instagram.com',
     'medium.com',
-    'reddit.com',
-    'old.reddit.com',
-    'twitter.com',
     'mobile.twitter.com',
+    'old.reddit.com',
+    'reddit.com',
+    'tiktok.com',
+    'twitter.com',
     'x.com',
 }
 
