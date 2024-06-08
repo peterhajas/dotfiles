@@ -25,8 +25,11 @@ end
 -- Changing volume
 
 local function shouldChangeTVVolume()
-    local connectedToSamsung = hs.screen.primaryScreen():name() == 'SAMSUNG'
-    local audioOutputIsSamsung = hs.audiodevice.current(false)['name'] == 'SAMSUNG'
+    local displayName = hs.screen.primaryScreen():name()
+    local outputName = hs.audiodevice.current(false)['name']
+
+    local connectedToSamsung = displayName == "SAMSUNG" or displayName == "Odyssey Ark"
+    local audioOutputIsSamsung = outputName == 'SAMSUNG' or outputName == "Odyssey Ark"
     return connectedToSamsung and audioOutputIsSamsung
 end
 
