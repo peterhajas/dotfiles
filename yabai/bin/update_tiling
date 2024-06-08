@@ -1,6 +1,11 @@
 #!/bin/bash
 
+BAR_HEIGHT=30
+EDGE_PADDING=10
+PADDING=10
 WIDGET_PADDING=180
+
+WIDGET_PADDING=$(($WIDGET_PADDING + $EDGE_PADDING))
 
 WIDTH=$(yabai -m query --displays | jq ".[0].frame.w")
 LAYOUT="float"
