@@ -7,6 +7,12 @@ stow stow
 
 for dir in */
 do
+    # Skip the directory named 'nix'
+    if [ "$dir" == "nix/" ]; then
+        echo "Skipping $dir"
+        continue
+    fi
+
     if [ ! -e "$dir/install.yml" ]; then
         echo Unstowing $dir
         stow -D $dir
