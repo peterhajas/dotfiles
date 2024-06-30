@@ -3,8 +3,7 @@ local config = {}
 
 config.audible_bell = 'Disabled'
 -- Fonts
-config.font = wezterm.font 'Menlo'
-config.font_size = 16
+config.font_size = 12
 
 -- Turn off padding
 config.window_padding = {
