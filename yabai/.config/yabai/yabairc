@@ -1,7 +1,7 @@
 # vim: ft=bash
 
 BAR_HEIGHT=30
-EDGE_PADDING=10
+EDGE_PADDING=0
 PADDING=10
 
 yabai -m config \
