@@ -3,7 +3,7 @@ local config = {}
 
 config.audible_bell = 'Disabled'
 -- Fonts
-config.font_size = 12
+config.font_size = 16
 
 -- Turn off padding
 config.window_padding = {
