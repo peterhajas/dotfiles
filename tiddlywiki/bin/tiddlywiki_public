@@ -17,5 +17,12 @@ set -e
 # Upload the "notes" wiki
 rsync -avvz /tmp/notes.html peterhajas.com:/var/www/html/
 
+# Upload assets
+# Push wiki dir
+pushd ~/phajas-wiki
+
+/opt/homebrew/bin/tiddlywiki --verbose --load ~/phajas-wiki/phajas-wiki.html --output /tmp/ --render '.' external_assets.json 'text/plain' '$:/core/templates/exporters/JsonFile' 'exportFilter' '[tag[Public]has[_canonical_uri]]'
+cat /tmp/external_assets.json | jq -r '.[] | ._canonical_uri' | xargs -I {} rsync -av {} peterhajas.com:/var/www/html/assets/
+
 # rm 2>>/dev/null /tmp/public.json
 # rm 2>>/dev/null /tmp/notes.html
