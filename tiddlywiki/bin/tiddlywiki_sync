@@ -3,6 +3,7 @@
 GIT=$(which git)
 
 pushd ~/phajas-wiki
+$GIT add assets
 $GIT commit -a -m "auto commit from macOS"
 
 checkNetwork() {
