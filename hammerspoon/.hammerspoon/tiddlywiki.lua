@@ -156,4 +156,15 @@ function SendGlanceToTiddler(name)
     update()
 end
 
+
+local port = 8045
+WikiServer = nil
+local function startWikiServer()
+    WikiServer = hs.httpserver.hsminweb.new(os.getenv("HOME").."/phajas-wiki")
+    :interface("localhost")
+    :port(port)
+    :start()
+end
+
 setupWebView()
+startWikiServer()
