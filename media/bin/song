@@ -1,0 +1,3 @@
+#!/bin/sh
+
+find ~/Music/ |fzf --preview 'mpv --no-video --focus-on=never {}'
