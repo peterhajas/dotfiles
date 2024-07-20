@@ -2,7 +2,7 @@
 
 set -e
 
-tiddlywiki --load ~/phajas-wiki/phajas-wiki.html --render "[[$:/plugins/sq/feeds/templates/rss]]" "feed.xml" "text/plain" "$:/core/templates/wikified-tiddler"
+tiddlywiki +plugins/tiddlywiki/markdown --load ~/phajas-wiki/phajas-wiki.html --render "[[$:/plugins/sq/feeds/templates/rss]]" "feed.xml" "text/plain" "$:/core/templates/wikified-tiddler"
 mv output/feed.xml /tmp/
 rm -r output
 
