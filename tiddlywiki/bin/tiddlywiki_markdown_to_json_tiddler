@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+# Takes a markdown file and makes a tiddler json out of it
+# Preserves as much of the data as possible:
+# * front matter is imported into fields
+# * dates are coerced
+#   * `date` is turned into creation date
+# * arrays / dictionaries in your frontmatter? good luck!
+
+import os, sys
+import time, datetime
+from pathlib import Path
+import json
+import yaml
+
+def tw_time_from_datetime(dt):
+    formatted_time = dt.strftime('%Y%m%d%H%M%S%f')
+    formatted_time_with_ms = formatted_time[:-3]
+    return formatted_time_with_ms
+
+def tw_time_from_unix_timestamp(ts):
+    dt = datetime.datetime.fromtimestamp(ts, datetime.UTC)
+    return tw_time_from_datetime(dt)
+
+def transmute(path):
+    name = path.name
+    stat = path.stat()
+    ctime = stat.st_ctime
+    mtime = stat.st_mtime
+    text = path.read_text()
+    lines = text.split('\n')
+    first_line = True
+    in_frontmatter = False
+    out = {}
+    out['type'] = 'text/markdown'
+    out['text'] = text
+    out['title'] = name
+    out['created'] = tw_time_from_unix_timestamp(ctime)
+    out['modified'] = tw_time_from_unix_timestamp(mtime)
+
+    frontmatter_string = ""
+
+    for line in lines:
+        if first_line and line == "---":
+            in_frontmatter = True
+            # Clear text - we need to populate post-frontmatter
+            out['text'] = ''
+            continue
+        elif in_frontmatter and line == "---":
+            in_frontmatter = False
+        first_line = False
+        if in_frontmatter:
+            frontmatter_string += line
+            frontmatter_string += "\n"
+    if len(frontmatter_string) > 0:
+        frontmatter = yaml.full_load(frontmatter_string)
+        for key in frontmatter.keys():
+            out[key] = frontmatter[key]
+        big_frontmatter_string = "---\n{}---".format(frontmatter_string)
+        out['text'] = text.replace(big_frontmatter_string, '')
+    out['text'] = out['text'].strip()
+
+    if out['date'] != None:
+        out['created'] = tw_time_from_datetime(out['date'])
+        del(out['date'])
+
+    # Coerce all keys to strings
+    for key in out.keys():
+        out[key] = "{}".format(out[key])
+    return out
+
+
+if __name__ == "__main__":
+    path = Path(sys.argv[1])
+    out = transmute(path)
+    print(json.dumps(out))
