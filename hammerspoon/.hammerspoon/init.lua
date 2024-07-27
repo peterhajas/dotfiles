@@ -37,6 +37,7 @@ require "server"
 require "flux"
 require "pass"
 require "tiddlywiki"
+require "iphone_mirroring"
 
 profileStop('imports')
 profileStart('globals')
