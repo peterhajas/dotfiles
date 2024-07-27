@@ -36,6 +36,7 @@ require('mason-lspconfig').setup({
         "lemminx",
         "lua_ls",
         "marksman",
+        "pyright",
         "rust_analyzer",
         "taplo",
         "yamlls",
