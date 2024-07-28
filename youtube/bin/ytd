@@ -3,4 +3,4 @@
 OUTPATH=~/Movies/yt
 
 mkdir -p $OUTPATH 2>>/dev/null
-yt-dlp --format mp4 --sponsorblock-remove sponsor,selfpromo,interaction --mark-watched --embed-metadata --output "$OUTPATH/%(uploader)s/%(upload_date)s_%(title)s-%(id)s.%(ext)s" --download-archive "~/.vimwiki/logged/youtube_watched.txt" --exec 'open -a "QuickTime Player" {}' "$*"
+yt-dlp --format mp4 --sponsorblock-remove sponsor,selfpromo,interaction --mark-watched --embed-metadata --output "$OUTPATH/%(uploader)s/%(upload_date)s_%(title)s-%(id)s.%(ext)s" --download-archive "~/.vimwiki/logged/youtube_watched.txt" --exec 'mpv {}' "$*"
