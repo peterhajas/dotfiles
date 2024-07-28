@@ -21,4 +21,23 @@
     ansible.builtin.service:
       name: shairport-sync
       state: restarted
-    become: yes
+  - name: Disable sleep
+    ansible.builtin.systemd:
+      name: sleep.target
+      enabled: false
+      masked: true
+  - name: Disable suspend
+    ansible.builtin.systemd:
+      name: suspend.target
+      enabled: false
+      masked: true
+  - name: Disable hibernate
+    ansible.builtin.systemd:
+      name: hibernate.target
+      enabled: false
+      masked: true
+  - name: Disable hybrid-sleep
+    ansible.builtin.systemd:
+      name: hybrid-sleep.target
+      enabled: false
+      masked: true
