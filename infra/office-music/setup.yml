@@ -14,6 +14,14 @@
     ansible.builtin.copy:
       src: shairport-sync.conf
       dest: /etc/shairport-sync.conf
+  - name: Make mpv config file destination
+    file:
+      path: /home/phajas/.config/mpv
+      state: directory
+  - name: Copy mpv config file
+    ansible.builtin.copy:
+      src: mpv.conf
+      dest: /home/phajas/.config/mpv/mpv.conf
   - name: Ensure shairport is running
     ansible.builtin.service:
       name: shairport-sync
