@@ -3,11 +3,12 @@
   hosts: office_music
   become: yes
   tasks:
-  - name: Install shairport-sync and mpv
+  - name: Install software
     ansible.builtin.package:
       name:
-        - shairport-sync
         - mpv
+        - chromium
+        - shairport-sync
         - yt-dlp
       state: latest
   - name: Copy shairport config file
