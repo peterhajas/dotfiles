@@ -1,4 +1,4 @@
-# phajas office-music config
+# phajas office_music config
 
 ## Getting Started
 

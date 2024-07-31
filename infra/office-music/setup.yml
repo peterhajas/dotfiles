@@ -1,6 +1,6 @@
 ---
-- name: Setup office-music
-  hosts: office-music
+- name: Setup office_music
+  hosts: office_music
   become: yes
   tasks:
   - name: Install shairport-sync and mpv

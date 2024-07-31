@@ -1,6 +1,6 @@
 ---
-- name: setup office-music
-  hosts: office-music
+- name: setup office_music
+  hosts: office_music
   become: yes
   tasks:
   - name: shut down
