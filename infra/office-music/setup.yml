@@ -1,23 +1,25 @@
 ---
-- name: setup office-music
+- name: Setup office-music
   hosts: office-music
   become: yes
   tasks:
-  - name: install shairport-sync
+  - name: Install shairport-sync and mpv
     ansible.builtin.package:
       name:
         - shairport-sync
+        - mpv
+        - yt-dlp
       state: latest
-  - name: copy config file
+  - name: Copy shairport config file
     ansible.builtin.copy:
       src: shairport-sync.conf
       dest: /etc/shairport-sync.conf
-  - name: ensure the service is running
+  - name: Ensure shairport is running
     ansible.builtin.service:
       name: shairport-sync
       state: started
     become: yes
-  - name: Restart the service
+  - name: Restart shairport
     ansible.builtin.service:
       name: shairport-sync
       state: restarted
