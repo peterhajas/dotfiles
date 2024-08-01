@@ -7,9 +7,12 @@ local bundleID = os.getenv("__CFBundleIdentifier")
 if bundleID == nil or
    bundleID ~= "com.apple.Terminal" then
     require("catppuccin").setup({
-        flavour = "mocha",
+        flavour = "auto",
         integrations = {
+            cmp = true,
             harpoon = true,
+            notify = true,
+            treesitter = false,
             treesitter_context = false,
         }
     })

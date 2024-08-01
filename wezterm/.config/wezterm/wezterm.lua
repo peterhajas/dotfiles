@@ -1,5 +1,6 @@
 local wezterm = require 'wezterm'
 local config = {}
+local appearance = wezterm.gui.get_appearance()
 
 config.audible_bell = 'Disabled'
 -- Fonts
@@ -16,7 +17,11 @@ config.use_fancy_tab_bar = false
 config.hide_tab_bar_if_only_one_tab = true
 
 -- Colors
-config.color_scheme = 'Catppuccin Mocha'
+if appearance:find 'Dark' then
+    config.color_scheme = 'Catppuccin Mocha'
+else
+    config.color_scheme = 'Catppuccin Latte'
+end
 
 config.keys = {
    -- Cmd-K Behavior
