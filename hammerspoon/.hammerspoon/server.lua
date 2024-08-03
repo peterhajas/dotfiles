@@ -23,7 +23,6 @@ commandToFunction = {
     ["space"] = function() hs.eventtap.keyStroke({}, "space") end,
     ["return"] = function() hs.eventtap.keyStroke({}, "return") end,
     ["shortcuts"] = function(args) hs.execute("shortcuts run \"" .. args["name"] .. "\"") end,
-    ["tw_publish"] = function() hs.execute("~/bin/tiddlywiki_public", true) end,
     ["tw_glance"] = function(args, body)
         bodyTable = hs.json.decode(body)
         local tiddler = bodyTable["tiddler"]
