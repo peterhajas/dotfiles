@@ -3,7 +3,7 @@
 GIT=$(which git)
 
 pushd ~/phajas-wiki
-$GIT add assets
+$GIT add *
 $GIT commit -a -m "auto commit from macOS"
 
 checkNetwork() {
@@ -12,8 +12,6 @@ checkNetwork() {
 
 if checkNetwork; then
     $GIT pull --rebase origin master && $GIT push origin master
-    curl -X GET localhost:8044/tw_publish
-    curl -X GET localhost:8044/tw_rss
 else
     echo "No network connectivity. Command not executed."
 fi
