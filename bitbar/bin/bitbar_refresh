@@ -1,4 +1,0 @@
-#!/bin/sh
-
-killall BitBar
-open -a BitBar
