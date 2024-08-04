@@ -1,7 +1,0 @@
-#!/bin/bash
-
-if [ $# -eq 0 ]; then
-    echo "needs a url"
-else
-    nb bookmark "Read Later/" "$*"
-fi
