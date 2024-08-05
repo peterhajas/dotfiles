@@ -24,6 +24,11 @@ local glanceTiddler = "HUDNONE"
 local needsHUDUpdate = false
 local needsGlanceUpdate = false
 
+local function setNeedsUpdate()
+    needsHUDUpdate = true
+    needsGlanceUpdate = true
+end
+
 local function updateHUD()
     if needsHUDUpdate then
         local hudWikiContents = cachedWikiContents
@@ -50,8 +55,7 @@ local function update()
         local wikiContents = wikiFile:read("*a")
         if wikiContents ~= cachedWikiContents then
             cachedWikiContents = wikiContents
-            needsHUDUpdate = true
-            needsGlanceUpdate = true
+            setNeedsUpdate()
         end
     end
     updateHUD()
@@ -81,6 +85,9 @@ local function caffeinateCallback(event)
                 front:activate()
             end)
         end
+
+        setNeedsUpdate()
+        update()
     end
 end
 
