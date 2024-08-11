@@ -10,6 +10,13 @@
         - chromium
         - shairport-sync
         - yt-dlp
+        - uxplay
+        - gstreamer1.0-plugins-base
+        - gstreamer1.0-libav
+        - gstreamer1.0-plugins-good
+        - gstreamer1.0-plugins-bad
+        - gstreamer1.0-gl
+        - gstreamer1.0-tools
       state: latest
   - name: Copy shairport config file
     ansible.builtin.copy:
@@ -23,6 +30,14 @@
     ansible.builtin.copy:
       src: mpv.conf
       dest: /home/phajas/.config/mpv/mpv.conf
+  - name: Make uxplay config file destination
+    file:
+      path: /home/phajas/.config/uxplay
+      state: directory
+  - name: Copy uxplay config file
+    ansible.builtin.copy:
+      src: uxplayrc
+      dest: /home/phajas/.config/uxplayrc
   - name: Ensure shairport is running
     ansible.builtin.service:
       name: shairport-sync

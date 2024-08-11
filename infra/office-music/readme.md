@@ -16,3 +16,7 @@
 
     ansible-playbook setup.yml -i hosts -K
 6. Enjoy.
+
+## TODO
+
+`uxplay` systemd service [like this](https://github.com/FDH2/UxPlay/issues/269#issuecomment-1916453728)
