@@ -32,9 +32,13 @@ end
 local function updateHUD()
     if needsHUDUpdate then
         local hudWikiContents = cachedWikiContents
-        hudWikiContents = string.gsub(hudWikiContents, "HUDNONE", "Heads Up Display Desktop")
-        hudWikiContents = string.gsub(hudWikiContents, "HUDOPTIONSNONE", "HUDOPTIONS_SIDEBARWIDGET")
-        hudWikiContents = string.gsub(hudWikiContents, "#2d2d2d", "#21212199")
+
+        local hudTiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">[
+{"title":"Heads Up Display Host","text":"{{ Heads Up Display Desktop }}"},
+{"title":"Do It","text":"\\import $:/phajas/hud/actions\n\n\u003C\u003Cphajas_hud_actions>>","tags":"$:/tags/StartupAction/PostRender"}
+]</script>
+]]
+        hudWikiContents = hudTiddlerStore .. hudWikiContents
         webView:html(hudWikiContents)
     end
     needsHUDUpdate = false
@@ -65,7 +69,7 @@ end
 local function layout()
     update()
     local screen = hs.screen.primaryScreen()
-    local rect = hs.geometry.rect(screen:frame().w - width, yOffset, width, screen:frame().h - yOffset)
+    local rect = hs.geometry.rect(0, yOffset, screen:frame().w, screen:frame().h - yOffset)
     webView:frame(rect)
 end
 
