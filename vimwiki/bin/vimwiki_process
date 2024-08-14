@@ -1,9 +1,0 @@
-#!/bin/sh
-# Performs standard operations on our vimwiki
-
-# Update tags and quit
-vim \
-    -c "VimwikiDiaryIndex" \
-    -c "VimwikiDiaryGenerateLinks" \
-    -c "wq"
-

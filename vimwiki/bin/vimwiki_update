@@ -1,4 +1,0 @@
-#!/bin/sh
-# Updates vimwiki
-
-vimwiki_process && vimwiki_pull && vimwiki_push

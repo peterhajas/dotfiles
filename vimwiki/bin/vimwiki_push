@@ -1,8 +1,0 @@
-#!/bin/sh
-# Pushes our vimwiki state to remotes
-
-pushd ~/.vimwiki
-commitMessage="$(date '+%Y%m%d %H:%M') automated update"
-git add *
-git commit -m "$commitMessage"
-git push

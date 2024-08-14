@@ -1,5 +1,0 @@
-#!/bin/sh
-
-cat ~/.vimwiki/bookmarks/before.txt > /tmp/bookmarks.html
-multimarkdown ~/.vimwiki/bookmarks/index.md >> /tmp/bookmarks.html
-open /tmp/bookmarks.html

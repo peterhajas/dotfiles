@@ -1,5 +1,0 @@
-#!/bin/sh
-# Pulls our vimwiki state from remotes
-
-pushd ~/.vimwiki
-git pull
