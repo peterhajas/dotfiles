@@ -1,3 +1,0 @@
-#!/bin/bash
-
-rsync -avvL ~/.startpage peterhajas.com:/var/www/html/
