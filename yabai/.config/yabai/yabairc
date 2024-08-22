@@ -22,8 +22,8 @@ yabai -m config \
     window_gap $PADDING\
     window_placement second_child \
 
-yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^Steam$" manage=off
+yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^mpv$" manage=off
 
 yabai -m signal --add event="display_added" action="~/bin/update_tiling"
