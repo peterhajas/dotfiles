@@ -56,29 +56,3 @@ vim.keymap.set("n", "<leader>;", function()
     require("zen-mode").toggle()
 end)
 
--- Bookmarks!
-local function loadBookmarks()
-    local bookmarks = io.open("/Users/phajas/.phajas/bookmarks")
-    if bookmarks then
-        local lines = bookmarks:lines()
-        for line in lines do
-            local elements = {}
-            for e in string.gmatch(line, "%S+") do
-                table.insert(elements, e)
-            end
-            vim.keymap.set("n", "<leader>f" .. elements[1], function()
-                require("telescope.builtin").git_files {
-                    cwd = elements[2],
-                    shorten_path = false,
-                    prompt_title = elements[2]
-                }
-            end)
-        end
-
-        bookmarks:close()
-    else
-        print("could not load bookmarks")
-    end
-end
-
-loadBookmarks()
