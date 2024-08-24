@@ -1,6 +1,6 @@
 # phajas dotfiles
 
-## If you see a setting, they blew it
+## rocking since 2014
 
 A "dotfile" is a configuration file for a computer program.
 
