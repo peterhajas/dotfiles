@@ -10,14 +10,6 @@ else
     bash linux_update.bash
 fi
 
-echo "Installing python libraries..."
-
-sh python_dependencies.sh
-
-echo "Installing ruby libraries..."
-
-sh ruby_dependencies.sh
-
 bash dotfiles.bash
 
 echo "Updating submodules..."
