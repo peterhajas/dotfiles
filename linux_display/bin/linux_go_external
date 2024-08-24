@@ -1,7 +1,0 @@
-#!/bin/bash
-
-# Switch to external display @ 4K
-xrandr --output DP1 --mode 3840x2160
-
-# Disable internal display
-xrandr --output eDP1 --off

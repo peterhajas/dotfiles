@@ -1,7 +1,0 @@
-set folder = "~/Mail/peter-haj-as"
-set spoolfile = "+INBOX"
-set sendmail = "/usr/local/bin/msmtp"
-set from="Peter Hajas <peter@haj.as>"
-
-# Disable Mutt's "old" feature - messages are either read or unread
-set mark_old=no

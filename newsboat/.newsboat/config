@@ -1,9 +1,0 @@
-urls-source "freshrss"
-cookie-cache "~/.newsboat/cookies.txt"
-
-freshrss-url "http://peterhajas.com:8675/api/greader.php"
-freshrss-login "phajas"
-freshrss-passwordeval "pass peterhajas.com/freshrss/phajas"
-
-show-read-feeds no
-auto-reload yes
