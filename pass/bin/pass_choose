@@ -1,5 +1,0 @@
-#!/bin/bash
-
-# Choose between passwords, and then copy
-pass_all | choose | xargs pass -c
-
