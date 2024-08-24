@@ -1,7 +1,0 @@
-#!/bin/sh
-
-# Save the file
-curl --silent "https://radar.weather.gov/ridge/standard/CONUS-LARGE_loop.gif" > /tmp/doppler.gif
-# Loop in mpv
-mpv --loop-file=inf /tmp/doppler.gif
-
