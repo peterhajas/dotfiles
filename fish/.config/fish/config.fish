@@ -33,9 +33,5 @@ fish_add_path /opt/homebrew/sbin
 
 # Variables
 
-## Vimwiki stuff
-set -x vimwiki_path ~/.vimwiki
-set -x vimwiki_projects_path $vimwiki_path/projects.md
-
 ## AI
 export GGML_METAL_PATH_RESOURCES=~/.models/
