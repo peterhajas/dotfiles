@@ -82,14 +82,6 @@ local function caffeinateCallback(event)
             tiddlyApp:kill()
         end
     elseif event == hs.caffeinate.watcher.screensDidUnlock then
-        local front = hs.application.frontmostApplication()
-        hs.execute("shortcuts run \"Mac Open Wiki\"")
-        if front ~= nil then
-            hs.timer.doAfter(1.5, function()
-                front:activate()
-            end)
-        end
-
         setNeedsUpdate()
         update()
     end
