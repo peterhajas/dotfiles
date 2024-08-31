@@ -1,2 +1,2 @@
 #!/bin/sh
-tiddlywiki_render "Home Camera Stream Links" | fzf --preview 'mpv --focus-on=never {}' | xargs mpv
+tiddlywiki_render "Home Camera Stream Links" | fzf --preview 'mpv --focus-on=never {}' | xargs -I {} bash -c 'mpv "{}" &'
