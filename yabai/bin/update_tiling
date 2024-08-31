@@ -4,6 +4,7 @@ BAR_HEIGHT=30
 EDGE_PADDING=0
 PADDING=10
 WIDGET_PADDING=194
+LEFT_PADDING=86 # width of the $WIDGET_PADDING minus the width the dock takes up on the left
 
 WIDGET_PADDING=$(($WIDGET_PADDING + $EDGE_PADDING))
 
@@ -24,7 +25,7 @@ if [ "$LAYOUT" = "bsp" ]; then
     # Pad for widgets just on the main display's 10 spaces
     for (( i=0; i<=10; i++ ))
     do
-        yabai -m config --space $i layout $LAYOUT left_padding $WIDGET_PADDING right_padding $WIDGET_PADDING
+        yabai -m config --space $i layout $LAYOUT left_padding $LEFT_PADDING right_padding $WIDGET_PADDING
     done
 else
     for (( i=1; i<=10; i++ ))
