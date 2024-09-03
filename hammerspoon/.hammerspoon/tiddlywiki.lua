@@ -52,7 +52,6 @@ local function updateGlance()
 {"title":"Do It","text":"\\import $:/phajas/hud/actions\n\n\u003C\u003Cphajas_hud_actions>>","tags":"$:/tags/StartupAction/PostRender"}
 ]</script>
 ]]
-
         glanceWikiContents = glanceTiddlerStore .. glanceWikiContents
         glanceWebView:html(glanceWikiContents)
     end
