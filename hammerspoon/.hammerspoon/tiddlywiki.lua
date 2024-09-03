@@ -47,7 +47,13 @@ end
 local function updateGlance()
     if needsGlanceUpdate then
         local glanceWikiContents = cachedWikiContents
-        glanceWikiContents = string.gsub(glanceWikiContents, "HUDNONE", glanceTiddler)
+        local glanceTiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">[
+{"title":"Heads Up Display Host","text":"{{ Heads Up Display Glance }}"},
+{"title":"Do It","text":"\\import $:/phajas/hud/actions\n\n\u003C\u003Cphajas_hud_actions>>","tags":"$:/tags/StartupAction/PostRender"}
+]</script>
+]]
+
+        glanceWikiContents = glanceTiddlerStore .. glanceWikiContents
         glanceWebView:html(glanceWikiContents)
     end
     needsGlanceUpdate = false
