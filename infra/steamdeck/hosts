@@ -1,2 +1,2 @@
 [steamdeck]
-steamdeck.local ansible_user=deck
+192.168.1.200 ansible_user=deck

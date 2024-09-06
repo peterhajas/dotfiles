@@ -15,7 +15,6 @@
           - com.heroicgameslauncher.hgl
           - io.gitlab.librewolf-community
           - io.mpv.Mpv
-          - org.prismlauncher.PrismLauncher
     - name: grab emudeck installer
       ansible.builtin.get_url:
         url: https://www.emudeck.com/EmuDeck.desktop
