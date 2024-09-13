@@ -4,7 +4,7 @@ local function updateiPhoneMirroringFrame()
         local window = app:visibleWindows()[1]
         if window ~= nil then
             local screen = window:screen()
-            local screenFrame = screen:frame()
+            local screenFrame = screen:fullFrame()
 
             local mirroringWidth = window:frame().w
             local mirroringHeight = window:frame().h
