@@ -1,0 +1,2 @@
+#!/bin/sh
+fzf --preview 'mpv --geometry=50%x50%+100%+100% --keep-open=always --volume=0 --focus-on=never {}' | xargs -I {} bash -c 'mpv "{}" &'
