@@ -135,6 +135,10 @@ local function setupWebView()
 
     glanceWebView = hs.webview.new(glanceFrame)
     glanceWebView:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
+    :transparent(true)
+    :allowTextEntry(true)
+    :level(hs.drawing.windowLevels.normal - 1)
+    :show()
 
     WikiScreenWatcher:start()
     WikiCaffeinateWatcher:start()
