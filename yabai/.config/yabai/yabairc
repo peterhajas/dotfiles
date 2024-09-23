@@ -2,7 +2,7 @@
 
 BAR_HEIGHT=30
 EDGE_PADDING=0
-PADDING=10
+PADDING=0
 
 yabai -m config \
     auto_balance on \
