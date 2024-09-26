@@ -1,0 +1,11 @@
+#!/bin/bash
+
+glob=$1
+
+for file in "$glob"/*; do
+    if [ -f "$file" ]; then
+        echo "Contents of $file:"
+        echo "==="
+        cat $file
+    fi
+done
