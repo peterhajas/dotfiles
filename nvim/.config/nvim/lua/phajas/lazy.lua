@@ -42,6 +42,7 @@ local plugins = {
         'williamboman/mason-lspconfig.nvim',
         'j-hui/fidget.nvim',
     }},
+
     -- Autocompletion
     {'hrsh7th/nvim-cmp', dependencies = {
         'L3MON4D3/LuaSnip',
@@ -52,8 +53,21 @@ local plugins = {
         'rafamadriz/friendly-snippets',
         'saadparwaiz1/cmp_luasnip',
     }},
+
+    -- AI
+    {"olimorris/codecompanion.nvim", dependencies = {
+        "nvim-lua/plenary.nvim",
+        "nvim-treesitter/nvim-treesitter",
+        "hrsh7th/nvim-cmp", -- Optional: For using slash commands and variables in the chat buffer
+        "nvim-telescope/telescope.nvim", -- Optional: For using slash commands
+        { "stevearc/dressing.nvim", opts = {} }, -- Optional: Improves the default Neovim UI
+    },
+    config = true
+    },
+
     -- Harpoon
     {'theprimeagen/harpoon'},
+
     -- Git
     {'tpope/vim-fugitive'},
     {'lewis6991/gitsigns.nvim'},
