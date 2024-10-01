@@ -22,10 +22,11 @@ config.window_padding = {
 
 -- Tab bars
 config.use_fancy_tab_bar = false
-config.hide_tab_bar_if_only_one_tab = true
+config.hide_tab_bar_if_only_one_tab = false
+config.tab_max_width = 100000
 
 config.keys = {
-   -- Cmd-K Behavior
+  -- Cmd-K Behavior
   {
     key = 'k',
     mods = 'CMD',
@@ -34,9 +35,18 @@ config.keys = {
       wezterm.action.SendKey { key = 'L', mods = 'CTRL' },
     },
   },
+  -- Fullscreen
+  {
+    key = 'f',
+    mods = 'SHIFT|CTRL',
+    action = wezterm.action.ToggleFullScreen,
+  },
 }
 
-config.window_decorations = "TITLE|RESIZE|MACOS_FORCE_ENABLE_SHADOW"
+-- Windows
+config.window_decorations = "INTEGRATED_BUTTONS|RESIZE|MACOS_FORCE_ENABLE_SHADOW"
+config.integrated_title_button_color = "orange"
+config.adjust_window_size_when_changing_font = false
 
 -- Colors
 if phajasColors then
