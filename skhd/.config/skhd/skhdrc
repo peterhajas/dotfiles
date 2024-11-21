@@ -22,15 +22,3 @@ shift + ctrl + alt - p : yabai -m space --balance
 
 # hyper f for fullscreen
 shift + ctrl + alt - f : yabai -m window --toggle float --grid 1:1:0:0:1:1
-
-# option-shift to move windows to spaces
-shift + alt - 1 : yabai -m window --space 1
-shift + alt - 2 : yabai -m window --space 2
-shift + alt - 3 : yabai -m window --space 3
-shift + alt - 4 : yabai -m window --space 4
-shift + alt - 5 : yabai -m window --space 5
-shift + alt - 6 : yabai -m window --space 6
-shift + alt - 7 : yabai -m window --space 7
-shift + alt - 8 : yabai -m window --space 8
-shift + alt - 9 : yabai -m window --space 9
-shift + alt - 0 : yabai -m window --space 10
