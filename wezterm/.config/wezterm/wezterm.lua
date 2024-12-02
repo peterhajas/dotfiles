@@ -46,7 +46,7 @@ config.keys = {
 -- Windows
 config.window_decorations = "INTEGRATED_BUTTONS|RESIZE|MACOS_FORCE_ENABLE_SHADOW"
 config.integrated_title_button_color = "orange"
-config.adjust_window_size_when_changing_font = false
+config.adjust_window_size_when_changing_font_size = false
 
 -- Colors
 if phajasColors then
