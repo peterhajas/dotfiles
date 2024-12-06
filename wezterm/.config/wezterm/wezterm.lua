@@ -10,6 +10,7 @@ config.audible_bell = 'Disabled'
 
 -- Fonts
 config.font_size = 16
+config.adjust_window_size_when_changing_font_size = false
 
 -- Turn off padding
 local padding = 0
