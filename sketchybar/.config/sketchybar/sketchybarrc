@@ -7,7 +7,8 @@ PLUGIN_DIR="$HOME/.config/sketchybar/plugins"
 sketchybar --bar \
 display=main \
 color=0x99212121 \
-height=30
+height=30 \
+notch_display_height=50
 
 sketchybar -m --add event window_focus \
               --add event title_change
