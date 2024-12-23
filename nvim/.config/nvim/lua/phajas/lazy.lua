@@ -33,9 +33,7 @@ local plugins = {
     {'nvim-treesitter/nvim-treesitter-context'},
 
     -- LSP Support
-    {'VonHeikemen/lsp-zero.nvim', branch = 'v3.x', dependencies = {
-
-    }},
+    {'VonHeikemen/lsp-zero.nvim', branch = 'v3.x'};
     {'neovim/nvim-lspconfig', dependencies = {
         'hrsh7th/cmp-nvim-lsp',
         'williamboman/mason.nvim',
