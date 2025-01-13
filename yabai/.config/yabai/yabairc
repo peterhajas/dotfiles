@@ -1,26 +1,16 @@
 # vim: ft=bash
 
-BAR_HEIGHT=30
-EDGE_PADDING=0
-PADDING=0
-
 yabai -m config \
     auto_balance on \
-    bottom_padding $EDGE_PADDING \
-    external_bar main:$BAR_HEIGHT:0 \
     layout bsp \
-    left_padding $EDGE_PADDING \
     mouse_action1 move \
     mouse_action2 resize \
     mouse_drop_action swap \
     mouse_follows_focus off \
     mouse_modifier ctrl \
-    right_padding $PADDING \
     split_ratio 0.382 \
-    top_padding $EDGE_PADDING \
     window_border on \
-    window_gap $PADDING\
-    window_placement second_child \
+    window_placement second_child
 
 yabai -m rule --add app="^Steam$" manage=off
 yabai -m rule --add app="^System Settings$" manage=off

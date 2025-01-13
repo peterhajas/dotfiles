@@ -4,12 +4,22 @@ BAR_HEIGHT=30
 EDGE_PADDING=0
 PADDING=10
 WIDGET_PADDING=194
-LEFT_PADDING=86 # width of the $WIDGET_PADDING minus the width the dock takes up on the left
+# LEFT_PADDING=86 # width of the $WIDGET_PADDING minus the width the dock takes up on the left
+LEFT_PADDING=$(($WIDGET_PADDING))
 
 WIDGET_PADDING=$(($WIDGET_PADDING + $EDGE_PADDING))
 
 WIDTH=$(yabai -m query --displays | jq ".[0].frame.w")
 LAYOUT="float"
+
+# Set geometry
+yabai -m config \
+    bottom_padding $EDGE_PADDING \
+    external_bar main:$BAR_HEIGHT:0 \
+    left_padding $EDGE_PADDING \
+    right_padding $PADDING \
+    top_padding $EDGE_PADDING \
+    window_gap $PADDING
 
 # less than 2000 means BSP
 if awk -v num="$WIDTH" -v comp="2100" 'BEGIN { exit !(num < comp) }'; then
