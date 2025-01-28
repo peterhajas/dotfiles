@@ -7,7 +7,6 @@ end
 -- Metrics
 
 local width = 194
-local yOffset = 30
 
 -- Bind hyper-space
 hs.hotkey.bind(hyper, 'space', function()
@@ -75,6 +74,7 @@ local function layout()
     update()
     local screen = hs.screen.primaryScreen()
     local screenFrame = screen:fullFrame()
+    local yOffset = screen:frame().y + 10
     local rect = hs.geometry.rect(0, yOffset, screenFrame.w, screenFrame.h - yOffset)
     webView:frame(rect)
 end
