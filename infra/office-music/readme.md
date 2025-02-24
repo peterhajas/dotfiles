@@ -2,20 +2,23 @@
 
 ## Getting Started
 
-1. Make an account and change the password for the user.
-2. Enable `sshd` with:
+1. Download "Minimal/IOT image" from [here](https://www.armbian.com/orange-pi-zero-3/) and `dd` it onto an SD card.
+2. `ssh` in with password `1234`:
+    ssh root@orangepizero3
+3. Upon login, Armbian will run a little wizard.
+4. Set root password to something very secure.
+5. Make a `phajas` account and change the password for the user.
+    * Make it another very secure password.
+6. Enable `sshd` with:
     sudo systemctl enable ssh.service
     sudo systemctl start ssh.service
-3. Install `ansible` by doing an ssh in, and running:
-
-    python3 -m ensurepip
-    ~/.local/bin/pip3 install ansible-core
-
-4. Copy `ssh` keys over with `ssh-copy-id orangepi@orangepizero3`
-5. Do setup with:
-
+7. Copy `ssh` keys over with `ssh-copy-id phajas@orangepizero3`
+8. Do setup with:
     ansible-playbook setup.yml -i hosts -K
-6. Enjoy.
+9. Before shutting down, run `armbian-config` to set up wifi
+10. Shut down with:
+    ansible-playbook shutdown.yml -i hosts -K
+11. Enjoy.
 
 ## TODO
 

@@ -42,6 +42,7 @@
     ansible.builtin.service:
       name: shairport-sync
       state: started
+      enabled: true
     become: yes
   - name: Restart shairport
     ansible.builtin.service:
