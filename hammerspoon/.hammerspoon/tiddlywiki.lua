@@ -5,8 +5,6 @@ function TiddlyWikiRender(name)
 end
 
 -- Metrics
-
-local width = 194
 local yOffset = 30
 
 -- Bind hyper-space
@@ -19,7 +17,6 @@ WikiPath = wikiDirectory .. "phajas-wiki.html"
 local cachedWikiContents = ""
 local webView = nil
 local glanceWebView = nil
-local glanceTiddler = "HUDNONE"
 
 local needsHUDUpdate = false
 local needsGlanceUpdate = false
