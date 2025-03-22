@@ -15,44 +15,53 @@ end)
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
 local cachedWikiContents = ""
-local webView = nil
-local glanceWebView = nil
 
-local needsHUDUpdate = false
-local needsGlanceUpdate = false
+local wikiStates = {}
+
+local function createWikiState(name, tiddler, displayName)
+    local rect = hs.geometry.rect(0,0,0,0)
+    local state = {
+        ['name'] = name,
+        ['webView'] = hs.webview.new(rect)
+        :behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
+        :transparent(true)
+        :allowTextEntry(true)
+        :level(hs.drawing.windowLevels.normal - 1)
+        :show(),
+        ['needsUpdate'] = false,
+        ['tiddler'] = tiddler,
+        ['displayName'] = displayName,
+    }
+    table.insert(wikiStates, state)
+end
 
 local function setNeedsUpdate()
-    needsHUDUpdate = true
-    needsGlanceUpdate = true
+    for _, value in ipairs(wikiStates) do
+        value['needsUpdate'] = true
+    end
 end
 
-local function updateHUD()
-    if needsHUDUpdate then
-        local hudWikiContents = cachedWikiContents
-
-        local hudTiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">[
-{"title":"Heads Up Display Host","text":"{{ Heads Up Display Desktop }}"},
+local function updateWikiState(wikiState)
+    local contents = cachedWikiContents
+    local tiddler = wikiState['tiddler']
+    local tiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">[
+{"title":"Heads Up Display Host","text":"{{ ]] .. tiddler .. [[}}"},
 {"title":"Do It","text":"\\import $:/phajas/hud/actions\n\n\u003C\u003Cphajas_hud_actions>>","tags":"$:/tags/StartupAction/PostRender"}
 ]</script>
 ]]
-        hudWikiContents = hudTiddlerStore .. hudWikiContents
-        webView:html(hudWikiContents)
-    end
-    needsHUDUpdate = false
+
+    local webViewContents = tiddlerStore .. contents
+    local webView = wikiState['webView']
+    webView:html(webViewContents)
 end
 
-local function updateGlance()
-    if needsGlanceUpdate then
-        local glanceWikiContents = cachedWikiContents
-        local glanceTiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">[
-{"title":"Heads Up Display Host","text":"{{ Heads Up Display Glance }}"},
-{"title":"Do It","text":"\\import $:/phajas/hud/actions\n\n\u003C\u003Cphajas_hud_actions>>","tags":"$:/tags/StartupAction/PostRender"}
-]</script>
-]]
-        glanceWikiContents = glanceTiddlerStore .. glanceWikiContents
-        glanceWebView:html(glanceWikiContents)
+local function updateAllIfNeeded()
+    for _, wikiState in ipairs(wikiStates) do
+        if wikiState['needsUpdate'] then
+            updateWikiState(wikiState)
+            wikiState['needsUpdate'] = false
+        end
     end
-    needsGlanceUpdate = false
 end
 
 local function update()
@@ -64,16 +73,38 @@ local function update()
             setNeedsUpdate()
         end
     end
-    updateHUD()
-    updateGlance()
+    updateAllIfNeeded()
+end
+
+local function displayForWikiState(wikiState)
+    if wikiState['displayName'] == "Primary" then
+        return hs.screen.primaryScreen()
+    end
+    for _, screen in ipairs(hs.screen.allScreens()) do
+        if screen:name() == wikiState['displayName'] then
+            return screen
+        end
+    end
+    return nil
+end
+
+local function layoutWikiState(wikiState)
+    local display = displayForWikiState(wikiState)
+    local webView = wikiState['webView']
+    if display ~= nil then
+        local screenFrame = display:fullFrame()
+        webView:frame(screenFrame)
+    else
+        local rect = hs.geometry.rect(0,0,0,0)
+        webView:frame(rect)
+    end
 end
 
 local function layout()
     update()
-    local screen = hs.screen.primaryScreen()
-    local screenFrame = screen:fullFrame()
-    local rect = hs.geometry.rect(0, yOffset, screenFrame.w, screenFrame.h - yOffset)
-    webView:frame(rect)
+    for _, wikiState in ipairs(wikiStates) do
+        layoutWikiState(wikiState)
+    end
 end
 
 local function caffeinateCallback(event)
@@ -91,24 +122,7 @@ local function caffeinateCallback(event)
 end
 
 local function screenCallback()
-    local showGlance = false
-    local glanceFrame = hs.geometry.rect(0,0,0,0)
-    if tableLength(hs.screen.allScreens()) > 1 then
-        if hs.screen.allScreens()[2]:name() == "Sidecar Display (AirPlay)" then
-            glanceFrame = hs.screen.allScreens()[2]:frame()
-            showGlance = true
-        end
-    end
-
-    if showGlance then
-        glanceWebView:frame(glanceFrame)
-        glanceWebView:sendToBack()
-        glanceWebView:show()
-        needsGlanceUpdate = true
-    else
-        glanceWebView:hide()
-    end
-
+    setNeedsUpdate()
     layout()
 end
 
@@ -122,20 +136,9 @@ function UPDATEWIKI()
 end
 
 local function setupWebView()
-    local rect = hs.geometry.rect(0,0,0,0)
-    webView = hs.webview.new(rect)
-    webView:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
-    :transparent(true)
-    :allowTextEntry(true)
-    :level(hs.drawing.windowLevels.normal - 1)
-    :show()
-
-    glanceWebView = hs.webview.new(glanceFrame)
-    glanceWebView:behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
-    :transparent(true)
-    :allowTextEntry(true)
-    :level(hs.drawing.windowLevels.normal - 1)
-    :show()
+    createWikiState("main", "Heads Up Display Desktop", "Primary")
+    createWikiState("right", "Heads Up Display Right", "FP222W (2)")
+    createWikiState("left", "Heads Up Display Left", "FP222W (1)")
 
     WikiScreenWatcher:start()
     WikiCaffeinateWatcher:start()
@@ -159,13 +162,6 @@ wikiAppWatcher = hs.application.watcher.new(function(name, type, app)
     end
 end)
 wikiAppWatcher:start()
-
-function SendGlanceToTiddler(name)
-    glanceTiddler = name
-    needsGlanceUpdate = true
-    update()
-end
-
 
 local port = 8045
 WikiServer = nil
