@@ -33,7 +33,7 @@ LAYOUT="bsp"
 
 if [ "$LAYOUT" = "bsp" ]; then
     # Pad for widgets just on the main display's 10 spaces
-    for (( i=0; i<=10; i++ ))
+    for (( i=1; i<=10; i++ ))
     do
         yabai -m config --space $i layout $LAYOUT left_padding $LEFT_PADDING right_padding $WIDGET_PADDING
     done
