@@ -35,3 +35,6 @@ fish_add_path /opt/homebrew/sbin
 
 ## AI
 export GGML_METAL_PATH_RESOURCES=~/.models/
+
+# uv
+fish_add_path "/Users/phajas/.local/bin"
