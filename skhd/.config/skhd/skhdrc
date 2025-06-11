@@ -1,8 +1,8 @@
 # Hyper vim movement keys for focus
-shift + ctrl + alt - h : yabai -m window --focus west
-shift + ctrl + alt - l : yabai -m window --focus east
-shift + ctrl + alt - k : yabai -m window --focus north
-shift + ctrl + alt - j : yabai -m window --focus south
+shift + ctrl + alt - h : yabai -m window --focus west; aerospace focus left
+shift + ctrl + alt - l : yabai -m window --focus east; aerospace focus right
+shift + ctrl + alt - k : yabai -m window --focus north; aerospace focus up
+shift + ctrl + alt - j : yabai -m window --focus south; aerospace focus down
 
 # hyper m to focus between displays
 shift + ctrl + alt - m : yabai -m display --focus recent
