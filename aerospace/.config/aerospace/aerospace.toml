@@ -8,7 +8,7 @@ enable-normalization-opposite-orientation-for-nested-containers = true
 [gaps]
 inner.horizontal = 0
 inner.vertical = 0
-outer.left = 86
+outer.left = 194
 outer.bottom = 0
 outer.top = 30
 outer.right = 194
