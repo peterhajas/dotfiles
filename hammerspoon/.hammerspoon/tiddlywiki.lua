@@ -26,6 +26,7 @@ local function createWikiState(name, tiddler, displayName)
         :behavior(hs.drawing.windowBehaviors.canJoinAllSpaces)
         :transparent(true)
         :allowTextEntry(true)
+        :allowNewWindows(false)
         :level(hs.drawing.windowLevels.normal - 1)
         :show(),
         ['needsUpdate'] = false,
