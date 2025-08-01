@@ -8,10 +8,10 @@ enable-normalization-opposite-orientation-for-nested-containers = true
 [gaps]
 inner.horizontal = 0
 inner.vertical = 0
-outer.left = 194
+outer.left = [{ monitor.main = 194}, 0]
 outer.bottom = 0
-outer.top = 30
-outer.right = 194
+outer.top = [{ monitor.main = 30}, 0]
+outer.right = [{ monitor.main = 194}, 0]
 
 [mode.main.binding]
 ctrl-alt-shift-h = 'focus left'
@@ -42,6 +42,8 @@ alt-7 = 'workspace 7'
 alt-8 = 'workspace 8'
 alt-9 = 'workspace 9'
 alt-0 = 'workspace 10'
+alt-backtick = 'workspace 11'
+alt-minus = 'workspace 12'
 
 alt-shift-1 = 'move-node-to-workspace 1'
 alt-shift-2 = 'move-node-to-workspace 2'
@@ -53,6 +55,8 @@ alt-shift-7 = 'move-node-to-workspace 7'
 alt-shift-8 = 'move-node-to-workspace 8'
 alt-shift-9 = 'move-node-to-workspace 9'
 alt-shift-0 = 'move-node-to-workspace 10'
+alt-shift-backtick = 'move-node-to-workspace 12'
+alt-shift-minus = 'move-node-to-workspace 11'
 
 alt-shift-c = 'reload-config'
 
@@ -65,6 +69,11 @@ enter = 'mode main'
 esc = 'mode main'
 alt-r = 'mode main'
 r = 'mode main'
+
+# Monitor Configs
+[workspace-to-monitor-force-assignment]
+11 = '^SyncMaster \(2\)$'
+12 = '^SyncMaster \(1\)$'
 
 # Workspace Grouping
 
@@ -107,7 +116,8 @@ run = "move-node-to-workspace 10"
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'mpv'
-run = "layout floating"
+# run = ["layout floating", "move-node-to-workspace 7"]
+run = "move-node-to-workspace 7"
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'com.valvesoftware.steam'
