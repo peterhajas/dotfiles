@@ -92,7 +92,7 @@ local function layoutWikiState(wikiState)
     local display = displayForWikiState(wikiState)
     local webView = wikiState['webView']
     if display ~= nil then
-        local screenFrame = display:fullFrame()
+        local screenFrame = display:frame()
         webView:frame(screenFrame)
     else
         local rect = hs.geometry.rect(0,0,0,0)
