@@ -1,6 +1,9 @@
 #!/bin/bash
 
-pkill -9 Hammerspoon
+hammerspoon_pid=$(pgrep -f "Hammerspoon")
+pkill -g $hammerspoon_pid && kill $hammerspoon_pid 2>>/dev/null
+
 sleep 0.5
+
 open -a Hammerspoon
 
