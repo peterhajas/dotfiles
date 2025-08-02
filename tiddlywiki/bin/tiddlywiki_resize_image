@@ -1,11 +1,172 @@
 #!/bin/bash
 
-FILE="$1"
-FILENAME=$(basename $1)
-FILEPATH=$(dirname $1)
-OUTPATH1="$FILEPATH/resize_1_$FILENAME"
-OUTPATH="$FILEPATH/resize_$FILENAME"
+# Function to check if a command exists
+check_command() {
+    command -v "$1" >/dev/null 2>&1 || { 
+        echo "Error: $1 is required but not installed. Aborting." >&2
+        exit 1
+    }
+}
 
-magick "$FILE" -resize 1024x\> "$OUTPATH1"
-ffmpeg -i "$OUTPATH1" "$OUTPATH"
-exiftool -all= $OUTPATH
+# Check if required tools are installed
+# Try magick first (ImageMagick v7), then convert (ImageMagick v6)
+if command -v magick >/dev/null 2>&1; then
+    MAGICK_CMD="magick"
+elif command -v convert >/dev/null 2>&1; then
+    MAGICK_CMD="convert"
+else
+    echo "Error: ImageMagick is required but not installed. Aborting." >&2
+    exit 1
+fi
+
+check_command ffmpeg  
+check_command exiftool
+
+# Check if arguments provided
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <image_file(s)>"
+    echo "Example: $0 *.jpg"
+    echo "Example: $0 image1.png image2.tiff image3.heic"
+    echo ""
+    echo "This script will:"
+    echo "1. Resize images to 1024px wide using ImageMagick ($MAGICK_CMD)"
+    echo "2. Convert to JPEG format using ffmpeg" 
+    echo "3. Strip EXIF data using exiftool"
+    exit 1
+fi
+
+# Initialize counters
+processed=0
+failed=0
+
+# Process each file
+for file in "$@"; do
+    if [ ! -f "$file" ]; then
+        echo "Warning: '$file' not found, skipping..."
+        ((failed++))
+        continue
+    fi
+    
+    echo "Processing: $file"
+    
+    # Get filename without extension, and sanitize the temp filename
+    filename=$(basename "$file")
+    name="${filename%.*}"
+    # Replace problematic characters in temp filenames
+    safe_name=$(echo "$name" | tr ':' '-')
+    output_file="${name}.jpeg"
+    
+    # Step 1: Resize with ImageMagick to 1024px wide (maintains aspect ratio)
+    temp_resized="${safe_name}_temp_resized.png"
+    echo "  Resizing with ImageMagick..."
+    $MAGICK_CMD "$file" -resize 1024x\> "$temp_resized"
+    
+    if [ $? -ne 0 ]; then
+        echo "  Error: Failed to resize $file with ImageMagick"
+        ((failed++))
+        continue
+    fi
+    
+    # Check if the temporary file was created and get its info
+    if [ ! -f "$temp_resized" ]; then
+        echo "  Error: Temporary resized file not created"
+        ((failed++))
+        continue
+    fi
+    
+    echo "  Temp file created: $temp_resized ($(ls -lh "$temp_resized" | awk '{print $5}'))"
+    
+    # Check if temp file is a valid image
+    if ! file "$temp_resized" | grep -q "PNG"; then
+        echo "  Error: Temp file is not a valid PNG"
+        rm -f "$temp_resized"
+        ((failed++))
+        continue
+    fi
+    
+    # Get detailed info about the PNG file
+    echo "  PNG file info:"
+    identify "$temp_resized" 2>/dev/null || echo "  Could not identify PNG"
+    
+    # Try to get ffmpeg info about the file
+    echo "  FFmpeg probe info:"
+    ffprobe "$temp_resized" 2>&1 | grep -E "(Stream|Video|error|Invalid)" || echo "  No probe info available"
+    
+    # Step 2: Convert to JPEG with ffmpeg (try different approaches)
+    echo "  Converting to JPEG with ffmpeg..."
+    
+    # Try method 1: Basic conversion
+    ffmpeg -i "$temp_resized" -y "$output_file" 2>/dev/null
+    ffmpeg_exit_code=$?
+    
+    if [ $ffmpeg_exit_code -ne 0 ]; then
+        echo "  Method 1 failed. Trying with explicit codec..."
+        # Try method 2: Explicit codec
+        ffmpeg -i "$temp_resized" -c:v mjpeg -q:v 2 -y "$output_file" 2>/dev/null
+        ffmpeg_exit_code=$?
+    fi
+    
+    if [ $ffmpeg_exit_code -ne 0 ]; then
+        echo "  Method 3 failed. Trying with input format specification..."
+        # Try method 4: Specify input format
+        ffmpeg -f image2 -i "$temp_resized" -c:v mjpeg -q:v 3 -y "$output_file" 2>/dev/null
+        ffmpeg_exit_code=$?
+    fi
+    
+    if [ $ffmpeg_exit_code -ne 0 ]; then
+        echo "  Method 4 failed. Trying with single frame specification..."
+        # Try method 5: Force single frame
+        ffmpeg -loop 1 -i "$temp_resized" -frames:v 1 -c:v mjpeg -q:v 3 -y "$output_file" 2>/dev/null
+        ffmpeg_exit_code=$?
+    fi
+    
+    if [ $ffmpeg_exit_code -ne 0 ]; then
+        echo "  All ffmpeg methods failed. Showing detailed error:"
+        ffmpeg -i "$temp_resized" -y "$output_file" 2>&1 | tail -10
+        echo "  Falling back to ImageMagick for JPEG conversion..."
+        # Fallback: Use ImageMagick instead of ffmpeg for JPEG conversion
+        $MAGICK_CMD "$temp_resized" -quality 90 "$output_file" 2>/dev/null
+        imagemagick_exit_code=$?
+        
+        if [ $imagemagick_exit_code -eq 0 ]; then
+            echo "  ✓ ImageMagick conversion succeeded"
+            ffmpeg_exit_code=0  # Set to success for the rest of the script
+        else
+            echo "  ImageMagick conversion also failed"
+        fi
+    fi
+    
+    if [ $ffmpeg_exit_code -ne 0 ]; then
+        echo "  Error: All ffmpeg conversion attempts failed"
+        rm -f "$temp_resized"
+        ((failed++))
+        continue
+    fi
+    
+    # Check if output file was created
+    if [ ! -f "$output_file" ]; then
+        echo "  Error: Output JPEG file not created"
+        rm -f "$temp_resized"
+        ((failed++))
+        continue
+    fi
+    
+    echo "  JPEG created: $output_file ($(ls -lh "$output_file" | awk '{print $5}'))"
+    
+    # Step 3: Strip EXIF with exiftool
+    exiftool -all= -overwrite_original "$output_file" 2>/dev/null
+    
+    if [ $? -ne 0 ]; then
+        echo "  Error: Failed to strip EXIF"
+        ((failed++))
+    else
+        echo "  ✓ Created: $output_file"
+        ((processed++))
+    fi
+    
+    # Clean up temporary file
+    rm -f "$temp_resized"
+done
+
+echo ""
+echo "Complete! Processed: $processed, Failed: $failed"
