@@ -173,5 +173,5 @@ local function startWikiServer()
     :start()
 end
 
-setupWebView()
 startWikiServer()
+setupWebView()
