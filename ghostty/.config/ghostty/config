@@ -1,0 +1,9 @@
+cursor-style = "block"
+cursor-style-blink = "false"
+font-family = "Menlo"
+font-size = 16
+shell-integration = "none"
+theme = "catppuccin-mocha"
+macos-icon-screen-color = "orange"
+macos-icon = "custom-style"
+macos-icon-ghost-color = "orange"
