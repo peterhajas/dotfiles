@@ -18,8 +18,6 @@ label.font=Menlo:Bold:14 \
 label.padding_right=$ITEM_PADDING \
 label.padding_left=$ITEM_PADDING
 
-sketchybar --add event weather_update
-
 sketchybar --add item time right \
            --set time script="$PLUGIN_DIR/time.sh" \
            --set time click_script="$PLUGIN_DIR/time_clicked.sh" \
@@ -37,21 +35,6 @@ sketchybar --add item battery right \
            --subscribe battery power_source_change \
            --set battery label.color=0xff6699cc update_freq=600 \
            --subscribe battery system_woke
-
-sketchybar --add item weather right \
-           --set weather script="$PLUGIN_DIR/weather.sh" \
-           --set weather click_script="$PLUGIN_DIR/weather_clicked.sh" \
-           --set weather label.color=0xffffcc66 update_freq=600 \
-           --subscribe weather system_woke
-
-sketchybar --add item weather.radar popup.weather \
-           --set weather.radar script="$PLUGIN_DIR/radar.sh" \
-           --set weather.radar label.color=0xffffcc66 update_freq=600
-
-sketchybar --add item weather.details popup.weather \
-           --set weather.details script="$PLUGIN_DIR/weather_details.sh" \
-           --set weather.details updates=when_shown
-           --set weather.details label.color=0xffffcc66 update_freq=600
 
 sketchybar --add item window center \
            --set window script="$PLUGIN_DIR/window.sh" \
