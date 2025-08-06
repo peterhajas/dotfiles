@@ -1,4 +1,7 @@
 # Reference: https://github.com/i3/i3/blob/next/etc/config
+# I want to use AeroSpace, but I need a reliable way to disable floating windows
+# https://github.com/nikitabobko/AeroSpace/issues/2
+# https://github.com/nikitabobko/AeroSpace/issues/552
 
 on-focus-changed = ['move-mouse window-lazy-center']
 automatically-unhide-macos-hidden-apps = true
