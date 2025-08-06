@@ -36,7 +36,7 @@ function abbrev -d "Install fish abbreviations"
     abbr leaderboard git shortlog -sn
     
     # vim
-    abbr vv 'find . | fzf -i | xargs -o nvim'
+    abbr vv 'find . -type f | fzf -i | xargs -o nvim'
 
     # youtube-dl
     abbr y 'ytd "'
