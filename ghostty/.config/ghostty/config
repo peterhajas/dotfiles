@@ -1,3 +1,5 @@
+# reload with ctrl+shift+, (Linux) or cmd+shift+, (macOS)
+
 cursor-style = "block"
 cursor-style-blink = "false"
 font-family = "Menlo"
@@ -5,6 +7,7 @@ font-size = 16
 macos-icon = "custom-style"
 macos-icon-ghost-color = "orange"
 macos-icon-screen-color = "orange"
+macos-titlebar-style = "transparent"
 resize-overlay = "never"
 shell-integration = "none"
 theme = "catppuccin-mocha"
