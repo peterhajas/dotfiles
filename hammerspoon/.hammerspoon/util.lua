@@ -134,3 +134,12 @@ function url_decode(url)
     end)
 end
 
+function findIndex(tbl, value)
+    for i, v in ipairs(tbl) do
+        if v == value then
+            return i
+        end
+    end
+    return nil  -- value not found
+end
+
