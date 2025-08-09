@@ -2,7 +2,7 @@
 
 BAR_HEIGHT=30
 EDGE_PADDING=0
-PADDING=10
+PADDING=0
 WIDGET_PADDING=194
 # LEFT_PADDING=86 # width of the $WIDGET_PADDING minus the width the dock takes up on the left
 LEFT_PADDING=$(($WIDGET_PADDING))
