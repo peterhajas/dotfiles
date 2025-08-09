@@ -46,7 +46,7 @@ sketchybar --add space space1 left \
            --set space1 associated_space=1 \
            --set space1 script="$PLUGIN_DIR/space.sh" \
            --set space1 click_script="$PLUGIN_DIR/space_clicked.sh" \
-           --subscribe space1 window_focus space_change \
+           --subscribe space1 window_focus space_change front_app_switched \
            --set space1 label.color=0xfff2777a \
            --set space1 background.color=0xfff2777a \
            --set space1 label.highlight_color=0xff212121
