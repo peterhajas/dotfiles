@@ -3,9 +3,8 @@
 --
 -- macOS sets this environment variable for apps, so check the bundle ID or
 -- enable if it is `nil`
-local bundleID = os.getenv("__CFBundleIdentifier")
-if bundleID == nil or
-   bundleID ~= "com.apple.Terminal" then
+
+local function applyCatppuccin()
     require("catppuccin").setup({
         flavour = "auto",
         integrations = {
@@ -18,4 +17,14 @@ if bundleID == nil or
     })
 
     vim.cmd.colorscheme "catppuccin"
+end
+
+local function applyModus()
+    vim.cmd([[colorscheme modus]])
+end
+
+local bundleID = os.getenv("__CFBundleIdentifier")
+if bundleID == nil or
+   bundleID ~= "com.apple.Terminal" then
+   applyModus()
 end

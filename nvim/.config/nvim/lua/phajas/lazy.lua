@@ -81,7 +81,10 @@ local plugins = {
 
     -- Visuals
     {'norcalli/nvim-colorizer.lua'},
+
+    --- Playing with both of these themes
     {'catppuccin/nvim', priority = 1000 },
+    {"miikanissi/modus-themes.nvim", priority = 1000 },
 }
 
 local opts = {}

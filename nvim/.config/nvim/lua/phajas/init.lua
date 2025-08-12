@@ -10,7 +10,7 @@ require("phajas.plugins.mason")
 
 require("phajas.plugins.blame_line")
 require("phajas.plugins.bufferline")
-require("phajas.plugins.catppuccin")
+
 require("phajas.plugins.cmp")
 require("phajas.plugins.commentary")
 require("phajas.plugins.fugitive")
@@ -22,7 +22,7 @@ require("phajas.plugins.nvim-colorizer")
 require("phajas.plugins.oil")
 require("phajas.plugins.table-mode")
 require("phajas.plugins.telescope")
+require("phajas.plugins.theme")
 require("phajas.plugins.treesitter")
 require("phajas.plugins.undotree")
 require("phajas.plugins.zen-mode")
-

@@ -10,5 +10,6 @@ macos-icon-screen-color = "orange"
 macos-titlebar-style = "transparent"
 resize-overlay = "never"
 shell-integration = "none"
-theme = dark:catppuccin-mocha,light:catppuccin-latte
+# theme = dark:catppuccin-mocha,light:catppuccin-latte
+theme = dark:modus_vivendi,light:modus_operandi
 
