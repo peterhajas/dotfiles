@@ -1,5 +1,7 @@
 #!/bin/bash
 
+pushd /tmp/
 tiddlywiki --load ~/phajas-wiki/phajas-wiki.html --output /tmp/ --render "[[$1]]" "tw_out.txt" "text/plain"
 cat "/tmp/tw_out.txt"
 rm "/tmp/tw_out.txt"
+popd
