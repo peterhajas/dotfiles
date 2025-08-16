@@ -22,7 +22,13 @@ commandToFunction = {
     ["pagedown"] = function() hs.eventtap.keyStroke({}, "pagedown") end,
     ["space"] = function() hs.eventtap.keyStroke({}, "space") end,
     ["return"] = function() hs.eventtap.keyStroke({}, "return") end,
-    ["shortcuts"] = function(args) hs.execute("shortcuts run \"" .. args["name"] .. "\"") end,
+    ["shortcuts"] = function(args)
+        local input = args["input"]
+        if input == nil then
+            input = ""
+        end
+        hs.execute("echo \"" .. input .. "\" | shortcuts run \"" .. args["name"] .. "\"")
+    end,
     ["tw_glance"] = function(args, body)
         bodyTable = hs.json.decode(body)
         local tiddler = bodyTable["tiddler"]
