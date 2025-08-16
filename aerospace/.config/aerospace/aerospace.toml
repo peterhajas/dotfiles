@@ -2,11 +2,17 @@
 # I want to use AeroSpace, but I need a reliable way to disable floating windows
 # https://github.com/nikitabobko/AeroSpace/issues/2
 # https://github.com/nikitabobko/AeroSpace/issues/552
+# script in `bin` kinda works, but doesn't do exactly what I want...
 
 on-focus-changed = ['move-mouse window-lazy-center']
 automatically-unhide-macos-hidden-apps = true
 enable-normalization-flatten-containers = true
 enable-normalization-opposite-orientation-for-nested-containers = true
+
+exec-on-workspace-change = [
+    '/bin/bash', '-c',
+    '~/bin/aerospace_ignore',
+]
 
 [gaps]
 inner.horizontal = 0
@@ -125,3 +131,4 @@ run = "move-node-to-workspace 7"
 [[on-window-detected]]
 if.app-name-regex-substring = 'com.valvesoftware.steam'
 run = "layout floating"
+
