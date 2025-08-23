@@ -16,6 +16,9 @@ function abbrev -d "Install fish abbreviations"
     # cd
     abbr c cd
 
+    # ls
+    abbr ls ls -lahF
+
     # git
     abbr g git status
     abbr gm git commit
