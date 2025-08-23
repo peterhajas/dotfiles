@@ -19,12 +19,6 @@ local function NBJournal()
     vim.cmd('edit ' .. path)
 end
 
-local function NBIndex()
-    path = NBNotebookPath() .. "/Index.md"
-    vim.cmd('edit ' .. path)
-end
-
-vim.api.nvim_create_user_command('NB', NB, {})
 vim.api.nvim_create_user_command('NBJournal', NBJournal, {})
 
 vim.api.nvim_create_autocmd({"BufEnter"}, {
