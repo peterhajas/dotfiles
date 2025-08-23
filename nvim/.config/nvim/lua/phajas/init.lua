@@ -11,6 +11,8 @@ require("phajas.plugins.bufferline")
 
 require("phajas.plugins.cmp")
 require("phajas.plugins.commentary")
+require("phajas.plugins.debug")
+require("phajas.plugins.debug_python")
 require("phajas.plugins.fugitive")
 require("phajas.plugins.gitsigns")
 require("phajas.plugins.harpoon")

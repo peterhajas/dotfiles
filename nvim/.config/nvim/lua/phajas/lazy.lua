@@ -55,6 +55,17 @@ local plugins = {
         'saadparwaiz1/cmp_luasnip',
     }},
 
+    -- Debugging
+    {
+        "mfussenegger/nvim-dap",
+        dependencies = {
+            "rcarriga/nvim-dap-ui",
+            "nvim-neotest/nvim-nio", -- required for dap-ui
+            "theHamsta/nvim-dap-virtual-text",
+            "mfussenegger/nvim-dap-python",
+        },
+    },
+
     -- Markdown
     {"iamcco/markdown-preview.nvim",
         cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
