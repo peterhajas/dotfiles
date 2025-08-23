@@ -47,6 +47,18 @@ vim.opt.backup = false
 vim.opt.undodir = os.getenv("HOME") .. "/.vim/undodir"
 vim.opt.undofile = true
 
+-- Diagnostics
+
+-- Show in a floating window
+vim.api.nvim_create_autocmd("CursorHold", {
+    callback = function()
+        vim.diagnostic.open_float(nil, { focus = false })
+    end
+})
+
+-- Cut the "update time" so that we can show the diagnostics faster
+vim.opt.updatetime = 0
+
 -- Misc.
 vim.opt.scrolloff = 12
 vim.opt.autoread = true
