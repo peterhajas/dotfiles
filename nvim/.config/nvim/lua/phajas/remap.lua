@@ -23,6 +23,11 @@ vim.keymap.set("n", "[w", vim.cmd.tabprevious)
 vim.keymap.set("t", "]w", vim.cmd.tabnext)
 vim.keymap.set("t", "[w", vim.cmd.tabprevious)
 
+-- Jumplist
+-- (you can also just use ctrl-o to go back and ctrl-i to go forward)
+vim.keymap.set('n', '<leader>h', '<C-O>', { desc = 'Go back in jumplist' })
+vim.keymap.set('n', '<leader>l', '<C-I>', { desc = 'Go forward in jumplist' })
+
 -- Finding
 vim.keymap.set("n", "n", "nzzzv")
 vim.keymap.set("n", "N", "Nzzzv")
