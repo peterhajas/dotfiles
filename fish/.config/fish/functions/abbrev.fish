@@ -39,7 +39,7 @@ function abbrev -d "Install fish abbreviations"
     abbr leaderboard git shortlog -sn
     
     # vim
-    abbr vv 'find . -type f | fzf -i | xargs -o nvim'
+    abbr vv 'nvim -c "lua require(\'telescope.builtin\').find_files({hidden = true, no_ignore = false, find_command = {\'fd\', \'--type\', \'f\', \'--hidden\', \'--exclude\', \'.git\'}})"'
 
     # youtube-dl
     abbr y 'ytd "'
