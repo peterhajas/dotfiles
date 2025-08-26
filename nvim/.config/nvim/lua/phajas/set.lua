@@ -55,6 +55,17 @@ vim.api.nvim_create_autocmd("CursorHold", {
         vim.diagnostic.open_float(nil, { focus = false })
     end
 })
+-- ...and tear them down when the cursor moves
+vim.api.nvim_create_autocmd("CursorMoved", {
+    callback = function()
+        -- Close any floating windows
+        for _, win in ipairs(vim.api.nvim_list_wins()) do
+            if vim.api.nvim_win_get_config(win).relative == "win" then
+                vim.api.nvim_win_close(win, false)
+            end
+        end
+    end,
+})
 
 -- Cut the "update time" so that we can show the diagnostics faster
 vim.opt.updatetime = 0
