@@ -5,5 +5,10 @@ require('lualine').setup {
         component_separators = { left = ' ', right = ' '},
         section_separators = { left = ' ', right = ' '},
         theme = "auto",
+    },
+    extensions = {
+        'fugitive',
+        'fzf',
+        'oil',
     }
 }
