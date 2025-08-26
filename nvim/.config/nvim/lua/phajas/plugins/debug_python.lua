@@ -16,8 +16,11 @@ end
 -- Configure dap-python
 dap_python.setup("uv") -- instead of get_uv_python_path
 
+-- Clear the configurations
+dap.configurations.python = {}
+
 -- Startup Configurations
-table.insert(dap.configurations.python, {
+table.insert(dap.configurations.python, 1, {
     type = 'python',
     request = 'launch',
     name = 'Launch with uv',
@@ -45,31 +48,31 @@ table.insert(dap.configurations.python, {
     end,
 })
 
--- Configuration for running the main module with uv
-table.insert(dap.configurations.python, {
-    type = 'python',
-    request = 'launch',
-    name = 'Launch module with uv',
-    module = '${input:module}',
-    python = get_uv_python_path(),
-    console = 'integratedTerminal',
-    cwd = '${workspaceFolder}',
-    env = function()
-        local env = {}
+-- -- Configuration for running the main module with uv
+-- table.insert(dap.configurations.python, {
+--     type = 'python',
+--     request = 'launch',
+--     name = 'Launch module with uv',
+--     module = '${input:module}',
+--     python = get_uv_python_path(),
+--     console = 'integratedTerminal',
+--     cwd = '${workspaceFolder}',
+--     env = function()
+--         local env = {}
 
-        -- Get environment variables from uv
-        local handle = io.popen('uv run env')
-        if handle ~= nil then
-            local env_output = handle:read("*a")
-            handle:close()
-            for line in env_output:gmatch("[^\r\n]+") do
-                local key, value = line:match("([^=]+)=(.+)")
-                if key and value then
-                    env[key] = value
-                end
-            end
-        end
+--         -- Get environment variables from uv
+--         local handle = io.popen('uv run env')
+--         if handle ~= nil then
+--             local env_output = handle:read("*a")
+--             handle:close()
+--             for line in env_output:gmatch("[^\r\n]+") do
+--                 local key, value = line:match("([^=]+)=(.+)")
+--                 if key and value then
+--                     env[key] = value
+--                 end
+--             end
+--         end
 
-        return env
-    end,
-})
+--         return env
+--     end,
+-- })
