@@ -6,9 +6,27 @@ require('lualine').setup {
         section_separators = { left = '', right = ''},
         theme = "auto",
     },
-    extensions = {
-        'fugitive',
-        'fzf',
-        'oil',
-    }
+    sections = {
+        lualine_a = {'mode'},
+        lualine_b = {'branch', 'diff', 'diagnostics'},
+        lualine_c = {{'filename', path = 1}},
+        lualine_x = { '' },
+        lualine_y = {'progress'},
+        lualine_z = {
+            'location',
+            function()
+                local dap = require('dap')
+                local session = dap.session()
+                if session then
+                    return 'DEBUG'
+                end
+                return ''
+            end,
+        }
+},
+extensions = {
+    'fugitive',
+    'fzf',
+    'oil',
+}
 }
