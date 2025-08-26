@@ -28,5 +28,6 @@ end, { desc = 'Debug: Set Conditional Breakpoint' })
 vim.keymap.set('n', '<leader>dr', function() dap.repl.open() end, { desc = 'Debug: Open REPL' })
 vim.keymap.set('n', '<leader>dl', function() dap.run_last() end, { desc = 'Debug: Run Last' })
 
-vim.keymap.set('n', '<leader>dd', function() dapui.toggle() end, { desc = 'Debug: Toggle UI' })
+-- "debug toggle"
+vim.keymap.set('n', '<leader>dt', function() dapui.toggle() end, { desc = 'Debug: Toggle UI' })
 
