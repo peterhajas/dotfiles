@@ -46,8 +46,7 @@ local function updateWikiState(wikiState)
     local contents = cachedWikiContents
     local tiddler = wikiState['tiddler']
     local tiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">[
-{"title":"Heads Up Display Host","text":"{{ ]] .. tiddler .. [[}}"},
-{"title":"Do It","text":"\\import $:/phajas/hud/actions\n\n\u003C\u003Cphajas_hud_actions>>","tags":"$:/tags/StartupAction/PostRender"}
+{"title":"$:/plugins/phajas/hud/CurrentHUD","text":"]] .. tiddler .. [["}
 ]</script>
 ]]
 
