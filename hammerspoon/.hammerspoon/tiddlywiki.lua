@@ -93,6 +93,9 @@ local function layoutWikiState(wikiState)
     local webView = wikiState['webView']
     if display ~= nil then
         local screenFrame = display:frame()
+        local topPadding = 50
+        screenFrame.h = screenFrame.h - topPadding
+        screenFrame.y = topPadding
         webView:frame(screenFrame)
     else
         local rect = hs.geometry.rect(0,0,0,0)
