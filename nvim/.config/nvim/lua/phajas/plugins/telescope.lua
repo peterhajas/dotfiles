@@ -16,6 +16,7 @@ vim.keymap.set('n', '<leader>ps', function()
             return vim.list_extend(args, {"--hidden", "--glob", "!.git"})
         end
     })
+end)
 vim.keymap.set('n', '<leader>pS', function()
     builtin.grep_string({ shorten_path = true, word_match = "-w", only_sort_text = true, search = "" })
 end)
