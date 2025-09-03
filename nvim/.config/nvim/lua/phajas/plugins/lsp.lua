@@ -22,31 +22,5 @@ lsp.on_attach(function(_, bufnr)
     vim.keymap.set("i", "<C-h>", function() vim.lsp.buf.signature_help() end, opts)
 end)
 
-require('mason-lspconfig').setup({
-    ensure_installed = {
-        "arduino_language_server",
-        "clangd",
-        "cssls",
-        "docker_compose_language_service",
-        "dockerls",
-        "gopls",
-        "html",
-        "intelephense",
-        "jedi_language_server",
-        "jqls",
-        "jsonls",
-        "lemminx",
-        "lua_ls",
-        "marksman",
-        "pyright",
-        "rust_analyzer",
-        "taplo",
-        "yamlls",
-    },
-    handlers = {
-        lsp.default_setup,
-    },
-})
-
 lsp.setup()
 
