@@ -58,10 +58,13 @@ vim.api.nvim_create_autocmd("CursorHold", {
 -- ...and tear them down when the cursor moves
 vim.api.nvim_create_autocmd("CursorMoved", {
     callback = function()
-        -- Close any floating windows
         for _, win in ipairs(vim.api.nvim_list_wins()) do
-            if vim.api.nvim_win_get_config(win).relative == "win" then
-                vim.api.nvim_win_close(win, false)
+            local config = vim.api.nvim_win_get_config(win)
+            if config.relative == "win" then
+                -- Don't close if it's likely treesitter-context (high zindex)
+                if not (config.zindex and config.zindex >= 20) then
+                    pcall(vim.api.nvim_win_close, win, false)
+                end
             end
         end
     end,
