@@ -56,11 +56,11 @@ vim.api.nvim_create_autocmd("CursorHold", {
     end
 })
 -- ...and tear them down when the cursor moves
-vim.api.nvim_create_autocmd("CursorMoved", {
+vim.api.nvim_create_autocmd({"CursorMoved", "WinLeave", "BufLeave"}, {
     callback = function()
         for _, win in ipairs(vim.api.nvim_list_wins()) do
             local config = vim.api.nvim_win_get_config(win)
-            if config.relative == "win" then
+            if config.relative ~= "" then
                 -- Don't close if it's likely treesitter-context (high zindex)
                 if not (config.zindex and config.zindex >= 20) then
                     pcall(vim.api.nvim_win_close, win, false)
