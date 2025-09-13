@@ -6,6 +6,9 @@
 # Get current macOS appearance
 appearance=$(defaults read -g AppleInterfaceStyle 2>/dev/null || echo "Light")
 
+# Set tmux environment variable for other tools to use
+tmux set-environment APPEARANCE "$appearance"
+
 if [[ "$appearance" == "Dark" ]]; then
     # Modus Vivendi (Dark) colors
     tmux set-option -g status-style fg='#ffffff',bg='#000000'
