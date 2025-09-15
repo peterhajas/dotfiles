@@ -22,8 +22,6 @@ local plugins = {
 
     {'folke/zen-mode.nvim'},
 
-    {'dhruvasagar/vim-table-mode'},
-
     {'nvim-telescope/telescope.nvim', tag = '0.1.3', dependencies = {
         'nvim-lua/plenary.nvim',
         {'nvim-telescope/telescope-fzf-native.nvim', build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release'},
@@ -65,7 +63,8 @@ local plugins = {
         },
     },
 
-    -- Markdown
+    -- Markdown Stuff
+    -- Previewing
     {"iamcco/markdown-preview.nvim",
         cmd = { "MarkdownPreviewToggle", "MarkdownPreview", "MarkdownPreviewStop" },
         build = "cd app && yarn install",
@@ -74,6 +73,8 @@ local plugins = {
         end,
         ft = { "markdown" },
     },
+    -- Tables
+    {'dhruvasagar/vim-table-mode'},
 
     -- Harpoon
     {'theprimeagen/harpoon'},
