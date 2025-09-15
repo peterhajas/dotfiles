@@ -26,3 +26,7 @@ vim.keymap.set('n', '<leader>gB', builtin.git_branches, {})
 vim.keymap.set('n', 'gd', function()
     builtin.lsp_definitions()
 end)
+
+vim.keymap.set('n', '<leader>fb', function()
+    builtin.buffers()
+end)
