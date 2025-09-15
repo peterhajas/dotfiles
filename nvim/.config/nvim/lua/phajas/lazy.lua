@@ -81,7 +81,6 @@ local plugins = {
     -- Git
     {'tpope/vim-fugitive'},
     {'lewis6991/gitsigns.nvim'},
-    -- {'braxtons12/blame_line.nvim'} - disabled
 
     -- UI enhancements
     {'nvim-lualine/lualine.nvim', dependencies = {
