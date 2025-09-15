@@ -39,7 +39,7 @@ vim.api.nvim_set_hl(0, "ColorColumn", { ctermbg="Black", bg="Black" })
 vim.api.nvim_set_hl(0, "SignColumn", { ctermbg="NONE", bg="NONE" })
 
 -- Signcolumn
-vim.opt.signcolumn = "auto:1"
+vim.opt.signcolumn = "yes"
 
 -- Undo, Swap, Backup
 vim.opt.swapfile = false
