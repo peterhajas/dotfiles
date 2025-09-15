@@ -30,3 +30,8 @@ end)
 vim.keymap.set('n', '<leader>fb', function()
     builtin.buffers()
 end)
+
+-- Unfortunately, both of these are subject to:
+-- https://github.com/nvim-telescope/telescope.nvim/issues/2195
+vim.keymap.set('n', '<leader>fs', builtin.lsp_document_symbols, { desc = "LSP document symbols" })
+vim.keymap.set('n', '<leader>fS', builtin.lsp_workspace_symbols, { desc = "LSP workspace symbols" })
