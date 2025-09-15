@@ -6,9 +6,6 @@ require("phajas.globals")
 -- before LSP
 require("phajas.plugins.mason")
 
-require("phajas.plugins.blame_line")
-require("phajas.plugins.bufferline")
-
 require("phajas.plugins.cmp")
 require("phajas.plugins.commentary")
 require("phajas.plugins.debug")
