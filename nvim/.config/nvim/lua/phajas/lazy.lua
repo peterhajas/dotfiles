@@ -19,6 +19,9 @@ local plugins = {
     {'tpope/vim-unimpaired'},
 
     {'mbbill/undotree'},
+    -- I know, I know. I dig oil.nvim, but this helps with exploring some
+    -- projects.
+    {'nvim-tree/nvim-tree.lua'},
 
     {'folke/zen-mode.nvim'},
 
