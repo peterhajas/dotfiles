@@ -1,0 +1,5 @@
+#!/bin/sh
+
+OPTIONS=$(find ~ -type d -depth 2 -prune)
+
+echo $OPTIONS | fzf
