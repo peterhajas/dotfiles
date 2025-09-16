@@ -1,5 +1,39 @@
 #!/bin/sh
 
-OPTIONS=$(find ~ -type d -depth 2 -prune)
+# Directories to search (edit these as needed)
+SEARCH_DIRS="
+$HOME
+$HOME/src
+"
 
-echo $OPTIONS | fzf
+# Find directories at depth 1 in each search directory
+DIRS=""
+for search_dir in $SEARCH_DIRS; do
+    if [ -d "$search_dir" ]; then
+        DIRS="$DIRS$(find "$search_dir" -maxdepth 1 -type d | grep -v "^$search_dir$")
+"
+    fi
+done
+
+DIR=$(echo "$DIRS" | grep -v '^$' | fzf)
+
+if [ -z "$DIR" ]; then
+    exit 0
+fi
+
+SESSION_NAME=$(basename "$DIR")
+
+if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
+    if [ -n "$TMUX" ]; then
+        tmux switch-client -t "$SESSION_NAME"
+    else
+        tmux attach-session -t "$SESSION_NAME"
+    fi
+else
+    if [ -n "$TMUX" ]; then
+        tmux new-session -d -s "$SESSION_NAME" -c "$DIR"
+        tmux switch-client -t "$SESSION_NAME"
+    else
+        tmux new-session -s "$SESSION_NAME" -c "$DIR"
+    fi
+fi
