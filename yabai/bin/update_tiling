@@ -49,3 +49,7 @@ for (( i=11; i<=30; i++ ))
 do
     yabai -m config --space $i layout $LAYOUT
 done
+
+# apply all rules
+yabai -m rule --apply
+
