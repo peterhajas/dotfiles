@@ -6,21 +6,64 @@ $HOME
 $HOME/src
 "
 
+# Get existing tmux sessions with visual indicator
+SESSIONS=""
+if tmux list-sessions >/dev/null 2>&1; then
+    SESSIONS=$(tmux list-sessions -F "#{session_name} [active session]" 2>/dev/null)
+fi
+
 # Find directories at depth 1 in each search directory
 DIRS=""
 for search_dir in $SEARCH_DIRS; do
     if [ -d "$search_dir" ]; then
-        DIRS="$DIRS$(find "$search_dir" -maxdepth 1 -type d | grep -v "^$search_dir$")
+        DIRS="$DIRS$(find "$search_dir" -maxdepth 1 -type d -not -name ".*" | grep -v "^$search_dir$")
 "
     fi
 done
 
-DIR=$(echo "$DIRS" | grep -v '^$' | fzf)
+# Combine sessions (first) and directories
+ALL_OPTIONS="$SESSIONS
+$DIRS"
 
-if [ -z "$DIR" ]; then
+RESULT=$(echo "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="Session: " --print-query --expect=ctrl-n)
+
+if [ -z "$RESULT" ]; then
     exit 0
 fi
 
+# fzf outputs: key pressed, query, selection
+KEY=$(echo "$RESULT" | sed -n '1p')
+QUERY=$(echo "$RESULT" | sed -n '2p')
+SELECTION=$(echo "$RESULT" | sed -n '3p')
+
+# If Ctrl+N was pressed or no selection was made, create new session with query name
+if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
+    SESSION_NAME="$QUERY"
+    if [ -z "$SESSION_NAME" ]; then
+        exit 0
+    fi
+    if [ -n "$TMUX" ]; then
+        tmux new-session -d -s "$SESSION_NAME"
+        tmux switch-client -t "$SESSION_NAME"
+    else
+        tmux new-session -s "$SESSION_NAME"
+    fi
+    exit 0
+fi
+
+# Handle existing session selection
+if echo "$SELECTION" | grep -q "\[active session\]"; then
+    SESSION_NAME=$(echo "$SELECTION" | sed 's/ \[active session\]//')
+    if [ -n "$TMUX" ]; then
+        tmux switch-client -t "$SESSION_NAME"
+    else
+        tmux attach-session -t "$SESSION_NAME"
+    fi
+    exit 0
+fi
+
+# Handle directory choice
+DIR="$SELECTION"
 SESSION_NAME=$(basename "$DIR")
 
 if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then

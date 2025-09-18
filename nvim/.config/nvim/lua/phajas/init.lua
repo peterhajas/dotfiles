@@ -8,6 +8,7 @@ require("phajas.plugins.mason")
 
 require("phajas.plugins.cmp")
 require("phajas.plugins.commentary")
+require("phajas.plugins.dadbod")
 require("phajas.plugins.debug")
 require("phajas.plugins.debug_python")
 require("phajas.plugins.fugitive")
