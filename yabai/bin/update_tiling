@@ -21,9 +21,9 @@ yabai -m config \
     top_padding $EDGE_PADDING \
     window_gap $PADDING
 
-# less than 2000 means BSP
+# less than 2000 means stack
 if awk -v num="$WIDTH" -v comp="2100" 'BEGIN { exit !(num < comp) }'; then
-    LAYOUT="bsp"
+    LAYOUT="stack"
 else
     LAYOUT="float"
 fi
