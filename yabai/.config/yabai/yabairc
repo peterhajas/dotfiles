@@ -19,15 +19,15 @@ yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^mpv$" manage=off
 
 # Apps with preconfigured tiling
-yabai -m rule --add app="^Messages$" manage=off grid=10:10:0:0:3:10
-yabai -m rule --add app="^Mail$" manage=off grid=10:10:3:0:4:10
-yabai -m rule --add app="^Discord$" manage=off grid=10:10:7:0:3:5
 yabai -m rule --add app="^Calendar$" manage=off grid=10:10:7:5:3:5
+yabai -m rule --add app="^Discord$" manage=off grid=10:10:7:0:3:5
+yabai -m rule --add app="^Mail$" manage=off grid=10:10:3:0:4:10
+yabai -m rule --add app="^Messages$" manage=off grid=10:10:0:0:3:10
 
 # Fullscreen apps
 yabai -m rule --add app="^Ghostty$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Reeder$" manage=off grid=1:1:0:0:1:1
 yabai -m rule --add app="^Home Assistant$" manage=off grid=1:1:0:0:1:1
+yabai -m rule --add app="^Reeder$" manage=off grid=1:1:0:0:1:1
 
 # Notifications
 yabai -m signal --add event="display_added" action="~/bin/update_tiling"
