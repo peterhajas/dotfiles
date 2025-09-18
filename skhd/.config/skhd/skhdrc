@@ -8,7 +8,7 @@ shift + ctrl + alt - f : open -a "Reeder"
 shift + ctrl + alt - g : open -a "Home Assistant"
 shift + ctrl + alt - h : open -a "Discord"
 shift + ctrl + alt - j : open -a "Mail"
-shift + ctrl + alt - k : open -a "Messages"
+shift + ctrl + alt - k : open -a "Messages" #available!
 shift + ctrl + alt - l : open -a "Screen Sharing"
 shift + ctrl + alt - m : open -a "TiddlyDesktop"
 
