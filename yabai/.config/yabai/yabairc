@@ -28,6 +28,8 @@ yabai -m rule --add app="^Discord$" grid=10:10:7:0:3:5
 
 yabai -m rule --add app="^Calendar$" manage=off grid=10:10:7:5:3:5
 
+yabai -m rule --add app="^Ghostty$" manage=off grid=10:10:0:0:10:10
+
 yabai -m signal --add event="display_added" action="~/bin/update_tiling"
 yabai -m signal --add event="display_removed" action="~/bin/update_tiling"
 
