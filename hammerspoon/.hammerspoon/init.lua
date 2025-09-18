@@ -21,12 +21,9 @@ hs.ipc.cliInstall()
 
 require "hyper"
 require "vim_movement"
-require "app_shortcuts"
 require "footpedals"
 require "preferred_screen"
 require "volume_control"
-require "brightness_control"
-require "grid"
 require "darkmode"
 require "audio_output"
 require "choose"
@@ -35,7 +32,6 @@ require "link_replace"
 require "youtubedl"
 require "server"
 require "flux"
-require "pass"
 require "tiddlywiki"
 require "iphone_mirroring"
 
@@ -265,75 +261,6 @@ function resizeForegroundWindowByAmount (amount)
     if window == nil then return end
     resizeWindowByAmount(window, amount)
 end
-
--- }}}
--- Window Movement Keys {{{
-
--- -- Bind hyper-H to move window to the left
--- hs.hotkey.bind(hyper, "h", function()
---     moveForegroundWindowInDirection(hs.geometry.size(-1,0))
--- end)
-
--- -- Bind hyper-L to move window to the right
-
--- hs.hotkey.bind(hyper, "l", function()
---     moveForegroundWindowInDirection(hs.geometry.size(1,0))
--- end)
-
--- -- Bind hyper-K to move window up
-
--- hs.hotkey.bind(hyper, "k", function()
---     moveForegroundWindowInDirection(hs.geometry.size(0,-1))
--- end)
-
--- -- Bind hyper-J to move window down
-
--- hs.hotkey.bind(hyper, "j", function()
---     moveForegroundWindowInDirection(hs.geometry.size(0,1))
--- end)
-
--- -- Bind hyper-T to move window to the "next" screen
-
--- hs.hotkey.bind(hyper, "T", function()
---     local win = hs.window.focusedWindow()
---     local windowScreen = win:screen()
-    
---     local newWindowScreen = windowScreen:next()
---     win:moveToScreen(newWindowScreen)
--- end)
-
--- }}}
--- Window Resizing Keys {{{
-
--- -- Bind hyper-Y to resize window width smaller
-
--- hs.hotkey.bind(hyper, "Y", function()
---     resizeForegroundWindowByAmount(hs.geometry.size(-1, 0))
--- end)
-
--- -- Bind hyper-O to resize window width larger
-
--- hs.hotkey.bind(hyper, "O", function()
---     resizeForegroundWindowByAmount(hs.geometry.size(1, 0))
--- end)
-
--- -- Bind hyper-I to resize window height larger
-
--- hs.hotkey.bind(hyper, "I", function()
---     resizeForegroundWindowByAmount(hs.geometry.size(0, 1))
--- end)
-
--- -- Bind hyper-U to resize window height smaller
-
--- hs.hotkey.bind(hyper, "U", function()
---     resizeForegroundWindowByAmount(hs.geometry.size(0, -1))
--- end)
-
--- -- Bind hyper-P to resize window to screen
-
--- hs.hotkey.bind(hyper, "P", function()
---     hs.window.focusedWindow():maximize()
--- end)
 
 -- }}}
 profileStop('windowCommands')

@@ -54,39 +54,3 @@ function changeVolumeByAmount(amount)
     hs.applescript.applescript(command)
 end
 
--- Hyper-- for volume down
-
-hs.hotkey.bind(hyper, "-", function()
-    changeVolumeByAmount(-1)
-end)
-
--- Hyper-+ for volume up
-
-hs.hotkey.bind(hyper, "=", function()
-    changeVolumeByAmount(1)
-end)
-
--- }}}
-
--- Music Control {{{
-
-hs.hotkey.bind(hyper, "0", function()
-    local baseURL = 'http://beacon:3689/api/'
-
-    local _, state = hs.http.get(baseURL .. 'player')
-    state = hs.json.decode(state)
-    local isPlaying = state['state']
-    isPlaying = isPlaying == 'play'
-
-    dbg(isPlaying)
-
-    if not isPlaying then
-        -- Before playing, enqueue some items if the queue is empty
-    end
-
-    -- Hammerspoon doesn't have an "hs.http.put", so use curl
-    local endpoint = baseURL .. 'player/toggle'
-    hs.execute("curl -X PUT '" .. endpoint .. "'")
-end)
-
--- }}}
