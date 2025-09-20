@@ -18,21 +18,6 @@ yabai -m rule --add app="^Steam$" manage=off
 yabai -m rule --add app="^System Settings$" manage=off
 yabai -m rule --add app="^mpv$" manage=off
 
-# Fullscreen apps
-yabai -m rule --add app="^Calendar$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Discord$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Find My$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Finder$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Ghostty$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Home Assistant$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Mail$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Maps$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Messages$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Reeder$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Safari$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^Screen Sharing$" manage=off grid=1:1:0:0:1:1
-yabai -m rule --add app="^TiddlyDesktop$" manage=off grid=1:1:0:0:1:1
-
 # Notifications
 yabai -m signal --add event="display_added" action="~/bin/update_tiling"
 yabai -m signal --add event="display_removed" action="~/bin/update_tiling"
