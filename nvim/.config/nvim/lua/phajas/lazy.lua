@@ -13,7 +13,6 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 local plugins = {
-    {'tpope/vim-commentary'},
     {'numToStr/Comment.nvim'},
     {'tpope/vim-surround'},
     {'tpope/vim-unimpaired'},
@@ -35,7 +34,6 @@ local plugins = {
     {'stevearc/oil.nvim'},
 
     {'nvim-treesitter/nvim-treesitter', cmd = {'TSUpdate'}},
-    {'nvim-treesitter/playground'},
     {'nvim-treesitter/nvim-treesitter-context'},
 
     -- LSP Support
@@ -93,11 +91,7 @@ local plugins = {
         'nvim-tree/nvim-web-devicons',
     }},
 
-    -- Visuals
-    {'norcalli/nvim-colorizer.lua'},
-
-    --- Playing with both of these themes
-    {'catppuccin/nvim', priority = 1000 },
+    -- Theme
     {"miikanissi/modus-themes.nvim", priority = 1000 },
 }
 
