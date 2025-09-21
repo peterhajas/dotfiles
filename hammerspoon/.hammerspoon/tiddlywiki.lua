@@ -5,7 +5,7 @@ function TiddlyWikiRender(name)
 end
 
 -- Metrics
-local yOffset = 30
+local yOffset = 50
 
 -- Bind hyper-space
 hs.hotkey.bind(hyper, 'space', function()
@@ -15,7 +15,6 @@ end)
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
 local cachedWikiContents = ""
-
 local wikiStates = {}
 
 local function createWikiState(name, tiddler, displayName)
@@ -93,7 +92,7 @@ local function layoutWikiState(wikiState)
     local webView = wikiState['webView']
     if display ~= nil then
         local screenFrame = display:frame()
-        local topPadding = 50
+        local topPadding = yOffset
         screenFrame.h = screenFrame.h - topPadding
         screenFrame.y = topPadding
         webView:frame(screenFrame)
