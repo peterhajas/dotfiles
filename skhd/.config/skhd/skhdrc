@@ -5,7 +5,7 @@ shift + ctrl + alt - a : open -a "Safari"
 shift + ctrl + alt - s : open -a "Ghostty"
 shift + ctrl + alt - d : open -a "Messages"
 shift + ctrl + alt - f : open -a "Reeder"
-shift + ctrl + alt - g : open -a "Home Assistant"
+shift + ctrl + alt - g : open -a "$HOME/Applications/Home Assistant.app"
 shift + ctrl + alt - h : open -a "Discord"
 shift + ctrl + alt - j : open -a "Mail"
 shift + ctrl + alt - k : open -a "Messages" #available!
