@@ -1,6 +1,6 @@
 #!/bin/sh
 
-channels=$(tiddlywiki_render "Twitch Subscriptions" | sed 's/^/https:\/\/www.twitch.tv\//')
+channels=$(tiddlywiki_render "Live Stream Subscriptions")
 
 live_channels=""
 while IFS= read -r url; do
