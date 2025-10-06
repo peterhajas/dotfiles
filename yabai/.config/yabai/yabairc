@@ -9,7 +9,6 @@ yabai -m config \
     mouse_follows_focus off \
     mouse_modifier ctrl \
     split_ratio 0.382 \
-    window_border on \
     window_placement second_child
 
 # Apps to not touch
