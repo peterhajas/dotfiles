@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Check if TiddlyDesktop is running
+if pgrep -x "nwjs" > /dev/null; then
+    # TiddlyDesktop is running, just focus it
+    open -a "TiddlyDesktop"
+else
+    # TiddlyDesktop is not running, launch it with the wiki
+    /Applications/TiddlyDesktop.app/Contents/MacOS/nwjs "/Users/phajas/phajas-wiki/phajas-wiki.html" &
+fi

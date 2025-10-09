@@ -10,7 +10,7 @@ shift + ctrl + alt - h : open -a "Discord"
 shift + ctrl + alt - j : open -a "Mail"
 shift + ctrl + alt - k : open -a "Messages" #available!
 shift + ctrl + alt - l : open -a "Screen Sharing"
-shift + ctrl + alt - m : open -a "TiddlyDesktop"
+shift + ctrl + alt - m : ~/bin/tiddlywiki_activate
 
 # "Layer 2" - others
 shift + ctrl + alt - v : open -a "Maps"
