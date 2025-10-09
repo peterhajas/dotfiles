@@ -1,4 +1,3 @@
-local lspconfig = require('lspconfig')
 local cmp_nvim_lsp = require('cmp_nvim_lsp')
 
 -- Configure LSP capabilities for nvim-cmp
@@ -45,21 +44,13 @@ mason_lspconfig.setup({
         "taplo",
         "yamlls",
     },
+    handlers = {
+        -- Default handler for all servers
+        function(server_name)
+            require('lspconfig')[server_name].setup({
+                capabilities = capabilities,
+                on_attach = on_attach,
+            })
+        end,
+    },
 })
-
--- Set up all installed servers since mason-lspconfig handlers don't auto-run for pre-installed servers
-local installed_servers = mason_lspconfig.get_installed_servers()
-
-for _, server_name in ipairs(installed_servers) do
-    if server_name == "lua_ls" then
-        lspconfig.lua_ls.setup({
-            capabilities = capabilities,
-            on_attach = on_attach,
-        })
-    else
-        lspconfig[server_name].setup({
-            capabilities = capabilities,
-            on_attach = on_attach,
-        })
-    end
-end
