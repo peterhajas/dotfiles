@@ -50,9 +50,10 @@ function getCLIChosen()
         else
             out = "NOTHING_PICKED_IN_CHOOSER"
         end
+        -- Only reset after we've returned a non-nil value
+        chosen = nil
+        exited = false
     end
-    chosen = nil
-    exited = false
 
     return out
 end
