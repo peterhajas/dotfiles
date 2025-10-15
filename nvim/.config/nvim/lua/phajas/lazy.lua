@@ -78,6 +78,7 @@ local plugins = {
     {'lewis6991/gitsigns.nvim'},
 
     -- UI enhancements
+    {'nvim-tree/nvim-web-devicons'},
     {'nvim-lualine/lualine.nvim', dependencies = {
         'nvim-tree/nvim-web-devicons',
     }},

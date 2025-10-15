@@ -1,5 +1,7 @@
 require("oil").setup {
-    columns = {},
+    columns = {
+        "icon",
+    },
     keymaps = {
         ["g?"] = "actions.show_help",
         ["<CR>"] = "actions.select",

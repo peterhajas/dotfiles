@@ -1,5 +1,11 @@
 local builtin = require('telescope.builtin')
 
+require('telescope').setup({
+    defaults = {
+        color_devicons = true,
+    }
+})
+
 require('telescope').load_extension('fzf')
 
 vim.keymap.set('n', '<leader>pf', function()

@@ -1,6 +1,17 @@
 local api = require("nvim-tree.api")
 
 require("nvim-tree").setup {
+    renderer = {
+        icons = {
+            show = {
+                file = true,
+                folder = true,
+                folder_arrow = true,
+                git = true,
+            },
+        },
+        indent_width = 1,
+    },
     update_focused_file = {
         enable = true
     },
@@ -19,9 +30,6 @@ require("nvim-tree").setup {
         -- Enter key to open files and toggle folders
         vim.keymap.set('n', '<CR>', open_or_toggle, { buffer = bufnr, desc = "Open file or toggle folder" })
     end,
-    renderer = {
-        indent_width = 1,
-    }
 }
 
 vim.keymap.set('n', '<leader>s', function()
