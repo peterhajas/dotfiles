@@ -32,23 +32,14 @@ fi
 LAYOUT="stack"
 
 # this is basically the only IF statement that matters
-if [ "$LAYOUT" = "stack" ]; then
-    # Pad for widgets just on the main display's 10 spaces
-    for (( i=1; i<=10; i++ ))
-    do
-        yabai -m config --space $i layout $LAYOUT left_padding $LEFT_PADDING right_padding $WIDGET_PADDING
-    done
-else
-    for (( i=1; i<=10; i++ ))
-    do
-        yabai -m config --space $i layout $LAYOUT
-    done
-fi
+# pad for widgets just on the main display's space
+yabai -m config --space 1 layout $LAYOUT left_padding $LEFT_PADDING right_padding $WIDGET_PADDING
 
 
-for (( i=11; i<=30; i++ ))
+# don't pad the other displays
+for (( i=2; i<=30; i++ ))
 do
-    yabai -m config --space $i layout $LAYOUT
+    yabai -m config --space $i layout "bsp" top_padding 0 bottom_padding 0 left_padding 0 right_padding 0
 done
 
 # apply all rules
