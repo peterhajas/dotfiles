@@ -42,10 +42,13 @@ def list_tiddlers(wiki_path):
         print("Error: Could not find any tiddlers in wiki", file=sys.stderr)
         sys.exit(1)
 
+    # Collect all titles and sort alphabetically
+    titles = [tiddler['title'] for tiddler in all_tiddlers if 'title' in tiddler]
+    titles.sort()
+
     # Print all tiddler titles
-    for tiddler in all_tiddlers:
-        if 'title' in tiddler:
-            print(tiddler['title'])
+    for title in titles:
+        print(title)
 
 def main():
     if len(sys.argv) < 2:
