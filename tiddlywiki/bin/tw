@@ -211,8 +211,10 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
     # Build replacements for all stores
     replacements = []
     for store in stores:
+        # Sort tiddlers alphabetically by title
+        sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
         # Rebuild the script tag
-        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in store['tiddlers']]
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
         new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
         new_json = new_json.replace('<', '\\u003C')
         new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
@@ -276,8 +278,10 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
     # Build replacements for all stores
     replacements = []
     for store in stores:
+        # Sort tiddlers alphabetically by title
+        sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
         # Rebuild the script tag
-        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in store['tiddlers']]
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
         new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
         new_json = new_json.replace('<', '\\u003C')
         new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
@@ -316,10 +320,13 @@ def remove_tiddler(wiki_path, tiddler_title):
         if len(filtered_tiddlers) < original_count:
             found = True
 
+        # Sort tiddlers alphabetically by title
+        sorted_tiddlers = sorted(filtered_tiddlers, key=lambda t: t.get('title', ''))
+
         # Rebuild the script tag with filtered tiddlers
         # Use ensure_ascii=False to preserve Unicode characters like curly quotes
         # Format each tiddler on its own line
-        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in filtered_tiddlers]
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
         new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
 
         # Escape only < (not >) as Unicode to match TiddlyWiki format
@@ -385,8 +392,10 @@ def insert_tiddler(wiki_path, tiddler_json):
     # Build replacements for all stores
     replacements = []
     for store in stores:
+        # Sort tiddlers alphabetically by title
+        sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
         # Rebuild the script tag
-        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in store['tiddlers']]
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
         new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
         new_json = new_json.replace('<', '\\u003C')
         new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'

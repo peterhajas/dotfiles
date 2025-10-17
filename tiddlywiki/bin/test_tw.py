@@ -1110,5 +1110,159 @@ class TestInsertCommand(unittest.TestCase):
         self.assertEqual(minimal['title'], 'MinimalTiddler')
         self.assertEqual(len(minimal), 1)
 
+class TestAlphabeticalOrdering(unittest.TestCase):
+    """Test that tiddlers are stored in alphabetical order by title"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a test wiki with tiddlers in non-alphabetical order
+        self.test_tiddlers = [
+            {"title": "Zebra", "text": "Last alphabetically"},
+            {"title": "Apple", "text": "First alphabetically"},
+            {"title": "Mango", "text": "Middle alphabetically"},
+        ]
+
+        # Create the HTML file (intentionally not sorted)
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def extract_tiddler_titles_from_store(self):
+        """Helper to extract tiddler titles in the order they appear in the store"""
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        stores = tw_module.extract_tiddler_stores(content)
+        if not stores:
+            return []
+
+        # Get titles in the order they appear in the first store
+        return [t.get('title') for t in stores[0]['tiddlers']]
+
+    def test_touch_sorts_tiddlers(self):
+        """Test that touch command sorts tiddlers alphabetically"""
+        tw_module.touch_tiddler(self.test_wiki, "Banana", "New tiddler")
+
+        titles = self.extract_tiddler_titles_from_store()
+        expected = ["Apple", "Banana", "Mango", "Zebra"]
+        self.assertEqual(titles, expected)
+
+    def test_set_sorts_tiddlers(self):
+        """Test that set command sorts tiddlers alphabetically"""
+        tw_module.set_tiddler_field(self.test_wiki, "Apple", "text", "Modified text")
+
+        titles = self.extract_tiddler_titles_from_store()
+        expected = ["Apple", "Mango", "Zebra"]
+        self.assertEqual(titles, expected)
+
+    def test_rm_sorts_tiddlers(self):
+        """Test that rm command sorts remaining tiddlers alphabetically"""
+        tw_module.remove_tiddler(self.test_wiki, "Zebra")
+
+        titles = self.extract_tiddler_titles_from_store()
+        expected = ["Apple", "Mango"]
+        self.assertEqual(titles, expected)
+
+    def test_insert_sorts_tiddlers(self):
+        """Test that insert command sorts tiddlers alphabetically"""
+        new_tiddler_json = json.dumps({
+            "title": "Banana",
+            "text": "Inserted tiddler"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, new_tiddler_json)
+
+        titles = self.extract_tiddler_titles_from_store()
+        expected = ["Apple", "Banana", "Mango", "Zebra"]
+        self.assertEqual(titles, expected)
+
+    def test_insert_replace_sorts_tiddlers(self):
+        """Test that replacing with insert maintains alphabetical order"""
+        replacement_json = json.dumps({
+            "title": "Mango",
+            "text": "Replaced mango"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, replacement_json)
+
+        titles = self.extract_tiddler_titles_from_store()
+        expected = ["Apple", "Mango", "Zebra"]
+        self.assertEqual(titles, expected)
+
+    def test_multiple_operations_maintain_order(self):
+        """Test that multiple operations maintain alphabetical order"""
+        # Add a tiddler
+        tw_module.touch_tiddler(self.test_wiki, "Banana", "New")
+        titles = self.extract_tiddler_titles_from_store()
+        self.assertEqual(titles, ["Apple", "Banana", "Mango", "Zebra"])
+
+        # Modify a tiddler
+        tw_module.set_tiddler_field(self.test_wiki, "Zebra", "text", "Modified")
+        titles = self.extract_tiddler_titles_from_store()
+        self.assertEqual(titles, ["Apple", "Banana", "Mango", "Zebra"])
+
+        # Remove a tiddler
+        tw_module.remove_tiddler(self.test_wiki, "Banana")
+        titles = self.extract_tiddler_titles_from_store()
+        self.assertEqual(titles, ["Apple", "Mango", "Zebra"])
+
+    def test_case_insensitive_sorting(self):
+        """Test that sorting is case-sensitive (standard Python sort behavior)"""
+        # Add tiddlers with different cases
+        tw_module.touch_tiddler(self.test_wiki, "aardvark", "lowercase")
+        tw_module.touch_tiddler(self.test_wiki, "Banana", "Titlecase")
+        tw_module.touch_tiddler(self.test_wiki, "CARROT", "UPPERCASE")
+
+        titles = self.extract_tiddler_titles_from_store()
+        # Standard Python sort is case-sensitive, uppercase comes before lowercase
+        expected = ["Apple", "Banana", "CARROT", "Mango", "Zebra", "aardvark"]
+        self.assertEqual(titles, expected)
+
+    def test_special_characters_sorting(self):
+        """Test that tiddlers with special characters are sorted correctly"""
+        tw_module.touch_tiddler(self.test_wiki, "123 Numbers", "Numbers first")
+        tw_module.touch_tiddler(self.test_wiki, "$SpecialChar", "Special char")
+
+        titles = self.extract_tiddler_titles_from_store()
+        # Numbers and special chars sort before letters in ASCII
+        self.assertTrue(titles.index("$SpecialChar") < titles.index("Apple"))
+        self.assertTrue(titles.index("123 Numbers") < titles.index("Apple"))
+
+    def test_empty_title_handling(self):
+        """Test that tiddlers without titles are handled gracefully"""
+        # Insert a tiddler with empty string as title using insert command
+        empty_title_json = json.dumps({"title": "", "text": "Empty title tiddler"})
+        tw_module.insert_tiddler(self.test_wiki, empty_title_json)
+
+        # Add another tiddler
+        tw_module.touch_tiddler(self.test_wiki, "Aaa", "test")
+
+        titles = self.extract_tiddler_titles_from_store()
+        # Empty string sorts first
+        self.assertEqual(titles[0], "")
+        self.assertIn("Aaa", titles)
+        # Verify all expected tiddlers are present
+        self.assertIn("Apple", titles)
+        self.assertIn("Mango", titles)
+        self.assertIn("Zebra", titles)
+
 if __name__ == '__main__':
     unittest.main()
