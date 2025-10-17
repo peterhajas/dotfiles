@@ -20,7 +20,7 @@ def get_wiki_path():
 
     return wiki_path
 
-def list_tiddlers(wiki_path):
+def load_all_tiddlers(wiki_path):
     import json
 
     with open(wiki_path, 'r', encoding='utf-8') as f:
@@ -42,6 +42,11 @@ def list_tiddlers(wiki_path):
         print("Error: Could not find any tiddlers in wiki", file=sys.stderr)
         sys.exit(1)
 
+    return all_tiddlers
+
+def list_tiddlers(wiki_path):
+    all_tiddlers = load_all_tiddlers(wiki_path)
+
     # Collect all titles and sort alphabetically
     titles = [tiddler['title'] for tiddler in all_tiddlers if 'title' in tiddler]
     titles.sort()
@@ -50,11 +55,40 @@ def list_tiddlers(wiki_path):
     for title in titles:
         print(title)
 
+def cat_tiddler(wiki_path, tiddler_title):
+    all_tiddlers = load_all_tiddlers(wiki_path)
+
+    # Find the tiddler with matching title
+    tiddler = None
+    for t in all_tiddlers:
+        if t.get('title') == tiddler_title:
+            tiddler = t
+            break
+
+    if not tiddler:
+        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    # Print title first
+    if 'title' in tiddler:
+        print(f"title: {tiddler['title']}")
+
+    # Print all other fields except 'text' and 'title'
+    for key, value in sorted(tiddler.items()):
+        if key not in ('text', 'title'):
+            print(f"{key}: {value}")
+
+    # Print the text content after a newline
+    if 'text' in tiddler:
+        print()
+        print(tiddler['text'])
+
 def main():
     if len(sys.argv) < 2:
-        print("Usage: tw <command>", file=sys.stderr)
+        print("Usage: tw <command> [args]", file=sys.stderr)
         print("Commands:", file=sys.stderr)
-        print("  ls    List all tiddlers", file=sys.stderr)
+        print("  ls              List all tiddlers", file=sys.stderr)
+        print("  cat <tiddler>   Display tiddler contents", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
@@ -62,6 +96,12 @@ def main():
 
     if command == "ls":
         list_tiddlers(wiki_path)
+    elif command == "cat":
+        if len(sys.argv) < 3:
+            print("Error: cat command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = sys.argv[2]
+        cat_tiddler(wiki_path, tiddler_title)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)
