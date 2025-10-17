@@ -72,3 +72,8 @@ karabiner/.config/karabiner/automatic_backups
 
 # Hammerspoon
 mdi.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
