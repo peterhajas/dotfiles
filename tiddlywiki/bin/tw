@@ -1,0 +1,63 @@
+#!/usr/bin/env python3
+
+import os
+import re
+import sys
+
+def get_wiki_path():
+    wiki_path = os.environ.get('TIDDLYWIKI_WIKI_PATH')
+
+    if not wiki_path:
+        print("Error: TIDDLYWIKI_WIKI_PATH environment variable is not set", file=sys.stderr)
+        sys.exit(1)
+
+    # Expand ~ to home directory
+    wiki_path = os.path.expanduser(wiki_path)
+
+    if not os.path.exists(wiki_path):
+        print(f"Error: Wiki path does not exist: {wiki_path}", file=sys.stderr)
+        sys.exit(1)
+
+    return wiki_path
+
+def list_tiddlers(wiki_path):
+    import json
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Find the tiddlywiki-tiddler-store script tag
+    pattern = r'<script class="tiddlywiki-tiddler-store" type="application/json">\s*(\[.*?\])\s*</script>'
+    match = re.search(pattern, content, re.DOTALL)
+
+    if not match:
+        print("Error: Could not find tiddler store in wiki", file=sys.stderr)
+        sys.exit(1)
+
+    # Parse the JSON array of tiddlers
+    tiddlers_json = match.group(1)
+    tiddlers = json.loads(tiddlers_json)
+
+    # Print all tiddler titles
+    for tiddler in tiddlers:
+        if 'title' in tiddler:
+            print(tiddler['title'])
+
+def main():
+    if len(sys.argv) < 2:
+        print("Usage: tw <command>", file=sys.stderr)
+        print("Commands:", file=sys.stderr)
+        print("  ls    List all tiddlers", file=sys.stderr)
+        sys.exit(1)
+
+    command = sys.argv[1]
+    wiki_path = get_wiki_path()
+
+    if command == "ls":
+        list_tiddlers(wiki_path)
+    else:
+        print(f"Error: Unknown command '{command}'", file=sys.stderr)
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()
