@@ -382,5 +382,148 @@ class TestMultipleStoreRemoval(unittest.TestCase):
         tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
         self.assertEqual(len(tiddlers), 2)
 
+class TestTouchCommand(unittest.TestCase):
+    """Test the touch command for creating and updating tiddlers"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a minimal test wiki
+        self.test_tiddlers = [
+            {"title": "ExistingTiddler", "text": "Original content",
+             "created": "20230101000000000", "modified": "20230101000000000"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_touch_creates_new_tiddler(self):
+        """Test that touch creates a new tiddler"""
+        tw_module.touch_tiddler(self.test_wiki, "NewTiddler", "New content")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 2)
+
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'NewTiddler')
+        self.assertEqual(new_tiddler['text'], 'New content')
+        self.assertIn('created', new_tiddler)
+        self.assertIn('modified', new_tiddler)
+
+    def test_touch_creates_empty_tiddler_without_text(self):
+        """Test that touch can create a tiddler without text"""
+        tw_module.touch_tiddler(self.test_wiki, "EmptyTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'EmptyTiddler')
+        self.assertEqual(new_tiddler['text'], '')
+
+    def test_touch_updates_existing_tiddler(self):
+        """Test that touch updates an existing tiddler's modified time"""
+        import time
+
+        # Get original modified time
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+        original_modified = original['modified']
+        original_created = original['created']
+
+        # Wait a tiny bit to ensure timestamp changes
+        time.sleep(0.01)
+
+        # Touch the existing tiddler
+        tw_module.touch_tiddler(self.test_wiki, "ExistingTiddler")
+
+        # Verify modified changed but created didn't
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        updated = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertEqual(updated['created'], original_created)
+        self.assertNotEqual(updated['modified'], original_modified)
+        self.assertGreater(updated['modified'], original_modified)
+
+    def test_touch_updates_text_of_existing_tiddler(self):
+        """Test that touch can update the text of an existing tiddler"""
+        tw_module.touch_tiddler(self.test_wiki, "ExistingTiddler", "Updated content")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        updated = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+        self.assertEqual(updated['text'], 'Updated content')
+
+    def test_timestamp_format(self):
+        """Test that timestamps are in the correct TiddlyWiki format"""
+        tw_module.touch_tiddler(self.test_wiki, "TestTimestamp", "Test")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'TestTimestamp')
+
+        # Check format: YYYYMMDDhhmmssxxx (17 digits total)
+        self.assertEqual(len(new_tiddler['created']), 17)
+        self.assertEqual(len(new_tiddler['modified']), 17)
+        self.assertTrue(new_tiddler['created'].isdigit())
+        self.assertTrue(new_tiddler['modified'].isdigit())
+
+        # Check that it parses as a valid date
+        # Format: YYYYMMDDhhmmssxxx
+        year = int(new_tiddler['created'][0:4])
+        month = int(new_tiddler['created'][4:6])
+        day = int(new_tiddler['created'][6:8])
+
+        self.assertGreaterEqual(year, 2020)
+        self.assertLessEqual(year, 2100)
+        self.assertGreaterEqual(month, 1)
+        self.assertLessEqual(month, 12)
+        self.assertGreaterEqual(day, 1)
+        self.assertLessEqual(day, 31)
+
+    def test_touch_preserves_formatting(self):
+        """Test that touch preserves JSON formatting"""
+        tw_module.touch_tiddler(self.test_wiki, "FormattingTest", "Content with <angles>")
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Extract JSON
+        pattern = '<script class="tiddlywiki-tiddler-store" type="application/json">'
+        start = content.find(pattern)
+        json_start = content.find('[', start)
+        end = content.find('</script>', json_start)
+        json_str = content[json_start:end]
+
+        # Verify formatting
+        self.assertTrue(json_str.startswith('[\n{'))
+        self.assertIn('},\n{', json_str)
+        self.assertIn('\\u003C', json_str)  # < should be escaped
+
+    def test_wiki_readable_after_touch(self):
+        """Test that the wiki is still readable after touch"""
+        tw_module.touch_tiddler(self.test_wiki, "ReadableTest", "Test content")
+
+        # Should be able to load all tiddlers
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertGreaterEqual(len(tiddlers), 2)
+
+        # Should be able to cat the new tiddler
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'ReadableTest')
+        self.assertEqual(new_tiddler['text'], 'Test content')
+
 if __name__ == '__main__':
     unittest.main()

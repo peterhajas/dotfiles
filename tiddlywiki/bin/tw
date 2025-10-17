@@ -123,6 +123,78 @@ def cat_tiddler(wiki_path, tiddler_title):
         print()
         print(tiddler['text'])
 
+def get_tiddlywiki_timestamp():
+    """Generate a TiddlyWiki timestamp in format YYYYMMDDhhmmssxxx (UTC)"""
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc)
+    # Format: YYYYMMDDhhmmssxxx where xxx is milliseconds
+    timestamp = now.strftime('%Y%m%d%H%M%S') + f'{now.microsecond // 1000:03d}'
+    return timestamp
+
+def touch_tiddler(wiki_path, tiddler_title, text=""):
+    """Create a new tiddler or update an existing one"""
+    import json
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    stores = extract_tiddler_stores(content)
+
+    if not stores:
+        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+        sys.exit(1)
+
+    timestamp = get_tiddlywiki_timestamp()
+
+    # Check if tiddler already exists
+    existing_tiddler = None
+    for store in stores:
+        for tiddler in store['tiddlers']:
+            if tiddler.get('title') == tiddler_title:
+                existing_tiddler = tiddler
+                break
+        if existing_tiddler:
+            break
+
+    if existing_tiddler:
+        # Update existing tiddler's modified timestamp
+        existing_tiddler['modified'] = timestamp
+        if text:
+            existing_tiddler['text'] = text
+        print(f"Updated tiddler: {tiddler_title}")
+    else:
+        # Create new tiddler
+        new_tiddler = {
+            "title": tiddler_title,
+            "created": timestamp,
+            "modified": timestamp,
+            "text": text
+        }
+
+        # Add to the first store
+        stores[0]['tiddlers'].append(new_tiddler)
+        print(f"Created tiddler: {tiddler_title}")
+
+    # Build replacements for all stores
+    replacements = []
+    for store in stores:
+        # Rebuild the script tag
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in store['tiddlers']]
+        new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        new_json = new_json.replace('<', '\\u003C')
+        new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+        replacements.append((store['start'], store['end'], new_store))
+
+    # Apply replacements in reverse order
+    new_content = content
+    for start, end, replacement in reversed(replacements):
+        new_content = new_content[:start] + replacement + new_content[end:]
+
+    # Write back
+    with open(wiki_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+
 def remove_tiddler(wiki_path, tiddler_title):
     import json
 
@@ -179,9 +251,10 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: tw <command> [args]", file=sys.stderr)
         print("Commands:", file=sys.stderr)
-        print("  ls              List all tiddlers", file=sys.stderr)
-        print("  cat <tiddler>   Display tiddler contents", file=sys.stderr)
-        print("  rm <tiddler>    Remove a tiddler", file=sys.stderr)
+        print("  ls                    List all tiddlers", file=sys.stderr)
+        print("  cat <tiddler>         Display tiddler contents", file=sys.stderr)
+        print("  rm <tiddler>          Remove a tiddler", file=sys.stderr)
+        print("  touch <tiddler> [text] Create or update a tiddler", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
@@ -201,6 +274,13 @@ def main():
             sys.exit(1)
         tiddler_title = sys.argv[2]
         remove_tiddler(wiki_path, tiddler_title)
+    elif command == "touch":
+        if len(sys.argv) < 3:
+            print("Error: touch command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = sys.argv[2]
+        text = sys.argv[3] if len(sys.argv) > 3 else ""
+        touch_tiddler(wiki_path, tiddler_title, text)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)
