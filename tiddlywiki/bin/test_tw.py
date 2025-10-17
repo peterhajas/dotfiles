@@ -642,5 +642,133 @@ class TestGetCommand(unittest.TestCase):
         with self.assertRaises(SystemExit):
             tw_module.get_tiddler_field(self.test_wiki, "MinimalTiddler", "created")
 
+class TestSetCommand(unittest.TestCase):
+    """Test the set command for modifying field values"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a test wiki with tiddlers
+        self.test_tiddlers = [
+            {
+                "title": "TestTiddler",
+                "text": "Original content",
+                "created": "20230101000000000",
+                "modified": "20230101000000000",
+                "tags": "tag1 tag2",
+            },
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_set_text_field(self):
+        """Test setting the text field"""
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler", "text", "New content")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        self.assertEqual(tiddler['text'], 'New content')
+
+    def test_set_tags_field(self):
+        """Test setting the tags field"""
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler", "tags", "new-tag1 new-tag2")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        self.assertEqual(tiddler['tags'], 'new-tag1 new-tag2')
+
+    def test_set_creates_new_field(self):
+        """Test that set can create a new field that didn't exist"""
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler", "author", "John Doe")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        self.assertEqual(tiddler['author'], 'John Doe')
+
+    def test_set_updates_modified_timestamp(self):
+        """Test that set updates the modified timestamp"""
+        import time
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        original_modified = original['modified']
+
+        time.sleep(0.01)
+
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler", "text", "Updated")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        updated = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+
+        self.assertNotEqual(updated['modified'], original_modified)
+        self.assertGreater(updated['modified'], original_modified)
+
+    def test_set_modified_directly(self):
+        """Test that setting modified field directly doesn't create duplicate timestamp"""
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler", "modified", "20250101000000000")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        self.assertEqual(tiddler['modified'], '20250101000000000')
+
+    def test_set_nonexistent_tiddler(self):
+        """Test that setting a field on non-existent tiddler exits with error"""
+        with self.assertRaises(SystemExit):
+            tw_module.set_tiddler_field(self.test_wiki, "NonExistent", "text", "value")
+
+    def test_set_preserves_formatting(self):
+        """Test that set preserves JSON formatting"""
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler", "text", "Content with <angles>")
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Extract JSON
+        pattern = '<script class="tiddlywiki-tiddler-store" type="application/json">'
+        start = content.find(pattern)
+        json_start = content.find('[', start)
+        end = content.find('</script>', json_start)
+        json_str = content[json_start:end]
+
+        # Verify formatting
+        self.assertTrue(json_str.startswith('[\n{'))
+        self.assertIn('\\u003C', json_str)  # < should be escaped
+
+    def test_wiki_readable_after_set(self):
+        """Test that the wiki is still readable after set"""
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler", "text", "New text")
+
+        # Should be able to load all tiddlers
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 1)
+
+        # Should be able to get the field
+        import io
+        import contextlib
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.get_tiddler_field(self.test_wiki, "TestTiddler", "text")
+        self.assertEqual(f.getvalue().strip(), "New text")
+
 if __name__ == '__main__':
     unittest.main()

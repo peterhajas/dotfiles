@@ -154,6 +154,61 @@ def get_tiddler_field(wiki_path, tiddler_title, field_name):
     # Print the field value
     print(tiddler[field_name])
 
+def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
+    """Set the value of a specific field in a tiddler"""
+    import json
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    stores = extract_tiddler_stores(content)
+
+    if not stores:
+        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+        sys.exit(1)
+
+    # Find the tiddler
+    found_tiddler = None
+    for store in stores:
+        for tiddler in store['tiddlers']:
+            if tiddler.get('title') == tiddler_title:
+                found_tiddler = tiddler
+                break
+        if found_tiddler:
+            break
+
+    if not found_tiddler:
+        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    # Set the field value
+    found_tiddler[field_name] = field_value
+
+    # Update modified timestamp if we're not setting it directly
+    if field_name != 'modified':
+        found_tiddler['modified'] = get_tiddlywiki_timestamp()
+
+    # Build replacements for all stores
+    replacements = []
+    for store in stores:
+        # Rebuild the script tag
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in store['tiddlers']]
+        new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        new_json = new_json.replace('<', '\\u003C')
+        new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+        replacements.append((store['start'], store['end'], new_store))
+
+    # Apply replacements in reverse order
+    new_content = content
+    for start, end, replacement in reversed(replacements):
+        new_content = new_content[:start] + replacement + new_content[end:]
+
+    # Write back
+    with open(wiki_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+
+    print(f"Set {field_name} = {field_value}")
+
 def touch_tiddler(wiki_path, tiddler_title, text=""):
     """Create a new tiddler or update an existing one"""
     import json
@@ -273,11 +328,12 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: tw <command> [args]", file=sys.stderr)
         print("Commands:", file=sys.stderr)
-        print("  ls                       List all tiddlers", file=sys.stderr)
-        print("  cat <tiddler>            Display tiddler contents", file=sys.stderr)
-        print("  get <tiddler> <field>    Get a specific field value", file=sys.stderr)
-        print("  rm <tiddler>             Remove a tiddler", file=sys.stderr)
-        print("  touch <tiddler> [text]   Create or update a tiddler", file=sys.stderr)
+        print("  ls                           List all tiddlers", file=sys.stderr)
+        print("  cat <tiddler>                Display tiddler contents", file=sys.stderr)
+        print("  get <tiddler> <field>        Get a specific field value", file=sys.stderr)
+        print("  set <tiddler> <field> <value> Set a field value", file=sys.stderr)
+        print("  rm <tiddler>                 Remove a tiddler", file=sys.stderr)
+        print("  touch <tiddler> [text]       Create or update a tiddler", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
@@ -298,6 +354,14 @@ def main():
         tiddler_title = sys.argv[2]
         field_name = sys.argv[3]
         get_tiddler_field(wiki_path, tiddler_title, field_name)
+    elif command == "set":
+        if len(sys.argv) < 5:
+            print("Error: set command requires a tiddler name, field name, and value", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = sys.argv[2]
+        field_name = sys.argv[3]
+        field_value = sys.argv[4]
+        set_tiddler_field(wiki_path, tiddler_title, field_name, field_value)
     elif command == "rm":
         if len(sys.argv) < 3:
             print("Error: rm command requires a tiddler name", file=sys.stderr)
