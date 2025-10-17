@@ -525,5 +525,122 @@ class TestTouchCommand(unittest.TestCase):
         new_tiddler = next(t for t in tiddlers if t['title'] == 'ReadableTest')
         self.assertEqual(new_tiddler['text'], 'Test content')
 
+class TestGetCommand(unittest.TestCase):
+    """Test the get command for retrieving specific field values"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a test wiki with tiddlers with various fields
+        self.test_tiddlers = [
+            {
+                "title": "TestTiddler",
+                "text": "Test content",
+                "created": "20230101000000000",
+                "modified": "20230102000000000",
+                "tags": "tag1 tag2",
+                "type": "text/vnd.tiddlywiki"
+            },
+            {
+                "title": "MinimalTiddler",
+                "text": "Minimal",
+            },
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_get_text_field(self):
+        """Test getting the text field"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.get_tiddler_field(self.test_wiki, "TestTiddler", "text")
+
+        output = f.getvalue()
+        self.assertEqual(output.strip(), "Test content")
+
+    def test_get_title_field(self):
+        """Test getting the title field"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.get_tiddler_field(self.test_wiki, "TestTiddler", "title")
+
+        output = f.getvalue()
+        self.assertEqual(output.strip(), "TestTiddler")
+
+    def test_get_created_field(self):
+        """Test getting the created timestamp field"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.get_tiddler_field(self.test_wiki, "TestTiddler", "created")
+
+        output = f.getvalue()
+        self.assertEqual(output.strip(), "20230101000000000")
+
+    def test_get_tags_field(self):
+        """Test getting the tags field"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.get_tiddler_field(self.test_wiki, "TestTiddler", "tags")
+
+        output = f.getvalue()
+        self.assertEqual(output.strip(), "tag1 tag2")
+
+    def test_get_nonexistent_field(self):
+        """Test that getting a non-existent field exits with error"""
+        with self.assertRaises(SystemExit):
+            tw_module.get_tiddler_field(self.test_wiki, "TestTiddler", "nonexistent")
+
+    def test_get_field_from_nonexistent_tiddler(self):
+        """Test that getting a field from non-existent tiddler exits with error"""
+        with self.assertRaises(SystemExit):
+            tw_module.get_tiddler_field(self.test_wiki, "NonExistent", "text")
+
+    def test_get_field_from_minimal_tiddler(self):
+        """Test getting field from tiddler with minimal fields"""
+        import io
+        import contextlib
+
+        # Should work for text
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.get_tiddler_field(self.test_wiki, "MinimalTiddler", "text")
+        self.assertEqual(f.getvalue().strip(), "Minimal")
+
+        # Should fail for created (not present)
+        with self.assertRaises(SystemExit):
+            tw_module.get_tiddler_field(self.test_wiki, "MinimalTiddler", "created")
+
 if __name__ == '__main__':
     unittest.main()

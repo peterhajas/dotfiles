@@ -132,6 +132,28 @@ def get_tiddlywiki_timestamp():
     timestamp = now.strftime('%Y%m%d%H%M%S') + f'{now.microsecond // 1000:03d}'
     return timestamp
 
+def get_tiddler_field(wiki_path, tiddler_title, field_name):
+    """Get the value of a specific field from a tiddler"""
+    all_tiddlers = load_all_tiddlers(wiki_path)
+
+    # Find the tiddler with matching title
+    tiddler = None
+    for t in all_tiddlers:
+        if t.get('title') == tiddler_title:
+            tiddler = t
+            break
+
+    if not tiddler:
+        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    if field_name not in tiddler:
+        print(f"Error: Field '{field_name}' not found in tiddler '{tiddler_title}'", file=sys.stderr)
+        sys.exit(1)
+
+    # Print the field value
+    print(tiddler[field_name])
+
 def touch_tiddler(wiki_path, tiddler_title, text=""):
     """Create a new tiddler or update an existing one"""
     import json
@@ -251,10 +273,11 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: tw <command> [args]", file=sys.stderr)
         print("Commands:", file=sys.stderr)
-        print("  ls                    List all tiddlers", file=sys.stderr)
-        print("  cat <tiddler>         Display tiddler contents", file=sys.stderr)
-        print("  rm <tiddler>          Remove a tiddler", file=sys.stderr)
-        print("  touch <tiddler> [text] Create or update a tiddler", file=sys.stderr)
+        print("  ls                       List all tiddlers", file=sys.stderr)
+        print("  cat <tiddler>            Display tiddler contents", file=sys.stderr)
+        print("  get <tiddler> <field>    Get a specific field value", file=sys.stderr)
+        print("  rm <tiddler>             Remove a tiddler", file=sys.stderr)
+        print("  touch <tiddler> [text]   Create or update a tiddler", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
@@ -268,6 +291,13 @@ def main():
             sys.exit(1)
         tiddler_title = sys.argv[2]
         cat_tiddler(wiki_path, tiddler_title)
+    elif command == "get":
+        if len(sys.argv) < 4:
+            print("Error: get command requires a tiddler name and field name", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = sys.argv[2]
+        field_name = sys.argv[3]
+        get_tiddler_field(wiki_path, tiddler_title, field_name)
     elif command == "rm":
         if len(sys.argv) < 3:
             print("Error: rm command requires a tiddler name", file=sys.stderr)
