@@ -913,5 +913,202 @@ class TestJsonCommand(unittest.TestCase):
         parsed = json.loads(output)
         self.assertIn('\u201c', parsed['text'])
 
+class TestInsertCommand(unittest.TestCase):
+    """Test the insert command for inserting/replacing tiddlers from JSON"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a test wiki with existing tiddlers
+        self.test_tiddlers = [
+            {
+                "title": "ExistingTiddler",
+                "text": "Original content",
+                "created": "20230101000000000",
+                "modified": "20230101000000000",
+            },
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_insert_new_tiddler(self):
+        """Test inserting a new tiddler from JSON"""
+        new_tiddler_json = json.dumps({
+            "title": "NewTiddler",
+            "text": "New content",
+            "tags": "test"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, new_tiddler_json)
+
+        # Verify it was added
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 2)
+
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'NewTiddler')
+        self.assertEqual(new_tiddler['text'], 'New content')
+        self.assertEqual(new_tiddler['tags'], 'test')
+
+    def test_insert_replaces_existing_tiddler(self):
+        """Test that insert replaces an existing tiddler"""
+        updated_tiddler_json = json.dumps({
+            "title": "ExistingTiddler",
+            "text": "Updated content",
+            "created": "20230101000000000",
+            "modified": "20250101000000000",
+            "new_field": "new value"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, updated_tiddler_json)
+
+        # Verify it was replaced (not duplicated)
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 1)
+
+        updated = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+        self.assertEqual(updated['text'], 'Updated content')
+        self.assertEqual(updated['new_field'], 'new value')
+
+    def test_insert_invalid_json(self):
+        """Test that insert exits with error for invalid JSON"""
+        with self.assertRaises(SystemExit):
+            tw_module.insert_tiddler(self.test_wiki, "not valid json {")
+
+    def test_insert_json_without_title(self):
+        """Test that insert exits with error if JSON has no title field"""
+        no_title_json = json.dumps({
+            "text": "Content without title",
+            "tags": "test"
+        })
+
+        with self.assertRaises(SystemExit):
+            tw_module.insert_tiddler(self.test_wiki, no_title_json)
+
+    def test_insert_preserves_formatting(self):
+        """Test that insert preserves JSON formatting"""
+        new_tiddler_json = json.dumps({
+            "title": "FormattingTest",
+            "text": "Content with <angles> and \"quotes\""
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, new_tiddler_json)
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Extract JSON
+        pattern = '<script class="tiddlywiki-tiddler-store" type="application/json">'
+        start = content.find(pattern)
+        json_start = content.find('[', start)
+        end = content.find('</script>', json_start)
+        json_str = content[json_start:end]
+
+        # Verify formatting
+        self.assertTrue(json_str.startswith('[\n{'))
+        self.assertIn('\\u003C', json_str)  # < should be escaped
+
+        # Verify it's valid JSON
+        tiddlers = json.loads(json_str, strict=False)
+        self.assertEqual(len(tiddlers), 2)
+
+    def test_insert_preserves_unicode(self):
+        """Test that insert preserves Unicode characters"""
+        unicode_tiddler_json = json.dumps({
+            "title": "UnicodeTest",
+            "text": "Curly quotes: \u201ctest\u201d"
+        }, ensure_ascii=False)
+
+        tw_module.insert_tiddler(self.test_wiki, unicode_tiddler_json)
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Should contain literal curly quotes (not escaped)
+        self.assertIn('\u201c', content)
+        self.assertIn('\u201d', content)
+        self.assertNotIn('\\u201c', content)
+
+        # Verify it loads correctly
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        unicode_tiddler = next(t for t in tiddlers if t['title'] == 'UnicodeTest')
+        self.assertIn('\u201c', unicode_tiddler['text'])
+
+    def test_wiki_readable_after_insert(self):
+        """Test that the wiki is still readable after insert"""
+        new_tiddler_json = json.dumps({
+            "title": "ReadableTest",
+            "text": "Test content"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, new_tiddler_json)
+
+        # Should be able to load all tiddlers
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 2)
+
+        # Should be able to cat the new tiddler
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'ReadableTest')
+        self.assertEqual(new_tiddler['text'], 'Test content')
+
+    def test_insert_with_all_field_types(self):
+        """Test inserting a tiddler with various field types"""
+        complex_tiddler_json = json.dumps({
+            "title": "ComplexTiddler",
+            "text": "Complex content",
+            "created": "20230101000000000",
+            "modified": "20230102000000000",
+            "tags": "tag1 tag2 tag3",
+            "type": "text/vnd.tiddlywiki",
+            "author": "Test Author",
+            "custom_field": "custom value"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, complex_tiddler_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        complex_tiddler = next(t for t in tiddlers if t['title'] == 'ComplexTiddler')
+
+        # Verify all fields were preserved
+        self.assertEqual(complex_tiddler['text'], 'Complex content')
+        self.assertEqual(complex_tiddler['created'], '20230101000000000')
+        self.assertEqual(complex_tiddler['modified'], '20230102000000000')
+        self.assertEqual(complex_tiddler['tags'], 'tag1 tag2 tag3')
+        self.assertEqual(complex_tiddler['type'], 'text/vnd.tiddlywiki')
+        self.assertEqual(complex_tiddler['author'], 'Test Author')
+        self.assertEqual(complex_tiddler['custom_field'], 'custom value')
+
+    def test_insert_minimal_tiddler(self):
+        """Test inserting a tiddler with only a title"""
+        minimal_json = json.dumps({"title": "MinimalTiddler"})
+
+        tw_module.insert_tiddler(self.test_wiki, minimal_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        minimal = next(t for t in tiddlers if t['title'] == 'MinimalTiddler')
+
+        # Should only have title
+        self.assertEqual(minimal['title'], 'MinimalTiddler')
+        self.assertEqual(len(minimal), 1)
+
 if __name__ == '__main__':
     unittest.main()

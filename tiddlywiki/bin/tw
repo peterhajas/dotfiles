@@ -344,6 +344,68 @@ def remove_tiddler(wiki_path, tiddler_title):
 
     print(f"Removed tiddler: {tiddler_title}")
 
+def insert_tiddler(wiki_path, tiddler_json):
+    """Insert a tiddler from JSON, replacing if it already exists"""
+    import json
+
+    # Parse the input JSON
+    try:
+        new_tiddler = json.loads(tiddler_json)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid JSON: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Verify it has a title field
+    if 'title' not in new_tiddler:
+        print("Error: Tiddler JSON must have a 'title' field", file=sys.stderr)
+        sys.exit(1)
+
+    tiddler_title = new_tiddler['title']
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    stores = extract_tiddler_stores(content)
+
+    if not stores:
+        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+        sys.exit(1)
+
+    # Check if tiddler already exists and remove it from all stores
+    found = False
+    for store in stores:
+        original_count = len(store['tiddlers'])
+        store['tiddlers'] = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
+        if len(store['tiddlers']) < original_count:
+            found = True
+
+    # Add the new tiddler to the first store
+    stores[0]['tiddlers'].append(new_tiddler)
+
+    # Build replacements for all stores
+    replacements = []
+    for store in stores:
+        # Rebuild the script tag
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in store['tiddlers']]
+        new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        new_json = new_json.replace('<', '\\u003C')
+        new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+        replacements.append((store['start'], store['end'], new_store))
+
+    # Apply replacements in reverse order
+    new_content = content
+    for start, end, replacement in reversed(replacements):
+        new_content = new_content[:start] + replacement + new_content[end:]
+
+    # Write back
+    with open(wiki_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+
+    if found:
+        print(f"Replaced tiddler: {tiddler_title}")
+    else:
+        print(f"Inserted tiddler: {tiddler_title}")
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: tw <command> [args]", file=sys.stderr)
@@ -355,6 +417,7 @@ def main():
         print("  set <tiddler> <field> <value> Set a field value", file=sys.stderr)
         print("  rm <tiddler>                 Remove a tiddler", file=sys.stderr)
         print("  touch <tiddler> [text]       Create or update a tiddler", file=sys.stderr)
+        print("  insert <json>                Insert/replace a tiddler from JSON", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
@@ -402,6 +465,12 @@ def main():
         tiddler_title = sys.argv[2]
         text = sys.argv[3] if len(sys.argv) > 3 else ""
         touch_tiddler(wiki_path, tiddler_title, text)
+    elif command == "insert":
+        if len(sys.argv) < 3:
+            print("Error: insert command requires a JSON string", file=sys.stderr)
+            sys.exit(1)
+        tiddler_json = sys.argv[2]
+        insert_tiddler(wiki_path, tiddler_json)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)
