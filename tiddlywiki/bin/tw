@@ -154,6 +154,26 @@ def get_tiddler_field(wiki_path, tiddler_title, field_name):
     # Print the field value
     print(tiddler[field_name])
 
+def json_tiddler(wiki_path, tiddler_title):
+    """Output a tiddler as JSON"""
+    import json
+
+    all_tiddlers = load_all_tiddlers(wiki_path)
+
+    # Find the tiddler with matching title
+    tiddler = None
+    for t in all_tiddlers:
+        if t.get('title') == tiddler_title:
+            tiddler = t
+            break
+
+    if not tiddler:
+        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    # Print as formatted JSON
+    print(json.dumps(tiddler, indent=2, ensure_ascii=False))
+
 def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
     """Set the value of a specific field in a tiddler"""
     import json
@@ -330,6 +350,7 @@ def main():
         print("Commands:", file=sys.stderr)
         print("  ls                           List all tiddlers", file=sys.stderr)
         print("  cat <tiddler>                Display tiddler contents", file=sys.stderr)
+        print("  json <tiddler>               Output tiddler as JSON", file=sys.stderr)
         print("  get <tiddler> <field>        Get a specific field value", file=sys.stderr)
         print("  set <tiddler> <field> <value> Set a field value", file=sys.stderr)
         print("  rm <tiddler>                 Remove a tiddler", file=sys.stderr)
@@ -347,6 +368,12 @@ def main():
             sys.exit(1)
         tiddler_title = sys.argv[2]
         cat_tiddler(wiki_path, tiddler_title)
+    elif command == "json":
+        if len(sys.argv) < 3:
+            print("Error: json command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = sys.argv[2]
+        json_tiddler(wiki_path, tiddler_title)
     elif command == "get":
         if len(sys.argv) < 4:
             print("Error: get command requires a tiddler name and field name", file=sys.stderr)

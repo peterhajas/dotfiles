@@ -770,5 +770,148 @@ class TestSetCommand(unittest.TestCase):
             tw_module.get_tiddler_field(self.test_wiki, "TestTiddler", "text")
         self.assertEqual(f.getvalue().strip(), "New text")
 
+class TestJsonCommand(unittest.TestCase):
+    """Test the json command for outputting tiddlers as JSON"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a test wiki with tiddlers
+        self.test_tiddlers = [
+            {
+                "title": "TestTiddler",
+                "text": "Test content with \"quotes\" and <angles>",
+                "created": "20230101000000000",
+                "modified": "20230102000000000",
+                "tags": "tag1 tag2",
+                "type": "text/vnd.tiddlywiki"
+            },
+            {
+                "title": "MinimalTiddler",
+                "text": "Minimal",
+            },
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_json_output_is_valid_json(self):
+        """Test that json command outputs valid JSON"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler")
+
+        output = f.getvalue()
+        # Should be able to parse it as JSON
+        parsed = json.loads(output)
+        self.assertIsInstance(parsed, dict)
+
+    def test_json_output_contains_all_fields(self):
+        """Test that json command includes all tiddler fields"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler")
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # Check all expected fields are present
+        self.assertEqual(parsed['title'], 'TestTiddler')
+        self.assertEqual(parsed['text'], 'Test content with "quotes" and <angles>')
+        self.assertEqual(parsed['created'], '20230101000000000')
+        self.assertEqual(parsed['modified'], '20230102000000000')
+        self.assertEqual(parsed['tags'], 'tag1 tag2')
+        self.assertEqual(parsed['type'], 'text/vnd.tiddlywiki')
+
+    def test_json_output_is_formatted(self):
+        """Test that json command outputs formatted JSON with indentation"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler")
+
+        output = f.getvalue()
+
+        # Should have newlines and indentation (not single-line JSON)
+        self.assertIn('\n', output)
+        self.assertIn('  ', output)  # 2-space indent
+        # Should start with { and end with }
+        self.assertTrue(output.strip().startswith('{'))
+        self.assertTrue(output.strip().endswith('}'))
+
+    def test_json_nonexistent_tiddler(self):
+        """Test that json command exits with error for non-existent tiddler"""
+        with self.assertRaises(SystemExit):
+            tw_module.json_tiddler(self.test_wiki, "NonExistent")
+
+    def test_json_minimal_tiddler(self):
+        """Test that json works with tiddlers that have minimal fields"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "MinimalTiddler")
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # Should have the fields that exist
+        self.assertEqual(parsed['title'], 'MinimalTiddler')
+        self.assertEqual(parsed['text'], 'Minimal')
+
+        # Should not have fields that don't exist
+        self.assertNotIn('created', parsed)
+        self.assertNotIn('modified', parsed)
+
+    def test_json_preserves_unicode(self):
+        """Test that json output preserves Unicode characters"""
+        import io
+        import contextlib
+
+        # Add a tiddler with Unicode
+        tw_module.touch_tiddler(self.test_wiki, "UnicodeTiddler", "Curly quotes: \u201ctest\u201d")
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "UnicodeTiddler")
+
+        output = f.getvalue()
+
+        # Should contain literal curly quotes (not escaped as \u201c)
+        self.assertIn('\u201c', output)
+        self.assertIn('\u201d', output)
+
+        # Verify it parses correctly
+        parsed = json.loads(output)
+        self.assertIn('\u201c', parsed['text'])
+
 if __name__ == '__main__':
     unittest.main()
