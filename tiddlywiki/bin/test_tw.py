@@ -221,5 +221,166 @@ class TestTiddlerStoreExtraction(unittest.TestCase):
         stores = tw_module.extract_tiddler_stores(html)
         self.assertEqual(len(stores), 0)
 
+class TestMultipleStoreRemoval(unittest.TestCase):
+    """Test removing tiddlers when there are multiple stores"""
+
+    def setUp(self):
+        """Create a test wiki with multiple tiddler stores"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'multi_store_wiki.html')
+
+        # Create tiddlers for two different stores
+        store1_tiddlers = [
+            {"title": "Store1Tiddler1", "text": "Content from store 1", "store": "1"},
+            {"title": "Store1Tiddler2", "text": "More content from store 1", "store": "1"},
+            {"title": "DuplicateName", "text": "This is in store 1", "store": "1"},
+        ]
+
+        store2_tiddlers = [
+            {"title": "Store2Tiddler1", "text": "Content from store 2", "store": "2"},
+            {"title": "Store2Tiddler2", "text": "More content from store 2", "store": "2"},
+            {"title": "DuplicateName", "text": "This is in store 2 (should also be removed)", "store": "2"},
+        ]
+
+        # Format each store
+        def format_store(tiddlers):
+            tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in tiddlers]
+            formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            formatted_json = formatted_json.replace('<', '\\u003C')
+            return formatted_json
+
+        store1_json = format_store(store1_tiddlers)
+        store2_json = format_store(store2_tiddlers)
+
+        # Create HTML with two stores
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Multi Store Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{store1_json}</script>
+<div>Some content between stores</div>
+<script class="tiddlywiki-tiddler-store" type="application/json">{store2_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files"""
+        shutil.rmtree(self.test_dir)
+
+    def test_remove_from_first_store_only(self):
+        """Test removing a tiddler that exists only in the first store"""
+        tw_module.remove_tiddler(self.test_wiki, "Store1Tiddler1")
+
+        # Verify it's removed
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+
+        self.assertNotIn("Store1Tiddler1", titles)
+        # Other tiddlers from store 1 should still exist
+        self.assertIn("Store1Tiddler2", titles)
+        # Store 2 tiddlers should be untouched
+        self.assertIn("Store2Tiddler1", titles)
+        self.assertIn("Store2Tiddler2", titles)
+
+        # Total should be 5 (started with 6, removed 1)
+        self.assertEqual(len(tiddlers), 5)
+
+    def test_remove_from_second_store_only(self):
+        """Test removing a tiddler that exists only in the second store"""
+        tw_module.remove_tiddler(self.test_wiki, "Store2Tiddler1")
+
+        # Verify it's removed
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+
+        self.assertNotIn("Store2Tiddler1", titles)
+        # Other store 2 tiddlers should still exist
+        self.assertIn("Store2Tiddler2", titles)
+        # Store 1 tiddlers should be untouched
+        self.assertIn("Store1Tiddler1", titles)
+        self.assertIn("Store1Tiddler2", titles)
+
+        # Total should be 5
+        self.assertEqual(len(tiddlers), 5)
+
+    def test_remove_duplicate_tiddler_from_all_stores(self):
+        """Test removing a tiddler that exists in multiple stores (should remove from all)"""
+        tw_module.remove_tiddler(self.test_wiki, "DuplicateName")
+
+        # Verify it's removed from both stores
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+
+        # Should not exist at all
+        self.assertNotIn("DuplicateName", titles)
+
+        # Other tiddlers should still exist
+        self.assertIn("Store1Tiddler1", titles)
+        self.assertIn("Store1Tiddler2", titles)
+        self.assertIn("Store2Tiddler1", titles)
+        self.assertIn("Store2Tiddler2", titles)
+
+        # Total should be 4 (started with 6, removed 2)
+        self.assertEqual(len(tiddlers), 4)
+
+    def test_both_stores_remain_valid_after_removal(self):
+        """Test that both stores remain valid JSON after removal"""
+        tw_module.remove_tiddler(self.test_wiki, "Store1Tiddler2")
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Extract both stores
+        stores = tw_module.extract_tiddler_stores(content)
+        self.assertEqual(len(stores), 2)
+
+        # Verify both stores have valid JSON
+        self.assertEqual(len(stores[0]['tiddlers']), 2)  # Lost 1 from store 1
+        self.assertEqual(len(stores[1]['tiddlers']), 3)  # Store 2 unchanged
+
+        # Verify formatting is correct in both stores
+        pattern = '<script class="tiddlywiki-tiddler-store" type="application/json">'
+        start1 = content.find(pattern)
+        json_start1 = content.find('[', start1)
+        end1 = content.find('</script>', json_start1)
+        json1 = content[json_start1:end1]
+
+        # Find second store
+        start2 = content.find(pattern, end1)
+        json_start2 = content.find('[', start2)
+        end2 = content.find('</script>', json_start2)
+        json2 = content[json_start2:end2]
+
+        # Both should have proper formatting
+        self.assertTrue(json1.startswith('[\n{'))
+        self.assertTrue(json2.startswith('[\n{'))
+        self.assertIn('},\n{', json1)
+        self.assertIn('},\n{', json2)
+
+    def test_remove_all_from_one_store_leaves_empty_array(self):
+        """Test that removing all tiddlers from one store leaves an empty array"""
+        # Remove all from store 1
+        tw_module.remove_tiddler(self.test_wiki, "Store1Tiddler1")
+        tw_module.remove_tiddler(self.test_wiki, "Store1Tiddler2")
+        tw_module.remove_tiddler(self.test_wiki, "DuplicateName")
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        stores = tw_module.extract_tiddler_stores(content)
+        self.assertEqual(len(stores), 2)
+
+        # First store should be empty
+        self.assertEqual(len(stores[0]['tiddlers']), 0)
+        # Second store should have 2 left (lost DuplicateName)
+        self.assertEqual(len(stores[1]['tiddlers']), 2)
+
+        # Total tiddlers should be 2
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 2)
+
 if __name__ == '__main__':
     unittest.main()
