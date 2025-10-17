@@ -20,23 +20,63 @@ def get_wiki_path():
 
     return wiki_path
 
-def load_all_tiddlers(wiki_path):
+def extract_tiddler_stores(content):
+    """Extract tiddler store JSON arrays from HTML content."""
     import json
 
+    stores = []
+    # Find the start of each tiddler store
+    pattern = r'<script class="tiddlywiki-tiddler-store" type="application/json">'
+
+    pos = 0
+    while True:
+        start_match = content.find(pattern, pos)
+        if start_match == -1:
+            break
+
+        # Find the start of the JSON array
+        json_start = content.find('[', start_match)
+        if json_start == -1:
+            break
+
+        # Find the matching closing tag
+        end_tag = '</script>'
+        end_match = content.find(end_tag, json_start)
+        if end_match == -1:
+            break
+
+        # Extract the JSON (trim whitespace)
+        json_str = content[json_start:end_match].strip()
+
+        try:
+            # Use strict=False to allow control characters like tabs/newlines in strings
+            tiddlers = json.loads(json_str, strict=False)
+            stores.append({
+                'start': start_match,
+                'end': end_match + len(end_tag),
+                'tiddlers': tiddlers
+            })
+        except json.JSONDecodeError as e:
+            print(f"Warning: Failed to parse tiddler store: {e}", file=sys.stderr)
+
+        pos = end_match + len(end_tag)
+
+    return stores
+
+def load_all_tiddlers(wiki_path):
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    # Find all tiddlywiki-tiddler-store script tags
-    pattern = r'<script class="tiddlywiki-tiddler-store" type="application/json">\s*(\[.*?\])\s*</script>'
-    matches = re.finditer(pattern, content, re.DOTALL)
+    stores = extract_tiddler_stores(content)
 
+    if not stores:
+        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+        sys.exit(1)
+
+    # Collect all tiddlers from all stores
     all_tiddlers = []
-
-    # Collect tiddlers from all stores (earliest to latest)
-    for match in matches:
-        tiddlers_json = match.group(1)
-        tiddlers = json.loads(tiddlers_json)
-        all_tiddlers.extend(tiddlers)
+    for store in stores:
+        all_tiddlers.extend(store['tiddlers'])
 
     if not all_tiddlers:
         print("Error: Could not find any tiddlers in wiki", file=sys.stderr)
@@ -83,12 +123,65 @@ def cat_tiddler(wiki_path, tiddler_title):
         print()
         print(tiddler['text'])
 
+def remove_tiddler(wiki_path, tiddler_title):
+    import json
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    stores = extract_tiddler_stores(content)
+
+    if not stores:
+        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+        sys.exit(1)
+
+    found = False
+
+    # Build list of replacements
+    replacements = []
+    for store in stores:
+        original_count = len(store['tiddlers'])
+        # Filter out the tiddler with matching title
+        filtered_tiddlers = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
+
+        if len(filtered_tiddlers) < original_count:
+            found = True
+
+        # Rebuild the script tag with filtered tiddlers
+        # Use ensure_ascii=False to preserve Unicode characters like curly quotes
+        # Format each tiddler on its own line
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in filtered_tiddlers]
+        new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+
+        # Escape only < (not >) as Unicode to match TiddlyWiki format
+        new_json = new_json.replace('<', '\\u003C')
+
+        new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+
+        replacements.append((store['start'], store['end'], new_store))
+
+    # Apply replacements in reverse order to maintain correct positions
+    new_content = content
+    for start, end, replacement in reversed(replacements):
+        new_content = new_content[:start] + replacement + new_content[end:]
+
+    if not found:
+        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    # Write the modified content back to the file
+    with open(wiki_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+
+    print(f"Removed tiddler: {tiddler_title}")
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: tw <command> [args]", file=sys.stderr)
         print("Commands:", file=sys.stderr)
         print("  ls              List all tiddlers", file=sys.stderr)
         print("  cat <tiddler>   Display tiddler contents", file=sys.stderr)
+        print("  rm <tiddler>    Remove a tiddler", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
@@ -102,6 +195,12 @@ def main():
             sys.exit(1)
         tiddler_title = sys.argv[2]
         cat_tiddler(wiki_path, tiddler_title)
+    elif command == "rm":
+        if len(sys.argv) < 3:
+            print("Error: rm command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = sys.argv[2]
+        remove_tiddler(wiki_path, tiddler_title)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)
