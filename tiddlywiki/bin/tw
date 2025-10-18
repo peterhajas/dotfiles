@@ -351,6 +351,69 @@ def remove_tiddler(wiki_path, tiddler_title):
 
     print(f"Removed tiddler: {tiddler_title}")
 
+def replace_tiddler(wiki_path, markdown_content):
+    """Replace a tiddler from cat-style format (YAML frontmatter + text)
+
+    This is the inverse of cat_tiddler - it parses the same format that
+    cat outputs and inserts it back into the wiki.
+    """
+    import json
+
+    # Parse YAML frontmatter and text
+    lines = markdown_content.split('\n')
+
+    # Check if content is empty
+    if not lines:
+        print("Error: Empty content provided", file=sys.stderr)
+        sys.exit(1)
+
+    # Parse YAML-style frontmatter (key: value format)
+    # Until we hit an empty line, then everything else is text
+    tiddler = {}
+    text_start_index = None
+
+    for i, line in enumerate(lines):
+        if line.strip() == '':
+            # Empty line marks end of frontmatter
+            text_start_index = i + 1
+            break
+        elif ':' in line:
+            # Parse field: value
+            key, value = line.split(':', 1)
+            tiddler[key.strip()] = value.strip()
+        else:
+            # If we encounter a line without ':', treat as start of text
+            text_start_index = i
+            break
+
+    # Everything after the empty line (or non-field line) is the text
+    if text_start_index is not None and text_start_index < len(lines):
+        text_content = '\n'.join(lines[text_start_index:])
+        # Strip trailing newline for perfect roundtrip with cat
+        if text_content:
+            # Only strip if it's just whitespace, otherwise keep the content
+            text_stripped = text_content.rstrip('\n')
+            if text_stripped:  # Only add text field if there's content
+                tiddler['text'] = text_stripped
+
+    # Verify it has a title field
+    if 'title' not in tiddler:
+        print("Error: Tiddler must have a 'title' field", file=sys.stderr)
+        sys.exit(1)
+
+    # Add timestamps if missing
+    timestamp = get_tiddlywiki_timestamp()
+
+    if 'created' not in tiddler:
+        tiddler['created'] = timestamp
+
+    if 'modified' not in tiddler:
+        tiddler['modified'] = timestamp
+
+    # Use insert_tiddler to do the actual insertion
+    tiddler_json = json.dumps(tiddler)
+    insert_tiddler(wiki_path, tiddler_json)
+
 def insert_tiddler(wiki_path, tiddler_json):
     """Insert a tiddler from JSON, replacing if it already exists"""
     import json
@@ -366,6 +429,15 @@ def insert_tiddler(wiki_path, tiddler_json):
     if 'title' not in new_tiddler:
         print("Error: Tiddler JSON must have a 'title' field", file=sys.stderr)
         sys.exit(1)
+
+    # Add timestamps if missing
+    timestamp = get_tiddlywiki_timestamp()
+
+    if 'created' not in new_tiddler:
+        new_tiddler['created'] = timestamp
+
+    if 'modified' not in new_tiddler:
+        new_tiddler['modified'] = timestamp
 
     tiddler_title = new_tiddler['title']
 
@@ -427,6 +499,7 @@ def main():
         print("  rm <tiddler>                 Remove a tiddler", file=sys.stderr)
         print("  touch <tiddler> [text]       Create or update a tiddler", file=sys.stderr)
         print("  insert <json>                Insert/replace a tiddler from JSON", file=sys.stderr)
+        print("  replace <content>            Insert/replace from cat format", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
@@ -480,6 +553,17 @@ def main():
             sys.exit(1)
         tiddler_json = sys.argv[2]
         insert_tiddler(wiki_path, tiddler_json)
+    elif command == "replace":
+        # Accept content from either command line argument or stdin
+        if len(sys.argv) >= 3:
+            content = sys.argv[2]
+        else:
+            # Read from stdin
+            content = sys.stdin.read()
+            if not content:
+                print("Error: replace command requires content string or stdin input", file=sys.stderr)
+                sys.exit(1)
+        replace_tiddler(wiki_path, content)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)

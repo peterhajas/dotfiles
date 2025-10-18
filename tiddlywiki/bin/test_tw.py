@@ -1106,9 +1106,81 @@ class TestInsertCommand(unittest.TestCase):
         tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
         minimal = next(t for t in tiddlers if t['title'] == 'MinimalTiddler')
 
-        # Should only have title
+        # Should have title plus auto-added timestamps
         self.assertEqual(minimal['title'], 'MinimalTiddler')
-        self.assertEqual(len(minimal), 1)
+        self.assertEqual(len(minimal), 3)
+        self.assertIn('created', minimal)
+        self.assertIn('modified', minimal)
+
+    def test_insert_auto_adds_created(self):
+        """Test that insert auto-adds created timestamp if missing"""
+        new_json = json.dumps({"title": "InsertCreatedTest", "text": "Content"})
+
+        tw_module.insert_tiddler(self.test_wiki, new_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'InsertCreatedTest')
+
+        self.assertIn('created', test_tiddler)
+        self.assertEqual(len(test_tiddler['created']), 17)
+        self.assertTrue(test_tiddler['created'].isdigit())
+
+    def test_insert_auto_adds_modified(self):
+        """Test that insert auto-adds modified timestamp if missing"""
+        new_json = json.dumps({"title": "InsertModifiedTest", "text": "Content"})
+
+        tw_module.insert_tiddler(self.test_wiki, new_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'InsertModifiedTest')
+
+        self.assertIn('modified', test_tiddler)
+        self.assertEqual(len(test_tiddler['modified']), 17)
+        self.assertTrue(test_tiddler['modified'].isdigit())
+
+    def test_insert_preserves_existing_timestamps(self):
+        """Test that insert preserves user-provided timestamps"""
+        new_json = json.dumps({
+            "title": "InsertPreserveTest",
+            "text": "Content",
+            "created": "20200101120000000",
+            "modified": "20210101120000000"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, new_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'InsertPreserveTest')
+
+        self.assertEqual(test_tiddler['created'], '20200101120000000')
+        self.assertEqual(test_tiddler['modified'], '20210101120000000')
+
+    def test_insert_timestamp_format_valid(self):
+        """Test that insert auto-generated timestamps have valid format"""
+        new_json = json.dumps({"title": "InsertFormatTest", "text": "Content"})
+
+        tw_module.insert_tiddler(self.test_wiki, new_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'InsertFormatTest')
+
+        # Check format: YYYYMMDDhhmmssxxx (17 digits)
+        self.assertEqual(len(test_tiddler['created']), 17)
+        self.assertEqual(len(test_tiddler['modified']), 17)
+        self.assertTrue(test_tiddler['created'].isdigit())
+        self.assertTrue(test_tiddler['modified'].isdigit())
+
+        # Verify it parses as valid date
+        year = int(test_tiddler['created'][0:4])
+        month = int(test_tiddler['created'][4:6])
+        day = int(test_tiddler['created'][6:8])
+
+        self.assertGreaterEqual(year, 2020)
+        self.assertLessEqual(year, 2100)
+        self.assertGreaterEqual(month, 1)
+        self.assertLessEqual(month, 12)
+        self.assertGreaterEqual(day, 1)
+        self.assertLessEqual(day, 31)
 
 class TestAlphabeticalOrdering(unittest.TestCase):
     """Test that tiddlers are stored in alphabetical order by title"""
@@ -1263,6 +1335,374 @@ class TestAlphabeticalOrdering(unittest.TestCase):
         self.assertIn("Apple", titles)
         self.assertIn("Mango", titles)
         self.assertIn("Zebra", titles)
+
+class TestReplaceCommand(unittest.TestCase):
+    """Test the replace command for inserting/replacing from cat format"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a test wiki with existing tiddlers
+        self.test_tiddlers = [
+            {
+                "title": "ExistingTiddler",
+                "text": "Original content",
+                "created": "20230101000000000",
+                "modified": "20230101000000000",
+                "tags": "original"
+            },
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_replace_new_tiddler(self):
+        """Test replacing creates a new tiddler from cat format"""
+        cat_format = """title: NewTiddler
+tags: test new
+created: 20250101000000000
+
+This is the text content.
+It can span multiple lines."""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        # Verify it was added
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 2)
+
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'NewTiddler')
+        self.assertEqual(new_tiddler['tags'], 'test new')
+        self.assertEqual(new_tiddler['created'], '20250101000000000')
+        self.assertEqual(new_tiddler['text'], 'This is the text content.\nIt can span multiple lines.')
+
+    def test_replace_existing_tiddler(self):
+        """Test replacing updates an existing tiddler"""
+        cat_format = """title: ExistingTiddler
+tags: updated
+created: 20230101000000000
+modified: 20250101000000000
+
+This is updated content."""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        # Verify it was replaced (not duplicated)
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 1)
+
+        updated = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+        self.assertEqual(updated['tags'], 'updated')
+        self.assertEqual(updated['text'], 'This is updated content.')
+
+    def test_replace_roundtrip_with_cat(self):
+        """Test that cat -> replace is a perfect roundtrip"""
+        import io
+        import contextlib
+
+        # Get cat output
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.cat_tiddler(self.test_wiki, "ExistingTiddler")
+        cat_output = f.getvalue()
+
+        # Create a new tiddler with different title but same structure
+        modified_output = cat_output.replace('title: ExistingTiddler', 'title: RoundtripTiddler')
+
+        # Replace it back
+        tw_module.replace_tiddler(self.test_wiki, modified_output)
+
+        # Verify the tiddler exists and has correct content
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        roundtrip = next(t for t in tiddlers if t['title'] == 'RoundtripTiddler')
+
+        self.assertEqual(roundtrip['text'], 'Original content')
+        self.assertEqual(roundtrip['tags'], 'original')
+        self.assertEqual(roundtrip['created'], '20230101000000000')
+        self.assertEqual(roundtrip['modified'], '20230101000000000')
+
+    def test_replace_no_text_field(self):
+        """Test replacing a tiddler with only frontmatter (no text)"""
+        cat_format = """title: NoTextTiddler
+tags: test
+created: 20250101000000000"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        no_text = next(t for t in tiddlers if t['title'] == 'NoTextTiddler')
+
+        self.assertEqual(no_text['tags'], 'test')
+        self.assertNotIn('text', no_text)
+
+    def test_replace_empty_text_field(self):
+        """Test replacing with empty text after frontmatter"""
+        cat_format = """title: EmptyTextTiddler
+tags: test
+
+"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        empty_text = next(t for t in tiddlers if t['title'] == 'EmptyTextTiddler')
+
+        self.assertEqual(empty_text['tags'], 'test')
+        # Empty string after blank line should not create text field
+        self.assertNotIn('text', empty_text)
+
+    def test_replace_text_with_colons(self):
+        """Test that colons in text content don't get parsed as fields"""
+        cat_format = """title: ColonTest
+tags: test
+
+This text has a colon: like this
+And another: here too
+key: value in the text"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        colon_test = next(t for t in tiddlers if t['title'] == 'ColonTest')
+
+        expected_text = 'This text has a colon: like this\nAnd another: here too\nkey: value in the text'
+        self.assertEqual(colon_test['text'], expected_text)
+
+    def test_replace_multiline_text(self):
+        """Test replacing with multiline text content"""
+        cat_format = """title: MultilineTest
+tags: test
+
+Line 1
+Line 2
+Line 3
+
+Line 5 (after empty line)"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        multiline = next(t for t in tiddlers if t['title'] == 'MultilineTest')
+
+        expected_text = 'Line 1\nLine 2\nLine 3\n\nLine 5 (after empty line)'
+        self.assertEqual(multiline['text'], expected_text)
+
+    def test_replace_without_title(self):
+        """Test that replace fails without a title field"""
+        cat_format = """tags: test
+created: 20250101000000000
+
+Some text"""
+
+        with self.assertRaises(SystemExit):
+            tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+    def test_replace_preserves_formatting(self):
+        """Test that replace preserves JSON formatting in the wiki"""
+        cat_format = """title: FormattingTest
+tags: test
+
+This is the text content with <angles> and "quotes"."""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Extract JSON
+        pattern = '<script class="tiddlywiki-tiddler-store" type="application/json">'
+        start = content.find(pattern)
+        json_start = content.find('[', start)
+        end = content.find('</script>', json_start)
+        json_str = content[json_start:end]
+
+        # Verify formatting
+        self.assertTrue(json_str.startswith('[\n{'))
+        self.assertIn('\\u003C', json_str)  # < should be escaped
+
+        # Verify the tiddler was stored correctly
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        formatting_test = next(t for t in tiddlers if t['title'] == 'FormattingTest')
+        self.assertIn('<angles>', formatting_test['text'])
+
+    def test_replace_field_with_spaces_in_value(self):
+        """Test that field values with spaces are parsed correctly"""
+        cat_format = """title: SpaceTest
+tags: tag1 tag2 tag3
+author: John Doe
+
+Text content"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        space_test = next(t for t in tiddlers if t['title'] == 'SpaceTest')
+
+        self.assertEqual(space_test['tags'], 'tag1 tag2 tag3')
+        self.assertEqual(space_test['author'], 'John Doe')
+
+    def test_replace_sorts_tiddlers(self):
+        """Test that replace maintains alphabetical order"""
+        # Add a tiddler that should sort before ExistingTiddler
+        cat_format = """title: AAA_FirstTiddler
+tags: test
+
+First alphabetically"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        stores = tw_module.extract_tiddler_stores(content)
+        titles = [t.get('title') for t in stores[0]['tiddlers']]
+
+        self.assertEqual(titles, ['AAA_FirstTiddler', 'ExistingTiddler'])
+
+    def test_replace_auto_adds_created(self):
+        """Test that replace auto-adds created timestamp if missing"""
+        cat_format = """title: AutoCreatedTest
+tags: test
+
+Content here"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'AutoCreatedTest')
+
+        self.assertIn('created', test_tiddler)
+        self.assertEqual(len(test_tiddler['created']), 17)
+        self.assertTrue(test_tiddler['created'].isdigit())
+
+    def test_replace_auto_adds_modified(self):
+        """Test that replace auto-adds modified timestamp if missing"""
+        cat_format = """title: AutoModifiedTest
+tags: test
+
+Content here"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'AutoModifiedTest')
+
+        self.assertIn('modified', test_tiddler)
+        self.assertEqual(len(test_tiddler['modified']), 17)
+        self.assertTrue(test_tiddler['modified'].isdigit())
+
+    def test_replace_preserves_existing_created(self):
+        """Test that replace preserves user-provided created timestamp"""
+        cat_format = """title: PreserveCreatedTest
+created: 20200101120000000
+tags: test
+
+Content here"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'PreserveCreatedTest')
+
+        self.assertEqual(test_tiddler['created'], '20200101120000000')
+
+    def test_replace_preserves_existing_modified(self):
+        """Test that replace preserves user-provided modified timestamp"""
+        cat_format = """title: PreserveModifiedTest
+modified: 20200101120000000
+tags: test
+
+Content here"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'PreserveModifiedTest')
+
+        self.assertEqual(test_tiddler['modified'], '20200101120000000')
+
+    def test_replace_both_fields_missing(self):
+        """Test that replace adds both timestamps when both missing"""
+        cat_format = """title: BothMissingTest
+tags: test
+
+Content here"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'BothMissingTest')
+
+        self.assertIn('created', test_tiddler)
+        self.assertIn('modified', test_tiddler)
+        self.assertEqual(len(test_tiddler['created']), 17)
+        self.assertEqual(len(test_tiddler['modified']), 17)
+
+    def test_replace_both_fields_present(self):
+        """Test that replace preserves both timestamps when both provided"""
+        cat_format = """title: BothPresentTest
+created: 20200101120000000
+modified: 20210101120000000
+tags: test
+
+Content here"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'BothPresentTest')
+
+        self.assertEqual(test_tiddler['created'], '20200101120000000')
+        self.assertEqual(test_tiddler['modified'], '20210101120000000')
+
+    def test_replace_timestamp_format_valid(self):
+        """Test that auto-generated timestamps have valid TiddlyWiki format"""
+        cat_format = """title: TimestampFormatTest
+tags: test
+
+Content here"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'TimestampFormatTest')
+
+        # Check format: YYYYMMDDhhmmssxxx (17 digits)
+        self.assertEqual(len(test_tiddler['created']), 17)
+        self.assertEqual(len(test_tiddler['modified']), 17)
+        self.assertTrue(test_tiddler['created'].isdigit())
+        self.assertTrue(test_tiddler['modified'].isdigit())
+
+        # Verify it parses as valid date
+        year = int(test_tiddler['created'][0:4])
+        month = int(test_tiddler['created'][4:6])
+        day = int(test_tiddler['created'][6:8])
+
+        self.assertGreaterEqual(year, 2020)
+        self.assertLessEqual(year, 2100)
+        self.assertGreaterEqual(month, 1)
+        self.assertLessEqual(month, 12)
+        self.assertGreaterEqual(day, 1)
+        self.assertLessEqual(day, 31)
 
 if __name__ == '__main__':
     unittest.main()
