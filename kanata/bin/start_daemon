@@ -1,0 +1,8 @@
+#!/bin/bash
+# Start Karabiner VirtualHIDDevice Daemon
+
+echo "Starting Karabiner VirtualHIDDevice Daemon..."
+echo "You will be prompted for your password."
+echo ""
+
+sudo /Library/Application\ Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon

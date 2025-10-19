@@ -66,6 +66,10 @@ function abbrev -d "Install fish abbreviations"
     ## yabai
     abbr yr "yabai --stop-service && yabai --start-service && skhd --stop-service && skhd --start-service"
 
+    ## kanata
+    abbr kanata_1 "sudo '/Library/Application Support/org.pqrs/Karabiner-DriverKit-VirtualHIDDevice/Applications/Karabiner-VirtualHIDDevice-Daemon.app/Contents/MacOS/Karabiner-VirtualHIDDevice-Daemon'"
+    abbr kanata_2 "sudo kanata --cfg ~/.config/kanata/config.kanata"
+
     ## sketchybar
     abbr sr "brew services restart sketchybar"
 

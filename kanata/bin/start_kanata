@@ -1,0 +1,10 @@
+#!/bin/bash
+# Start Kanata
+
+cd "$HOME/.config/kanata" || exit 1
+
+echo "Starting Kanata..."
+echo "You will be prompted for your password."
+echo ""
+
+sudo kanata --cfg config.kanata

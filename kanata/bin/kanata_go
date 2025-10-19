@@ -1,0 +1,15 @@
+#!/bin/bash
+# Kanata launcher script
+
+KANATA_SESSION="kanata"
+KANATA_DIR="$HOME/.config/kanata"
+
+# Check if we're already inside zellij
+if [ -n "$ZELLIJ" ]; then
+    echo "Error: Already inside a zellij session."
+    echo "Please exit zellij first or run this from outside zellij."
+    exit 1
+fi
+
+# Attach to session, creating it if it doesn't exist
+exec zellij attach "$KANATA_SESSION" --create options --default-layout "$KANATA_DIR/layout.kdl"

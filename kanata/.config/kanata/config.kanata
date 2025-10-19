@@ -1,0 +1,43 @@
+;; MacBook Air 13" keyboard with home row mods
+;; (we can add other files if we want to here)
+
+(defcfg
+  process-unmapped-keys yes
+)
+
+(defsrc
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps a    s    d    f    g    h    j    k    l    ;    '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  fn   lctl lalt lmet           spc            rmet ralt
+)
+
+(defvar
+  ;; Per-finger timing - pinkies and index fingers are slower
+  tap-time 200
+  hold-time 200
+  hold-time-slow 300
+)
+
+(defalias
+  a (tap-hold $tap-time $hold-time-slow a lsft)
+  s (tap-hold $tap-time $hold-time s lctl)
+  d (tap-hold $tap-time $hold-time d lalt)
+  f (tap-hold $tap-time $hold-time-slow f lmet)
+  j (tap-hold $tap-time $hold-time-slow j rmet)
+  k (tap-hold $tap-time $hold-time k ralt)
+  l (tap-hold $tap-time $hold-time l rctl)
+  ; (tap-hold $tap-time $hold-time-slow ; rsft)
+  tab (tap-hold $tap-time $hold-time tab (multi lctl lalt lsft))
+)
+
+(deflayer base
+  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12
+  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
+  @tab q    w    e    r    t    y    u    i    o    p    [    ]    \
+  caps @a   @s   @d   @f   g    h    @j   @k   @l   @;   '    ret
+  lsft z    x    c    v    b    n    m    ,    .    /    rsft
+  fn   lctl lalt lmet           spc            rmet ralt
+)
