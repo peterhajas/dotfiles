@@ -527,17 +527,20 @@ def install_live_reload_plugin(wiki_path):
         if (davHeader) {
           console.log('[LiveReload] WebDAV detected (DAV: ' + davHeader + '), enabling saver');
 
-          // TiddlyWiki's WebDAV saver is already built-in
-          // We just need to make sure it's prioritized
-          // The saver will automatically activate when it detects WebDAV support
+          // TiddlyWiki's WebDAV saver is already built-in and will auto-detect WebDAV support
+          // We only need to set AutoSave config if it doesn't already exist or is different
+          var existingTiddler = $tw.wiki.getTiddler('$:/config/AutoSave');
+          var shouldUpdate = !existingTiddler || existingTiddler.fields.text !== 'yes';
 
-          // Optional: Set a config tiddler to ensure saving is enabled
-          $tw.wiki.addTiddler(new $tw.Tiddler({
-            title: '$:/config/AutoSave',
-            text: 'yes'
-          }));
-
-          console.log('[LiveReload] WebDAV saver enabled - you can now save changes!');
+          if (shouldUpdate) {
+            $tw.wiki.addTiddler(new $tw.Tiddler({
+              title: '$:/config/AutoSave',
+              text: 'yes'
+            }));
+            console.log('[LiveReload] WebDAV saver enabled - you can now save changes!');
+          } else {
+            console.log('[LiveReload] WebDAV saver already enabled');
+          }
         } else {
           console.log('[LiveReload] WebDAV not available on server');
         }
@@ -548,6 +551,26 @@ def install_live_reload_plugin(wiki_path):
   }
 
   var lastVersion = null;
+  var lastSaveTime = 0;
+  var SAVE_COOLDOWN = 5000; // 5 seconds cooldown after save
+
+  // Hook into TiddlyWiki's save mechanism to track when we initiate a save
+  if ($tw.wiki) {
+    var originalAddTiddler = $tw.wiki.addTiddler;
+    $tw.wiki.addTiddler = function(tiddler) {
+      var result = originalAddTiddler.apply(this, arguments);
+      // If this is a user-initiated change (not from our plugin), update save time
+      if (tiddler && tiddler.fields && tiddler.fields.title &&
+          !tiddler.fields.title.startsWith('$:/') && !tiddler.fields['draft.of']) {
+        var stack = new Error().stack;
+        if (stack && stack.indexOf('reloadTiddlers') === -1) {
+          lastSaveTime = Date.now();
+          console.log('[LiveReload] User change detected, setting cooldown');
+        }
+      }
+      return result;
+    };
+  }
 
   function startPolling() {
     setInterval(function() {
@@ -569,6 +592,15 @@ def install_live_reload_plugin(wiki_path):
         }
 
         if (data.version !== lastVersion) {
+          var timeSinceLastSave = Date.now() - lastSaveTime;
+
+          // Skip reload if we just saved (within cooldown period)
+          if (timeSinceLastSave < SAVE_COOLDOWN) {
+            console.log('[LiveReload] File changed but within save cooldown (' + timeSinceLastSave + 'ms), skipping reload');
+            lastVersion = data.version;
+            return;
+          }
+
           console.log('[LiveReload] File changed! Old:', lastVersion, 'New:', data.version);
           lastVersion = data.version;
           reloadTiddlers();
@@ -646,7 +678,7 @@ def install_live_reload_plugin(wiki_path):
         "text": plugin_code,
         "tags": "$:/tags/StartupModule",
         "description": "Live reload functionality with WebDAV save support for tw server",
-        "version": "0.3.0"
+        "version": "0.3.3"
     }
 
     # Convert to JSON and insert

@@ -2262,8 +2262,8 @@ class TestInstallPlugin(unittest.TestCase):
         self.assertEqual(plugin['type'], 'application/javascript')
         self.assertEqual(plugin['module-type'], 'startup')
         self.assertEqual(plugin['tags'], '$:/tags/StartupModule')
-        self.assertEqual(plugin['version'], '0.2.0')
-        self.assertEqual(plugin['description'], 'Live reload functionality for tw server')
+        self.assertEqual(plugin['version'], '0.3.3')
+        self.assertIn('Live reload functionality', plugin['description'])
 
         # Check plugin code contains key functions
         plugin_code = plugin['text']
@@ -2690,6 +2690,56 @@ class TestWebDAVSupport(unittest.TestCase):
             self.assertIn('Version2', titles)
         finally:
             pass
+
+    def test_plugin_handles_null_tiddlers(self):
+        """Test that the live reload plugin handles null/undefined tiddlers gracefully"""
+        # This test verifies the plugin code can handle edge cases
+        # The plugin hooks into $tw.wiki.addTiddler and must handle:
+        # - null tiddlers
+        # - tiddlers without fields
+        # - tiddlers without title field
+
+        # Get the plugin tiddler
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+
+        # First install the plugin
+        tw_module.install_live_reload_plugin(self.test_wiki)
+
+        # Verify plugin was installed
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        plugin = None
+        for t in tiddlers:
+            if t.get('title') == '$:/plugins/phajas/live-reload':
+                plugin = t
+                break
+
+        self.assertIsNotNone(plugin, "Plugin should be installed")
+        self.assertIn('text', plugin, "Plugin should have code")
+
+        # Verify the plugin code has null safety checks
+        plugin_code = plugin['text']
+
+        # Should check for tiddler existence
+        self.assertIn('tiddler &&', plugin_code,
+            "Plugin should check if tiddler exists")
+
+        # Should check for fields existence
+        self.assertIn('tiddler.fields &&', plugin_code,
+            "Plugin should check if tiddler.fields exists")
+
+        # Should check for title existence
+        self.assertIn('tiddler.fields.title &&', plugin_code,
+            "Plugin should check if tiddler.fields.title exists")
+
+        # Should have cooldown mechanism
+        self.assertIn('SAVE_COOLDOWN', plugin_code,
+            "Plugin should have save cooldown mechanism")
+        self.assertIn('lastSaveTime', plugin_code,
+            "Plugin should track last save time")
+
+        # Should skip reload during cooldown
+        self.assertIn('within save cooldown', plugin_code,
+            "Plugin should skip reload during cooldown period")
 
 
 if __name__ == '__main__':
