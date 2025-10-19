@@ -553,20 +553,17 @@ def install_live_reload_plugin(wiki_path):
   var lastVersion = null;
   var lastSaveTime = 0;
   var SAVE_COOLDOWN = 5000; // 5 seconds cooldown after save
+  var isReloading = false; // Flag to prevent marking as dirty during reload
 
   // Hook into TiddlyWiki's save mechanism to track when we initiate a save
   if ($tw.wiki) {
     var originalAddTiddler = $tw.wiki.addTiddler;
     $tw.wiki.addTiddler = function(tiddler) {
       var result = originalAddTiddler.apply(this, arguments);
-      // If this is a user-initiated change (not from our plugin), update save time
-      if (tiddler && tiddler.fields && tiddler.fields.title &&
-          !tiddler.fields.title.startsWith('$:/') && !tiddler.fields['draft.of']) {
-        var stack = new Error().stack;
-        if (stack && stack.indexOf('reloadTiddlers') === -1) {
-          lastSaveTime = Date.now();
-          console.log('[LiveReload] User change detected, setting cooldown');
-        }
+      // If this is a user-initiated change (not from our plugin reload), update save time
+      if (!isReloading && tiddler && tiddler.fields && tiddler.fields.title && !tiddler.fields['draft.of']) {
+        lastSaveTime = Date.now();
+        console.log('[LiveReload] User change detected, setting cooldown');
       }
       return result;
     };
@@ -617,54 +614,66 @@ def install_live_reload_plugin(wiki_path):
       .then(function(data) {
         console.log('[LiveReload] Got', data.tiddlers.length, 'tiddlers from server');
 
-        // Get current tiddler titles (non-system tiddlers)
-        var currentTitles = $tw.wiki.getTiddlers().filter(function(title) {
-          return !title.startsWith('$:/');
-        });
+        // Set flag to prevent marking wiki as dirty during reload
+        isReloading = true;
 
-        var newTitles = data.tiddlers
-          .filter(function(t) { return !t.title.startsWith('$:/'); })
-          .map(function(t) { return t.title; });
+        // Get current tiddler titles (all tiddlers from the store)
+        var currentTitles = $tw.wiki.getTiddlers();
+
+        var newTitles = data.tiddlers.map(function(t) { return t.title; });
 
         var updateCount = 0;
         var deleteCount = 0;
+        var changedTiddlers = {};
 
         // Update/add tiddlers
         data.tiddlers.forEach(function(tiddlerData) {
-          // Skip system tiddlers
-          if (tiddlerData.title.startsWith('$:/')) {
-            return;
-          }
-
           var currentTiddler = $tw.wiki.getTiddler(tiddlerData.title);
 
           // Only update if modified timestamp changed or tiddler is new
           if (!currentTiddler || currentTiddler.fields.modified !== tiddlerData.modified) {
             console.log('[LiveReload] Updating tiddler:', tiddlerData.title);
             $tw.wiki.addTiddler(new $tw.Tiddler(tiddlerData));
+            changedTiddlers[tiddlerData.title] = true;
             updateCount++;
           }
         });
 
-        // Delete removed tiddlers (only non-system tiddlers)
+        // Delete removed tiddlers
         currentTitles.forEach(function(title) {
           if (newTitles.indexOf(title) === -1) {
             console.log('[LiveReload] Deleting tiddler:', title);
             $tw.wiki.deleteTiddler(title);
+            changedTiddlers[title] = true;
             deleteCount++;
           }
         });
 
         // Refresh the UI if any changes were made
         if (updateCount > 0 || deleteCount > 0) {
-          $tw.rootWidget.refresh();
+          // Trigger a refresh of the root widget
+          $tw.rootWidget.refresh(changedTiddlers);
           console.log('[LiveReload] Reload complete - updated:', updateCount, 'deleted:', deleteCount);
+
+          // Mark the wiki as saved at current change count
+          // This prevents the wiki from showing as "dirty" after a reload from server
+          if ($tw.wiki.getChangeCount && $tw.syncer && $tw.syncer.wiki) {
+            $tw.syncer.wiki.addTiddler(new $tw.Tiddler(
+              $tw.wiki.getTiddler('$:/config/SaverStartupTime'),
+              {text: '' + $tw.wiki.getChangeCount()}
+            ));
+            console.log('[LiveReload] Updated save marker to change count:', $tw.wiki.getChangeCount());
+          }
         } else {
           console.log('[LiveReload] No changes detected');
         }
+
+        // Clear the reloading flag AFTER refresh
+        isReloading = false;
       })
       .catch(function(error) {
         console.error('[LiveReload] Error reloading tiddlers:', error);
+        isReloading = false; // Clear flag even on error
       });
   }
 })();
@@ -678,7 +687,7 @@ def install_live_reload_plugin(wiki_path):
         "text": plugin_code,
         "tags": "$:/tags/StartupModule",
         "description": "Live reload functionality with WebDAV save support for tw server",
-        "version": "0.3.3"
+        "version": "0.3.8"
     }
 
     # Convert to JSON and insert
@@ -784,6 +793,12 @@ def serve_wiki(wiki_path, host='localhost', port=8080):
             except Exception as e:
                 print(f"[WebDAV PUT] Error saving file: {e}", file=sys.stderr)
                 self.send_error(500, f'Error saving file: {e}')
+
+        def do_HEAD(self):
+            """Handle HEAD requests - same as GET but without body"""
+            # Just use do_GET, but the BaseHTTPRequestHandler will automatically
+            # not send the body for HEAD requests
+            self.do_GET()
 
         def do_GET(self):
             """Handle GET requests by serving the wiki file or API endpoints"""

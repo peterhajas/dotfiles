@@ -2262,7 +2262,7 @@ class TestInstallPlugin(unittest.TestCase):
         self.assertEqual(plugin['type'], 'application/javascript')
         self.assertEqual(plugin['module-type'], 'startup')
         self.assertEqual(plugin['tags'], '$:/tags/StartupModule')
-        self.assertEqual(plugin['version'], '0.3.3')
+        self.assertEqual(plugin['version'], '0.3.8')
         self.assertIn('Live reload functionality', plugin['description'])
 
         # Check plugin code contains key functions
@@ -2277,7 +2277,7 @@ class TestInstallPlugin(unittest.TestCase):
         # Phase 2B specific checks
         self.assertIn('$tw.wiki.addTiddler', plugin_code)
         self.assertIn('$tw.wiki.deleteTiddler', plugin_code)
-        self.assertIn('$tw.rootWidget.refresh()', plugin_code)
+        self.assertIn('$tw.rootWidget.refresh', plugin_code)
 
     def test_install_plugin_replaces_existing(self):
         """Test that installing plugin twice replaces the first one"""
@@ -2688,6 +2688,71 @@ class TestWebDAVSupport(unittest.TestCase):
             tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
             titles = [t['title'] for t in tiddlers]
             self.assertIn('Version2', titles)
+        finally:
+            pass
+
+    def test_put_saves_system_tiddlers(self):
+        """Test that PUT can save system tiddlers like $:/SiteTitle"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20105
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Create wiki with system tiddlers
+            system_tiddlers = [
+                {"title": "$:/SiteTitle", "text": "My Custom Title", "created": "20230107000000000", "modified": "20230107000000000"},
+                {"title": "$:/SiteSubtitle", "text": "A test subtitle", "created": "20230107000000000", "modified": "20230107000000000"},
+                {"title": "RegularTiddler", "text": "Normal content", "created": "20230107000000000", "modified": "20230107000000000"},
+            ]
+            tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in system_tiddlers]
+            formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            formatted_json = formatted_json.replace('<', '\\u003C')
+
+            new_html = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+            # Make PUT request
+            req = urllib.request.Request(
+                f'http://localhost:{test_port}/',
+                data=new_html.encode('utf-8'),
+                method='PUT'
+            )
+            req.add_header('Content-Type', 'text/html; charset=utf-8')
+            response = urllib.request.urlopen(req, timeout=2)
+
+            # Verify response
+            self.assertIn(response.status, [200, 204], "PUT should return 200 or 204")
+
+            # Give file system a moment to sync
+            time.sleep(0.1)
+
+            # Verify system tiddlers were saved
+            tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+            titles = [t['title'] for t in tiddlers]
+
+            self.assertIn('$:/SiteTitle', titles, "System tiddler $:/SiteTitle should be saved")
+            self.assertIn('$:/SiteSubtitle', titles, "System tiddler $:/SiteSubtitle should be saved")
+            self.assertIn('RegularTiddler', titles, "Regular tiddler should be saved")
+
+            # Verify content
+            site_title = next(t for t in tiddlers if t['title'] == '$:/SiteTitle')
+            self.assertEqual(site_title['text'], 'My Custom Title')
         finally:
             pass
 
