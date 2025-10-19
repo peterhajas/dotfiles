@@ -2262,7 +2262,7 @@ class TestInstallPlugin(unittest.TestCase):
         self.assertEqual(plugin['type'], 'application/javascript')
         self.assertEqual(plugin['module-type'], 'startup')
         self.assertEqual(plugin['tags'], '$:/tags/StartupModule')
-        self.assertEqual(plugin['version'], '0.1.0')
+        self.assertEqual(plugin['version'], '0.2.0')
         self.assertEqual(plugin['description'], 'Live reload functionality for tw server')
 
         # Check plugin code contains key functions
@@ -2272,6 +2272,12 @@ class TestInstallPlugin(unittest.TestCase):
         self.assertIn('checkVersion', plugin_code)
         self.assertIn('reloadTiddlers', plugin_code)
         self.assertIn('/_tw/version', plugin_code)
+        self.assertIn('/_tw/tiddlers', plugin_code)
+
+        # Phase 2B specific checks
+        self.assertIn('$tw.wiki.addTiddler', plugin_code)
+        self.assertIn('$tw.wiki.deleteTiddler', plugin_code)
+        self.assertIn('$tw.rootWidget.refresh()', plugin_code)
 
     def test_install_plugin_replaces_existing(self):
         """Test that installing plugin twice replaces the first one"""

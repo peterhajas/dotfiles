@@ -551,8 +551,60 @@ def install_live_reload_plugin(wiki_path):
   }
 
   function reloadTiddlers() {
-    console.log('[LiveReload] Would reload tiddlers here (not implemented yet)');
-    // TODO: Phase 2B
+    fetch('/_tw/tiddlers')
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        console.log('[LiveReload] Got', data.tiddlers.length, 'tiddlers from server');
+
+        // Get current tiddler titles (non-system tiddlers)
+        var currentTitles = $tw.wiki.getTiddlers().filter(function(title) {
+          return !title.startsWith('$:/');
+        });
+
+        var newTitles = data.tiddlers
+          .filter(function(t) { return !t.title.startsWith('$:/'); })
+          .map(function(t) { return t.title; });
+
+        var updateCount = 0;
+        var deleteCount = 0;
+
+        // Update/add tiddlers
+        data.tiddlers.forEach(function(tiddlerData) {
+          // Skip system tiddlers
+          if (tiddlerData.title.startsWith('$:/')) {
+            return;
+          }
+
+          var currentTiddler = $tw.wiki.getTiddler(tiddlerData.title);
+
+          // Only update if modified timestamp changed or tiddler is new
+          if (!currentTiddler || currentTiddler.fields.modified !== tiddlerData.modified) {
+            console.log('[LiveReload] Updating tiddler:', tiddlerData.title);
+            $tw.wiki.addTiddler(new $tw.Tiddler(tiddlerData));
+            updateCount++;
+          }
+        });
+
+        // Delete removed tiddlers (only non-system tiddlers)
+        currentTitles.forEach(function(title) {
+          if (newTitles.indexOf(title) === -1) {
+            console.log('[LiveReload] Deleting tiddler:', title);
+            $tw.wiki.deleteTiddler(title);
+            deleteCount++;
+          }
+        });
+
+        // Refresh the UI if any changes were made
+        if (updateCount > 0 || deleteCount > 0) {
+          $tw.rootWidget.refresh();
+          console.log('[LiveReload] Reload complete - updated:', updateCount, 'deleted:', deleteCount);
+        } else {
+          console.log('[LiveReload] No changes detected');
+        }
+      })
+      .catch(function(error) {
+        console.error('[LiveReload] Error reloading tiddlers:', error);
+      });
   }
 })();
 """
@@ -565,7 +617,7 @@ def install_live_reload_plugin(wiki_path):
         "text": plugin_code,
         "tags": "$:/tags/StartupModule",
         "description": "Live reload functionality for tw server",
-        "version": "0.1.0"
+        "version": "0.2.0"
     }
 
     # Convert to JSON and insert
