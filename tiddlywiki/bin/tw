@@ -487,6 +487,45 @@ def insert_tiddler(wiki_path, tiddler_json):
     else:
         print(f"Inserted tiddler: {tiddler_title}")
 
+def serve_wiki(wiki_path, host='localhost', port=8080):
+    """Serve the TiddlyWiki file locally using Python's built-in HTTP server"""
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+
+    class WikiHandler(BaseHTTPRequestHandler):
+        def do_GET(self):
+            """Handle GET requests by serving the wiki file"""
+            try:
+                with open(wiki_path, 'rb') as f:
+                    content = f.read()
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'text/html; charset=utf-8')
+                self.send_header('Content-Length', str(len(content)))
+                self.end_headers()
+                self.wfile.write(content)
+            except Exception as e:
+                self.send_error(500, f'Error reading wiki file: {e}')
+
+        def log_message(self, format, *args):
+            """Override to provide cleaner log messages"""
+            print(f"[{self.log_date_time_string()}] {format % args}")
+
+    try:
+        server = HTTPServer((host, port), WikiHandler)
+        print(f"Serving TiddlyWiki at http://{host}:{port}")
+        print(f"Wiki file: {wiki_path}")
+        print("Press Ctrl+C to stop the server")
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nServer stopped")
+        sys.exit(0)
+    except OSError as e:
+        if e.errno == 48 or e.errno == 98:  # Address already in use
+            print(f"Error: Port {port} is already in use", file=sys.stderr)
+        else:
+            print(f"Error starting server: {e}", file=sys.stderr)
+        sys.exit(1)
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: tw <command> [args]", file=sys.stderr)
@@ -500,6 +539,7 @@ def main():
         print("  touch <tiddler> [text]       Create or update a tiddler", file=sys.stderr)
         print("  insert <json>                Insert/replace a tiddler from JSON", file=sys.stderr)
         print("  replace <content>            Insert/replace from cat format", file=sys.stderr)
+        print("  serve [--host HOST] [--port PORT]  Serve wiki locally (default: localhost:8080)", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
@@ -564,6 +604,29 @@ def main():
                 print("Error: replace command requires content string or stdin input", file=sys.stderr)
                 sys.exit(1)
         replace_tiddler(wiki_path, content)
+    elif command == "serve":
+        # Parse optional --host and --port arguments
+        host = 'localhost'
+        port = 8080
+
+        i = 2
+        while i < len(sys.argv):
+            if sys.argv[i] == '--host' and i + 1 < len(sys.argv):
+                host = sys.argv[i + 1]
+                i += 2
+            elif sys.argv[i] == '--port' and i + 1 < len(sys.argv):
+                try:
+                    port = int(sys.argv[i + 1])
+                except ValueError:
+                    print(f"Error: Invalid port number '{sys.argv[i + 1]}'", file=sys.stderr)
+                    sys.exit(1)
+                i += 2
+            else:
+                print(f"Error: Unknown argument '{sys.argv[i]}'", file=sys.stderr)
+                print("Usage: tw serve [--host HOST] [--port PORT]", file=sys.stderr)
+                sys.exit(1)
+
+        serve_wiki(wiki_path, host, port)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)

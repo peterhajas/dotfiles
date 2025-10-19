@@ -1704,5 +1704,190 @@ Content here"""
         self.assertGreaterEqual(day, 1)
         self.assertLessEqual(day, 31)
 
+class TestServeCommand(unittest.TestCase):
+    """Test the serve command for serving the wiki locally"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a minimal test wiki
+        self.test_tiddlers = [
+            {"title": "TestTiddler", "text": "Test content", "created": "20230101000000000"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_serve_starts_server(self):
+        """Test that serve_wiki starts an HTTP server"""
+        import threading
+        import time
+        import urllib.request
+
+        # Start server in a thread
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', 0),  # Port 0 = auto-assign
+            daemon=True
+        )
+
+        # We need to capture the actual port - let's use a different approach
+        # Start on a specific high port
+        test_port = 19999
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        # Give server time to start
+        time.sleep(0.2)
+
+        try:
+            # Make a request to the server
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
+            content = response.read().decode('utf-8')
+
+            # Verify we got HTML back
+            self.assertIn('<!DOCTYPE html>', content)
+            self.assertIn('Test Wiki', content)
+            self.assertIn('TestTiddler', content)
+
+            # Verify status code
+            self.assertEqual(response.status, 200)
+        finally:
+            # Thread will die when test ends (daemon=True)
+            pass
+
+    def test_serve_sets_correct_content_type(self):
+        """Test that serve_wiki sets the correct Content-Type header"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20000
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
+            content_type = response.headers.get('Content-Type')
+
+            self.assertIsNotNone(content_type)
+            self.assertIn('text/html', content_type)
+            self.assertIn('charset=utf-8', content_type)
+        finally:
+            pass
+
+    def test_serve_with_custom_host(self):
+        """Test that serve_wiki can bind to custom host"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20001
+
+        # Bind to 127.0.0.1 specifically
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, '127.0.0.1', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://127.0.0.1:{test_port}/', timeout=2)
+            self.assertEqual(response.status, 200)
+        finally:
+            pass
+
+    def test_serve_handles_multiple_requests(self):
+        """Test that serve_wiki can handle multiple consecutive requests"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20002
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Make multiple requests
+            for i in range(3):
+                response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
+                self.assertEqual(response.status, 200)
+                content = response.read().decode('utf-8')
+                self.assertIn('Test Wiki', content)
+        finally:
+            pass
+
+    def test_serve_content_matches_file(self):
+        """Test that served content matches the wiki file"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20003
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Read the file directly
+            with open(self.test_wiki, 'r', encoding='utf-8') as f:
+                expected_content = f.read()
+
+            # Get content from server
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
+            served_content = response.read().decode('utf-8')
+
+            # Should match exactly
+            self.assertEqual(served_content, expected_content)
+        finally:
+            pass
+
 if __name__ == '__main__':
     unittest.main()
