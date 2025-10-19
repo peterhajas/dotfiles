@@ -19,7 +19,10 @@ yabai -m rule --add app="^mpv$" manage=off
 
 # Notifications
 yabai -m signal --add event="display_added" action="~/bin/update_tiling"
+yabai -m signal --add event="display_changed" action="~/bin/update_tiling"
 yabai -m signal --add event="display_removed" action="~/bin/update_tiling"
+yabai -m signal --add event="display_resized" action="~/bin/update_tiling"
+yabai -m signal --add event="system_woke" action="~/bin/update_tiling"
 
 update_tiling
 
