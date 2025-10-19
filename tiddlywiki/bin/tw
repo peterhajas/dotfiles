@@ -516,6 +516,35 @@ def install_live_reload_plugin(wiki_path):
 
     console.log('[LiveReload] Detected tw server, starting live reload');
     startPolling();
+    enableWebDAVSaver();
+  }
+
+  function enableWebDAVSaver() {
+    // Check if server supports WebDAV via OPTIONS request
+    fetch('/', {method: 'OPTIONS'})
+      .then(function(response) {
+        var davHeader = response.headers.get('DAV');
+        if (davHeader) {
+          console.log('[LiveReload] WebDAV detected (DAV: ' + davHeader + '), enabling saver');
+
+          // TiddlyWiki's WebDAV saver is already built-in
+          // We just need to make sure it's prioritized
+          // The saver will automatically activate when it detects WebDAV support
+
+          // Optional: Set a config tiddler to ensure saving is enabled
+          $tw.wiki.addTiddler(new $tw.Tiddler({
+            title: '$:/config/AutoSave',
+            text: 'yes'
+          }));
+
+          console.log('[LiveReload] WebDAV saver enabled - you can now save changes!');
+        } else {
+          console.log('[LiveReload] WebDAV not available on server');
+        }
+      })
+      .catch(function(error) {
+        console.log('[LiveReload] Could not check for WebDAV support:', error);
+      });
   }
 
   var lastVersion = null;
@@ -616,8 +645,8 @@ def install_live_reload_plugin(wiki_path):
         "module-type": "startup",
         "text": plugin_code,
         "tags": "$:/tags/StartupModule",
-        "description": "Live reload functionality for tw server",
-        "version": "0.2.0"
+        "description": "Live reload functionality with WebDAV save support for tw server",
+        "version": "0.3.0"
     }
 
     # Convert to JSON and insert
@@ -665,6 +694,65 @@ def serve_wiki(wiki_path, host='localhost', port=8080):
     watcher_thread.start()
 
     class WikiHandler(BaseHTTPRequestHandler):
+        def send_webdav_headers(self):
+            """Send WebDAV-specific headers"""
+            self.send_header('DAV', '1,2')
+            self.send_header('Allow', 'OPTIONS, GET, HEAD, PUT')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'OPTIONS, GET, HEAD, PUT')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, X-Requested-With')
+
+        def do_OPTIONS(self):
+            """Handle OPTIONS requests for WebDAV discovery"""
+            self.send_response(200)
+            self.send_webdav_headers()
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+
+        def do_PUT(self):
+            """Handle PUT requests to save the wiki file"""
+            try:
+                # Read the incoming HTML from request body
+                content_length = int(self.headers.get('Content-Length', 0))
+                if content_length == 0:
+                    self.send_error(400, 'Empty request body')
+                    return
+
+                wiki_html = self.rfile.read(content_length)
+
+                # Decode to string for validation
+                try:
+                    wiki_html_str = wiki_html.decode('utf-8')
+                except UnicodeDecodeError as e:
+                    self.send_error(400, f'Invalid UTF-8 encoding: {e}')
+                    return
+
+                # Validate that the HTML has tiddler stores
+                stores = extract_tiddler_stores(wiki_html_str)
+                if not stores:
+                    self.send_error(400, 'Invalid wiki HTML: no tiddler stores found')
+                    print(f"[WebDAV PUT] Rejected invalid HTML (no tiddler stores)", file=sys.stderr)
+                    return
+
+                # Write to temp file first (atomic operation)
+                temp_path = wiki_path + '.tmp'
+                with open(temp_path, 'wb') as f:
+                    f.write(wiki_html)
+
+                # Atomic replace
+                os.replace(temp_path, wiki_path)
+
+                print(f"[WebDAV PUT] Saved wiki file ({len(wiki_html)} bytes)")
+
+                # Return success (204 No Content is standard for WebDAV PUT)
+                self.send_response(204)
+                self.send_webdav_headers()
+                self.end_headers()
+
+            except Exception as e:
+                print(f"[WebDAV PUT] Error saving file: {e}", file=sys.stderr)
+                self.send_error(500, f'Error saving file: {e}')
+
         def do_GET(self):
             """Handle GET requests by serving the wiki file or API endpoints"""
             # API endpoint: version check

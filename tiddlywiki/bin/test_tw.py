@@ -2347,5 +2347,350 @@ class TestInstallPlugin(unittest.TestCase):
         self.assertIn('TestTiddler2', titles_after)
         self.assertIn('TestTiddler3', titles_after)
 
+
+class TestWebDAVSupport(unittest.TestCase):
+    """Test WebDAV functionality for saving wikis from browser"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a minimal test wiki
+        self.test_tiddlers = [
+            {"title": "TestTiddler1", "text": "Content 1", "created": "20230101000000000", "modified": "20230101000000000"},
+            {"title": "TestTiddler2", "text": "Content 2", "created": "20230102000000000", "modified": "20230102000000000"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_options_returns_webdav_headers(self):
+        """Test that OPTIONS request returns WebDAV headers"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20100
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Make OPTIONS request
+            req = urllib.request.Request(f'http://localhost:{test_port}/', method='OPTIONS')
+            response = urllib.request.urlopen(req, timeout=2)
+
+            # Verify WebDAV headers are present
+            self.assertEqual(response.status, 200)
+
+            dav_header = response.headers.get('DAV')
+            self.assertIsNotNone(dav_header, "DAV header should be present")
+            self.assertIn('1', dav_header)
+
+            allow_header = response.headers.get('Allow')
+            self.assertIsNotNone(allow_header)
+            self.assertIn('OPTIONS', allow_header)
+            self.assertIn('GET', allow_header)
+            self.assertIn('PUT', allow_header)
+
+            # Verify CORS headers
+            cors_origin = response.headers.get('Access-Control-Allow-Origin')
+            self.assertIsNotNone(cors_origin)
+
+            cors_methods = response.headers.get('Access-Control-Allow-Methods')
+            self.assertIsNotNone(cors_methods)
+            self.assertIn('PUT', cors_methods)
+        finally:
+            pass
+
+    def test_put_saves_wiki_file(self):
+        """Test that PUT request successfully saves wiki file"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20101
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Create modified wiki HTML
+            new_tiddlers = [
+                {"title": "NewTiddler", "text": "New content", "created": "20230103000000000", "modified": "20230103000000000"},
+            ]
+            tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in new_tiddlers]
+            formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            formatted_json = formatted_json.replace('<', '\\u003C')
+
+            new_html = f'''<!DOCTYPE html>
+<html>
+<head><title>Modified Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+            # Make PUT request
+            req = urllib.request.Request(
+                f'http://localhost:{test_port}/',
+                data=new_html.encode('utf-8'),
+                method='PUT'
+            )
+            req.add_header('Content-Type', 'text/html; charset=utf-8')
+            response = urllib.request.urlopen(req, timeout=2)
+
+            # Verify response
+            self.assertIn(response.status, [200, 204], "PUT should return 200 or 204")
+
+            # Give file system a moment to sync
+            time.sleep(0.1)
+
+            # Verify file was actually modified
+            with open(self.test_wiki, 'r', encoding='utf-8') as f:
+                saved_content = f.read()
+
+            self.assertIn('Modified Wiki', saved_content)
+            self.assertIn('NewTiddler', saved_content)
+            self.assertIn('New content', saved_content)
+
+            # Verify we can load tiddlers from the saved file
+            tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+            titles = [t['title'] for t in tiddlers]
+            self.assertIn('NewTiddler', titles)
+        finally:
+            pass
+
+    def test_put_uses_atomic_write(self):
+        """Test that PUT uses atomic file operations"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20102
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Read original content
+            with open(self.test_wiki, 'r', encoding='utf-8') as f:
+                original_content = f.read()
+
+            # Create valid modified HTML
+            new_tiddlers = [
+                {"title": "AtomicTest", "text": "Atomic write test", "created": "20230104000000000", "modified": "20230104000000000"},
+            ]
+            tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in new_tiddlers]
+            formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            formatted_json = formatted_json.replace('<', '\\u003C')
+
+            new_html = f'''<!DOCTYPE html>
+<html>
+<head><title>Atomic Test</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+            # Make PUT request
+            req = urllib.request.Request(
+                f'http://localhost:{test_port}/',
+                data=new_html.encode('utf-8'),
+                method='PUT'
+            )
+            req.add_header('Content-Type', 'text/html; charset=utf-8')
+            response = urllib.request.urlopen(req, timeout=2)
+
+            # Verify response
+            self.assertIn(response.status, [200, 204])
+
+            # Give file system a moment
+            time.sleep(0.1)
+
+            # Verify the final file is valid and complete (not partially written)
+            with open(self.test_wiki, 'r', encoding='utf-8') as f:
+                final_content = f.read()
+
+            # Should have complete HTML structure
+            self.assertIn('<!DOCTYPE html>', final_content)
+            self.assertIn('</html>', final_content)
+            self.assertIn('AtomicTest', final_content)
+
+            # Should be parseable
+            stores = tw_module.extract_tiddler_stores(final_content)
+            self.assertGreater(len(stores), 0, "Should have valid tiddler stores")
+
+            # Verify no temp file left behind
+            temp_file = self.test_wiki + '.tmp'
+            self.assertFalse(os.path.exists(temp_file), "Temp file should be cleaned up")
+        finally:
+            pass
+
+    def test_put_validates_html(self):
+        """Test that PUT validates HTML has tiddler stores before saving"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20103
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Read original content to verify it doesn't change
+            with open(self.test_wiki, 'r', encoding='utf-8') as f:
+                original_content = f.read()
+
+            # Try to save invalid HTML (no tiddler store)
+            invalid_html = '''<!DOCTYPE html>
+<html>
+<head><title>Invalid</title></head>
+<body>No tiddler store here!</body>
+</html>'''
+
+            # Make PUT request with invalid HTML
+            req = urllib.request.Request(
+                f'http://localhost:{test_port}/',
+                data=invalid_html.encode('utf-8'),
+                method='PUT'
+            )
+            req.add_header('Content-Type', 'text/html; charset=utf-8')
+
+            # Should fail or return error
+            try:
+                response = urllib.request.urlopen(req, timeout=2)
+                # If it succeeds, it should return an error status
+                self.assertNotIn(response.status, [200, 204],
+                    "Should not accept invalid HTML without tiddler stores")
+            except urllib.error.HTTPError as e:
+                # Expected - server rejected invalid HTML
+                self.assertIn(e.code, [400, 500], "Should return error code for invalid HTML")
+
+            # Give file system a moment
+            time.sleep(0.1)
+
+            # Verify original file is unchanged
+            with open(self.test_wiki, 'r', encoding='utf-8') as f:
+                current_content = f.read()
+
+            self.assertEqual(original_content, current_content,
+                "Original file should be unchanged after invalid PUT")
+        finally:
+            pass
+
+    def test_put_handles_concurrent_saves(self):
+        """Test that PUT can handle saves even if file changes (last write wins)"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20104
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Create two different versions
+            version1_tiddlers = [
+                {"title": "Version1", "text": "First save", "created": "20230105000000000", "modified": "20230105000000000"},
+            ]
+            version2_tiddlers = [
+                {"title": "Version2", "text": "Second save", "created": "20230106000000000", "modified": "20230106000000000"},
+            ]
+
+            def make_html(tiddlers):
+                tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in tiddlers]
+                formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+                formatted_json = formatted_json.replace('<', '\\u003C')
+                return f'''<!DOCTYPE html>
+<html>
+<head><title>Test</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+            # Make first PUT
+            req1 = urllib.request.Request(
+                f'http://localhost:{test_port}/',
+                data=make_html(version1_tiddlers).encode('utf-8'),
+                method='PUT'
+            )
+            req1.add_header('Content-Type', 'text/html; charset=utf-8')
+            response1 = urllib.request.urlopen(req1, timeout=2)
+            self.assertIn(response1.status, [200, 204])
+
+            time.sleep(0.1)
+
+            # Make second PUT
+            req2 = urllib.request.Request(
+                f'http://localhost:{test_port}/',
+                data=make_html(version2_tiddlers).encode('utf-8'),
+                method='PUT'
+            )
+            req2.add_header('Content-Type', 'text/html; charset=utf-8')
+            response2 = urllib.request.urlopen(req2, timeout=2)
+            self.assertIn(response2.status, [200, 204])
+
+            time.sleep(0.1)
+
+            # Last write should win
+            tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+            titles = [t['title'] for t in tiddlers]
+            self.assertIn('Version2', titles)
+        finally:
+            pass
+
+
 if __name__ == '__main__':
     unittest.main()
