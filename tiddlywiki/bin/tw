@@ -487,6 +487,94 @@ def insert_tiddler(wiki_path, tiddler_json):
     else:
         print(f"Inserted tiddler: {tiddler_title}")
 
+def install_live_reload_plugin(wiki_path):
+    """Install the live reload plugin into the wiki"""
+    import json
+
+    # The live reload plugin code
+    plugin_code = """(function(){
+  "use strict";
+
+  exports.name = "live-reload";
+  exports.platforms = ["browser"];
+  exports.after = ["startup"];
+  exports.synchronous = true;
+
+  exports.startup = function() {
+    // Only run in browser
+    if($tw.browser) {
+      checkForServer();
+    }
+  };
+
+  function checkForServer() {
+    var meta = document.querySelector('meta[name="tw-server"]');
+    if (!meta || meta.getAttribute('content') !== 'enabled') {
+      console.log('[LiveReload] Not running on tw server, aborting');
+      return;
+    }
+
+    console.log('[LiveReload] Detected tw server, starting live reload');
+    startPolling();
+  }
+
+  var lastVersion = null;
+
+  function startPolling() {
+    setInterval(function() {
+      checkVersion();
+    }, 3000); // Poll every 3 seconds
+  }
+
+  function checkVersion() {
+    fetch('/_tw/version')
+      .then(function(response) { return response.json(); })
+      .then(function(data) {
+        console.log('[LiveReload] Version check:', data.version);
+
+        if (lastVersion === null) {
+          // First check, just store the version
+          lastVersion = data.version;
+          console.log('[LiveReload] Initial version:', lastVersion);
+          return;
+        }
+
+        if (data.version !== lastVersion) {
+          console.log('[LiveReload] File changed! Old:', lastVersion, 'New:', data.version);
+          lastVersion = data.version;
+          reloadTiddlers();
+        }
+      })
+      .catch(function(error) {
+        console.error('[LiveReload] Error checking version:', error);
+      });
+  }
+
+  function reloadTiddlers() {
+    console.log('[LiveReload] Would reload tiddlers here (not implemented yet)');
+    // TODO: Phase 2B
+  }
+})();
+"""
+
+    # Create the plugin tiddler
+    plugin_tiddler = {
+        "title": "$:/plugins/phajas/live-reload",
+        "type": "application/javascript",
+        "module-type": "startup",
+        "text": plugin_code,
+        "tags": "$:/tags/StartupModule",
+        "description": "Live reload functionality for tw server",
+        "version": "0.1.0"
+    }
+
+    # Convert to JSON and insert
+    plugin_json = json.dumps(plugin_tiddler)
+    insert_tiddler(wiki_path, plugin_json)
+
+    print("Live reload plugin installed successfully")
+    print("Start the server with: tw serve")
+
 def serve_wiki(wiki_path, host='localhost', port=8080):
     """Serve the TiddlyWiki file locally using Python's built-in HTTP server"""
     from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -644,6 +732,7 @@ def main():
         print("  touch <tiddler> [text]       Create or update a tiddler", file=sys.stderr)
         print("  insert <json>                Insert/replace a tiddler from JSON", file=sys.stderr)
         print("  replace <content>            Insert/replace from cat format", file=sys.stderr)
+        print("  install_plugin               Install live reload plugin", file=sys.stderr)
         print("  serve [--host HOST] [--port PORT]  Serve wiki locally (default: localhost:8080)", file=sys.stderr)
         sys.exit(1)
 
@@ -709,6 +798,8 @@ def main():
                 print("Error: replace command requires content string or stdin input", file=sys.stderr)
                 sys.exit(1)
         replace_tiddler(wiki_path, content)
+    elif command == "install_plugin":
+        install_live_reload_plugin(wiki_path)
     elif command == "serve":
         # Parse optional --host and --port arguments
         host = 'localhost'

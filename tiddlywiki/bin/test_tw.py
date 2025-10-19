@@ -2206,5 +2206,140 @@ class TestLiveReloadEndpoints(unittest.TestCase):
         finally:
             pass
 
+class TestInstallPlugin(unittest.TestCase):
+    """Test suite for install_plugin command"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a minimal test wiki
+        self.test_tiddlers = [
+            {"title": "TestTiddler1", "text": "Content 1", "created": "20230101000000000"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_install_live_reload_plugin(self):
+        """Test installing the live reload plugin"""
+        # Install the plugin
+        tw_module.install_live_reload_plugin(self.test_wiki)
+
+        # Verify plugin was installed
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+        self.assertIn('$:/plugins/phajas/live-reload', titles)
+
+        # Get the plugin tiddler
+        plugin = None
+        for t in tiddlers:
+            if t['title'] == '$:/plugins/phajas/live-reload':
+                plugin = t
+                break
+
+        self.assertIsNotNone(plugin, "Plugin tiddler should exist")
+
+        # Check plugin fields
+        self.assertEqual(plugin['type'], 'application/javascript')
+        self.assertEqual(plugin['module-type'], 'startup')
+        self.assertEqual(plugin['tags'], '$:/tags/StartupModule')
+        self.assertEqual(plugin['version'], '0.1.0')
+        self.assertEqual(plugin['description'], 'Live reload functionality for tw server')
+
+        # Check plugin code contains key functions
+        plugin_code = plugin['text']
+        self.assertIn('checkForServer', plugin_code)
+        self.assertIn('startPolling', plugin_code)
+        self.assertIn('checkVersion', plugin_code)
+        self.assertIn('reloadTiddlers', plugin_code)
+        self.assertIn('/_tw/version', plugin_code)
+
+    def test_install_plugin_replaces_existing(self):
+        """Test that installing plugin twice replaces the first one"""
+        # Install plugin twice
+        tw_module.install_live_reload_plugin(self.test_wiki)
+        tw_module.install_live_reload_plugin(self.test_wiki)
+
+        # Count how many times the plugin appears
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        plugin_count = sum(1 for t in tiddlers if t['title'] == '$:/plugins/phajas/live-reload')
+
+        self.assertEqual(plugin_count, 1, "Should only have one instance of the plugin")
+
+    def test_plugin_code_has_correct_structure(self):
+        """Test that the plugin code has the correct JavaScript structure"""
+        tw_module.install_live_reload_plugin(self.test_wiki)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        plugin = next((t for t in tiddlers if t['title'] == '$:/plugins/phajas/live-reload'), None)
+
+        self.assertIsNotNone(plugin)
+
+        # Check for required exports
+        code = plugin['text']
+        self.assertIn('exports.name', code)
+        self.assertIn('exports.platforms', code)
+        self.assertIn('exports.after', code)
+        self.assertIn('exports.synchronous', code)
+        self.assertIn('exports.startup', code)
+
+        # Check for browser check
+        self.assertIn('$tw.browser', code)
+
+        # Check for meta tag detection
+        self.assertIn('meta[name="tw-server"]', code)
+        self.assertIn('tw-server', code)
+
+        # Check for polling interval (3 seconds)
+        self.assertIn('3000', code)
+
+        # Check for console logging
+        self.assertIn('[LiveReload]', code)
+
+    def test_plugin_preserves_other_tiddlers(self):
+        """Test that installing plugin doesn't affect other tiddlers"""
+        # Add some more tiddlers first
+        tw_module.touch_tiddler(self.test_wiki, "TestTiddler2", "Content 2")
+        tw_module.touch_tiddler(self.test_wiki, "TestTiddler3", "Content 3")
+
+        # Count tiddlers before
+        tiddlers_before = tw_module.load_all_tiddlers(self.test_wiki)
+        count_before = len(tiddlers_before)
+
+        # Install plugin
+        tw_module.install_live_reload_plugin(self.test_wiki)
+
+        # Count tiddlers after
+        tiddlers_after = tw_module.load_all_tiddlers(self.test_wiki)
+        count_after = len(tiddlers_after)
+
+        # Should have one more tiddler (the plugin)
+        self.assertEqual(count_after, count_before + 1)
+
+        # Check original tiddlers still exist
+        titles_after = [t['title'] for t in tiddlers_after]
+        self.assertIn('TestTiddler1', titles_after)
+        self.assertIn('TestTiddler2', titles_after)
+        self.assertIn('TestTiddler3', titles_after)
+
 if __name__ == '__main__':
     unittest.main()
