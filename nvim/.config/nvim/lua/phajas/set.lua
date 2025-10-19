@@ -86,3 +86,23 @@ vim.api.nvim_create_autocmd({"WinResized"}, {
         vim.api.nvim_cmd(vim.api.nvim_parse_cmd("wincmd =", {}), {})
     end,
 })
+
+-- Disable LSP and syntax for large files
+vim.api.nvim_create_autocmd({"BufReadPre", "FileReadPre"}, {
+    callback = function()
+        local line_count = vim.fn.line('$')
+        local max_lines = 10000
+
+        if line_count > max_lines then
+            vim.notify("File has " .. line_count .. " lines. Disabling LSP and syntax for performance.", vim.log.levels.WARN)
+            vim.cmd("syntax off")
+            vim.cmd("TSBufDisable highlight")
+            vim.b.large_file = true
+
+            -- Disable LSP for this buffer
+            vim.schedule(function()
+                vim.lsp.stop_client(vim.lsp.get_clients())
+            end)
+        end
+    end,
+})
