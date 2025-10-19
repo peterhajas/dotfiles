@@ -1858,8 +1858,8 @@ class TestServeCommand(unittest.TestCase):
         finally:
             pass
 
-    def test_serve_content_matches_file(self):
-        """Test that served content matches the wiki file"""
+    def test_serve_content_has_meta_tag(self):
+        """Test that served content includes the tw-server meta tag"""
         import threading
         import time
         import urllib.request
@@ -1876,16 +1876,333 @@ class TestServeCommand(unittest.TestCase):
         time.sleep(0.2)
 
         try:
-            # Read the file directly
-            with open(self.test_wiki, 'r', encoding='utf-8') as f:
-                expected_content = f.read()
-
             # Get content from server
             response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
             served_content = response.read().decode('utf-8')
 
-            # Should match exactly
-            self.assertEqual(served_content, expected_content)
+            # Should contain the meta tag
+            self.assertIn('<meta name="tw-server" content="enabled">', served_content)
+
+            # Should still contain the original wiki content
+            self.assertIn('Test Wiki', served_content)
+            self.assertIn('TestTiddler', served_content)
+        finally:
+            pass
+
+class TestLiveReloadEndpoints(unittest.TestCase):
+    """Test the live reload endpoints added for Phase 1"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a minimal test wiki
+        self.test_tiddlers = [
+            {"title": "TestTiddler1", "text": "Content 1", "created": "20230101000000000"},
+            {"title": "TestTiddler2", "text": "Content 2", "created": "20230102000000000"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_version_endpoint_returns_json(self):
+        """Test that /_tw/version endpoint returns valid JSON"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 21000
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/version', timeout=2)
+            content = response.read().decode('utf-8')
+
+            # Should be valid JSON
+            data = json.loads(content)
+
+            # Should have expected fields
+            self.assertIn('version', data)
+            self.assertIn('mtime', data)
+            self.assertIn('server', data)
+
+            # Verify field types
+            self.assertIsInstance(data['version'], (int, float))
+            self.assertIsInstance(data['mtime'], (int, float))
+            self.assertEqual(data['server'], 'tw-python')
+
+            # version and mtime should be the same
+            self.assertEqual(data['version'], data['mtime'])
+        finally:
+            pass
+
+    def test_version_endpoint_content_type(self):
+        """Test that /_tw/version returns correct Content-Type"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 21001
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/version', timeout=2)
+            content_type = response.headers.get('Content-Type')
+
+            self.assertIsNotNone(content_type)
+            self.assertIn('application/json', content_type)
+        finally:
+            pass
+
+    def test_tiddlers_endpoint_returns_json(self):
+        """Test that /_tw/tiddlers endpoint returns valid JSON"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 21002
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/tiddlers', timeout=2)
+            content = response.read().decode('utf-8')
+
+            # Should be valid JSON
+            data = json.loads(content)
+
+            # Should have expected fields
+            self.assertIn('version', data)
+            self.assertIn('tiddlers', data)
+
+            # Verify field types
+            self.assertIsInstance(data['version'], (int, float))
+            self.assertIsInstance(data['tiddlers'], list)
+
+            # Should have our test tiddlers
+            self.assertEqual(len(data['tiddlers']), 2)
+
+            titles = [t['title'] for t in data['tiddlers']]
+            self.assertIn('TestTiddler1', titles)
+            self.assertIn('TestTiddler2', titles)
+        finally:
+            pass
+
+    def test_tiddlers_endpoint_content_type(self):
+        """Test that /_tw/tiddlers returns correct Content-Type"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 21003
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/tiddlers', timeout=2)
+            content_type = response.headers.get('Content-Type')
+
+            self.assertIsNotNone(content_type)
+            self.assertIn('application/json', content_type)
+        finally:
+            pass
+
+    def test_version_changes_when_file_modified(self):
+        """Test that version endpoint reflects file modification"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 21004
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Get initial version
+            response1 = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/version', timeout=2)
+            data1 = json.loads(response1.read().decode('utf-8'))
+            version1 = data1['version']
+
+            # Wait a bit and modify the file
+            time.sleep(0.6)  # Wait for watcher polling interval
+            tw_module.touch_tiddler(self.test_wiki, "NewTiddler", "New content")
+
+            # Wait for watcher to detect change
+            time.sleep(0.6)
+
+            # Get new version
+            response2 = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/version', timeout=2)
+            data2 = json.loads(response2.read().decode('utf-8'))
+            version2 = data2['version']
+
+            # Version should have changed
+            self.assertNotEqual(version1, version2)
+            self.assertGreater(version2, version1)
+        finally:
+            pass
+
+    def test_tiddlers_endpoint_shows_updated_content(self):
+        """Test that tiddlers endpoint shows new tiddlers after modification"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 21005
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Get initial tiddlers
+            response1 = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/tiddlers', timeout=2)
+            data1 = json.loads(response1.read().decode('utf-8'))
+            initial_count = len(data1['tiddlers'])
+            self.assertEqual(initial_count, 2)
+
+            # Add a new tiddler
+            tw_module.touch_tiddler(self.test_wiki, "NewTiddler", "New content")
+
+            # Wait for file to be written
+            time.sleep(0.1)
+
+            # Get updated tiddlers
+            response2 = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/tiddlers', timeout=2)
+            data2 = json.loads(response2.read().decode('utf-8'))
+
+            # Should have one more tiddler
+            self.assertEqual(len(data2['tiddlers']), 3)
+
+            titles = [t['title'] for t in data2['tiddlers']]
+            self.assertIn('NewTiddler', titles)
+        finally:
+            pass
+
+    def test_meta_tag_injected_in_html(self):
+        """Test that server injects tw-server meta tag into HTML"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 21006
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
+            content = response.read().decode('utf-8')
+
+            # Should contain the meta tag
+            self.assertIn('<meta name="tw-server" content="enabled">', content)
+
+            # Meta tag should be in the head section
+            head_start = content.find('<head>')
+            head_end = content.find('</head>')
+            meta_pos = content.find('<meta name="tw-server"')
+
+            self.assertGreater(meta_pos, head_start)
+            self.assertLess(meta_pos, head_end)
+        finally:
+            pass
+
+    def test_meta_tag_not_in_original_file(self):
+        """Test that meta tag is only in served content, not the file"""
+        # Read the original file
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            file_content = f.read()
+
+        # Should NOT contain the meta tag
+        self.assertNotIn('<meta name="tw-server"', file_content)
+
+        # Start server and get served content
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 21007
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
+            served_content = response.read().decode('utf-8')
+
+            # Served content SHOULD contain the meta tag
+            self.assertIn('<meta name="tw-server"', served_content)
         finally:
             pass
 

@@ -490,19 +490,124 @@ def insert_tiddler(wiki_path, tiddler_json):
 def serve_wiki(wiki_path, host='localhost', port=8080):
     """Serve the TiddlyWiki file locally using Python's built-in HTTP server"""
     from http.server import HTTPServer, BaseHTTPRequestHandler
+    import threading
+    import time
+    import json
+
+    class WikiWatcher:
+        """Watch the wiki file for changes and track version"""
+        def __init__(self, wiki_path):
+            self.wiki_path = wiki_path
+            self.current_mtime = os.path.getmtime(wiki_path)
+            self.lock = threading.Lock()
+
+        def watch(self):
+            """Background thread that polls for file changes"""
+            while True:
+                time.sleep(0.5)
+                try:
+                    mtime = os.path.getmtime(self.wiki_path)
+                    if mtime != self.current_mtime:
+                        with self.lock:
+                            self.current_mtime = mtime
+                        print(f"[File changed] {self.wiki_path} (mtime: {mtime})")
+                except OSError as e:
+                    print(f"[Warning] Could not check file: {e}")
+
+        def get_version(self):
+            """Get the current file modification time"""
+            with self.lock:
+                return self.current_mtime
+
+    # Initialize the file watcher
+    watcher = WikiWatcher(wiki_path)
+    watcher_thread = threading.Thread(target=watcher.watch, daemon=True)
+    watcher_thread.start()
 
     class WikiHandler(BaseHTTPRequestHandler):
         def do_GET(self):
-            """Handle GET requests by serving the wiki file"""
+            """Handle GET requests by serving the wiki file or API endpoints"""
+            # API endpoint: version check
+            if self.path == '/_tw/version':
+                self.send_version_response()
+                return
+
+            # API endpoint: tiddlers JSON
+            if self.path == '/_tw/tiddlers':
+                self.send_tiddlers_response()
+                return
+
+            # Default: serve the wiki HTML
+            self.send_wiki_html()
+
+        def send_version_response(self):
+            """Send current file version/mtime"""
             try:
-                with open(wiki_path, 'rb') as f:
+                version = watcher.get_version()
+                response_data = {
+                    "version": version,
+                    "mtime": version,
+                    "server": "tw-python"
+                }
+
+                response_json = json.dumps(response_data).encode('utf-8')
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(response_json)))
+                self.end_headers()
+                self.wfile.write(response_json)
+            except Exception as e:
+                self.send_error(500, f'Error getting version: {e}')
+
+        def send_tiddlers_response(self):
+            """Send the tiddler store JSON"""
+            try:
+                # Load all tiddlers from the wiki
+                all_tiddlers = load_all_tiddlers(wiki_path)
+                version = watcher.get_version()
+
+                response_data = {
+                    "version": version,
+                    "tiddlers": all_tiddlers
+                }
+
+                response_json = json.dumps(response_data, ensure_ascii=False).encode('utf-8')
+
+                self.send_response(200)
+                self.send_header('Content-Type', 'application/json')
+                self.send_header('Content-Length', str(len(response_json)))
+                self.end_headers()
+                self.wfile.write(response_json)
+            except Exception as e:
+                self.send_error(500, f'Error getting tiddlers: {e}')
+
+        def send_wiki_html(self):
+            """Serve the wiki HTML with injected meta tag"""
+            try:
+                with open(wiki_path, 'r', encoding='utf-8') as f:
                     content = f.read()
+
+                # Inject meta tag after <head> or at the beginning if no head tag
+                meta_tag = '<meta name="tw-server" content="enabled">'
+
+                # Look for <head> tag (case insensitive)
+                head_pos = content.lower().find('<head>')
+                if head_pos != -1:
+                    # Find the end of the <head> tag
+                    insert_pos = content.find('>', head_pos) + 1
+                    content = content[:insert_pos] + '\n' + meta_tag + content[insert_pos:]
+                else:
+                    # No head tag, insert at the beginning
+                    content = meta_tag + '\n' + content
+
+                content_bytes = content.encode('utf-8')
 
                 self.send_response(200)
                 self.send_header('Content-Type', 'text/html; charset=utf-8')
-                self.send_header('Content-Length', str(len(content)))
+                self.send_header('Content-Length', str(len(content_bytes)))
                 self.end_headers()
-                self.wfile.write(content)
+                self.wfile.write(content_bytes)
             except Exception as e:
                 self.send_error(500, f'Error reading wiki file: {e}')
 
