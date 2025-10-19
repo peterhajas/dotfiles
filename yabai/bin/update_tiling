@@ -14,11 +14,6 @@ LAYOUT="float"
 
 # Set geometry
 yabai -m config \
-    bottom_padding $EDGE_PADDING \
-    external_bar main:$BAR_HEIGHT:0 \
-    left_padding $EDGE_PADDING \
-    right_padding $PADDING \
-    top_padding $EDGE_PADDING \
     window_gap $PADDING
 
 # less than 2000 means stack
@@ -31,15 +26,24 @@ fi
 # back to stack for now
 LAYOUT="stack"
 
-# this is basically the only IF statement that matters
 # pad for widgets just on the main display's space
-yabai -m config --space 1 layout $LAYOUT left_padding $LEFT_PADDING right_padding $WIDGET_PADDING
+yabai -m config --space 1 \
+    layout $LAYOUT \
+    top_padding $EDGE_PADDING \
+    bottom_padding $PADDING \
+    left_padding $LEFT_PADDING \
+    right_padding $WIDGET_PADDING
 
 
 # don't pad the other displays
 for (( i=2; i<=30; i++ ))
 do
-    yabai -m config --space $i layout "bsp" top_padding 0 bottom_padding 0 left_padding 0 right_padding 0
+    yabai -m config --space $i layout "bsp" \
+    top_padding 0 \
+    bottom_padding 0 \
+    left_padding 0 \
+    right_padding 0 \
+    2>>/dev/null
 done
 
 # apply all rules
