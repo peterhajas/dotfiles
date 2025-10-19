@@ -31,4 +31,16 @@ local bundleID = os.getenv("__CFBundleIdentifier")
 if bundleID == nil or
    bundleID ~= "com.apple.Terminal" then
    applyModus()
+
+   -- Set up a timer to check for appearance changes every 3 seconds
+   -- This allows the theme to update when macOS dark mode is toggled
+   local timer = vim.loop.new_timer()
+   timer:start(3000, 3000, vim.schedule_wrap(function()
+       local current_bg = vim.opt.background:get()
+       local new_appearance = detectMacOSAppearance()
+       if current_bg ~= new_appearance then
+           vim.opt.background = new_appearance
+           vim.cmd([[colorscheme modus]])
+       end
+   end))
 end
