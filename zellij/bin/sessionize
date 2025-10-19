@@ -6,10 +6,10 @@ $HOME
 $HOME/src
 "
 
-# Get existing tmux sessions with visual indicator
+# Get existing zellij sessions with visual indicator
 SESSIONS=""
-if tmux list-sessions >/dev/null 2>&1; then
-    SESSIONS=$(tmux list-sessions -F "#{session_name} [active session]" 2>/dev/null)
+if zellij list-sessions >/dev/null 2>&1; then
+    SESSIONS=$(zellij list-sessions --no-formatting --short 2>/dev/null | grep -v "^$" | awk '{print $1 " [active session]"}')
 fi
 
 # Find directories at depth 1 in each search directory
@@ -42,11 +42,11 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
     if [ -z "$SESSION_NAME" ]; then
         exit 0
     fi
-    if [ -n "$TMUX" ]; then
-        tmux new-session -d -s "$SESSION_NAME"
-        tmux switch-client -t "$SESSION_NAME"
+    # Zellij doesn't support creating detached sessions, so we use 'action'
+    if [ -n "$ZELLIJ" ]; then
+        zellij action new-tab --name "$SESSION_NAME"
     else
-        tmux new-session -s "$SESSION_NAME"
+        zellij --session "$SESSION_NAME"
     fi
     exit 0
 fi
@@ -54,10 +54,11 @@ fi
 # Handle existing session selection
 if echo "$SELECTION" | grep -q "\[active session\]"; then
     SESSION_NAME=$(echo "$SELECTION" | sed 's/ \[active session\]//')
-    if [ -n "$TMUX" ]; then
-        tmux switch-client -t "$SESSION_NAME"
+    if [ -n "$ZELLIJ" ]; then
+        # Switch to existing session using action
+        zellij action switch-session "$SESSION_NAME"
     else
-        tmux attach-session -t "$SESSION_NAME"
+        zellij attach "$SESSION_NAME"
     fi
     exit 0
 fi
@@ -66,17 +67,19 @@ fi
 DIR="$SELECTION"
 SESSION_NAME=$(basename "$DIR")
 
-if tmux has-session -t "$SESSION_NAME" 2>/dev/null; then
-    if [ -n "$TMUX" ]; then
-        tmux switch-client -t "$SESSION_NAME"
+# Check if session exists
+if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION_NAME"; then
+    if [ -n "$ZELLIJ" ]; then
+        zellij action switch-session "$SESSION_NAME"
     else
-        tmux attach-session -t "$SESSION_NAME"
+        zellij attach "$SESSION_NAME"
     fi
 else
-    if [ -n "$TMUX" ]; then
-        tmux new-session -d -s "$SESSION_NAME" -c "$DIR"
-        tmux switch-client -t "$SESSION_NAME"
+    if [ -n "$ZELLIJ" ]; then
+        # Create new tab in current session with the directory
+        zellij action new-tab --layout default --cwd "$DIR" --name "$SESSION_NAME"
     else
-        tmux new-session -s "$SESSION_NAME" -c "$DIR"
+        # Create new session
+        cd "$DIR" && zellij --session "$SESSION_NAME"
     fi
 fi

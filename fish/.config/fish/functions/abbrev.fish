@@ -41,6 +41,9 @@ function abbrev -d "Install fish abbreviations"
     # vim
     abbr vv 'nvim -c "lua require(\'telescope.builtin\').find_files({hidden = true, no_ignore = false, find_command = {\'fd\', \'--type\', \'f\', \'--hidden\', \'--exclude\', \'.git\'}})"'
 
+    # zellij
+    abbr za "zellij attach --create"
+
     # youtube-dl
     abbr y 'ytd "'
 

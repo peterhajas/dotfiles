@@ -41,6 +41,7 @@ sudo apt-get install fzf
 sudo apt-get install graphviz
 sudo apt-get install syncthing
 sudo apt-get install exa
+sudo apt-get install zellij
 
 # Others:
 
