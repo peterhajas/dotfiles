@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# tw_fzf - Interactive TiddlyWiki editor using fzf and nvim
+#
+# Usage: tw_fzf
+#
+# Features:
+# - Browse and search tiddlers with fzf
+# - Preview tiddler contents
+# - Edit existing tiddlers or create new ones
+# - Auto-saves to wiki on :w in nvim
+
+set -e
+
+# Check dependencies
+for cmd in fzf nvim tw; do
+    if ! command -v "$cmd" &> /dev/null; then
+        echo "Error: $cmd is required but not found in PATH" >&2
+        exit 1
+    fi
+done
+
+# Check that TIDDLYWIKI_WIKI_PATH is set
+if [[ -z "$TIDDLYWIKI_WIKI_PATH" ]]; then
+    echo "Error: TIDDLYWIKI_WIKI_PATH environment variable is not set" >&2
+    exit 1
+fi
+
+# Build fzf list and run selection
+selected=$(
+    {
+        echo "[Create New Tiddler]"
+        tw ls
+    } | fzf \
+        --preview 'tw cat {} 2>/dev/null || echo "Enter a title to create a new tiddler"' \
+        --preview-window=right:60%:wrap \
+        --prompt="Select tiddler: " \
+        --header="Enter to edit, Ctrl-C to cancel"
+)
+
+# Handle empty selection (user cancelled)
+if [[ -z "$selected" ]]; then
+    exit 0
+fi
+
+# Handle new tiddler creation
+if [[ "$selected" == "[Create New Tiddler]" ]]; then
+    read -p "Tiddler title: " title
+
+    # Validate title is not empty
+    if [[ -z "$title" ]]; then
+        echo "Error: Title cannot be empty" >&2
+        exit 1
+    fi
+
+    # Create template content
+    content="title: $title
+tags:
+
+"
+else
+    title="$selected"
+    # Get existing tiddler content
+    content=$(tw cat "$title")
+fi
+
+# Edit with nvim
+echo "$content" | nvim - \
+    -c "file $title" \
+    -c "set buftype=acwrite" \
+    -c 'autocmd BufWriteCmd <buffer> call system("tw replace", join(getline(1, "$"), "\n")) | set nomodified' \
+    -c "set nomodified"
+
+echo "Editing complete for: $title"
