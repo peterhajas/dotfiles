@@ -36,5 +36,8 @@ fish_add_path /opt/homebrew/sbin
 ## AI
 export GGML_METAL_PATH_RESOURCES=~/.models/
 
+## TiddlyWiki
+set -x TIDDLYWIKI_WIKI_PATH ~/phajas-wiki/phajas-wiki.html
+
 # uv
 fish_add_path "/Users/phajas/.local/bin"
