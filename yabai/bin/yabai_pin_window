@@ -1,0 +1,74 @@
+#!/bin/bash
+
+# Pin window to far left, far right, or center of multi-display setup
+# Usage: yabai_pin_window left|right|center [width]
+
+DIRECTION=$1
+WIDTH=${2:-}
+
+if [[ "$DIRECTION" != "left" && "$DIRECTION" != "right" && "$DIRECTION" != "center" ]]; then
+    echo "Usage: yabai_pin_window left|right|center [width]"
+    exit 1
+fi
+
+# Get all displays sorted by x position
+DISPLAYS=$(yabai -m query --displays | jq 'sort_by(.frame.x)')
+NUM_DISPLAYS=$(echo "$DISPLAYS" | jq 'length')
+
+if [[ "$DIRECTION" == "left" ]]; then
+    # Get leftmost display
+    DISPLAY=$(echo "$DISPLAYS" | jq '.[0]')
+    DISPLAY_W=$(echo "$DISPLAY" | jq -r '.frame.w')
+    # If single display, use half width; if multiple, use full width
+    if [[ $NUM_DISPLAYS -eq 1 ]]; then
+        WIDTH=${WIDTH:-$(echo "$DISPLAY_W / 2" | bc)}
+    else
+        WIDTH=${WIDTH:-$DISPLAY_W}
+    fi
+elif [[ "$DIRECTION" == "right" ]]; then
+    # Get rightmost display
+    DISPLAY=$(echo "$DISPLAYS" | jq '.[-1]')
+    DISPLAY_W=$(echo "$DISPLAY" | jq -r '.frame.w')
+    # If single display, use half width; if multiple, use full width
+    if [[ $NUM_DISPLAYS -eq 1 ]]; then
+        WIDTH=${WIDTH:-$(echo "$DISPLAY_W / 2" | bc)}
+    else
+        WIDTH=${WIDTH:-$DISPLAY_W}
+    fi
+else
+    # Center - use the main/center display
+    # Find the display with has-focus true, or use middle display
+    DISPLAY=$(echo "$DISPLAYS" | jq '[.[] | select(.["has-focus"] == true)][0] // .[1] // .[0]')
+    WIDTH=${WIDTH:-1920}
+fi
+
+# Extract display dimensions
+DISPLAY_X=$(echo "$DISPLAY" | jq -r '.frame.x')
+DISPLAY_Y=$(echo "$DISPLAY" | jq -r '.frame.y')
+DISPLAY_W=$(echo "$DISPLAY" | jq -r '.frame.w')
+DISPLAY_H=$(echo "$DISPLAY" | jq -r '.frame.h')
+
+# Calculate window position
+if [[ "$DIRECTION" == "left" ]]; then
+    # Pin to left edge
+    X=$DISPLAY_X
+elif [[ "$DIRECTION" == "right" ]]; then
+    # Pin to right edge
+    X=$(echo "$DISPLAY_X + $DISPLAY_W - $WIDTH" | bc)
+else
+    # Center on display
+    X=$(echo "$DISPLAY_X + ($DISPLAY_W - $WIDTH) / 2" | bc)
+fi
+
+Y=$DISPLAY_Y
+H=$DISPLAY_H
+
+# Check if window is floating, if not make it float
+IS_FLOATING=$(yabai -m query --windows --window | jq -r '.["is-floating"]')
+if [[ "$IS_FLOATING" != "true" ]]; then
+    yabai -m window --toggle float
+fi
+
+# Move and resize window
+yabai -m window --move abs:${X}:${Y}
+yabai -m window --resize abs:${WIDTH}:${H}
