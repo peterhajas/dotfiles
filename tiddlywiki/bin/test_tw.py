@@ -731,10 +731,39 @@ class TestSetCommand(unittest.TestCase):
         tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler')
         self.assertEqual(tiddler['modified'], '20250101000000000')
 
+    def test_set_existing_tiddler_preserves_created(self):
+        """Test that updating an existing tiddler preserves the created timestamp"""
+        import time
+
+        # Get the original created timestamp
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        original_created = original['created']
+        original_modified = original['modified']
+
+        time.sleep(0.01)
+
+        # Update the tiddler
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler", "text", "Updated text")
+
+        # Check that created is unchanged but modified is updated
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        updated = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+
+        self.assertEqual(updated['created'], original_created)
+        self.assertGreater(updated['modified'], original_modified)
+
     def test_set_nonexistent_tiddler(self):
-        """Test that setting a field on non-existent tiddler exits with error"""
-        with self.assertRaises(SystemExit):
-            tw_module.set_tiddler_field(self.test_wiki, "NonExistent", "text", "value")
+        """Test that setting a field on non-existent tiddler creates it"""
+        tw_module.set_tiddler_field(self.test_wiki, "NonExistent", "text", "value")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 2)
+
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'NonExistent')
+        self.assertEqual(new_tiddler['text'], 'value')
+        self.assertIn('created', new_tiddler)
+        self.assertIn('modified', new_tiddler)
 
     def test_set_preserves_formatting(self):
         """Test that set preserves JSON formatting"""
@@ -762,13 +791,84 @@ class TestSetCommand(unittest.TestCase):
         tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
         self.assertEqual(len(tiddlers), 1)
 
-        # Should be able to get the field
-        import io
-        import contextlib
-        f = io.StringIO()
-        with contextlib.redirect_stdout(f):
-            tw_module.get_tiddler_field(self.test_wiki, "TestTiddler", "text")
-        self.assertEqual(f.getvalue().strip(), "New text")
+    def test_set_creates_new_tiddler_with_minimal_fields(self):
+        """Test that creating a new tiddler via set adds required fields"""
+        tw_module.set_tiddler_field(self.test_wiki, "NewTiddler", "custom_field", "custom_value")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'NewTiddler')
+
+        # Should have title, created, modified, and the custom field
+        self.assertEqual(new_tiddler['title'], 'NewTiddler')
+        self.assertEqual(new_tiddler['custom_field'], 'custom_value')
+        self.assertIn('created', new_tiddler)
+        self.assertIn('modified', new_tiddler)
+
+    def test_set_creates_new_tiddler_timestamps_valid(self):
+        """Test that new tiddler created via set has valid timestamps"""
+        import re
+
+        tw_module.set_tiddler_field(self.test_wiki, "TimestampTest", "text", "content")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'TimestampTest')
+
+        # Verify timestamp format (YYYYMMDDhhmmssxxx)
+        timestamp_pattern = r'^\d{17}$'
+        self.assertIsNotNone(re.match(timestamp_pattern, new_tiddler['created']))
+        self.assertIsNotNone(re.match(timestamp_pattern, new_tiddler['modified']))
+
+    def test_set_creates_new_tiddler_then_update(self):
+        """Test creating a tiddler via set, then updating it"""
+        import time
+
+        # Create new tiddler
+        tw_module.set_tiddler_field(self.test_wiki, "CreateAndUpdate", "text", "initial")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'CreateAndUpdate')
+        initial_created = new_tiddler['created']
+        initial_modified = new_tiddler['modified']
+
+        time.sleep(0.01)
+
+        # Update the same tiddler
+        tw_module.set_tiddler_field(self.test_wiki, "CreateAndUpdate", "text", "updated")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        # Should still only have 2 tiddlers (original TestTiddler + CreateAndUpdate)
+        self.assertEqual(len(tiddlers), 2)
+
+        updated_tiddler = next(t for t in tiddlers if t['title'] == 'CreateAndUpdate')
+        self.assertEqual(updated_tiddler['text'], 'updated')
+        # Modified should increase
+        self.assertGreater(updated_tiddler['modified'], initial_modified)
+        # Created should remain unchanged
+        self.assertEqual(updated_tiddler['created'], initial_created)
+
+    def test_set_creates_multiple_new_tiddlers(self):
+        """Test creating multiple new tiddlers via set"""
+        tw_module.set_tiddler_field(self.test_wiki, "NewTiddler1", "text", "content1")
+        tw_module.set_tiddler_field(self.test_wiki, "NewTiddler2", "text", "content2")
+        tw_module.set_tiddler_field(self.test_wiki, "NewTiddler3", "text", "content3")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        # Original TestTiddler + 3 new tiddlers
+        self.assertEqual(len(tiddlers), 4)
+
+        titles = [t['title'] for t in tiddlers]
+        self.assertIn('NewTiddler1', titles)
+        self.assertIn('NewTiddler2', titles)
+        self.assertIn('NewTiddler3', titles)
+
+        # Verify the content of the new tiddlers
+        new_tiddler1 = next(t for t in tiddlers if t['title'] == 'NewTiddler1')
+        new_tiddler2 = next(t for t in tiddlers if t['title'] == 'NewTiddler2')
+        new_tiddler3 = next(t for t in tiddlers if t['title'] == 'NewTiddler3')
+
+        self.assertEqual(new_tiddler1['text'], 'content1')
+        self.assertEqual(new_tiddler2['text'], 'content2')
+        self.assertEqual(new_tiddler3['text'], 'content3')
 
 class TestJsonCommand(unittest.TestCase):
     """Test the json command for outputting tiddlers as JSON"""

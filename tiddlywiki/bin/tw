@@ -189,24 +189,35 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
 
     # Find the tiddler
     found_tiddler = None
+    target_store = None
     for store in stores:
         for tiddler in store['tiddlers']:
             if tiddler.get('title') == tiddler_title:
                 found_tiddler = tiddler
+                target_store = store
                 break
         if found_tiddler:
             break
 
+    timestamp = get_tiddlywiki_timestamp()
+
     if not found_tiddler:
-        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
-        sys.exit(1)
+        # Create new tiddler if it doesn't exist
+        found_tiddler = {
+            "title": tiddler_title,
+            "created": timestamp,
+            "modified": timestamp
+        }
+        # Add to the first store
+        stores[0]['tiddlers'].append(found_tiddler)
+        print(f"Created tiddler: {tiddler_title}")
 
     # Set the field value
     found_tiddler[field_name] = field_value
 
     # Update modified timestamp if we're not setting it directly
     if field_name != 'modified':
-        found_tiddler['modified'] = get_tiddlywiki_timestamp()
+        found_tiddler['modified'] = timestamp
 
     # Build replacements for all stores
     replacements = []
