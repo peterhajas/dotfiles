@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # Pin window to far left, far right, or center of multi-display setup
-# Usage: yabai_pin_window left|right|center [width]
+# Usage: yabai_pin_window left|right|center|center-left|center-right [width]
 
 DIRECTION=$1
 WIDTH=${2:-}
+CENTER_WIDTH=2160
 
-if [[ "$DIRECTION" != "left" && "$DIRECTION" != "right" && "$DIRECTION" != "center" ]]; then
-    echo "Usage: yabai_pin_window left|right|center [width]"
+if [[ "$DIRECTION" != "left" && "$DIRECTION" != "right" && "$DIRECTION" != "center" && "$DIRECTION" != "center-left" && "$DIRECTION" != "center-right" ]]; then
+    echo "Usage: yabai_pin_window left|right|center|center-left|center-right [width]"
     exit 1
 fi
 
@@ -35,11 +36,29 @@ elif [[ "$DIRECTION" == "right" ]]; then
     else
         WIDTH=${WIDTH:-$DISPLAY_W}
     fi
+elif [[ "$DIRECTION" == "center-left" || "$DIRECTION" == "center-right" ]]; then
+    # Always use center display
+    DISPLAY=$(echo "$DISPLAYS" | jq '[.[] | select(.["has-focus"] == true)][0] // .[1] // .[0]')
+    DISPLAY_W=$(echo "$DISPLAY" | jq -r '.frame.w')
+
+    # Calculate width based on number of displays
+    if [[ $NUM_DISPLAYS -eq 1 ]]; then
+        # Single display: calculate remaining space after left (half) + center ($CENTER_WIDTH) + right (half)
+        # Remaining space = (DISPLAY_W - DISPLAY_W/2 - $CENTER_WIDTH - DISPLAY_W/2) / 2 = (DISPLAY_W - $CENTER_WIDTH) / 2 / 2
+        # Split the remaining space in quarters
+        WIDTH=${WIDTH:-$(echo "($DISPLAY_W - $CENTER_WIDTH) / 4" | bc)}
+    elif [[ $NUM_DISPLAYS -eq 3 ]]; then
+        # Three displays: narrow sidebar, same width as the space in single display
+        WIDTH=${WIDTH:-$(echo "($DISPLAY_W - $CENTER_WIDTH) / 2" | bc)}
+    else
+        # Two displays or other: use a reasonable default
+        WIDTH=${WIDTH:-960}
+    fi
 else
     # Center - use the main/center display
     # Find the display with has-focus true, or use middle display
     DISPLAY=$(echo "$DISPLAYS" | jq '[.[] | select(.["has-focus"] == true)][0] // .[1] // .[0]')
-    WIDTH=${WIDTH:-1920}
+    WIDTH=${WIDTH:-$CENTER_WIDTH}
 fi
 
 # Extract display dimensions
@@ -54,6 +73,12 @@ if [[ "$DIRECTION" == "left" ]]; then
     X=$DISPLAY_X
 elif [[ "$DIRECTION" == "right" ]]; then
     # Pin to right edge
+    X=$(echo "$DISPLAY_X + $DISPLAY_W - $WIDTH" | bc)
+elif [[ "$DIRECTION" == "center-left" ]]; then
+    # Pin to left edge of center display
+    X=$DISPLAY_X
+elif [[ "$DIRECTION" == "center-right" ]]; then
+    # Pin to right edge of center display
     X=$(echo "$DISPLAY_X + $DISPLAY_W - $WIDTH" | bc)
 else
     # Center on display
