@@ -1,6 +1,9 @@
 require("oil").setup {
     columns = {
         "icon",
+        { "permissions", highlight = "Function" },
+        { "size", highlight = "Number" },
+        { "mtime", format = "%Y-%m-%d %H:%M:%S", highlight = "String" },
     },
     keymaps = {
         ["g?"] = "actions.show_help",
