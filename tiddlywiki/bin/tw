@@ -161,9 +161,13 @@ def edit_tiddler(wiki_path, tiddler_title):
             tiddler = t
             break
 
+    # If tiddler doesn't exist, create a template
     if not tiddler:
-        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
-        sys.exit(1)
+        tiddler = {
+            "title": tiddler_title,
+            "created": get_tiddlywiki_timestamp(),
+            "modified": get_tiddlywiki_timestamp()
+        }
 
     # Create a temporary file to edit
     temp_fd, temp_path = tempfile.mkstemp(suffix='.txt', text=True)

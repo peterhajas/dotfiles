@@ -3315,11 +3315,31 @@ class TestEditTiddler(unittest.TestCase):
                 os.environ['EDITOR'] = original_editor
 
     def test_edit_nonexistent_tiddler(self):
-        """Test that edit_tiddler exits with error for non-existent tiddler"""
-        os.environ['EDITOR'] = 'cat'  # Use cat as dummy editor
+        """Test that edit_tiddler creates a new tiddler if it doesn't exist"""
+        editor_script = os.path.join(self.test_dir, 'create_editor.py')
 
-        with self.assertRaises(SystemExit):
-            tw_module.edit_tiddler(self.test_wiki, "NonExistentTiddler")
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+import sys
+
+# Just append some content to create the tiddler
+with open(sys.argv[1], 'a') as f:
+    f.write('\\n')
+    f.write('Newly created content')
+''')
+
+        os.chmod(editor_script, 0o755)
+        os.environ['EDITOR'] = f'python3 {editor_script}'
+
+        # Edit a non-existent tiddler
+        tw_module.edit_tiddler(self.test_wiki, "NewTiddlerFromEdit")
+
+        # Verify the tiddler was created
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next((t for t in tiddlers if t['title'] == 'NewTiddlerFromEdit'), None)
+
+        self.assertIsNotNone(tiddler)
+        self.assertIn('Newly created content', tiddler.get('text', ''))
 
     def test_edit_tiddler_basic(self):
         """Test basic edit workflow with a simple text change"""
