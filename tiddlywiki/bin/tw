@@ -3,6 +3,8 @@
 import os
 import re
 import sys
+import urllib.request
+import urllib.error
 
 def get_wiki_path():
     wiki_path = os.environ.get('TIDDLYWIKI_WIKI_PATH')
@@ -708,6 +710,59 @@ def install_live_reload_plugin(wiki_path):
     print("Live reload plugin installed successfully")
     print("Start the server with: tw serve")
 
+def init_wiki(dest_path):
+    """Download an empty TiddlyWiki and save it to the specified path"""
+    # Expand ~ to home directory
+    dest_path = os.path.expanduser(dest_path)
+
+    # Check if file already exists
+    if os.path.exists(dest_path):
+        print(f"Error: File already exists: {dest_path}", file=sys.stderr)
+        sys.exit(1)
+
+    # Check if parent directory exists
+    parent_dir = os.path.dirname(dest_path)
+    if parent_dir and not os.path.exists(parent_dir):
+        print(f"Error: Parent directory does not exist: {parent_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    try:
+        print(f"Downloading empty wiki from tiddlywiki.com...")
+        # Download the empty wiki
+        url = 'https://tiddlywiki.com/empty.html'
+        with urllib.request.urlopen(url, timeout=10) as response:
+            wiki_content = response.read().decode('utf-8')
+    except urllib.error.URLError as e:
+        print(f"Error: Failed to download wiki: {e}", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    # Verify the downloaded content has tiddler stores
+    stores = extract_tiddler_stores(wiki_content)
+    if not stores:
+        print("Error: Downloaded wiki does not contain tiddler stores", file=sys.stderr)
+        sys.exit(1)
+
+    # Write to file atomically (temp file + rename)
+    temp_path = dest_path + '.tmp'
+    try:
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            f.write(wiki_content)
+        os.replace(temp_path, dest_path)
+    except Exception as e:
+        # Clean up temp file if it exists
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except:
+                pass
+        print(f"Error: Failed to write wiki file: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    print(f"Created wiki: {dest_path}")
+
 def serve_wiki(wiki_path, host='localhost', port=8080):
     """Serve the TiddlyWiki file locally using Python's built-in HTTP server"""
     from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -921,6 +976,7 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: tw <command> [args]", file=sys.stderr)
         print("Commands:", file=sys.stderr)
+        print("  init <dest_path>             Create a new empty wiki", file=sys.stderr)
         print("  ls                           List all tiddlers", file=sys.stderr)
         print("  cat <tiddler>                Display tiddler contents", file=sys.stderr)
         print("  json <tiddler>               Output tiddler as JSON", file=sys.stderr)
@@ -935,6 +991,16 @@ def main():
         sys.exit(1)
 
     command = sys.argv[1]
+
+    # Handle 'init' command separately since it doesn't need TIDDLYWIKI_WIKI_PATH
+    if command == "init":
+        if len(sys.argv) < 3:
+            print("Error: init command requires a destination path", file=sys.stderr)
+            sys.exit(1)
+        dest_path = sys.argv[2]
+        init_wiki(dest_path)
+        return
+
     wiki_path = get_wiki_path()
 
     if command == "ls":

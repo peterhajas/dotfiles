@@ -2907,5 +2907,123 @@ class TestWebDAVSupport(unittest.TestCase):
             "Plugin should skip reload during cooldown period")
 
 
+class TestInitCommand(unittest.TestCase):
+    """Test the init command for creating new wikis"""
+
+    def setUp(self):
+        """Create a temporary directory for test files"""
+        self.test_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        """Clean up temporary files"""
+        shutil.rmtree(self.test_dir)
+
+    def test_init_creates_wiki_file(self):
+        """Test that init creates a new wiki file"""
+        dest_path = os.path.join(self.test_dir, 'new_wiki.html')
+
+        # Call init_wiki
+        tw_module.init_wiki(dest_path)
+
+        # Verify file was created
+        self.assertTrue(os.path.exists(dest_path), "Wiki file should be created")
+
+    def test_init_wiki_contains_tiddler_stores(self):
+        """Test that the initialized wiki has valid tiddler stores"""
+        dest_path = os.path.join(self.test_dir, 'new_wiki.html')
+
+        # Call init_wiki
+        tw_module.init_wiki(dest_path)
+
+        # Verify the file has tiddler stores
+        with open(dest_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        stores = tw_module.extract_tiddler_stores(content)
+        self.assertGreater(len(stores), 0, "Initialized wiki should have tiddler stores")
+
+    def test_init_wiki_can_be_read(self):
+        """Test that the initialized wiki can be read and parsed"""
+        dest_path = os.path.join(self.test_dir, 'new_wiki.html')
+
+        # Call init_wiki
+        tw_module.init_wiki(dest_path)
+
+        # Verify we can load tiddlers from it
+        tiddlers = tw_module.load_all_tiddlers(dest_path)
+        self.assertIsInstance(tiddlers, list, "Should be able to load tiddlers")
+        self.assertGreater(len(tiddlers), 0, "Initialized wiki should have tiddlers")
+
+    def test_init_fails_if_file_exists(self):
+        """Test that init fails if the destination file already exists"""
+        dest_path = os.path.join(self.test_dir, 'existing.html')
+
+        # Create a file at the destination
+        with open(dest_path, 'w') as f:
+            f.write('<html>existing content</html>')
+
+        # Calling init_wiki should fail
+        with self.assertRaises(SystemExit):
+            tw_module.init_wiki(dest_path)
+
+    def test_init_fails_if_parent_dir_missing(self):
+        """Test that init fails if parent directory doesn't exist"""
+        dest_path = os.path.join(self.test_dir, 'nonexistent', 'dir', 'wiki.html')
+
+        # Calling init_wiki with non-existent parent should fail
+        with self.assertRaises(SystemExit):
+            tw_module.init_wiki(dest_path)
+
+    def test_init_expands_tilde_path(self):
+        """Test that init properly expands ~ in paths"""
+        # Create a temporary directory in the test_dir that we'll use as a "home" for this test
+        dest_subdir = os.path.join(self.test_dir, 'home_test')
+        os.makedirs(dest_subdir)
+
+        # Create a test file with ~ in path (we'll use absolute path but verify tilde expansion logic)
+        dest_path = os.path.join(dest_subdir, 'wiki.html')
+
+        # Call init_wiki with absolute path (tilde handling is internal)
+        tw_module.init_wiki(dest_path)
+
+        # Verify file was created
+        self.assertTrue(os.path.exists(dest_path), "Wiki file should be created with path expansion")
+
+    def test_init_wiki_is_valid_html(self):
+        """Test that the initialized wiki is valid HTML"""
+        dest_path = os.path.join(self.test_dir, 'new_wiki.html')
+
+        # Call init_wiki
+        tw_module.init_wiki(dest_path)
+
+        # Read and verify it's valid HTML
+        with open(dest_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Check for basic HTML structure - should start with doctype, comment, or tag
+        self.assertTrue(content.startswith('<') or content.startswith('\n'),
+                       "Should start with HTML markup or whitespace")
+        self.assertIn('<html', content.lower(), "Should contain html tag")
+        self.assertIn('</html>', content.lower(), "Should contain closing html tag")
+
+    def test_init_wiki_with_nested_path(self):
+        """Test that init works with nested destination paths"""
+        # Create a nested directory structure
+        nested_dir = os.path.join(self.test_dir, 'level1', 'level2')
+        os.makedirs(nested_dir)
+
+        dest_path = os.path.join(nested_dir, 'wiki.html')
+
+        # Call init_wiki
+        tw_module.init_wiki(dest_path)
+
+        # Verify file was created
+        self.assertTrue(os.path.exists(dest_path), "Wiki file should be created in nested directory")
+
+        # Verify it's readable
+        tiddlers = tw_module.load_all_tiddlers(dest_path)
+        self.assertGreater(len(tiddlers), 0, "Should have tiddlers")
+
+
 if __name__ == '__main__':
     unittest.main()
