@@ -3533,6 +3533,201 @@ with open(sys.argv[1], 'w') as f:
         self.assertIn('<brackets>', edited_tiddler.get('text'))
         self.assertIn('"quotes"', edited_tiddler.get('text'))
 
+class TestAppendTiddler(unittest.TestCase):
+    """Test the append_tiddler function"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a test wiki with some tiddlers
+        self.test_tiddlers = [
+            {"title": "ExistingTiddler", "text": "Line 1\nLine 2", "created": "20230101000000000", "modified": "20230101000000000"},
+            {"title": "EmptyTextTiddler", "text": "", "created": "20230102000000000", "modified": "20230102000000000"},
+            {"title": "NoTextFieldTiddler", "created": "20230103000000000", "modified": "20230103000000000"},
+            {"title": "TiddlerWithTags", "text": "original content", "tags": "tag1 tag2", "created": "20230104000000000", "modified": "20230104000000000"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_append_to_existing_tiddler(self):
+        """Test appending text to a tiddler with existing content"""
+        import io
+        import unittest.mock
+
+        # Mock stdin
+        f = io.StringIO("Line 3\nLine 4")
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "ExistingTiddler")
+
+        # Verify the content was appended
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        expected = "Line 1\nLine 2\nLine 3\nLine 4"
+        self.assertEqual(tiddler['text'], expected)
+
+    def test_append_to_empty_text_tiddler(self):
+        """Test appending to a tiddler with empty text field"""
+        import io
+        import unittest.mock
+
+        f = io.StringIO("New content")
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "EmptyTextTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'EmptyTextTiddler')
+
+        self.assertEqual(tiddler['text'], "New content")
+
+    def test_append_to_tiddler_without_text_field(self):
+        """Test appending to a tiddler that has no text field"""
+        import io
+        import unittest.mock
+
+        f = io.StringIO("First content")
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "NoTextFieldTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'NoTextFieldTiddler')
+
+        self.assertEqual(tiddler['text'], "First content")
+
+    def test_append_multiline_content(self):
+        """Test appending multiline content"""
+        import io
+        import unittest.mock
+
+        multiline = "Line A\nLine B\nLine C"
+        f = io.StringIO(multiline)
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "ExistingTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        expected = "Line 1\nLine 2\nLine A\nLine B\nLine C"
+        self.assertEqual(tiddler['text'], expected)
+
+    def test_append_preserves_other_fields(self):
+        """Test that appending preserves other tiddler fields"""
+        import io
+        import unittest.mock
+
+        original_tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original_tiddler = next(t for t in original_tiddlers if t['title'] == 'TiddlerWithTags')
+        original_tags = original_tiddler.get('tags')
+        original_created = original_tiddler.get('created')
+
+        f = io.StringIO("appended text")
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "TiddlerWithTags")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'TiddlerWithTags')
+
+        # Other fields should be preserved
+        self.assertEqual(tiddler.get('tags'), original_tags)
+        self.assertEqual(tiddler.get('created'), original_created)
+
+    def test_append_to_nonexistent_tiddler(self):
+        """Test that appending to non-existent tiddler exits with error"""
+        import io
+        import unittest.mock
+
+        f = io.StringIO("some text")
+        with unittest.mock.patch('sys.stdin', f):
+            with self.assertRaises(SystemExit):
+                tw_module.append_tiddler(self.test_wiki, "NonExistentTiddler")
+
+    def test_append_updates_modified_timestamp(self):
+        """Test that modified timestamp is updated after append"""
+        import io
+        import unittest.mock
+
+        original_tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original_tiddler = next(t for t in original_tiddlers if t['title'] == 'ExistingTiddler')
+        original_modified = original_tiddler.get('modified')
+
+        f = io.StringIO("new content")
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "ExistingTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+        new_modified = tiddler.get('modified')
+
+        # Modified should exist
+        self.assertIsNotNone(new_modified)
+
+    def test_append_empty_string(self):
+        """Test appending an empty string"""
+        import io
+        import unittest.mock
+
+        f = io.StringIO("")
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "ExistingTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        # Should append empty string (adds a newline)
+        self.assertEqual(tiddler['text'], "Line 1\nLine 2\n")
+
+    def test_append_with_special_characters(self):
+        """Test appending content with special characters"""
+        import io
+        import unittest.mock
+
+        special_content = "Content with <brackets> and \"quotes\""
+        f = io.StringIO(special_content)
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "ExistingTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertIn('<brackets>', tiddler['text'])
+        self.assertIn('"quotes"', tiddler['text'])
+
+    def test_append_with_unicode(self):
+        """Test appending content with Unicode characters"""
+        import io
+        import unittest.mock
+
+        unicode_content = "Unicode: \u201cquotes\u201d and \u2713 checkmark"
+        f = io.StringIO(unicode_content)
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "ExistingTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertIn('\u201c', tiddler['text'])
+        self.assertIn('\u2713', tiddler['text'])
+
 
 if __name__ == '__main__':
     unittest.main()

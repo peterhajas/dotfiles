@@ -510,6 +510,42 @@ def replace_tiddler(wiki_path, markdown_content):
     tiddler_json = json.dumps(tiddler)
     insert_tiddler(wiki_path, tiddler_json)
 
+def append_tiddler(wiki_path, tiddler_title):
+    """Append text from stdin to a tiddler's text field"""
+    import json
+
+    # Read from stdin
+    text_to_append = sys.stdin.read()
+
+    all_tiddlers = load_all_tiddlers(wiki_path)
+
+    # Find the tiddler with matching title
+    tiddler = None
+    for t in all_tiddlers:
+        if t.get('title') == tiddler_title:
+            tiddler = t
+            break
+
+    if not tiddler:
+        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    # Append to existing text
+    existing_text = tiddler.get('text', '')
+    if existing_text:
+        # Add newline between existing and new content if both have content
+        tiddler['text'] = existing_text + '\n' + text_to_append
+    else:
+        tiddler['text'] = text_to_append
+
+    # Update modified timestamp
+    timestamp = get_tiddlywiki_timestamp()
+    tiddler['modified'] = timestamp
+
+    # Use insert_tiddler to save (it handles the full update)
+    tiddler_json = json.dumps(tiddler)
+    insert_tiddler(wiki_path, tiddler_json)
+
 def insert_tiddler(wiki_path, tiddler_json):
     """Insert a tiddler from JSON, replacing if it already exists"""
     import json
@@ -1070,6 +1106,7 @@ def main():
         print("  touch <tiddler> [text]       Create or update a tiddler", file=sys.stderr)
         print("  insert <json>                Insert/replace a tiddler from JSON", file=sys.stderr)
         print("  replace <content>            Insert/replace from cat format", file=sys.stderr)
+        print("  append <tiddler>             Append stdin text to tiddler", file=sys.stderr)
         print("  install_plugin               Install live reload plugin", file=sys.stderr)
         print("  serve [--host HOST] [--port PORT]  Serve wiki locally (default: localhost:8080)", file=sys.stderr)
         sys.exit(1)
@@ -1166,6 +1203,12 @@ def main():
                 print("Error: replace command requires content string or stdin input", file=sys.stderr)
                 sys.exit(1)
         replace_tiddler(wiki_path, content)
+    elif command == "append":
+        if arg_idx + 1 >= len(sys.argv):
+            print("Error: append command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = sys.argv[arg_idx + 1]
+        append_tiddler(wiki_path, tiddler_title)
     elif command == "install_plugin":
         install_live_reload_plugin(wiki_path)
     elif command == "serve":
