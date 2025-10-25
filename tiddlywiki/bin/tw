@@ -3,6 +3,8 @@
 import os
 import re
 import sys
+import subprocess
+import tempfile
 import urllib.request
 import urllib.error
 
@@ -133,6 +135,78 @@ def cat_tiddler(wiki_path, tiddler_title):
     if 'text' in tiddler:
         print()
         print(tiddler['text'])
+
+def edit_tiddler(wiki_path, tiddler_title):
+    """Open a tiddler in $EDITOR for editing in YAML-style format"""
+    # Check if EDITOR environment variable is set
+    editor = os.environ.get('EDITOR')
+    if not editor:
+        # Fall back to common editors if EDITOR is not set
+        for fallback_editor in ['nvim', 'vim', 'nano', 'emacs', 'vi']:
+            import shutil
+            if shutil.which(fallback_editor):
+                editor = fallback_editor
+                break
+
+    if not editor:
+        print("Error: $EDITOR environment variable is not set and no fallback editor found", file=sys.stderr)
+        sys.exit(1)
+
+    all_tiddlers = load_all_tiddlers(wiki_path)
+
+    # Find the tiddler with matching title
+    tiddler = None
+    for t in all_tiddlers:
+        if t.get('title') == tiddler_title:
+            tiddler = t
+            break
+
+    if not tiddler:
+        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    # Create a temporary file to edit
+    temp_fd, temp_path = tempfile.mkstemp(suffix='.txt', text=True)
+
+    try:
+        # Write tiddler in cat format to temp file
+        with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
+            # Write title first
+            if 'title' in tiddler:
+                f.write(f"title: {tiddler['title']}\n")
+
+            # Write all other fields except 'text' and 'title'
+            for key, value in sorted(tiddler.items()):
+                if key not in ('text', 'title'):
+                    f.write(f"{key}: {value}\n")
+
+            # Write the text content after a blank line
+            if 'text' in tiddler:
+                f.write('\n')
+                f.write(tiddler['text'])
+
+        # Open the file in the editor
+        # Split the editor command in case it has arguments (e.g., "emacs -nw")
+        editor_parts = editor.split()
+        result = subprocess.run(editor_parts + [temp_path], check=False)
+
+        if result.returncode != 0:
+            print(f"Error: Editor exited with status {result.returncode}", file=sys.stderr)
+            sys.exit(1)
+
+        # Read the edited content
+        with open(temp_path, 'r', encoding='utf-8') as f:
+            edited_content = f.read()
+
+        # Use replace_tiddler to save the changes
+        replace_tiddler(wiki_path, edited_content)
+
+    finally:
+        # Clean up the temporary file
+        try:
+            os.unlink(temp_path)
+        except OSError:
+            pass
 
 def get_tiddlywiki_timestamp():
     """Generate a TiddlyWiki timestamp in format YYYYMMDDhhmmssxxx (UTC)"""
@@ -988,6 +1062,7 @@ def main():
         print("  init <dest_path>             Create a new empty wiki", file=sys.stderr)
         print("  ls                           List all tiddlers", file=sys.stderr)
         print("  cat <tiddler>                Display tiddler contents", file=sys.stderr)
+        print("  edit <tiddler>               Edit tiddler in $EDITOR", file=sys.stderr)
         print("  json <tiddler>               Output tiddler as JSON", file=sys.stderr)
         print("  get <tiddler> <field>        Get a specific field value", file=sys.stderr)
         print("  set <tiddler> <field> <value> Set a field value", file=sys.stderr)
@@ -1034,6 +1109,12 @@ def main():
             sys.exit(1)
         tiddler_title = sys.argv[arg_idx + 1]
         cat_tiddler(wiki_path, tiddler_title)
+    elif command == "edit":
+        if arg_idx + 1 >= len(sys.argv):
+            print("Error: edit command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = sys.argv[arg_idx + 1]
+        edit_tiddler(wiki_path, tiddler_title)
     elif command == "json":
         if arg_idx + 1 >= len(sys.argv):
             print("Error: json command requires a tiddler name", file=sys.stderr)

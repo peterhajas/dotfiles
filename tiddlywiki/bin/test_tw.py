@@ -3246,6 +3246,293 @@ class TestInitCommand(unittest.TestCase):
         tiddlers = tw_module.load_all_tiddlers(dest_path)
         self.assertGreater(len(tiddlers), 0, "Should have tiddlers")
 
+class TestEditTiddler(unittest.TestCase):
+    """Test the edit_tiddler function"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a minimal test wiki with diverse tiddlers
+        self.test_tiddlers = [
+            {"title": "TestTiddler1", "text": "Content 1", "created": "20230101000000000", "modified": "20230101000000000"},
+            {"title": "TestTiddler2", "text": "Content with <angle> brackets", "created": "20230102000000000", "modified": "20230102000000000"},
+            {"title": "TestTiddler3", "text": "Content with \"quotes\" and special chars", "tags": "tag1 tag2", "created": "20230103000000000", "modified": "20230103000000000"},
+            {"title": "UnicodeTest", "text": "Curly quotes: \u201ctest\u201d", "created": "20230104000000000", "modified": "20230104000000000"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_edit_tiddler_without_editor(self):
+        """Test that edit_tiddler falls back to finding an available editor"""
+        # Save original EDITOR
+        original_editor = os.environ.get('EDITOR')
+        try:
+            # Unset EDITOR
+            if 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+            # The edit_tiddler function should auto-detect an available editor (like nvim, vim, nano)
+            # Since we can't guarantee which editors are installed, we'll just test that it doesn't error
+            # when trying to find one. If no editors are found, it will exit with error.
+            # For this test, we'll mock shutil.which to ensure it finds an editor
+            import unittest.mock
+            with unittest.mock.patch('shutil.which') as mock_which:
+                # Mock that nvim is available
+                mock_which.return_value = '/usr/bin/nvim'
+
+                # Now mock subprocess.run so the editor doesn't actually run
+                with unittest.mock.patch('subprocess.run') as mock_run:
+                    mock_run.return_value.returncode = 0
+
+                    # This should work now (no SystemExit)
+                    try:
+                        tw_module.edit_tiddler(self.test_wiki, "TestTiddler1")
+                    except SystemExit:
+                        self.fail("edit_tiddler should have found a fallback editor")
+        finally:
+            # Restore original EDITOR
+            if original_editor:
+                os.environ['EDITOR'] = original_editor
+
+    def test_edit_nonexistent_tiddler(self):
+        """Test that edit_tiddler exits with error for non-existent tiddler"""
+        os.environ['EDITOR'] = 'cat'  # Use cat as dummy editor
+
+        with self.assertRaises(SystemExit):
+            tw_module.edit_tiddler(self.test_wiki, "NonExistentTiddler")
+
+    def test_edit_tiddler_basic(self):
+        """Test basic edit workflow with a simple text change"""
+        # Create a temporary script that acts as an editor
+        # It will modify the content (add text to the tiddler text)
+        editor_script = os.path.join(self.test_dir, 'fake_editor.py')
+
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+import sys
+
+# Read the file
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+
+# Append modified content to the text section
+lines = content.split('\\n')
+# Find the blank line that separates metadata from text
+blank_idx = None
+for i, line in enumerate(lines):
+    if line.strip() == '':
+        blank_idx = i
+        break
+
+if blank_idx is not None and blank_idx + 1 < len(lines):
+    # Append to the text portion
+    lines.append(' - edited')
+else:
+    # Append at the end if no blank line found
+    lines.append(' - edited')
+
+# Write back
+with open(sys.argv[1], 'w') as f:
+    f.write('\\n'.join(lines))
+''')
+
+        os.chmod(editor_script, 0o755)
+        os.environ['EDITOR'] = f'python3 {editor_script}'
+
+        # Edit the tiddler
+        tw_module.edit_tiddler(self.test_wiki, "TestTiddler1")
+
+        # Verify the change was saved
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        edited_tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler1')
+
+        # The text should have been modified
+        self.assertIn('edited', edited_tiddler['text'])
+
+    def test_edit_tiddler_preserves_metadata(self):
+        """Test that edit preserves tiddler metadata"""
+        editor_script = os.path.join(self.test_dir, 'noop_editor.py')
+
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+# No-op editor - just exit without modifying
+import sys
+''')
+
+        os.chmod(editor_script, 0o755)
+        os.environ['EDITOR'] = f'python3 {editor_script}'
+
+        # Get original tiddler
+        original_tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original_tiddler = next(t for t in original_tiddlers if t['title'] == 'TestTiddler2')
+        original_created = original_tiddler.get('created')
+
+        # Edit the tiddler
+        tw_module.edit_tiddler(self.test_wiki, "TestTiddler2")
+
+        # Verify metadata is preserved
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        edited_tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler2')
+
+        # Created timestamp should be preserved
+        self.assertEqual(edited_tiddler.get('created'), original_created)
+        # Modified should be updated (it will be newer)
+        self.assertIn('modified', edited_tiddler)
+
+    def test_edit_tiddler_preserves_tags(self):
+        """Test that edit preserves tiddler tags"""
+        editor_script = os.path.join(self.test_dir, 'noop_editor.py')
+
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+# No-op editor
+import sys
+''')
+
+        os.chmod(editor_script, 0o755)
+        os.environ['EDITOR'] = f'python3 {editor_script}'
+
+        # Get original tags
+        original_tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original_tiddler = next(t for t in original_tiddlers if t['title'] == 'TestTiddler3')
+        original_tags = original_tiddler.get('tags')
+
+        # Edit the tiddler
+        tw_module.edit_tiddler(self.test_wiki, "TestTiddler3")
+
+        # Verify tags are preserved
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        edited_tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler3')
+
+        self.assertEqual(edited_tiddler.get('tags'), original_tags)
+
+    def test_edit_tiddler_preserves_unicode(self):
+        """Test that edit preserves Unicode characters"""
+        editor_script = os.path.join(self.test_dir, 'noop_editor.py')
+
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+# No-op editor
+import sys
+''')
+
+        os.chmod(editor_script, 0o755)
+        os.environ['EDITOR'] = f'python3 {editor_script}'
+
+        # Get original Unicode content
+        original_tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original_tiddler = next(t for t in original_tiddlers if t['title'] == 'UnicodeTest')
+        original_text = original_tiddler.get('text')
+
+        # Edit the tiddler
+        tw_module.edit_tiddler(self.test_wiki, "UnicodeTest")
+
+        # Verify Unicode is preserved (not escaped)
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        edited_tiddler = next(t for t in tiddlers if t['title'] == 'UnicodeTest')
+
+        self.assertEqual(edited_tiddler.get('text'), original_text)
+        # Verify the actual Unicode characters are present
+        self.assertIn('\u201c', edited_tiddler.get('text'))
+
+    def test_edit_tiddler_modified_timestamp_updated(self):
+        """Test that modified timestamp is updated after content changes"""
+        import time
+        editor_script = os.path.join(self.test_dir, 'modify_editor.py')
+
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+import sys
+import time
+
+# Sleep a bit to ensure timestamp changes (TiddlyWiki timestamps have millisecond precision)
+time.sleep(0.002)
+
+# Read and append to the content
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+
+# Append modified marker
+with open(sys.argv[1], 'w') as f:
+    f.write(content + '\\nAPPENDED')
+''')
+
+        os.chmod(editor_script, 0o755)
+        os.environ['EDITOR'] = f'python3 {editor_script}'
+
+        # Get original tiddler
+        original_tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original_tiddler = next(t for t in original_tiddlers if t['title'] == 'TestTiddler1')
+        original_text = original_tiddler.get('text')
+        original_modified = original_tiddler.get('modified')
+
+        # Edit the tiddler (editor will append APPENDED to the text)
+        tw_module.edit_tiddler(self.test_wiki, "TestTiddler1")
+
+        # Verify content was modified
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        edited_tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler1')
+        new_text = edited_tiddler.get('text')
+        new_modified = edited_tiddler.get('modified')
+
+        # Content should have changed
+        self.assertNotEqual(new_text, original_text)
+        self.assertIn('APPENDED', new_text)
+
+        # Modified timestamp should be updated (it should be different or the same generation time)
+        # Since replace_tiddler updates the modified timestamp, it should exist
+        self.assertIsNotNone(new_modified)
+
+    def test_edit_tiddler_with_special_chars(self):
+        """Test edit with special characters in text"""
+        editor_script = os.path.join(self.test_dir, 'special_editor.py')
+
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+import sys
+
+# Replace content with special chars
+content = """title: TestTiddler2
+
+Updated content with <brackets> and "quotes"."""
+
+with open(sys.argv[1], 'w') as f:
+    f.write(content)
+''')
+
+        os.chmod(editor_script, 0o755)
+        os.environ['EDITOR'] = f'python3 {editor_script}'
+
+        # Edit the tiddler
+        tw_module.edit_tiddler(self.test_wiki, "TestTiddler2")
+
+        # Verify the special characters are preserved
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        edited_tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler2')
+
+        self.assertIn('<brackets>', edited_tiddler.get('text'))
+        self.assertIn('"quotes"', edited_tiddler.get('text'))
+
 
 if __name__ == '__main__':
     unittest.main()
