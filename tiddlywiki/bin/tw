@@ -6,11 +6,20 @@ import sys
 import urllib.request
 import urllib.error
 
-def get_wiki_path():
-    wiki_path = os.environ.get('TIDDLYWIKI_WIKI_PATH')
+def get_wiki_path(wiki_path=None):
+    """Get the wiki path from argument or environment variable.
+
+    Args:
+        wiki_path: Optional wiki path. If not provided, uses TIDDLYWIKI_WIKI_PATH env var.
+
+    Returns:
+        Absolute path to the wiki file.
+    """
+    if not wiki_path:
+        wiki_path = os.environ.get('TIDDLYWIKI_WIKI_PATH')
 
     if not wiki_path:
-        print("Error: TIDDLYWIKI_WIKI_PATH environment variable is not set", file=sys.stderr)
+        print("Error: Wiki path not provided and TIDDLYWIKI_WIKI_PATH environment variable is not set", file=sys.stderr)
         sys.exit(1)
 
     # Expand ~ to home directory
@@ -974,7 +983,7 @@ def serve_wiki(wiki_path, host='localhost', port=8080):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: tw <command> [args]", file=sys.stderr)
+        print("Usage: tw [<wiki_path>] <command> [args]", file=sys.stderr)
         print("Commands:", file=sys.stderr)
         print("  init <dest_path>             Create a new empty wiki", file=sys.stderr)
         print("  ls                           List all tiddlers", file=sys.stderr)
@@ -990,71 +999,85 @@ def main():
         print("  serve [--host HOST] [--port PORT]  Serve wiki locally (default: localhost:8080)", file=sys.stderr)
         sys.exit(1)
 
-    command = sys.argv[1]
+    # Parse arguments: check if first arg is a wiki path or a command
+    arg_idx = 1
+    wiki_path_arg = None
 
-    # Handle 'init' command separately since it doesn't need TIDDLYWIKI_WIKI_PATH
+    # If first arg looks like a file path (ends with .html or exists as a file), treat it as wiki path
+    if len(sys.argv) > 2 and (sys.argv[1].endswith('.html') or os.path.exists(sys.argv[1])):
+        wiki_path_arg = sys.argv[1]
+        arg_idx = 2
+
+    command = sys.argv[arg_idx] if arg_idx < len(sys.argv) else None
+
+    if not command:
+        print("Error: No command provided", file=sys.stderr)
+        sys.exit(1)
+
+    # Handle 'init' command separately since it doesn't need a wiki path parameter
     if command == "init":
-        if len(sys.argv) < 3:
+        if arg_idx + 1 >= len(sys.argv):
             print("Error: init command requires a destination path", file=sys.stderr)
             sys.exit(1)
-        dest_path = sys.argv[2]
+        # init doesn't use wiki_path_arg - it creates a new wiki
+        dest_path = sys.argv[arg_idx + 1]
         init_wiki(dest_path)
         return
 
-    wiki_path = get_wiki_path()
+    wiki_path = get_wiki_path(wiki_path_arg)
 
     if command == "ls":
         list_tiddlers(wiki_path)
     elif command == "cat":
-        if len(sys.argv) < 3:
+        if arg_idx + 1 >= len(sys.argv):
             print("Error: cat command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[2]
+        tiddler_title = sys.argv[arg_idx + 1]
         cat_tiddler(wiki_path, tiddler_title)
     elif command == "json":
-        if len(sys.argv) < 3:
+        if arg_idx + 1 >= len(sys.argv):
             print("Error: json command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[2]
+        tiddler_title = sys.argv[arg_idx + 1]
         json_tiddler(wiki_path, tiddler_title)
     elif command == "get":
-        if len(sys.argv) < 4:
+        if arg_idx + 2 >= len(sys.argv):
             print("Error: get command requires a tiddler name and field name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[2]
-        field_name = sys.argv[3]
+        tiddler_title = sys.argv[arg_idx + 1]
+        field_name = sys.argv[arg_idx + 2]
         get_tiddler_field(wiki_path, tiddler_title, field_name)
     elif command == "set":
-        if len(sys.argv) < 5:
+        if arg_idx + 3 >= len(sys.argv):
             print("Error: set command requires a tiddler name, field name, and value", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[2]
-        field_name = sys.argv[3]
-        field_value = sys.argv[4]
+        tiddler_title = sys.argv[arg_idx + 1]
+        field_name = sys.argv[arg_idx + 2]
+        field_value = sys.argv[arg_idx + 3]
         set_tiddler_field(wiki_path, tiddler_title, field_name, field_value)
     elif command == "rm":
-        if len(sys.argv) < 3:
+        if arg_idx + 1 >= len(sys.argv):
             print("Error: rm command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[2]
+        tiddler_title = sys.argv[arg_idx + 1]
         remove_tiddler(wiki_path, tiddler_title)
     elif command == "touch":
-        if len(sys.argv) < 3:
+        if arg_idx + 1 >= len(sys.argv):
             print("Error: touch command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[2]
-        text = sys.argv[3] if len(sys.argv) > 3 else ""
+        tiddler_title = sys.argv[arg_idx + 1]
+        text = sys.argv[arg_idx + 2] if arg_idx + 2 < len(sys.argv) else ""
         touch_tiddler(wiki_path, tiddler_title, text)
     elif command == "insert":
-        if len(sys.argv) < 3:
+        if arg_idx + 1 >= len(sys.argv):
             print("Error: insert command requires a JSON string", file=sys.stderr)
             sys.exit(1)
-        tiddler_json = sys.argv[2]
+        tiddler_json = sys.argv[arg_idx + 1]
         insert_tiddler(wiki_path, tiddler_json)
     elif command == "replace":
         # Accept content from either command line argument or stdin
-        if len(sys.argv) >= 3:
-            content = sys.argv[2]
+        if arg_idx + 1 < len(sys.argv):
+            content = sys.argv[arg_idx + 1]
         else:
             # Read from stdin
             content = sys.stdin.read()
@@ -1069,7 +1092,7 @@ def main():
         host = 'localhost'
         port = 8080
 
-        i = 2
+        i = arg_idx + 1
         while i < len(sys.argv):
             if sys.argv[i] == '--host' and i + 1 < len(sys.argv):
                 host = sys.argv[i + 1]
@@ -1083,7 +1106,7 @@ def main():
                 i += 2
             else:
                 print(f"Error: Unknown argument '{sys.argv[i]}'", file=sys.stderr)
-                print("Usage: tw serve [--host HOST] [--port PORT]", file=sys.stderr)
+                print("Usage: tw [<wiki_path>] serve [--host HOST] [--port PORT]", file=sys.stderr)
                 sys.exit(1)
 
         serve_wiki(wiki_path, host, port)

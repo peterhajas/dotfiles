@@ -2907,6 +2907,228 @@ class TestWebDAVSupport(unittest.TestCase):
             "Plugin should skip reload during cooldown period")
 
 
+class TestWikiPathArgument(unittest.TestCase):
+    """Test wiki path as first argument"""
+
+    def setUp(self):
+        """Create a temporary test wiki"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create a minimal test wiki
+        self.test_tiddlers = [
+            {"title": "TestTiddler1", "text": "Content 1", "created": "20230101000000000"},
+            {"title": "TestTiddler2", "text": "Content 2", "created": "20230102000000000"},
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files"""
+        shutil.rmtree(self.test_dir)
+
+    def test_wiki_path_with_ls_command(self):
+        """Test that ls command works with wiki path as first argument"""
+        # Simulate: tw test_wiki.html ls
+        sys.argv = ['tw', self.test_wiki, 'ls']
+
+        # Capture output
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        output = f.getvalue()
+        self.assertIn('TestTiddler1', output)
+        self.assertIn('TestTiddler2', output)
+
+    def test_wiki_path_with_cat_command(self):
+        """Test that cat command works with wiki path as first argument"""
+        # Simulate: tw test_wiki.html cat TestTiddler1
+        sys.argv = ['tw', self.test_wiki, 'cat', 'TestTiddler1']
+
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        output = f.getvalue()
+        self.assertIn('TestTiddler1', output)
+        self.assertIn('Content 1', output)
+
+    def test_wiki_path_with_touch_command(self):
+        """Test that touch command works with wiki path as first argument"""
+        # Simulate: tw test_wiki.html touch NewTiddler "New content"
+        sys.argv = ['tw', self.test_wiki, 'touch', 'NewTiddler', 'New content']
+
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        # Verify tiddler was created
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+        self.assertIn('NewTiddler', titles)
+
+    def test_wiki_path_with_json_command(self):
+        """Test that json command works with wiki path as first argument"""
+        # Simulate: tw test_wiki.html json TestTiddler1
+        sys.argv = ['tw', self.test_wiki, 'json', 'TestTiddler1']
+
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        output = f.getvalue()
+        self.assertIn('TestTiddler1', output)
+        self.assertIn('Content 1', output)
+
+    def test_wiki_path_with_get_command(self):
+        """Test that get command works with wiki path as first argument"""
+        # Simulate: tw test_wiki.html get TestTiddler1 text
+        sys.argv = ['tw', self.test_wiki, 'get', 'TestTiddler1', 'text']
+
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        output = f.getvalue()
+        self.assertIn('Content 1', output)
+
+    def test_wiki_path_with_set_command(self):
+        """Test that set command works with wiki path as first argument"""
+        # Simulate: tw test_wiki.html set TestTiddler1 tags "important"
+        sys.argv = ['tw', self.test_wiki, 'set', 'TestTiddler1', 'tags', 'important']
+
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        # Verify field was set
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler1')
+        self.assertEqual(tiddler['tags'], 'important')
+
+    def test_wiki_path_with_remove_command(self):
+        """Test that rm command works with wiki path as first argument"""
+        # Simulate: tw test_wiki.html rm TestTiddler2
+        sys.argv = ['tw', self.test_wiki, 'rm', 'TestTiddler2']
+
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        # Verify tiddler was removed
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+        self.assertNotIn('TestTiddler2', titles)
+        self.assertIn('TestTiddler1', titles)
+
+    def test_env_var_still_works_with_wiki_path_arg(self):
+        """Test that environment variable is overridden by command line argument"""
+        # Set env var to a different path (which doesn't exist, but that's ok for this test)
+        os.environ['TIDDLYWIKI_WIKI_PATH'] = '/nonexistent/wiki.html'
+
+        # Simulate: tw test_wiki.html ls
+        sys.argv = ['tw', self.test_wiki, 'ls']
+
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        output = f.getvalue()
+        # Should use the command line argument, not the env var
+        self.assertIn('TestTiddler1', output)
+
+        # Clean up
+        if 'TIDDLYWIKI_WIKI_PATH' in os.environ:
+            del os.environ['TIDDLYWIKI_WIKI_PATH']
+
+    def test_env_var_fallback_when_no_wiki_path_arg(self):
+        """Test that environment variable is used when no wiki path argument given"""
+        # Set env var to our test wiki
+        os.environ['TIDDLYWIKI_WIKI_PATH'] = self.test_wiki
+
+        # Simulate: tw ls (no wiki path argument)
+        sys.argv = ['tw', 'ls']
+
+        import io
+        from contextlib import redirect_stdout
+
+        f = io.StringIO()
+        with redirect_stdout(f):
+            try:
+                tw_module.main()
+            except SystemExit:
+                pass
+
+        output = f.getvalue()
+        self.assertIn('TestTiddler1', output)
+
+        # Clean up
+        if 'TIDDLYWIKI_WIKI_PATH' in os.environ:
+            del os.environ['TIDDLYWIKI_WIKI_PATH']
+
+
 class TestInitCommand(unittest.TestCase):
     """Test the init command for creating new wikis"""
 
