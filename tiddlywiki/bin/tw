@@ -7,6 +7,11 @@ import subprocess
 import tempfile
 import urllib.request
 import urllib.error
+from collections import OrderedDict
+
+# Global cache to store original field orders for tiddlers
+# Key: (wiki_path, tiddler_title) -> List of field names in original order
+_original_field_orders = {}
 
 # Mapping of TiddlyWiki MIME types to Neovim filetypes
 MIME_TO_VIM_FILETYPE = {
@@ -34,6 +39,43 @@ MIME_TO_VIM_FILETYPE = {
     'text/x-yaml': 'yaml',
     'text/x-sql': 'sql',
 }
+
+def record_field_order(wiki_path, tiddler_title, field_order):
+    """Record the original field order for a tiddler"""
+    key = (wiki_path, tiddler_title)
+    _original_field_orders[key] = field_order
+
+def get_field_order(wiki_path, tiddler_title):
+    """Get the original field order for a tiddler, or None if not recorded"""
+    key = (wiki_path, tiddler_title)
+    return _original_field_orders.get(key)
+
+def reorder_tiddler_fields(tiddler, wiki_path, tiddler_title):
+    """Reorder tiddler fields to match original order if available.
+
+    If original order is known, reorder fields to match.
+    New fields (not in original) are appended at the end.
+    """
+    original_order = get_field_order(wiki_path, tiddler_title)
+
+    if not original_order:
+        # No original order recorded, return as-is
+        return tiddler
+
+    # Create new dict with fields in original order
+    reordered = OrderedDict()
+
+    # Add fields in original order
+    for field in original_order:
+        if field in tiddler:
+            reordered[field] = tiddler[field]
+
+    # Add any new fields that weren't in original order
+    for field, value in tiddler.items():
+        if field not in reordered:
+            reordered[field] = value
+
+    return reordered
 
 def get_wiki_path(wiki_path=None):
     """Get the wiki path from argument or environment variable.
@@ -113,10 +155,15 @@ def load_all_tiddlers(wiki_path):
         print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
         sys.exit(1)
 
-    # Collect all tiddlers from all stores
+    # Collect all tiddlers from all stores and record their field order
     all_tiddlers = []
     for store in stores:
         all_tiddlers.extend(store['tiddlers'])
+        # Record the field order for each tiddler as it appears in the file
+        for tiddler in store['tiddlers']:
+            if 'title' in tiddler:
+                field_order = list(tiddler.keys())
+                record_field_order(wiki_path, tiddler['title'], field_order)
 
     if not all_tiddlers:
         print("Error: Could not find any tiddlers in wiki", file=sys.stderr)
@@ -183,6 +230,7 @@ def edit_tiddler(wiki_path, tiddler_title):
 
     # Find the tiddler with matching title
     tiddler = None
+    is_new_tiddler = False
     for t in all_tiddlers:
         if t.get('title') == tiddler_title:
             tiddler = t
@@ -195,20 +243,34 @@ def edit_tiddler(wiki_path, tiddler_title):
             "created": get_tiddlywiki_timestamp(),
             "modified": get_tiddlywiki_timestamp()
         }
+        is_new_tiddler = True
+
+    # Store the original tiddler's meaningful content (excluding timestamps) for comparison
+    def get_editable_fields(t):
+        """Get tiddler fields excluding created/modified timestamps"""
+        result = {}
+        for key, value in t.items():
+            if key not in ('created', 'modified'):
+                result[key] = value
+        return result
+
+    original_editable = get_editable_fields(tiddler)
 
     # Create a temporary file to edit
     temp_fd, temp_path = tempfile.mkstemp(suffix='.txt', text=True)
 
     try:
         # Write tiddler in cat format to temp file
+        # NOTE: We exclude 'created' and 'modified' so that replace_tiddler
+        # can detect whether content changed and update the timestamp appropriately
         with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
             # Write title first
             if 'title' in tiddler:
                 f.write(f"title: {tiddler['title']}\n")
 
-            # Write all other fields except 'text' and 'title'
+            # Write all other fields except 'text', 'title', 'created', and 'modified'
             for key, value in sorted(tiddler.items()):
-                if key not in ('text', 'title'):
+                if key not in ('text', 'title', 'created', 'modified'):
                     f.write(f"{key}: {value}\n")
 
             # Write the text content after a blank line
@@ -240,8 +302,59 @@ def edit_tiddler(wiki_path, tiddler_title):
         with open(temp_path, 'r', encoding='utf-8') as f:
             edited_content = f.read()
 
+        # Parse the edited content to check what actually changed
+        edited_lines = edited_content.split('\n')
+        edited_tiddler = {}
+        text_start_index = None
+
+        for i, line in enumerate(edited_lines):
+            if line.strip() == '':
+                text_start_index = i + 1
+                break
+            elif ':' in line:
+                key, value = line.split(':', 1)
+                edited_tiddler[key.strip()] = value.strip()
+            else:
+                text_start_index = i
+                break
+
+        if text_start_index is not None and text_start_index < len(edited_lines):
+            text_content = '\n'.join(edited_lines[text_start_index:])
+            if text_content:
+                text_stripped = text_content.rstrip('\n')
+                if text_stripped:
+                    edited_tiddler['text'] = text_stripped
+
+        # Compare the editable fields
+        edited_editable = get_editable_fields(edited_tiddler)
+        content_changed = (edited_editable != original_editable)
+
+        # For new tiddlers, always update modified. For existing tiddlers, only update if changed.
+        should_update_modified = is_new_tiddler or content_changed
+
+        # If content didn't change, preserve the original timestamps
+        if not content_changed and not is_new_tiddler:
+            # Add the original timestamps back to the edited content
+            # This ensures they're preserved when content is unchanged
+            edited_content_lines = edited_content.split('\n')
+            # Find where to insert timestamps (before the empty line or text)
+            insert_pos = 0
+            for i, line in enumerate(edited_content_lines):
+                if line.strip() == '':
+                    insert_pos = i
+                    break
+
+            # Reconstruct content with original timestamps
+            new_lines = edited_content_lines[:insert_pos]
+            if 'created' in tiddler:
+                new_lines.insert(insert_pos, f"created: {tiddler['created']}")
+            if 'modified' in tiddler:
+                new_lines.insert(insert_pos + 1 if 'created' in tiddler else insert_pos, f"modified: {tiddler['modified']}")
+            new_lines.extend(edited_content_lines[insert_pos:])
+            edited_content = '\n'.join(new_lines)
+
         # Use replace_tiddler to save the changes
-        replace_tiddler(wiki_path, edited_content)
+        replace_tiddler(wiki_path, edited_content, update_modified=should_update_modified)
 
     finally:
         # Clean up the temporary file
@@ -339,11 +452,17 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
         stores[0]['tiddlers'].append(found_tiddler)
         print(f"Created tiddler: {tiddler_title}")
 
+    # Check if the field value actually changed
+    old_value = found_tiddler.get(field_name)
+    field_changed = (old_value != field_value)
+
     # Set the field value
     found_tiddler[field_name] = field_value
 
-    # Update modified timestamp if we're not setting it directly
-    if field_name != 'modified':
+    # Update modified timestamp only if:
+    # 1. The field changed, AND
+    # 2. We're not setting modified directly
+    if field_changed and field_name != 'modified':
         found_tiddler['modified'] = timestamp
 
     # Build replacements for all stores
@@ -352,7 +471,7 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
         # Sort tiddlers alphabetically by title
         sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
         # Rebuild the script tag
-        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
+        tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
         new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
         new_json = new_json.replace('<', '\\u003C')
         new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
@@ -419,7 +538,7 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
         # Sort tiddlers alphabetically by title
         sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
         # Rebuild the script tag
-        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
+        tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
         new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
         new_json = new_json.replace('<', '\\u003C')
         new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
@@ -464,7 +583,7 @@ def remove_tiddler(wiki_path, tiddler_title):
         # Rebuild the script tag with filtered tiddlers
         # Use ensure_ascii=False to preserve Unicode characters like curly quotes
         # Format each tiddler on its own line
-        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
+        tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
         new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
 
         # Escape only < (not >) as Unicode to match TiddlyWiki format
@@ -489,11 +608,16 @@ def remove_tiddler(wiki_path, tiddler_title):
 
     print(f"Removed tiddler: {tiddler_title}")
 
-def replace_tiddler(wiki_path, markdown_content):
+def replace_tiddler(wiki_path, markdown_content, update_modified=True):
     """Replace a tiddler from cat-style format (YAML frontmatter + text)
 
     This is the inverse of cat_tiddler - it parses the same format that
     cat outputs and inserts it back into the wiki.
+
+    Args:
+        wiki_path: Path to the wiki file
+        markdown_content: Content in cat format (YAML frontmatter + text)
+        update_modified: If True, update the modified timestamp. If False, preserve existing timestamp.
     """
     import json
 
@@ -509,6 +633,7 @@ def replace_tiddler(wiki_path, markdown_content):
     # Until we hit an empty line, then everything else is text
     tiddler = {}
     text_start_index = None
+    user_provided_modified = False
 
     for i, line in enumerate(lines):
         if line.strip() == '':
@@ -518,7 +643,10 @@ def replace_tiddler(wiki_path, markdown_content):
         elif ':' in line:
             # Parse field: value
             key, value = line.split(':', 1)
-            tiddler[key.strip()] = value.strip()
+            key_stripped = key.strip()
+            if key_stripped == 'modified':
+                user_provided_modified = True
+            tiddler[key_stripped] = value.strip()
         else:
             # If we encounter a line without ':', treat as start of text
             text_start_index = i
@@ -546,6 +674,11 @@ def replace_tiddler(wiki_path, markdown_content):
         tiddler['created'] = timestamp
 
     if 'modified' not in tiddler:
+        tiddler['modified'] = timestamp
+    elif update_modified and not user_provided_modified:
+        # Update modified timestamp only if:
+        # 1. update_modified=True (requested), AND
+        # 2. The user didn't explicitly provide the modified field
         tiddler['modified'] = timestamp
 
     # Use insert_tiddler to do the actual insertion
@@ -641,7 +774,7 @@ def insert_tiddler(wiki_path, tiddler_json):
         # Sort tiddlers alphabetically by title
         sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
         # Rebuild the script tag
-        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
+        tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
         new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
         new_json = new_json.replace('<', '\\u003C')
         new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'

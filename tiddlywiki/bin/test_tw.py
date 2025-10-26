@@ -3749,5 +3749,443 @@ class TestAppendTiddler(unittest.TestCase):
         self.assertIn('\u2713', tiddler['text'])
 
 
+class TestUnchangedContentPreservesTimestamp(unittest.TestCase):
+    """Test that modified timestamp is preserved when content doesn't change"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create test tiddlers with specific timestamps
+        self.old_timestamp = "20220101120000000"
+        self.test_tiddlers = [
+            {"title": "ExistingTiddler", "text": "Original content", "created": self.old_timestamp, "modified": self.old_timestamp},
+            {"title": "AnotherTiddler", "text": "Different content", "created": self.old_timestamp, "modified": self.old_timestamp, "type": "text/markdown"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_edit_with_no_changes_preserves_modified(self):
+        """Test that tw edit with no changes doesn't update modified timestamp"""
+        # Create an editor script that doesn't change the file
+        editor_script = os.path.join(self.test_dir, 'no_change_editor.py')
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+import sys
+# Read and write back the same content - no changes
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+with open(sys.argv[1], 'w') as f:
+    f.write(content)
+''')
+        os.chmod(editor_script, 0o755)
+
+        # Set EDITOR to our script
+        original_editor = os.environ.get('EDITOR')
+        try:
+            os.environ['EDITOR'] = editor_script
+
+            # Edit the tiddler (no changes made)
+            tw_module.edit_tiddler(self.test_wiki, "ExistingTiddler")
+
+            # Verify modified timestamp was NOT updated
+            tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+            tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+            self.assertEqual(tiddler['modified'], self.old_timestamp,
+                           "Modified timestamp should not change when content is unchanged")
+            self.assertEqual(tiddler['text'], "Original content")
+        finally:
+            if original_editor:
+                os.environ['EDITOR'] = original_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_with_changes_updates_modified(self):
+        """Test that tw edit with changes does update modified timestamp"""
+        # Create an editor script that changes the content
+        editor_script = os.path.join(self.test_dir, 'change_editor.py')
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+import sys
+# Modify the content
+with open(sys.argv[1], 'r') as f:
+    content = f.read()
+# Change the text section
+content = content.replace("Original content", "Modified content")
+with open(sys.argv[1], 'w') as f:
+    f.write(content)
+''')
+        os.chmod(editor_script, 0o755)
+
+        # Set EDITOR to our script
+        original_editor = os.environ.get('EDITOR')
+        try:
+            os.environ['EDITOR'] = editor_script
+
+            # Edit the tiddler (changes made)
+            tw_module.edit_tiddler(self.test_wiki, "ExistingTiddler")
+
+            # Verify modified timestamp WAS updated
+            tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+            tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+            self.assertNotEqual(tiddler['modified'], self.old_timestamp,
+                              "Modified timestamp should be updated when content changes")
+            self.assertEqual(tiddler['text'], "Modified content")
+        finally:
+            if original_editor:
+                os.environ['EDITOR'] = original_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_set_field_with_same_value_preserves_modified(self):
+        """Test that tw set with the same value doesn't update modified"""
+        # Get current modified time
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+        original_modified = tiddler['modified']
+
+        # Sleep briefly to ensure timestamp would change if it's updated
+        import time
+        time.sleep(0.1)
+
+        # Set a field to its current value
+        tw_module.set_tiddler_field(self.test_wiki, "ExistingTiddler", "text", "Original content")
+
+        # Verify modified timestamp was NOT updated
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertEqual(tiddler['modified'], original_modified,
+                       "Modified timestamp should not change when setting field to same value")
+
+    def test_set_field_with_new_value_updates_modified(self):
+        """Test that tw set with a new value does update modified"""
+        # Get current modified time
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+        original_modified = tiddler['modified']
+
+        # Sleep briefly to ensure timestamp would change
+        import time
+        time.sleep(0.1)
+
+        # Set a field to a new value
+        tw_module.set_tiddler_field(self.test_wiki, "ExistingTiddler", "text", "New content")
+
+        # Verify modified timestamp WAS updated
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertNotEqual(tiddler['modified'], original_modified,
+                          "Modified timestamp should be updated when setting field to new value")
+        self.assertEqual(tiddler['text'], "New content")
+
+    def test_replace_with_identical_content_preserves_modified(self):
+        """Test that tw replace with identical content doesn't update modified"""
+        # Create content identical to current tiddler
+        original_content = """title: ExistingTiddler
+created: 20220101120000000
+modified: 20220101120000000
+
+Original content"""
+
+        # Sleep briefly to ensure timestamp would change if it's updated
+        import time
+        time.sleep(0.1)
+
+        # Use replace_tiddler with update_modified=True but identical content
+        tw_module.replace_tiddler(self.test_wiki, original_content, update_modified=False)
+
+        # Verify modified timestamp was NOT updated
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertEqual(tiddler['modified'], self.old_timestamp,
+                       "Modified timestamp should not change when update_modified=False")
+
+    def test_replace_with_changed_content_updates_modified(self):
+        """Test that tw replace with changed content updates modified when requested"""
+        # Create content with changed text (without modified timestamp, so it can be updated)
+        changed_content = """title: ExistingTiddler
+created: 20220101120000000
+
+Modified content"""
+
+        # Sleep briefly to ensure timestamp would change
+        import time
+        time.sleep(0.1)
+
+        # Use replace_tiddler with update_modified=True
+        tw_module.replace_tiddler(self.test_wiki, changed_content, update_modified=True)
+
+        # Verify modified timestamp WAS updated
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertNotEqual(tiddler['modified'], self.old_timestamp,
+                          "Modified timestamp should be updated when update_modified=True")
+        self.assertEqual(tiddler['text'], "Modified content")
+
+    def test_new_tiddler_via_edit_always_updates_modified(self):
+        """Test that creating a new tiddler via edit always updates timestamps"""
+        # Create an editor script that adds content
+        editor_script = os.path.join(self.test_dir, 'new_editor.py')
+        with open(editor_script, 'w') as f:
+            f.write('''#!/usr/bin/env python3
+import sys
+# Append content for new tiddler
+with open(sys.argv[1], 'a') as f:
+    f.write('\\n')
+    f.write('New tiddler content')
+''')
+        os.chmod(editor_script, 0o755)
+
+        # Set EDITOR to our script
+        original_editor = os.environ.get('EDITOR')
+        try:
+            os.environ['EDITOR'] = editor_script
+
+            # Edit a non-existent tiddler (creates it)
+            tw_module.edit_tiddler(self.test_wiki, "NewTiddler")
+
+            # Verify the tiddler was created
+            tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+            tiddler = next((t for t in tiddlers if t['title'] == 'NewTiddler'), None)
+
+            self.assertIsNotNone(tiddler, "New tiddler should be created")
+            self.assertIsNotNone(tiddler.get('created'), "New tiddler should have created timestamp")
+            self.assertIsNotNone(tiddler.get('modified'), "New tiddler should have modified timestamp")
+            # The timestamps will be current, not self.old_timestamp
+            self.assertNotEqual(tiddler['modified'], self.old_timestamp)
+        finally:
+            if original_editor:
+                os.environ['EDITOR'] = original_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_set_new_field_updates_modified(self):
+        """Test that adding a new field updates modified timestamp"""
+        # Get current modified time
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+        original_modified = tiddler['modified']
+
+        # Sleep briefly
+        import time
+        time.sleep(0.1)
+
+        # Set a field that doesn't exist
+        tw_module.set_tiddler_field(self.test_wiki, "ExistingTiddler", "tags", "new-tag")
+
+        # Verify modified timestamp WAS updated
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertNotEqual(tiddler['modified'], original_modified,
+                          "Modified timestamp should be updated when adding new field")
+        self.assertEqual(tiddler['tags'], "new-tag")
+
+
+class TestFieldOrderPreservation(unittest.TestCase):
+    """Test that field order is preserved when saving tiddlers"""
+
+    def setUp(self):
+        """Create a temporary test wiki with tiddlers in specific field order"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create tiddlers with specific field orderings
+        # Original order: text, title, custom, tags, created, type, modified
+        tiddler1 = {
+            "text": "Hello world",
+            "title": "OrderedTiddler1",
+            "custom": "custom_value",
+            "tags": "test tag1",
+            "created": "20220101000000000",
+            "type": "text/plain",
+            "modified": "20220101000000000"
+        }
+
+        # Different order: title, modified, created, type, custom, tags, text
+        tiddler2 = {
+            "title": "OrderedTiddler2",
+            "modified": "20220102000000000",
+            "created": "20220102000000000",
+            "type": "text/markdown",
+            "custom": "another_value",
+            "tags": "test tag2",
+            "text": "Different content"
+        }
+
+        test_tiddlers = [tiddler1, tiddler2]
+
+        # Create the HTML file with tiddlers in specific order
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def get_tiddler_field_order(self, wiki_content, tiddler_title):
+        """Extract field order for a tiddler from the HTML content"""
+        import re
+        # Find the script tag
+        match = re.search(r'<script class="tiddlywiki-tiddler-store" type="application/json">\[(.*?)\]</script>',
+                         wiki_content, re.DOTALL)
+        if not match:
+            return None
+
+        json_str = '[' + match.group(1) + ']'
+        tiddlers = json.loads(json_str)
+
+        for tiddler in tiddlers:
+            if tiddler.get('title') == tiddler_title:
+                # Return the field names in the order they appear
+                return list(tiddler.keys())
+
+        return None
+
+    def test_field_order_preserved_on_set_field(self):
+        """Test that field order is preserved when using set_tiddler_field"""
+        # Load the wiki to record original field order
+        tw_module.load_all_tiddlers(self.test_wiki)
+
+        # Set a field in the first tiddler
+        tw_module.set_tiddler_field(self.test_wiki, "OrderedTiddler1", "custom", "modified_value")
+
+        # Read the wiki file and check field order
+        with open(self.test_wiki, 'r') as f:
+            content = f.read()
+
+        field_order = self.get_tiddler_field_order(content, "OrderedTiddler1")
+
+        # Should maintain original order: text, title, custom, tags, created, type, modified
+        expected_order = ["text", "title", "custom", "tags", "created", "type", "modified"]
+        self.assertEqual(field_order, expected_order,
+                        f"Field order changed. Expected {expected_order}, got {field_order}")
+
+    def test_field_order_preserved_on_touch_tiddler(self):
+        """Test that field order is preserved when updating a tiddler with touch"""
+        # Load the wiki to record original field order
+        tw_module.load_all_tiddlers(self.test_wiki)
+
+        # Touch (update) the second tiddler
+        tw_module.touch_tiddler(self.test_wiki, "OrderedTiddler2", "Updated content")
+
+        # Read the wiki file and check field order
+        with open(self.test_wiki, 'r') as f:
+            content = f.read()
+
+        field_order = self.get_tiddler_field_order(content, "OrderedTiddler2")
+
+        # Should maintain original order: title, modified, created, type, custom, tags, text
+        expected_order = ["title", "modified", "created", "type", "custom", "tags", "text"]
+        self.assertEqual(field_order, expected_order,
+                        f"Field order changed. Expected {expected_order}, got {field_order}")
+
+    def test_new_field_appended_at_end(self):
+        """Test that new fields are appended at the end, not inserted"""
+        # Load the wiki to record original field order
+        tw_module.load_all_tiddlers(self.test_wiki)
+
+        # Set a new field that doesn't exist in the original
+        tw_module.set_tiddler_field(self.test_wiki, "OrderedTiddler1", "newfield", "new_value")
+
+        # Read the wiki file and check field order
+        with open(self.test_wiki, 'r') as f:
+            content = f.read()
+
+        field_order = self.get_tiddler_field_order(content, "OrderedTiddler1")
+
+        # Original order should be preserved, new field appended at end
+        expected_order = ["text", "title", "custom", "tags", "created", "type", "modified", "newfield"]
+        self.assertEqual(field_order, expected_order,
+                        f"Field order incorrect. Expected {expected_order}, got {field_order}")
+
+    def test_different_orders_preserved_separately(self):
+        """Test that different tiddlers preserve their own field orders"""
+        # Load the wiki to record original field orders
+        tw_module.load_all_tiddlers(self.test_wiki)
+
+        # Modify both tiddlers
+        tw_module.set_tiddler_field(self.test_wiki, "OrderedTiddler1", "custom", "value1")
+        tw_module.set_tiddler_field(self.test_wiki, "OrderedTiddler2", "custom", "value2")
+
+        # Read the wiki file and check both field orders
+        with open(self.test_wiki, 'r') as f:
+            content = f.read()
+
+        order1 = self.get_tiddler_field_order(content, "OrderedTiddler1")
+        order2 = self.get_tiddler_field_order(content, "OrderedTiddler2")
+
+        # First tiddler should have: text, title, custom, tags, created, type, modified
+        self.assertEqual(order1, ["text", "title", "custom", "tags", "created", "type", "modified"],
+                        "First tiddler field order not preserved")
+
+        # Second tiddler should have: title, modified, created, type, custom, tags, text
+        self.assertEqual(order2, ["title", "modified", "created", "type", "custom", "tags", "text"],
+                        "Second tiddler field order not preserved")
+
+    def test_field_order_with_insert_tiddler(self):
+        """Test that newly inserted tiddlers don't affect existing field orders"""
+        # Load the wiki to record original field orders
+        tw_module.load_all_tiddlers(self.test_wiki)
+
+        # Insert a new tiddler via insert_tiddler
+        new_tiddler_json = json.dumps({
+            "title": "NewTiddler",
+            "text": "New content",
+            "type": "text/html"
+        })
+        tw_module.insert_tiddler(self.test_wiki, new_tiddler_json)
+
+        # Read the wiki file and verify original orders are still preserved
+        with open(self.test_wiki, 'r') as f:
+            content = f.read()
+
+        order1 = self.get_tiddler_field_order(content, "OrderedTiddler1")
+        order2 = self.get_tiddler_field_order(content, "OrderedTiddler2")
+
+        # Original orders should still be preserved
+        self.assertEqual(order1, ["text", "title", "custom", "tags", "created", "type", "modified"],
+                        "First tiddler field order changed after inserting new tiddler")
+        self.assertEqual(order2, ["title", "modified", "created", "type", "custom", "tags", "text"],
+                        "Second tiddler field order changed after inserting new tiddler")
+
+
 if __name__ == '__main__':
     unittest.main()
