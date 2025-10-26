@@ -5,8 +5,8 @@
 
 set -e
 
-SOURCE="$HOME/Documents/phajas-wiki.html"
-DEST="$HOME/phajas-wiki/"
+SOURCE="~/Documents/phajas-wiki.html"
+DEST="~phajas-wiki/"
 
 # Check if source file exists
 if [ ! -f "$SOURCE" ]; then
