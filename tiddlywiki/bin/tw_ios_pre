@@ -5,7 +5,7 @@
 
 set -e
 
-SOURCE="$~phajas-wiki/phajas-wiki.html"
+SOURCE="~phajas-wiki/phajas-wiki.html"
 DEST="~/Documents/"
 
 # Check if source file exists
