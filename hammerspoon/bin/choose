@@ -14,7 +14,7 @@ done
 # Note that we're piping STDOUT to /dev/null, as HS will sometimes output
 # strings like "Loading extension..."
 
-hs -c "showChooserCLI('$INPUT')" 1>>/dev/null
+hs -c "showChooserCLI('$(printf '%s' "$INPUT" | sed "s/'/\\\\'/g")')" 1>>/dev/null
 
 # Now, poll Hammerspoon for the chosen variable until we get something
 
