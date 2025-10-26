@@ -12,6 +12,22 @@ if zellij list-sessions >/dev/null 2>&1; then
     SESSIONS=$(zellij list-sessions --no-formatting --short 2>/dev/null | grep -v "^$" | awk '{print $1 " [active session]"}')
 fi
 
+# Pre-defined session names (no associated directories)
+PREDEFINED_SESSIONS="sysmon
+kanata
+claude"
+
+# Filter out predefined sessions that are already active
+ACTIVE_SESSION_NAMES=$(echo "$SESSIONS" | sed 's/ \[active session\]//')
+FILTERED_PREDEFINED=""
+for session in sysmon kanata claude; do
+    if ! echo "$ACTIVE_SESSION_NAMES" | grep -q "^$session$"; then
+        FILTERED_PREDEFINED="$FILTERED_PREDEFINED$session
+"
+    fi
+done
+PREDEFINED_SESSIONS="$FILTERED_PREDEFINED"
+
 # Find directories at depth 1 in each search directory
 DIRS=""
 for search_dir in $SEARCH_DIRS; do
@@ -21,8 +37,9 @@ for search_dir in $SEARCH_DIRS; do
     fi
 done
 
-# Combine sessions (first) and directories
+# Combine sessions (first), predefined sessions, and directories
 ALL_OPTIONS="$SESSIONS
+$PREDEFINED_SESSIONS
 $DIRS"
 
 RESULT=$(echo "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="Session: " --print-query --expect=ctrl-n)
@@ -59,6 +76,17 @@ if echo "$SELECTION" | grep -q "\[active session\]"; then
         zellij action switch-session "$SESSION_NAME"
     else
         zellij attach "$SESSION_NAME"
+    fi
+    exit 0
+fi
+
+# Handle predefined session selection
+if echo "$PREDEFINED_SESSIONS" | grep -q "^$SELECTION$"; then
+    SESSION_NAME="$SELECTION"
+    if [ -n "$ZELLIJ" ]; then
+        zellij action new-tab --name "$SESSION_NAME"
+    else
+        zellij --session "$SESSION_NAME"
     fi
     exit 0
 fi
