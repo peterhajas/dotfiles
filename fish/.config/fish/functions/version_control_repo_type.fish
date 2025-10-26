@@ -7,7 +7,7 @@ function version_control_repo_type
         if test 2 -eq $CURRENT_DIRECTORY_LENGTH
             echo -n 'none'
             return
-        else if test -d $CURRENT_DIRECTORY/.git
+        else if test -e $CURRENT_DIRECTORY/.git
             echo -n git
             return
         else if test -d $CURRENT_DIRECTORY/.svn
