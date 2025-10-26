@@ -858,19 +858,47 @@ def install_live_reload_plugin(wiki_path):
   }
 
   var lastVersion = null;
-  var lastSaveTime = 0;
-  var SAVE_COOLDOWN = 5000; // 5 seconds cooldown after save
+  var savedVersions = {}; // Track versions we saved: {version: timestamp}
+  var VERSION_SKIP_DURATION = 10000; // Skip reloading versions we saved for 10 seconds
   var isReloading = false; // Flag to prevent marking as dirty during reload
+  var isSaving = false; // Flag to track when a save is in progress
 
   // Hook into TiddlyWiki's save mechanism to track when we initiate a save
   if ($tw.wiki) {
     var originalAddTiddler = $tw.wiki.addTiddler;
     $tw.wiki.addTiddler = function(tiddler) {
       var result = originalAddTiddler.apply(this, arguments);
-      // If this is a user-initiated change (not from our plugin reload), update save time
-      if (!isReloading && tiddler && tiddler.fields && tiddler.fields.title && !tiddler.fields['draft.of']) {
-        lastSaveTime = Date.now();
-        console.log('[LiveReload] User change detected, setting cooldown');
+      // If this is a user-initiated change (not from our plugin reload), mark as saving
+      // Ignore: reloads and temporary tiddlers
+      if (!isReloading &&
+          tiddler &&
+          tiddler.fields &&
+          tiddler.fields.title &&
+          !tiddler.fields.title.startsWith('$:/temp')) {
+
+        // Debounce: only mark as saving if we're not already saving
+        if (!isSaving) {
+          isSaving = true;
+          console.log('[LiveReload] User change detected:', tiddler.fields.title);
+
+          // Clear the saving flag after a short delay to capture the version after save
+          setTimeout(function() {
+            if (isSaving) {
+              // Fetch current version and mark it as saved by us
+              fetch('/_tw/version')
+                .then(function(response) { return response.json(); })
+                .then(function(data) {
+                  savedVersions[data.version] = Date.now();
+                  console.log('[LiveReload] Marked version as saved:', data.version);
+                  isSaving = false;
+                })
+                .catch(function(error) {
+                  console.error('[LiveReload] Error fetching version after save:', error);
+                  isSaving = false;
+                });
+            }
+          }, 1000); // Wait 1 second for the save to complete
+        }
       }
       return result;
     };
@@ -879,7 +907,18 @@ def install_live_reload_plugin(wiki_path):
   function startPolling() {
     setInterval(function() {
       checkVersion();
+      cleanupOldSavedVersions();
     }, 3000); // Poll every 3 seconds
+  }
+
+  function cleanupOldSavedVersions() {
+    // Remove saved versions older than VERSION_SKIP_DURATION
+    var now = Date.now();
+    for (var version in savedVersions) {
+      if (now - savedVersions[version] > VERSION_SKIP_DURATION) {
+        delete savedVersions[version];
+      }
+    }
   }
 
   function checkVersion() {
@@ -896,11 +935,10 @@ def install_live_reload_plugin(wiki_path):
         }
 
         if (data.version !== lastVersion) {
-          var timeSinceLastSave = Date.now() - lastSaveTime;
-
-          // Skip reload if we just saved (within cooldown period)
-          if (timeSinceLastSave < SAVE_COOLDOWN) {
-            console.log('[LiveReload] File changed but within save cooldown (' + timeSinceLastSave + 'ms), skipping reload');
+          // Check if this version was saved by us
+          if (savedVersions[data.version]) {
+            var timeSinceSave = Date.now() - savedVersions[data.version];
+            console.log('[LiveReload] File changed to version we just saved (' + timeSinceSave + 'ms ago), skipping reload');
             lastVersion = data.version;
             return;
           }
@@ -935,14 +973,65 @@ def install_live_reload_plugin(wiki_path):
 
         // Update/add tiddlers
         data.tiddlers.forEach(function(tiddlerData) {
-          var currentTiddler = $tw.wiki.getTiddler(tiddlerData.title);
+          var browserTiddler = $tw.wiki.getTiddler(tiddlerData.title);
 
-          // Only update if modified timestamp changed or tiddler is new
-          if (!currentTiddler || currentTiddler.fields.modified !== tiddlerData.modified) {
-            console.log('[LiveReload] Updating tiddler:', tiddlerData.title);
+          if (!browserTiddler) {
+            // New tiddler - not in browser
+            console.log('[LiveReload] Adding new tiddler:', tiddlerData.title);
             $tw.wiki.addTiddler(new $tw.Tiddler(tiddlerData));
             changedTiddlers[tiddlerData.title] = true;
             updateCount++;
+          } else {
+            // Compare canonical serialized representations instead of field-by-field
+            // This handles all data types uniformly without special cases
+
+            // Fields to ignore when comparing (metadata/computed fields)
+            var ignoreFields = {
+              'modified': true,
+              'created': true,
+              'revision': true,
+              'bag': true
+            };
+
+            // Create normalized copies without ignored fields
+            var serverNormalized = {};
+            var browserNormalized = {};
+
+            // Copy server fields (except ignored)
+            for (var field in tiddlerData) {
+              if (!ignoreFields[field]) {
+                serverNormalized[field] = tiddlerData[field];
+              }
+            }
+
+            // Copy browser fields (except ignored)
+            // Convert arrays to TiddlyWiki string format to match server
+            for (var field in browserTiddler.fields) {
+              if (!ignoreFields[field]) {
+                var value = browserTiddler.fields[field];
+                // TiddlyWiki represents tags/lists as arrays in browser but strings in files
+                // Use TiddlyWiki's stringifyList to convert arrays to proper format
+                if (Array.isArray(value) && $tw.utils.stringifyList) {
+                  browserNormalized[field] = $tw.utils.stringifyList(value);
+                } else {
+                  browserNormalized[field] = value;
+                }
+              }
+            }
+
+            // Serialize both to JSON with sorted keys for consistent comparison
+            var serverJson = JSON.stringify(serverNormalized, Object.keys(serverNormalized).sort());
+            var browserJson = JSON.stringify(browserNormalized, Object.keys(browserNormalized).sort());
+
+            if (serverJson !== browserJson) {
+              console.log('[DEBUG] ' + tiddlerData.title + ' content changed');
+              console.log('  Server JSON: ' + serverJson.substring(0, 200));
+              console.log('  Browser JSON: ' + browserJson.substring(0, 200));
+
+              $tw.wiki.addTiddler(new $tw.Tiddler(tiddlerData));
+              changedTiddlers[tiddlerData.title] = true;
+              updateCount++;
+            }
           }
         });
 
@@ -975,12 +1064,18 @@ def install_live_reload_plugin(wiki_path):
           console.log('[LiveReload] No changes detected');
         }
 
-        // Clear the reloading flag AFTER refresh
-        isReloading = false;
+        // Clear the reloading flag after a delay to let TiddlyWiki's reactive updates settle
+        setTimeout(function() {
+          isReloading = false;
+          console.log('[LiveReload] Reload flag cleared');
+        }, 500);
       })
       .catch(function(error) {
         console.error('[LiveReload] Error reloading tiddlers:', error);
-        isReloading = false; // Clear flag even on error
+        // Clear flag even on error, with delay for consistency
+        setTimeout(function() {
+          isReloading = false;
+        }, 500);
       });
   }
 })();
@@ -994,7 +1089,7 @@ def install_live_reload_plugin(wiki_path):
         "text": plugin_code,
         "tags": "$:/tags/StartupModule",
         "description": "Live reload functionality with WebDAV save support for tw server",
-        "version": "0.3.8"
+        "version": "0.8.1"
     }
 
     # Convert to JSON and insert
@@ -1243,8 +1338,15 @@ def serve_wiki(wiki_path, host='localhost', port=8080):
                 self.send_header('Content-Length', str(len(content_bytes)))
                 self.end_headers()
                 self.wfile.write(content_bytes)
+            except (ConnectionResetError, BrokenPipeError) as e:
+                # Client closed connection - this is normal, just log it
+                print(f"[Client disconnected] {e.__class__.__name__}")
             except Exception as e:
-                self.send_error(500, f'Error reading wiki file: {e}')
+                try:
+                    self.send_error(500, f'Error reading wiki file: {e}')
+                except (ConnectionResetError, BrokenPipeError):
+                    # Can't send error if connection is already broken
+                    print(f"[Client disconnected during error handling]")
 
         def log_message(self, format, *args):
             """Override to provide cleaner log messages"""
