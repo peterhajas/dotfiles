@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# tw_ios_post - Complete iOS sync workflow
+# Copies wiki back from Documents, removes temp file, and opens Shortcuts app
+
+set -e
+
+SOURCE="${HOME}/Documents/phajas-wiki.html"
+DEST="${HOME}/phajas-wiki/"
+
+# Check if source file exists
+if [[ ! -f "$SOURCE" ]]; then
+    echo "Error: Source file not found: $SOURCE" >&2
+    exit 1
+fi
+
+# Check if destination directory exists
+if [[ ! -d "$DEST" ]]; then
+    echo "Error: Destination directory not found: $DEST" >&2
+    exit 1
+fi
+
+# Copy the file back
+cp "$SOURCE" "$DEST"
+echo "Copied $SOURCE to $DEST"
+
+# Remove the temp file from Documents
+rm "$SOURCE"
+echo "Removed $SOURCE"
+
+# Open Shortcuts app
+open shortcuts://

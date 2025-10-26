@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# ios_pre - Prepare wiki for iOS sync
+# Copies the phajas-wiki to Documents folder for synchronization
+
+set -e
+
+SOURCE="${HOME}/phajas-wiki/phajas-wiki.html"
+DEST="${HOME}/Documents/"
+
+# Check if source file exists
+if [[ ! -f "$SOURCE" ]]; then
+    echo "Error: Source wiki not found: $SOURCE" >&2
+    exit 1
+fi
+
+# Check if destination directory exists
+if [[ ! -d "$DEST" ]]; then
+    echo "Error: Destination directory not found: $DEST" >&2
+    exit 1
+fi
+
+# Copy the file
+cp "$SOURCE" "$DEST"
+
+echo "Copied $SOURCE to $DEST"
