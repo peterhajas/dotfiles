@@ -6,15 +6,22 @@ function showChooser(choices, completion)
     local chooser = hs.chooser.new(function(picked)
         local pickedContents = nil
         if picked ~= nil then
-            pickedContents = picked['text']
+            local text = picked['text']:getString()
+            pickedContents = text
         end
         completion(pickedContents)
     end)
 
+    local primaryTextColor = hs.drawing.color.lists()['System']['labelColor']
+
     -- We need to format the choices for hs.chooser
     local chooserChoices = { }
     for k,v in pairs(choices) do
-        table.insert(chooserChoices, { text = v })
+        local styledText = hs.styledtext.new(v, {
+            font = { name = "Menlo", size = 18 },
+            color = primaryTextColor
+        })
+        table.insert(chooserChoices, { text = styledText })
     end
 
     chooser:width(20)
