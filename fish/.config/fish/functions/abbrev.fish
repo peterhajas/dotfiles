@@ -81,4 +81,6 @@ function abbrev -d "Install fish abbreviations"
 
     ## wiki
     abbr w "cd ~/phajas-wiki"
+    abbr ww "tw ~/phajas-wiki/phajas-wiki.html "
+    abbr we "tw ~/phajas-wiki/phajas-wiki.html ls | fzf | xargs -I {} tw ~/phajas-wiki/phajas-wiki.html edit '{}'"
 end
