@@ -32,6 +32,9 @@ require('lualine').setup {
     extensions = {
         'fugitive',
         'fzf',
+        'mason',
+        'nvim-dap-ui',
+        'nvim-tree',
         'oil',
     }
 }
