@@ -8,6 +8,33 @@ import tempfile
 import urllib.request
 import urllib.error
 
+# Mapping of TiddlyWiki MIME types to Neovim filetypes
+MIME_TO_VIM_FILETYPE = {
+    # TiddlyWiki formats
+    'text/vnd.tiddlywiki': 'markdown',
+    'text/x-tiddlywiki': 'markdown',
+    'text/vnd.tiddlywiki-multiple': 'markdown',
+
+    # Markup formats
+    'text/markdown': 'markdown',
+    'text/html': 'html',
+    'text/plain': 'text',
+
+    # Stylesheet
+    'text/css': 'css',
+
+    # Programming languages
+    'application/javascript': 'javascript',
+    'application/json': 'json',
+    'application/x-tiddler-dictionary': 'text',
+    'text/x-python': 'python',
+    'text/x-shellscript': 'sh',
+    'text/xml': 'xml',
+    'application/xml': 'xml',
+    'text/x-yaml': 'yaml',
+    'text/x-sql': 'sql',
+}
+
 def get_wiki_path(wiki_path=None):
     """Get the wiki path from argument or environment variable.
 
@@ -192,6 +219,17 @@ def edit_tiddler(wiki_path, tiddler_title):
         # Open the file in the editor
         # Split the editor command in case it has arguments (e.g., "emacs -nw")
         editor_parts = editor.split()
+
+        # Get the tiddler type and map to vim filetype
+        tiddler_type = tiddler.get('type', 'text/vnd.tiddlywiki')
+        vim_filetype = MIME_TO_VIM_FILETYPE.get(tiddler_type, 'text')
+
+        # If using nvim/vim, add filetype command
+        editor_base = editor_parts[0].lower() if editor_parts else ''
+        if 'vim' in editor_base or 'nvim' in editor_base:
+            # Add vim command to set filetype
+            editor_parts = editor_parts + ['-c', f'set filetype={vim_filetype}']
+
         result = subprocess.run(editor_parts + [temp_path], check=False)
 
         if result.returncode != 0:
