@@ -5,7 +5,7 @@ function TiddlyWikiRender(name)
 end
 
 -- Metrics
-local yOffset = 50
+local yOffset = 0
 
 -- Bind hyper-space
 hs.hotkey.bind(hyper, 'space', function()
@@ -93,9 +93,16 @@ local function layoutWikiState(wikiState)
     if display ~= nil then
         local screenFrame = display:frame()
         local topPadding = yOffset
-        screenFrame.h = screenFrame.h - topPadding
-        screenFrame.y = topPadding
-        webView:frame(screenFrame)
+        -- This lets us just match the right sidebar's frame (for now)
+        -- to use less memory for the webview
+        local hudWidth = 196  -- Match yabai right padding
+        local hudFrame = {
+            x = screenFrame.x + screenFrame.w - hudWidth,
+            y = screenFrame.y + topPadding,
+            w = hudWidth,
+            h = screenFrame.h - topPadding
+        }
+        webView:frame(hudFrame)
     else
         local rect = hs.geometry.rect(0,0,0,0)
         webView:frame(rect)
