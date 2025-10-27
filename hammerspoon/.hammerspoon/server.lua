@@ -27,7 +27,36 @@ commandToFunction = {
         if input == nil then
             input = ""
         end
-        hs.execute("echo \"" .. input .. "\" | shortcuts run \"" .. args["name"] .. "\"")
+
+        local function applescript_escape(str)
+            if str == nil then return "" end
+            str = str:gsub("\\", "\\\\")
+            str = str:gsub("\"", "\\\"")
+            return str
+        end
+
+        local escaped_name = applescript_escape(args["name"])
+        local escaped_input = applescript_escape(input)
+
+        local applescript = 'tell application "Shortcuts Events" to run shortcut "' .. escaped_name .. '" with input "' .. escaped_input .. '"'
+        local success, output, rawTable = hs.osascript.applescript(applescript)
+
+        local result = nil
+        if success then
+            if type(output) == "string" then
+                result = output
+            elseif type(output) == "table" then
+                if output[1] ~= nil then
+                    result = tostring(output[1])
+                else
+                    result = hs.json.encode(output)
+                end
+            else
+                result = tostring(output)
+            end
+        end
+
+        return result
     end,
     ["tw_glance"] = function(args, body)
         bodyTable = hs.json.decode(body)
@@ -69,28 +98,40 @@ commandToFunction = {
 function parseHTTPCommand(cmd, headers, contents)
     local components = split(cmd, "?")
     local command = components[1]
+    local outSuccess = false
+    local outOutput = ""
     arguments = {}
     if components[2] ~= nil then
         local args = components[2]
         args = url_decode(args)
         local argElements = split(args, "&")
         for _, v in pairs(argElements) do
-            argName = split(v, "=")[1]
-            argValue = split(v, "=")[2]
-            arguments[argName] = argValue
+            local eqPos = v:find("=")
+            if eqPos then
+                argName = v:sub(1, eqPos - 1)
+                argValue = v:sub(eqPos + 1)
+                arguments[argName] = argValue
+            end
         end
     end
     local func = commandToFunction[command]
     if func ~= nil then
         local output = func(arguments, contents)
         if output ~= nil then
-            return true, output
+            outSuccess, outOutput = true, output
         else
-            return true, ""
+            outSuccess, outOutput = true, ""
         end
+    else
+        hs.application.open(command)
+        outSuccess, outOutput = true, ""
     end
-    hs.application.open(cmd)
-    return false, nil
+    local outSuccessDescription = "false"
+    if outSuccess then
+        outSuccessDescription = "true"
+    end
+    dbg("ran " .. cmd .. " successfully " .. outSuccessDescription)
+    return outSuccess, outOutput
 end
 
 server = hs.httpserver.new(false, false)
