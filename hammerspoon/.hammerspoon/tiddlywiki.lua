@@ -139,8 +139,8 @@ end
 
 local function setupWebView()
     createWikiState("main", "Heads Up Display Desktop", "Primary")
-    createWikiState("right", "Heads Up Display Right", "FP222W (2)")
-    createWikiState("left", "Heads Up Display Left", "FP222W (1)")
+    -- createWikiState("right", "Heads Up Display Right", "FP222W (2)")
+    -- createWikiState("left", "Heads Up Display Left", "FP222W (1)")
 
     WikiScreenWatcher:start()
     WikiCaffeinateWatcher:start()
