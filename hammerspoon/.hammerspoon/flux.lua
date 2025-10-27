@@ -10,6 +10,9 @@ local function whitepointForHavingScreenTint(hasScreenTint)
 
         whitepoint['blue'] = 0.5240478515625
         whitepoint['green'] = 0.76902770996094
+        -- More intense warm tint for nighttime
+        whitepoint['blue'] = whitepoint['blue']/2
+        whitepoint['green'] = whitepoint['green']/2
         whitepoint['red'] = 1
     else
         whitepoint['blue'] = 1
@@ -123,7 +126,7 @@ function fluxAdvance()
         overrideFluxSetting = not onNow
     elseif overrideFluxSetting == true then
         overrideFluxSetting = false
-    else 
+    else
         overrideFluxSetting = nil
     end
 
@@ -132,7 +135,7 @@ function fluxAdvance()
         overrideNewStateName = "TO ON"
     elseif overrideFluxSetting == false then
         overrideNewStateName = "TO OFF"
-    else 
+    else
         overrideNewStateName = "<nil>"
     end
 
@@ -140,4 +143,10 @@ function fluxAdvance()
 
     updateFluxiness()
 end
+
+-- Set up a timer to check flux status every 5 minutes (300 seconds)
+fluxTimer = hs.timer.doEvery(300, function()
+    updateFluxiness()
+end)
+updateFluxiness()
 
