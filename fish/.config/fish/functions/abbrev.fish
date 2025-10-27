@@ -43,6 +43,7 @@ function abbrev -d "Install fish abbreviations"
 
     # zellij
     abbr za "zellij attach --create"
+    abbr zc "zellij attach --create (basename (pwd))"
 
     # youtube-dl
     abbr y 'ytd "'
