@@ -685,12 +685,19 @@ def replace_tiddler(wiki_path, markdown_content, update_modified=True):
     tiddler_json = json.dumps(tiddler)
     insert_tiddler(wiki_path, tiddler_json)
 
-def append_tiddler(wiki_path, tiddler_title):
-    """Append text from stdin to a tiddler's text field"""
+def append_tiddler(wiki_path, tiddler_title, text_to_append=None):
+    """Append text to a tiddler's text field
+
+    Args:
+        wiki_path: Path to the wiki file
+        tiddler_title: Title of the tiddler to append to
+        text_to_append: Text to append (if None, read from stdin)
+    """
     import json
 
-    # Read from stdin
-    text_to_append = sys.stdin.read()
+    # Read from stdin if no text provided
+    if text_to_append is None:
+        text_to_append = sys.stdin.read()
 
     all_tiddlers = load_all_tiddlers(wiki_path)
 
@@ -1428,10 +1435,11 @@ def main():
         print("    Example: tw replace \"title: MyTitle\\ntext: content\"", file=sys.stderr)
         print("             tw cat MyTiddler | tw replace", file=sys.stderr)
         print("", file=sys.stderr)
-        print("  append <tiddler>", file=sys.stderr)
-        print("    Append stdin text to tiddler", file=sys.stderr)
-        print("    Example: echo \"More content\" | tw append \"My Tiddler\"", file=sys.stderr)
-        print("             tw append MyLog < update.txt", file=sys.stderr)
+        print("  append <tiddler> [text]", file=sys.stderr)
+        print("    Append text to tiddler (from args or stdin)", file=sys.stderr)
+        print("    Example: tw append \"My Tiddler\" \"More content\"", file=sys.stderr)
+        print("             tw append MyLog some text here", file=sys.stderr)
+        print("             echo \"More content\" | tw append \"My Tiddler\"", file=sys.stderr)
         print("", file=sys.stderr)
         print("  install_plugin", file=sys.stderr)
         print("    Install live reload plugin", file=sys.stderr)
@@ -1541,7 +1549,14 @@ def main():
             print("Error: append command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
         tiddler_title = sys.argv[arg_idx + 1]
-        append_tiddler(wiki_path, tiddler_title)
+        # Check if there are additional arguments for text to append
+        if arg_idx + 2 < len(sys.argv):
+            # Join all remaining arguments as the text
+            text_to_append = ' '.join(sys.argv[arg_idx + 2:])
+            append_tiddler(wiki_path, tiddler_title, text_to_append)
+        else:
+            # No text argument, will read from stdin
+            append_tiddler(wiki_path, tiddler_title)
     elif command == "install_plugin":
         install_live_reload_plugin(wiki_path)
     elif command == "serve":

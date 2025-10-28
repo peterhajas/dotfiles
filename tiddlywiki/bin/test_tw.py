@@ -2362,7 +2362,7 @@ class TestInstallPlugin(unittest.TestCase):
         self.assertEqual(plugin['type'], 'application/javascript')
         self.assertEqual(plugin['module-type'], 'startup')
         self.assertEqual(plugin['tags'], '$:/tags/StartupModule')
-        self.assertEqual(plugin['version'], '0.3.8')
+        self.assertEqual(plugin['version'], '0.8.1')
         self.assertIn('Live reload functionality', plugin['description'])
 
         # Check plugin code contains key functions
@@ -2896,15 +2896,17 @@ class TestWebDAVSupport(unittest.TestCase):
         self.assertIn('tiddler.fields.title &&', plugin_code,
             "Plugin should check if tiddler.fields.title exists")
 
-        # Should have cooldown mechanism
-        self.assertIn('SAVE_COOLDOWN', plugin_code,
-            "Plugin should have save cooldown mechanism")
-        self.assertIn('lastSaveTime', plugin_code,
-            "Plugin should track last save time")
+        # Should have version skip mechanism
+        self.assertIn('VERSION_SKIP_DURATION', plugin_code,
+            "Plugin should have version skip duration mechanism")
+        self.assertIn('savedVersions', plugin_code,
+            "Plugin should track saved versions")
+        self.assertIn('isSaving', plugin_code,
+            "Plugin should track saving state")
 
-        # Should skip reload during cooldown
-        self.assertIn('within save cooldown', plugin_code,
-            "Plugin should skip reload during cooldown period")
+        # Should skip reload for versions we just saved
+        self.assertIn('version we just saved', plugin_code,
+            "Plugin should skip reload for versions we just saved")
 
 
 class TestWikiPathArgument(unittest.TestCase):
@@ -3747,6 +3749,77 @@ class TestAppendTiddler(unittest.TestCase):
 
         self.assertIn('\u201c', tiddler['text'])
         self.assertIn('\u2713', tiddler['text'])
+
+    def test_append_with_command_line_text_single_word(self):
+        """Test appending text passed as command-line argument (single word)"""
+        # Pass text directly as parameter (no stdin)
+        tw_module.append_tiddler(self.test_wiki, "ExistingTiddler", "NewWord")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        expected = "Line 1\nLine 2\nNewWord"
+        self.assertEqual(tiddler['text'], expected)
+
+    def test_append_with_command_line_text_multiple_words(self):
+        """Test appending text passed as command-line argument (multiple words)"""
+        # Pass text directly as parameter (no stdin)
+        text_to_append = "This is multiple words"
+        tw_module.append_tiddler(self.test_wiki, "ExistingTiddler", text_to_append)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        expected = "Line 1\nLine 2\nThis is multiple words"
+        self.assertEqual(tiddler['text'], expected)
+
+    def test_append_with_command_line_text_empty_string(self):
+        """Test appending empty string passed as command-line argument"""
+        # Pass empty string directly as parameter
+        tw_module.append_tiddler(self.test_wiki, "ExistingTiddler", "")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        # Should append empty string (adds a newline)
+        expected = "Line 1\nLine 2\n"
+        self.assertEqual(tiddler['text'], expected)
+
+    def test_append_with_command_line_text_special_chars(self):
+        """Test appending text with special characters via command-line"""
+        # Pass text with special characters directly
+        special_text = "Special: <tag> and \"quotes\""
+        tw_module.append_tiddler(self.test_wiki, "ExistingTiddler", special_text)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        self.assertIn('<tag>', tiddler['text'])
+        self.assertIn('"quotes"', tiddler['text'])
+
+    def test_append_with_command_line_text_to_empty_tiddler(self):
+        """Test appending command-line text to tiddler with empty text field"""
+        tw_module.append_tiddler(self.test_wiki, "EmptyTextTiddler", "First line")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'EmptyTextTiddler')
+
+        self.assertEqual(tiddler['text'], "First line")
+
+    def test_append_backward_compatible_with_none(self):
+        """Test that passing None still reads from stdin (backward compatibility)"""
+        import io
+        import unittest.mock
+
+        f = io.StringIO("From stdin")
+        with unittest.mock.patch('sys.stdin', f):
+            tw_module.append_tiddler(self.test_wiki, "ExistingTiddler", None)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next(t for t in tiddlers if t['title'] == 'ExistingTiddler')
+
+        expected = "Line 1\nLine 2\nFrom stdin"
+        self.assertEqual(tiddler['text'], expected)
 
 
 class TestUnchangedContentPreservesTimestamp(unittest.TestCase):
