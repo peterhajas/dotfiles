@@ -8,6 +8,13 @@ gitsigns.setup {
         changedelete = { text = '|' },
         untracked    = { text = '|' },
     },
+    current_line_blame = false,
+    current_line_blame_opts = {
+        virt_text = true,
+        virt_text_pos = "right_align",
+    },
+    word_diff = false,
+    current_line_blame_formatter = '<abbrev_sha> <author> <author_time:%Y-%m-%d> <summary>',
 }
 
 -- Next and previous git hunks, unimpaired-style
