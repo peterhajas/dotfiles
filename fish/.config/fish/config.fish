@@ -12,7 +12,7 @@ set PATH /usr/local/bin $PATH;
 # Editor
 
 ## Set my editor to vim
-set -x EDITOR (which nvim)
+set -gx EDITOR (which nvim)
 
 # Abbreviations
 abbrev
