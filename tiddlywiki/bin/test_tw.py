@@ -4260,5 +4260,519 @@ class TestFieldOrderPreservation(unittest.TestCase):
                         "Second tiddler field order changed after inserting new tiddler")
 
 
+class TestTimestampBehavior(unittest.TestCase):
+    """Test that created and modified timestamps are properly managed across all commands"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        # Create test wiki with tiddlers that are missing created/modified fields
+        self.test_tiddlers = [
+            {"title": "TiddlerWithTimestamps", "text": "Has timestamps", "created": "20230101000000000", "modified": "20230101000000000"},
+            {"title": "TiddlerWithoutTimestamps", "text": "Missing timestamps"},
+            {"title": "TiddlerWithOnlyCreated", "text": "Has created only", "created": "20230101000000000"},
+        ]
+
+        # Create the HTML file
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def get_tiddler(self, title):
+        """Helper to get a tiddler by title"""
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        for t in tiddlers:
+            if t.get('title') == title:
+                return t
+        return None
+
+    def test_touch_creates_both_timestamps_on_new_tiddler(self):
+        """Test that touch creates both created and modified on new tiddler"""
+        tw_module.touch_tiddler(self.test_wiki, "NewTiddler", "Some text")
+        tiddler = self.get_tiddler("NewTiddler")
+
+        self.assertIsNotNone(tiddler)
+        self.assertIn('created', tiddler)
+        self.assertIn('modified', tiddler)
+        self.assertEqual(len(tiddler['created']), 17)
+        self.assertEqual(len(tiddler['modified']), 17)
+
+    def test_touch_ensures_created_exists_on_existing_tiddler(self):
+        """Test that touch adds created field if missing on existing tiddler"""
+        tw_module.touch_tiddler(self.test_wiki, "TiddlerWithoutTimestamps")
+        tiddler = self.get_tiddler("TiddlerWithoutTimestamps")
+
+        self.assertIsNotNone(tiddler)
+        self.assertIn('created', tiddler)
+        self.assertIn('modified', tiddler)
+
+    def test_touch_updates_modified_on_existing_tiddler(self):
+        """Test that touch updates modified timestamp on existing tiddler"""
+        original = self.get_tiddler("TiddlerWithTimestamps")
+        original_modified = original['modified']
+
+        import time
+        time.sleep(0.01)  # Small delay to ensure timestamp changes
+
+        tw_module.touch_tiddler(self.test_wiki, "TiddlerWithTimestamps")
+        updated = self.get_tiddler("TiddlerWithTimestamps")
+
+        self.assertNotEqual(updated['modified'], original_modified)
+        self.assertGreater(updated['modified'], original_modified)
+
+    def test_append_ensures_created_exists(self):
+        """Test that append adds created field if missing"""
+        tw_module.append_tiddler(self.test_wiki, "TiddlerWithoutTimestamps", "Appended text")
+        tiddler = self.get_tiddler("TiddlerWithoutTimestamps")
+
+        self.assertIsNotNone(tiddler)
+        self.assertIn('created', tiddler)
+        self.assertIn('modified', tiddler)
+
+    def test_append_updates_modified(self):
+        """Test that append updates modified timestamp"""
+        original = self.get_tiddler("TiddlerWithTimestamps")
+        original_modified = original['modified']
+
+        import time
+        time.sleep(0.01)
+
+        tw_module.append_tiddler(self.test_wiki, "TiddlerWithTimestamps", "More text")
+        updated = self.get_tiddler("TiddlerWithTimestamps")
+
+        self.assertNotEqual(updated['modified'], original_modified)
+        self.assertGreater(updated['modified'], original_modified)
+
+    def test_set_field_ensures_created_exists_on_new_tiddler(self):
+        """Test that set creates both timestamps on new tiddler"""
+        tw_module.set_tiddler_field(self.test_wiki, "NewTiddler", "tags", "test")
+        tiddler = self.get_tiddler("NewTiddler")
+
+        self.assertIsNotNone(tiddler)
+        self.assertIn('created', tiddler)
+        self.assertIn('modified', tiddler)
+
+    def test_set_field_ensures_created_exists_on_existing_tiddler(self):
+        """Test that set adds created field if missing when modifying existing tiddler"""
+        tw_module.set_tiddler_field(self.test_wiki, "TiddlerWithoutTimestamps", "tags", "test")
+        tiddler = self.get_tiddler("TiddlerWithoutTimestamps")
+
+        self.assertIsNotNone(tiddler)
+        self.assertIn('created', tiddler)
+        self.assertIn('modified', tiddler)
+
+    def test_set_field_updates_modified_when_value_changes(self):
+        """Test that set updates modified when field value changes"""
+        original = self.get_tiddler("TiddlerWithTimestamps")
+        original_modified = original['modified']
+
+        import time
+        time.sleep(0.01)
+
+        tw_module.set_tiddler_field(self.test_wiki, "TiddlerWithTimestamps", "tags", "newtag")
+        updated = self.get_tiddler("TiddlerWithTimestamps")
+
+        self.assertNotEqual(updated['modified'], original_modified)
+        self.assertGreater(updated['modified'], original_modified)
+
+    def test_set_field_does_not_update_modified_when_value_unchanged(self):
+        """Test that set doesn't update modified when field value is unchanged"""
+        # First set a value
+        tw_module.set_tiddler_field(self.test_wiki, "TiddlerWithTimestamps", "tags", "tag1")
+        after_first = self.get_tiddler("TiddlerWithTimestamps")
+        first_modified = after_first['modified']
+
+        import time
+        time.sleep(0.01)
+
+        # Set the same value again
+        tw_module.set_tiddler_field(self.test_wiki, "TiddlerWithTimestamps", "tags", "tag1")
+        after_second = self.get_tiddler("TiddlerWithTimestamps")
+
+        # Modified should not have changed
+        self.assertEqual(after_second['modified'], first_modified)
+
+    def test_insert_creates_timestamps_on_new_tiddler(self):
+        """Test that insert creates both timestamps on new tiddler"""
+        tiddler_json = json.dumps({"title": "InsertedTiddler", "text": "Inserted content"})
+        tw_module.insert_tiddler(self.test_wiki, tiddler_json)
+        tiddler = self.get_tiddler("InsertedTiddler")
+
+        self.assertIsNotNone(tiddler)
+        self.assertIn('created', tiddler)
+        self.assertIn('modified', tiddler)
+
+    def test_insert_preserves_user_provided_timestamps(self):
+        """Test that insert preserves user-provided timestamps"""
+        custom_created = "20200101120000000"
+        custom_modified = "20200202130000000"
+        tiddler_json = json.dumps({
+            "title": "CustomTimestamps",
+            "text": "Content",
+            "created": custom_created,
+            "modified": custom_modified
+        })
+        tw_module.insert_tiddler(self.test_wiki, tiddler_json)
+        tiddler = self.get_tiddler("CustomTimestamps")
+
+        self.assertEqual(tiddler['created'], custom_created)
+        self.assertEqual(tiddler['modified'], custom_modified)
+
+    def test_replace_ensures_created_exists(self):
+        """Test that replace adds created field if missing"""
+        content = "title: TiddlerWithoutTimestamps\ntext: Updated text"
+        tw_module.replace_tiddler(self.test_wiki, content, update_modified=True)
+        tiddler = self.get_tiddler("TiddlerWithoutTimestamps")
+
+        self.assertIsNotNone(tiddler)
+        self.assertIn('created', tiddler)
+        self.assertIn('modified', tiddler)
+
+    def test_replace_preserves_user_provided_timestamps(self):
+        """Test that replace preserves timestamps provided in the content"""
+        custom_created = "20200101120000000"
+        custom_modified = "20200202130000000"
+        content = f"title: PreservedTimestamps\ncreated: {custom_created}\nmodified: {custom_modified}\n\nContent here"
+        tw_module.replace_tiddler(self.test_wiki, content, update_modified=False)
+        tiddler = self.get_tiddler("PreservedTimestamps")
+
+        self.assertEqual(tiddler['created'], custom_created)
+        self.assertEqual(tiddler['modified'], custom_modified)
+
+    def test_edit_creates_timestamps_on_new_tiddler(self):
+        """Test that edit creates both timestamps on new tiddler"""
+        # Mock the editor to just save the file unchanged
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            # Use 'true' as the editor (does nothing, exits successfully)
+            os.environ['EDITOR'] = 'true'
+
+            tw_module.edit_tiddler(self.test_wiki, "EditedNewTiddler")
+            tiddler = self.get_tiddler("EditedNewTiddler")
+
+            self.assertIsNotNone(tiddler)
+            self.assertIn('created', tiddler)
+            self.assertIn('modified', tiddler)
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_no_changes_preserves_timestamps(self):
+        """Test that edit without changes doesn't update timestamps"""
+        # Get original timestamps
+        original = self.get_tiddler("TiddlerWithTimestamps")
+        original_created = original['created']
+        original_modified = original['modified']
+
+        import time
+        time.sleep(0.01)
+
+        # Mock the editor to just close without changes
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            # Use 'true' as the editor (does nothing, exits successfully)
+            os.environ['EDITOR'] = 'true'
+
+            tw_module.edit_tiddler(self.test_wiki, "TiddlerWithTimestamps")
+            updated = self.get_tiddler("TiddlerWithTimestamps")
+
+            # Timestamps should be unchanged
+            self.assertEqual(updated['created'], original_created)
+            self.assertEqual(updated['modified'], original_modified)
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_with_changes_updates_modified(self):
+        """Test that edit with changes updates modified timestamp"""
+        original = self.get_tiddler("TiddlerWithTimestamps")
+        original_created = original['created']
+        original_modified = original['modified']
+
+        import time
+        time.sleep(0.01)
+
+        # Mock the editor to modify the file
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            # Create a script that modifies the file
+            # Note: edit_tiddler excludes created/modified from the temp file (see lines 272-274),
+            # so the mock editor won't see those fields - it only sees title, other fields, and text
+            script_path = os.path.join(self.test_dir, 'mock_editor.sh')
+            with open(script_path, 'w') as f:
+                f.write('#!/bin/sh\n')
+                f.write('echo "title: TiddlerWithTimestamps" > "$1"\n')
+                f.write('echo "" >> "$1"\n')
+                f.write('echo "MODIFIED" >> "$1"\n')
+            os.chmod(script_path, 0o755)
+
+            os.environ['EDITOR'] = script_path
+
+            tw_module.edit_tiddler(self.test_wiki, "TiddlerWithTimestamps")
+            updated = self.get_tiddler("TiddlerWithTimestamps")
+
+            # Created should be unchanged, modified should be updated
+            self.assertEqual(updated['created'], original_created)
+            self.assertNotEqual(updated['modified'], original_modified)
+            self.assertGreater(updated['modified'], original_modified)
+            self.assertEqual(updated['text'], "MODIFIED")
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_existing_tiddler_without_timestamps_no_changes(self):
+        """Test that edit creates timestamps on existing tiddler missing them (no changes)"""
+        # Verify the tiddler exists but has no timestamps
+        original = self.get_tiddler("TiddlerWithoutTimestamps")
+        self.assertIsNotNone(original)
+        self.assertNotIn('created', original)
+        self.assertNotIn('modified', original)
+
+        # Mock the editor to just close without changes
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            os.environ['EDITOR'] = 'true'
+
+            tw_module.edit_tiddler(self.test_wiki, "TiddlerWithoutTimestamps")
+            updated = self.get_tiddler("TiddlerWithoutTimestamps")
+
+            # Timestamps should now exist
+            self.assertIn('created', updated)
+            self.assertIn('modified', updated)
+            self.assertEqual(len(updated['created']), 17)
+            self.assertEqual(len(updated['modified']), 17)
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_existing_tiddler_without_timestamps_with_changes(self):
+        """Test that edit creates timestamps on existing tiddler missing them (with changes)"""
+        # Verify the tiddler exists but has no timestamps
+        original = self.get_tiddler("TiddlerWithoutTimestamps")
+        self.assertIsNotNone(original)
+        self.assertNotIn('created', original)
+        self.assertNotIn('modified', original)
+
+        import time
+        time.sleep(0.01)
+
+        # Mock the editor to modify the file
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            script_path = os.path.join(self.test_dir, 'mock_editor.sh')
+            with open(script_path, 'w') as f:
+                f.write('#!/bin/sh\n')
+                f.write('echo "title: TiddlerWithoutTimestamps" > "$1"\n')
+                f.write('echo "" >> "$1"\n')
+                f.write('echo "MODIFIED CONTENT" >> "$1"\n')
+            os.chmod(script_path, 0o755)
+
+            os.environ['EDITOR'] = script_path
+
+            tw_module.edit_tiddler(self.test_wiki, "TiddlerWithoutTimestamps")
+            updated = self.get_tiddler("TiddlerWithoutTimestamps")
+
+            # Timestamps should now exist
+            self.assertIn('created', updated)
+            self.assertIn('modified', updated)
+            self.assertEqual(updated['text'], "MODIFIED CONTENT")
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_existing_tiddler_with_only_created(self):
+        """Test that edit preserves created and adds modified on tiddler with only created"""
+        # Verify the tiddler has only created
+        original = self.get_tiddler("TiddlerWithOnlyCreated")
+        self.assertIsNotNone(original)
+        self.assertIn('created', original)
+        self.assertNotIn('modified', original)
+        original_created = original['created']
+
+        # Mock the editor to just close without changes
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            os.environ['EDITOR'] = 'true'
+
+            tw_module.edit_tiddler(self.test_wiki, "TiddlerWithOnlyCreated")
+            updated = self.get_tiddler("TiddlerWithOnlyCreated")
+
+            # Created should be preserved, modified should be added
+            self.assertEqual(updated['created'], original_created)
+            self.assertIn('modified', updated)
+            self.assertEqual(len(updated['modified']), 17)
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_new_tiddler_with_content(self):
+        """Test that creating a brand new tiddler via edit with content adds timestamps"""
+        # Mock the editor to add content
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            script_path = os.path.join(self.test_dir, 'mock_editor.sh')
+            with open(script_path, 'w') as f:
+                f.write('#!/bin/sh\n')
+                f.write('echo "title: BrandNewTiddler" > "$1"\n')
+                f.write('echo "" >> "$1"\n')
+                f.write('echo "This is new content" >> "$1"\n')
+            os.chmod(script_path, 0o755)
+
+            os.environ['EDITOR'] = script_path
+
+            tw_module.edit_tiddler(self.test_wiki, "BrandNewTiddler")
+            tiddler = self.get_tiddler("BrandNewTiddler")
+
+            # Tiddler should exist with timestamps
+            self.assertIsNotNone(tiddler)
+            self.assertIn('created', tiddler)
+            self.assertIn('modified', tiddler)
+            self.assertEqual(tiddler['text'], "This is new content")
+            self.assertEqual(len(tiddler['created']), 17)
+            self.assertEqual(len(tiddler['modified']), 17)
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_existing_no_timestamps_realistic_editor(self):
+        """Test realistic editing scenario: existing tiddler without timestamps, user adds text"""
+        # This test simulates a real user workflow more closely
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            # Create a script that simulates a user editing:
+            # 1. Reads what's in the file (title and text)
+            # 2. Adds a new line to the text
+            # This is what a real editor would do
+            script_path = os.path.join(self.test_dir, 'realistic_editor.sh')
+            with open(script_path, 'w') as f:
+                f.write('#!/bin/sh\n')
+                # Read existing content, append a line
+                f.write('echo "" >> "$1"\n')
+                f.write('echo "User added this line" >> "$1"\n')
+            os.chmod(script_path, 0o755)
+
+            os.environ['EDITOR'] = script_path
+
+            # Edit the tiddler without timestamps
+            tw_module.edit_tiddler(self.test_wiki, "TiddlerWithoutTimestamps")
+            updated = self.get_tiddler("TiddlerWithoutTimestamps")
+
+            # Verify timestamps were added
+            self.assertIsNotNone(updated)
+            self.assertIn('created', updated)
+            self.assertIn('modified', updated)
+            self.assertIn('User added this line', updated['text'])
+            self.assertEqual(len(updated['created']), 17)
+            self.assertEqual(len(updated['modified']), 17)
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+    def test_edit_existing_with_tags_no_timestamps(self):
+        """Test editing existing tiddler with other fields but no timestamps"""
+        import json
+
+        # Manually create a tiddler with tags but no timestamps
+        tiddler_json = json.dumps({
+            "title": "TiddlerWithTagsNoTS",
+            "text": "Content",
+            "tags": "tag1 tag2"
+        })
+
+        # Insert it directly (this will add timestamps via insert_tiddler)
+        # So we need to manually create it without timestamps
+        import sys
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+
+        # Read the wiki, add tiddler without timestamps manually
+        with open(self.test_wiki, 'r') as f:
+            content = f.read()
+
+        import re
+        pattern = r'<script class="tiddlywiki-tiddler-store" type="application/json">(.*?)</script>'
+        match = re.search(pattern, content, re.DOTALL)
+        if match:
+            tiddlers = json.loads(match.group(1).strip(), strict=False)
+            tiddlers.append({
+                "title": "TiddlerWithTagsNoTS",
+                "text": "Content",
+                "tags": "tag1 tag2"
+            })
+            new_json = json.dumps(tiddlers, ensure_ascii=False, separators=(',', ':'))
+            new_json = new_json.replace('<', '\\u003C')
+            new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+            new_content = content[:match.start()] + new_store + content[match.end():]
+            with open(self.test_wiki, 'w') as f:
+                f.write(new_content)
+
+        # Verify it has no timestamps
+        original = self.get_tiddler("TiddlerWithTagsNoTS")
+        self.assertIsNotNone(original)
+        self.assertNotIn('created', original)
+        self.assertNotIn('modified', original)
+        self.assertIn('tags', original)
+
+        # Edit with changes
+        original_env_editor = os.environ.get('EDITOR')
+        try:
+            script_path = os.path.join(self.test_dir, 'mock_editor.sh')
+            with open(script_path, 'w') as f:
+                f.write('#!/bin/sh\n')
+                f.write('# Append to file\n')
+                f.write('echo "" >> "$1"\n')
+                f.write('echo "Added content" >> "$1"\n')
+            os.chmod(script_path, 0o755)
+
+            os.environ['EDITOR'] = script_path
+
+            tw_module.edit_tiddler(self.test_wiki, "TiddlerWithTagsNoTS")
+            updated = self.get_tiddler("TiddlerWithTagsNoTS")
+
+            # Verify timestamps were added
+            self.assertIsNotNone(updated)
+            self.assertIn('created', updated)
+            self.assertIn('modified', updated)
+            self.assertIn('tags', updated)  # Original field preserved
+            self.assertIn('Added content', updated['text'])
+        finally:
+            if original_env_editor is not None:
+                os.environ['EDITOR'] = original_env_editor
+            elif 'EDITOR' in os.environ:
+                del os.environ['EDITOR']
+
+
 if __name__ == '__main__':
     unittest.main()

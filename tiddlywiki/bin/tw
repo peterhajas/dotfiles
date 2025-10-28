@@ -332,26 +332,30 @@ def edit_tiddler(wiki_path, tiddler_title):
         # For new tiddlers, always update modified. For existing tiddlers, only update if changed.
         should_update_modified = is_new_tiddler or content_changed
 
-        # If content didn't change, preserve the original timestamps
-        if not content_changed and not is_new_tiddler:
-            # Add the original timestamps back to the edited content
-            # This ensures they're preserved when content is unchanged
-            edited_content_lines = edited_content.split('\n')
-            # Find where to insert timestamps (before the empty line or text)
-            insert_pos = 0
-            for i, line in enumerate(edited_content_lines):
-                if line.strip() == '':
-                    insert_pos = i
-                    break
+        # Ensure timestamps exist for both new and existing tiddlers
+        if 'created' not in tiddler:
+            tiddler['created'] = get_tiddlywiki_timestamp()
+        if 'modified' not in tiddler:
+            tiddler['modified'] = get_tiddlywiki_timestamp()
 
-            # Reconstruct content with original timestamps
-            new_lines = edited_content_lines[:insert_pos]
-            if 'created' in tiddler:
-                new_lines.insert(insert_pos, f"created: {tiddler['created']}")
-            if 'modified' in tiddler:
-                new_lines.insert(insert_pos + 1 if 'created' in tiddler else insert_pos, f"modified: {tiddler['modified']}")
-            new_lines.extend(edited_content_lines[insert_pos:])
-            edited_content = '\n'.join(new_lines)
+        # Add timestamps to edited_content before saving
+        edited_content_lines = edited_content.split('\n')
+        # Find where to insert timestamps (before the empty line or text)
+        insert_pos = 0
+        for i, line in enumerate(edited_content_lines):
+            if line.strip() == '':
+                insert_pos = i
+                break
+
+        # Reconstruct content with timestamps
+        new_lines = edited_content_lines[:insert_pos]
+        # Always add created timestamp
+        new_lines.insert(insert_pos, f"created: {tiddler['created']}")
+        # Only add modified if content didn't change (otherwise replace_tiddler will update it)
+        if not content_changed:
+            new_lines.insert(insert_pos + 1, f"modified: {tiddler['modified']}")
+        new_lines.extend(edited_content_lines[insert_pos:])
+        edited_content = '\n'.join(new_lines)
 
         # Use replace_tiddler to save the changes
         replace_tiddler(wiki_path, edited_content, update_modified=should_update_modified)
@@ -370,6 +374,28 @@ def get_tiddlywiki_timestamp():
     now = datetime.now(timezone.utc)
     # Format: YYYYMMDDhhmmssxxx where xxx is milliseconds
     timestamp = now.strftime('%Y%m%d%H%M%S') + f'{now.microsecond // 1000:03d}'
+    return timestamp
+
+def ensure_timestamps(tiddler, is_modification=True):
+    """Ensure a tiddler has created and modified timestamps.
+
+    Args:
+        tiddler: The tiddler dict to update
+        is_modification: If True, update modified timestamp. If False, only ensure created exists.
+
+    Returns:
+        The timestamp used (for consistency across the tiddler)
+    """
+    timestamp = get_tiddlywiki_timestamp()
+
+    # Always ensure created exists
+    if 'created' not in tiddler:
+        tiddler['created'] = timestamp
+
+    # Update modified if this is a modification
+    if is_modification:
+        tiddler['modified'] = timestamp
+
     return timestamp
 
 def get_tiddler_field(wiki_path, tiddler_title, field_name):
@@ -439,15 +465,13 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
         if found_tiddler:
             break
 
-    timestamp = get_tiddlywiki_timestamp()
-
+    is_new_tiddler = False
     if not found_tiddler:
         # Create new tiddler if it doesn't exist
         found_tiddler = {
-            "title": tiddler_title,
-            "created": timestamp,
-            "modified": timestamp
+            "title": tiddler_title
         }
+        is_new_tiddler = True
         # Add to the first store
         stores[0]['tiddlers'].append(found_tiddler)
         print(f"Created tiddler: {tiddler_title}")
@@ -459,11 +483,14 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
     # Set the field value
     found_tiddler[field_name] = field_value
 
-    # Update modified timestamp only if:
-    # 1. The field changed, AND
-    # 2. We're not setting modified directly
-    if field_changed and field_name != 'modified':
-        found_tiddler['modified'] = timestamp
+    # Update timestamps if:
+    # 1. This is a new tiddler, OR
+    # 2. The field changed AND we're not setting timestamps directly
+    if is_new_tiddler or (field_changed and field_name not in ('modified', 'created')):
+        ensure_timestamps(found_tiddler, is_modification=True)
+    elif not is_new_tiddler:
+        # For existing tiddlers, ensure created exists even if nothing changed
+        ensure_timestamps(found_tiddler, is_modification=False)
 
     # Build replacements for all stores
     replacements = []
@@ -501,8 +528,6 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
         print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
         sys.exit(1)
 
-    timestamp = get_tiddlywiki_timestamp()
-
     # Check if tiddler already exists
     existing_tiddler = None
     for store in stores:
@@ -514,8 +539,8 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
             break
 
     if existing_tiddler:
-        # Update existing tiddler's modified timestamp
-        existing_tiddler['modified'] = timestamp
+        # Update existing tiddler's modified timestamp and ensure created exists
+        ensure_timestamps(existing_tiddler, is_modification=True)
         if text:
             existing_tiddler['text'] = text
         print(f"Updated tiddler: {tiddler_title}")
@@ -523,10 +548,9 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
         # Create new tiddler
         new_tiddler = {
             "title": tiddler_title,
-            "created": timestamp,
-            "modified": timestamp,
             "text": text
         }
+        ensure_timestamps(new_tiddler, is_modification=True)
 
         # Add to the first store
         stores[0]['tiddlers'].append(new_tiddler)
@@ -667,19 +691,19 @@ def replace_tiddler(wiki_path, markdown_content, update_modified=True):
         print("Error: Tiddler must have a 'title' field", file=sys.stderr)
         sys.exit(1)
 
-    # Add timestamps if missing
-    timestamp = get_tiddlywiki_timestamp()
-
+    # Ensure created timestamp exists
     if 'created' not in tiddler:
-        tiddler['created'] = timestamp
+        tiddler['created'] = get_tiddlywiki_timestamp()
 
+    # Handle modified timestamp
     if 'modified' not in tiddler:
-        tiddler['modified'] = timestamp
+        # No modified field provided - add one
+        tiddler['modified'] = get_tiddlywiki_timestamp()
     elif update_modified and not user_provided_modified:
         # Update modified timestamp only if:
         # 1. update_modified=True (requested), AND
-        # 2. The user didn't explicitly provide the modified field
-        tiddler['modified'] = timestamp
+        # 2. The user didn't explicitly provide the modified field in the input
+        tiddler['modified'] = get_tiddlywiki_timestamp()
 
     # Use insert_tiddler to do the actual insertion
     tiddler_json = json.dumps(tiddler)
@@ -720,9 +744,8 @@ def append_tiddler(wiki_path, tiddler_title, text_to_append=None):
     else:
         tiddler['text'] = text_to_append
 
-    # Update modified timestamp
-    timestamp = get_tiddlywiki_timestamp()
-    tiddler['modified'] = timestamp
+    # Update modified timestamp and ensure created exists
+    ensure_timestamps(tiddler, is_modification=True)
 
     # Use insert_tiddler to save (it handles the full update)
     tiddler_json = json.dumps(tiddler)
@@ -744,14 +767,12 @@ def insert_tiddler(wiki_path, tiddler_json):
         print("Error: Tiddler JSON must have a 'title' field", file=sys.stderr)
         sys.exit(1)
 
-    # Add timestamps if missing
-    timestamp = get_tiddlywiki_timestamp()
-
+    # Ensure timestamps exist - always ensure created, and add modified only if missing
+    # This preserves user-provided timestamps in the JSON
     if 'created' not in new_tiddler:
-        new_tiddler['created'] = timestamp
-
+        new_tiddler['created'] = get_tiddlywiki_timestamp()
     if 'modified' not in new_tiddler:
-        new_tiddler['modified'] = timestamp
+        new_tiddler['modified'] = get_tiddlywiki_timestamp()
 
     tiddler_title = new_tiddler['title']
 
