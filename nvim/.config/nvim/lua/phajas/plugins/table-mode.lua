@@ -1,6 +1,6 @@
-vim.api.nvim_create_autocmd({"BufEnter"}, {
+vim.api.nvim_create_autocmd({"FileType"}, {
     group = vim.api.nvim_create_augroup("phajas-markdown-tables", { clear = true }),
-    pattern = {"*.md"},
+    pattern = {"markdown"},
     callback = function()
         -- Switch to md corners
         vim.api.nvim_exec2("let g:table_mode_corner='|'", {})
