@@ -1989,6 +1989,234 @@ class TestServeCommand(unittest.TestCase):
         finally:
             pass
 
+    def test_serve_canonical_uri_text_file(self):
+        """Test that serve_wiki can serve external files for _canonical_uri"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20004
+
+        # Create a test file in a subdirectory
+        files_dir = os.path.join(os.path.dirname(self.test_wiki), 'files')
+        os.makedirs(files_dir, exist_ok=True)
+        test_file = os.path.join(files_dir, 'test.txt')
+        with open(test_file, 'w', encoding='utf-8') as f:
+            f.write('Test content for canonical URI')
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Request the file
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/files/test.txt', timeout=2)
+            content = response.read().decode('utf-8')
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(content, 'Test content for canonical URI')
+            self.assertEqual(response.headers.get('Content-Type'), 'text/plain')
+        finally:
+            pass
+
+    def test_serve_canonical_uri_html_file(self):
+        """Test that HTML files are served with correct MIME type"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20005
+
+        # Create an HTML file
+        files_dir = os.path.join(os.path.dirname(self.test_wiki), 'files')
+        os.makedirs(files_dir, exist_ok=True)
+        test_file = os.path.join(files_dir, 'test.html')
+        with open(test_file, 'w', encoding='utf-8') as f:
+            f.write('<h1>Test HTML</h1>')
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/files/test.html', timeout=2)
+            content = response.read().decode('utf-8')
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(content, '<h1>Test HTML</h1>')
+            self.assertEqual(response.headers.get('Content-Type'), 'text/html')
+        finally:
+            pass
+
+    def test_serve_canonical_uri_cors_headers(self):
+        """Test that CORS headers are included for external files"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20006
+
+        # Create a test file
+        files_dir = os.path.join(os.path.dirname(self.test_wiki), 'assets')
+        os.makedirs(files_dir, exist_ok=True)
+        test_file = os.path.join(files_dir, 'data.json')
+        with open(test_file, 'w', encoding='utf-8') as f:
+            f.write('{"test": "data"}')
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/assets/data.json', timeout=2)
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(response.headers.get('Access-Control-Allow-Origin'), '*')
+            self.assertEqual(response.headers.get('Content-Type'), 'application/json')
+        finally:
+            pass
+
+    def test_serve_canonical_uri_nonexistent_file(self):
+        """Test that nonexistent files return 404"""
+        import threading
+        import time
+        import urllib.request
+        import urllib.error
+
+        test_port = 20007
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            with self.assertRaises(urllib.error.HTTPError) as context:
+                urllib.request.urlopen(f'http://localhost:{test_port}/files/nonexistent.txt', timeout=2)
+
+            self.assertEqual(context.exception.code, 404)
+        finally:
+            pass
+
+    def test_serve_canonical_uri_directory_traversal_blocked(self):
+        """Test that directory traversal attempts are blocked"""
+        import threading
+        import time
+        import urllib.request
+        import urllib.error
+
+        test_port = 20008
+
+        # Create a file outside the wiki directory
+        secret_file = os.path.join(os.path.dirname(self.test_dir), 'secret.txt')
+        with open(secret_file, 'w', encoding='utf-8') as f:
+            f.write('SECRET DATA')
+
+        try:
+            server_thread = threading.Thread(
+                target=tw_module.serve_wiki,
+                args=(self.test_wiki, 'localhost', test_port),
+                daemon=True
+            )
+            server_thread.start()
+
+            time.sleep(0.2)
+
+            # Try directory traversal with encoded path
+            with self.assertRaises(urllib.error.HTTPError) as context:
+                urllib.request.urlopen(f'http://localhost:{test_port}/../secret.txt', timeout=2)
+
+            # Should be 403 (Forbidden) or 404 (Not Found)
+            self.assertIn(context.exception.code, [403, 404])
+        finally:
+            # Clean up
+            if os.path.exists(secret_file):
+                os.remove(secret_file)
+
+    def test_serve_canonical_uri_url_encoded_path(self):
+        """Test that URL-encoded paths work correctly"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20009
+
+        # Create a file with space in directory name
+        files_dir = os.path.join(os.path.dirname(self.test_wiki), 'my files')
+        os.makedirs(files_dir, exist_ok=True)
+        test_file = os.path.join(files_dir, 'doc.txt')
+        with open(test_file, 'w', encoding='utf-8') as f:
+            f.write('Document content')
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Request with URL-encoded space
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/my%20files/doc.txt', timeout=2)
+            content = response.read().decode('utf-8')
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(content, 'Document content')
+        finally:
+            pass
+
+    def test_serve_canonical_uri_directory_listing_blocked(self):
+        """Test that directory listing is prevented"""
+        import threading
+        import time
+        import urllib.request
+        import urllib.error
+
+        test_port = 20010
+
+        # Create a directory with files
+        files_dir = os.path.join(os.path.dirname(self.test_wiki), 'files')
+        os.makedirs(files_dir, exist_ok=True)
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port),
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Try to list directory
+            with self.assertRaises(urllib.error.HTTPError) as context:
+                urllib.request.urlopen(f'http://localhost:{test_port}/files/', timeout=2)
+
+            self.assertEqual(context.exception.code, 404)
+        finally:
+            pass
+
 class TestLiveReloadEndpoints(unittest.TestCase):
     """Test the live reload endpoints added for Phase 1"""
 
