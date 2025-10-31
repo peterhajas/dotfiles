@@ -2217,6 +2217,194 @@ class TestServeCommand(unittest.TestCase):
         finally:
             pass
 
+    def test_serve_readonly_mode_rejects_put(self):
+        """Test that readonly mode rejects PUT requests with 403"""
+        import threading
+        import time
+        import urllib.request
+        import urllib.error
+
+        test_port = 20011
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port, True),  # readonly=True
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # Try to save (PUT request)
+            test_html = b'<!DOCTYPE html><html><head></head><body>Modified</body></html>'
+            req = urllib.request.Request(
+                f'http://localhost:{test_port}/',
+                data=test_html,
+                method='PUT'
+            )
+
+            with self.assertRaises(urllib.error.HTTPError) as context:
+                urllib.request.urlopen(req, timeout=2)
+
+            # Should return 403 Forbidden
+            self.assertEqual(context.exception.code, 403)
+            self.assertIn('readonly', context.exception.reason.lower())
+        finally:
+            pass
+
+    def test_serve_readonly_mode_allows_get(self):
+        """Test that readonly mode still allows GET requests"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20012
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port, True),  # readonly=True
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # GET request should work
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
+            content = response.read().decode('utf-8')
+
+            self.assertEqual(response.status, 200)
+            self.assertIn('Test Wiki', content)
+        finally:
+            pass
+
+    def test_serve_readonly_mode_allows_version_endpoint(self):
+        """Test that readonly mode allows version endpoint access"""
+        import threading
+        import time
+        import urllib.request
+        import json
+
+        test_port = 20013
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port, True),  # readonly=True
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/version', timeout=2)
+            data = json.loads(response.read().decode('utf-8'))
+
+            self.assertEqual(response.status, 200)
+            self.assertIn('version', data)
+            self.assertIn('mtime', data)
+        finally:
+            pass
+
+    def test_serve_readonly_mode_allows_tiddlers_endpoint(self):
+        """Test that readonly mode allows tiddlers endpoint access"""
+        import threading
+        import time
+        import urllib.request
+        import json
+
+        test_port = 20014
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port, True),  # readonly=True
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/_tw/tiddlers', timeout=2)
+            data = json.loads(response.read().decode('utf-8'))
+
+            self.assertEqual(response.status, 200)
+            self.assertIn('tiddlers', data)
+            self.assertIn('version', data)
+        finally:
+            pass
+
+    def test_serve_readonly_false_allows_put(self):
+        """Test that non-readonly mode (default) allows PUT requests"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20015
+
+        # Create a valid wiki HTML for PUT request
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            original_content = f.read()
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port, False),  # readonly=False
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            # PUT request should work in non-readonly mode
+            test_html = original_content.encode('utf-8')
+            req = urllib.request.Request(
+                f'http://localhost:{test_port}/',
+                data=test_html,
+                method='PUT'
+            )
+
+            response = urllib.request.urlopen(req, timeout=2)
+            # 204 No Content is standard for successful WebDAV PUT
+            self.assertEqual(response.status, 204)
+        finally:
+            pass
+
+    def test_serve_readonly_mode_allows_file_serving(self):
+        """Test that readonly mode allows serving external files (_canonical_uri)"""
+        import threading
+        import time
+        import urllib.request
+
+        test_port = 20016
+
+        # Create a test file
+        files_dir = os.path.join(os.path.dirname(self.test_wiki), 'files')
+        os.makedirs(files_dir, exist_ok=True)
+        test_file = os.path.join(files_dir, 'readonly_test.txt')
+        with open(test_file, 'w', encoding='utf-8') as f:
+            f.write('Readonly mode file test')
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_wiki,
+            args=(self.test_wiki, 'localhost', test_port, True),  # readonly=True
+            daemon=True
+        )
+        server_thread.start()
+
+        time.sleep(0.2)
+
+        try:
+            response = urllib.request.urlopen(f'http://localhost:{test_port}/files/readonly_test.txt', timeout=2)
+            content = response.read().decode('utf-8')
+
+            self.assertEqual(response.status, 200)
+            self.assertEqual(content, 'Readonly mode file test')
+        finally:
+            pass
+
 class TestLiveReloadEndpoints(unittest.TestCase):
     """Test the live reload endpoints added for Phase 1"""
 

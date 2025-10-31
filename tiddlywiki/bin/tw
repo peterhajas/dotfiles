@@ -1180,8 +1180,15 @@ def init_wiki(dest_path):
 
     print(f"Created wiki: {dest_path}")
 
-def serve_wiki(wiki_path, host='localhost', port=8080):
-    """Serve the TiddlyWiki file locally using Python's built-in HTTP server"""
+def serve_wiki(wiki_path, host='localhost', port=8080, readonly=False):
+    """Serve the TiddlyWiki file locally using Python's built-in HTTP server
+
+    Args:
+        wiki_path: Path to the wiki HTML file
+        host: Host to bind to (default: localhost)
+        port: Port to bind to (default: 8080)
+        readonly: If True, disable saving via PUT requests (default: False)
+    """
     from http.server import HTTPServer, BaseHTTPRequestHandler
     import threading
     import time
@@ -1236,6 +1243,12 @@ def serve_wiki(wiki_path, host='localhost', port=8080):
 
         def do_PUT(self):
             """Handle PUT requests to save the wiki file"""
+            # Reject all save attempts in readonly mode
+            if readonly:
+                self.send_error(403, 'Server is in readonly mode')
+                print(f"[WebDAV PUT] Rejected save attempt (readonly mode)", file=sys.stderr)
+                return
+
             try:
                 # Read the incoming HTML from request body
                 content_length = int(self.headers.get('Content-Length', 0))
@@ -1452,8 +1465,13 @@ def serve_wiki(wiki_path, host='localhost', port=8080):
 
     try:
         server = HTTPServer((host, port), WikiHandler)
-        print(f"Serving TiddlyWiki at http://{host}:{port}")
+        if readonly:
+            print(f"Serving TiddlyWiki at http://{host}:{port} (READONLY MODE)")
+        else:
+            print(f"Serving TiddlyWiki at http://{host}:{port}")
         print(f"Wiki file: {wiki_path}")
+        if readonly:
+            print("Mode: READONLY - save attempts will be rejected")
         print("Press Ctrl+C to stop the server")
         server.serve_forever()
     except KeyboardInterrupt:
@@ -1536,11 +1554,13 @@ def main():
         print("    Install live reload plugin", file=sys.stderr)
         print("    Example: tw install_plugin", file=sys.stderr)
         print("", file=sys.stderr)
-        print("  serve [--host HOST] [--port PORT]", file=sys.stderr)
+        print("  serve [--host HOST] [--port PORT] [--readonly]", file=sys.stderr)
         print("    Serve wiki locally (default: localhost:8080)", file=sys.stderr)
+        print("    --readonly: Disable saving (read-only mode)", file=sys.stderr)
         print("    Example: tw serve", file=sys.stderr)
         print("             tw serve --port 3000", file=sys.stderr)
         print("             tw serve --host 0.0.0.0 --port 8000", file=sys.stderr)
+        print("             tw serve --readonly", file=sys.stderr)
         sys.exit(1)
 
     # Parse arguments: check if first arg is a wiki path or a command
@@ -1651,9 +1671,10 @@ def main():
     elif command == "install_plugin":
         install_live_reload_plugin(wiki_path)
     elif command == "serve":
-        # Parse optional --host and --port arguments
+        # Parse optional --host, --port, and --readonly arguments
         host = 'localhost'
         port = 8080
+        readonly = False
 
         i = arg_idx + 1
         while i < len(sys.argv):
@@ -1667,12 +1688,15 @@ def main():
                     print(f"Error: Invalid port number '{sys.argv[i + 1]}'", file=sys.stderr)
                     sys.exit(1)
                 i += 2
+            elif sys.argv[i] == '--readonly':
+                readonly = True
+                i += 1
             else:
                 print(f"Error: Unknown argument '{sys.argv[i]}'", file=sys.stderr)
-                print("Usage: tw [<wiki_path>] serve [--host HOST] [--port PORT]", file=sys.stderr)
+                print("Usage: tw [<wiki_path>] serve [--host HOST] [--port PORT] [--readonly]", file=sys.stderr)
                 sys.exit(1)
 
-        serve_wiki(wiki_path, host, port)
+        serve_wiki(wiki_path, host, port, readonly)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)
