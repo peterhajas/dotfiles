@@ -1,21 +1,30 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(echo $?)",
-      "Bash(git branch:*)",
-      "Bash(git diff:*)",
-      "Bash(git log:*)",
-      "Bash(git show:*)",
-      "Bash(git status)",
-      "Bash(ls:*)",
-      "Bash(pwd)",
-      "Bash(which:*)",
-      "WebSearch"
-    ],
-    "ask": [
-      "Bash(git commit:*)",
-      "Bash(git push:*)",
-      "Bash(rm:*)"
-    ]
-  }
+    "includeCoAuthoredBy": false,
+    "permissions": {
+        "allow": [
+            "Bash(ansible-playbook:*)",
+            "Bash(curl:*)",
+            "Bash(echo $?)",
+            "Bash(find:*)",
+            "Bash(git branch:*)",
+            "Bash(git diff:*)",
+            "Bash(git log:*)",
+            "Bash(git show:*)",
+            "Bash(git status)",
+            "Bash(grep:*)",
+            "Bash(ls:*)",
+            "Bash(mkdir:*)",
+            "Bash(pwd)",
+            "Bash(python3:*)",
+            "Bash(ssh:*)",
+            "Bash(which:*)",
+            "WebSearch"
+        ],
+        "ask": [
+            "Bash(git checkout:*)",
+            "Bash(git commit:*)",
+            "Bash(git push:*)",
+            "Bash(rm:*)"
+        ]
+    }
 }
