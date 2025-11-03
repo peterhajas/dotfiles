@@ -1013,6 +1013,155 @@ class TestJsonCommand(unittest.TestCase):
         parsed = json.loads(output)
         self.assertIn('\u201c', parsed['text'])
 
+    def test_json_multiple_tiddlers_returns_array(self):
+        """Test that json command with multiple tiddlers returns a JSON array"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler", "MinimalTiddler")
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # Should be an array with 2 elements
+        self.assertIsInstance(parsed, list)
+        self.assertEqual(len(parsed), 2)
+
+        # Check each tiddler
+        self.assertEqual(parsed[0]['title'], 'TestTiddler')
+        self.assertEqual(parsed[1]['title'], 'MinimalTiddler')
+
+    def test_json_single_tiddler_returns_object(self):
+        """Test that json command with one tiddler returns a JSON object (not array)"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler")
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # Should be an object (dict), not an array
+        self.assertIsInstance(parsed, dict)
+        self.assertEqual(parsed['title'], 'TestTiddler')
+
+    def test_json_multiple_tiddlers_preserves_order(self):
+        """Test that json command outputs tiddlers in the order requested"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "MinimalTiddler", "TestTiddler")
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # Should be in requested order
+        self.assertEqual(parsed[0]['title'], 'MinimalTiddler')
+        self.assertEqual(parsed[1]['title'], 'TestTiddler')
+
+    def test_json_multiple_tiddlers_one_not_found(self):
+        """Test that json command exits with error if any tiddler is not found"""
+        with self.assertRaises(SystemExit):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler", "NonExistent")
+
+    def test_json_multiple_tiddlers_all_fields(self):
+        """Test that json command with multiple tiddlers includes all fields for each"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler", "MinimalTiddler")
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # First tiddler should have all its fields
+        self.assertEqual(parsed[0]['title'], 'TestTiddler')
+        self.assertEqual(parsed[0]['text'], 'Test content with "quotes" and <angles>')
+        self.assertEqual(parsed[0]['tags'], 'tag1 tag2')
+
+        # Second tiddler should have its fields
+        self.assertEqual(parsed[1]['title'], 'MinimalTiddler')
+        self.assertEqual(parsed[1]['text'], 'Minimal')
+
+    def test_json_array_output_is_formatted(self):
+        """Test that json command outputs formatted JSON array with indentation"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler", "MinimalTiddler")
+
+        output = f.getvalue()
+
+        # Should have newlines and indentation
+        self.assertIn('\n', output)
+        self.assertIn('  ', output)  # 2-space indent
+        # Should start with [ and end with ]
+        self.assertTrue(output.strip().startswith('['))
+        self.assertTrue(output.strip().endswith(']'))
+
+    def test_json_roundtrip_single_tiddler(self):
+        """Test that json output can be inserted back via insert command"""
+        import io
+        import contextlib
+
+        # Get JSON output
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler")
+
+        json_output = f.getvalue()
+
+        # Remove the tiddler
+        tw_module.remove_tiddler(self.test_wiki, "TestTiddler")
+
+        # Insert it back
+        tw_module.insert_tiddler(self.test_wiki, json_output)
+
+        # Verify it's back with same content
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        self.assertEqual(test_tiddler['text'], 'Test content with "quotes" and <angles>')
+        self.assertEqual(test_tiddler['tags'], 'tag1 tag2')
+
+    def test_json_roundtrip_multiple_tiddlers(self):
+        """Test that json array output can be inserted back via insert command"""
+        import io
+        import contextlib
+
+        # Get JSON array output
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, "TestTiddler", "MinimalTiddler")
+
+        json_output = f.getvalue()
+
+        # Remove both tiddlers
+        tw_module.remove_tiddler(self.test_wiki, "TestTiddler")
+        tw_module.remove_tiddler(self.test_wiki, "MinimalTiddler")
+
+        # Insert them back
+        tw_module.insert_tiddler(self.test_wiki, json_output)
+
+        # Verify both are back
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 2)
+
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        self.assertEqual(test_tiddler['text'], 'Test content with "quotes" and <angles>')
+
+        minimal_tiddler = next(t for t in tiddlers if t['title'] == 'MinimalTiddler')
+        self.assertEqual(minimal_tiddler['text'], 'Minimal')
+
 class TestInsertCommand(unittest.TestCase):
     """Test the insert command for inserting/replacing tiddlers from JSON"""
 
@@ -1281,6 +1430,137 @@ class TestInsertCommand(unittest.TestCase):
         self.assertLessEqual(month, 12)
         self.assertGreaterEqual(day, 1)
         self.assertLessEqual(day, 31)
+
+    def test_insert_array_multiple_tiddlers(self):
+        """Test inserting multiple tiddlers from a JSON array"""
+        tiddlers_json = json.dumps([
+            {"title": "ArrayTest1", "text": "First tiddler"},
+            {"title": "ArrayTest2", "text": "Second tiddler"},
+            {"title": "ArrayTest3", "text": "Third tiddler"}
+        ])
+
+        tw_module.insert_tiddler(self.test_wiki, tiddlers_json)
+
+        # Verify all were added
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 4)  # 1 existing + 3 new
+
+        # Verify each tiddler
+        test1 = next(t for t in tiddlers if t['title'] == 'ArrayTest1')
+        self.assertEqual(test1['text'], 'First tiddler')
+
+        test2 = next(t for t in tiddlers if t['title'] == 'ArrayTest2')
+        self.assertEqual(test2['text'], 'Second tiddler')
+
+        test3 = next(t for t in tiddlers if t['title'] == 'ArrayTest3')
+        self.assertEqual(test3['text'], 'Third tiddler')
+
+    def test_insert_array_empty(self):
+        """Test inserting an empty array creates no tiddlers"""
+        empty_json = json.dumps([])
+
+        tw_module.insert_tiddler(self.test_wiki, empty_json)
+
+        # Should still have only the original tiddler
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 1)
+
+    def test_insert_array_replaces_existing(self):
+        """Test that inserting an array with existing tiddler titles replaces them"""
+        # Create initial tiddlers
+        tw_module.touch_tiddler(self.test_wiki, "Replace1", "Original 1")
+        tw_module.touch_tiddler(self.test_wiki, "Replace2", "Original 2")
+
+        # Insert array with updated versions
+        tiddlers_json = json.dumps([
+            {"title": "Replace1", "text": "Updated 1", "new_field": "value1"},
+            {"title": "Replace2", "text": "Updated 2", "new_field": "value2"}
+        ])
+
+        tw_module.insert_tiddler(self.test_wiki, tiddlers_json)
+
+        # Verify replacements
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        # Should have: ExistingTiddler, Replace1, Replace2
+        self.assertEqual(len(tiddlers), 3)
+
+        replace1 = next(t for t in tiddlers if t['title'] == 'Replace1')
+        self.assertEqual(replace1['text'], 'Updated 1')
+        self.assertEqual(replace1['new_field'], 'value1')
+
+        replace2 = next(t for t in tiddlers if t['title'] == 'Replace2')
+        self.assertEqual(replace2['text'], 'Updated 2')
+        self.assertEqual(replace2['new_field'], 'value2')
+
+    def test_insert_array_missing_title(self):
+        """Test that inserting an array with a tiddler missing title fails"""
+        invalid_json = json.dumps([
+            {"title": "Valid", "text": "This is valid"},
+            {"text": "Missing title field"}
+        ])
+
+        with self.assertRaises(SystemExit):
+            tw_module.insert_tiddler(self.test_wiki, invalid_json)
+
+    def test_insert_array_invalid_element(self):
+        """Test that inserting an array with non-object elements fails"""
+        invalid_json = json.dumps([
+            {"title": "Valid", "text": "This is valid"},
+            "not an object"
+        ])
+
+        with self.assertRaises(SystemExit):
+            tw_module.insert_tiddler(self.test_wiki, invalid_json)
+
+    def test_insert_array_adds_timestamps(self):
+        """Test that inserting an array auto-adds timestamps to each tiddler"""
+        tiddlers_json = json.dumps([
+            {"title": "Timestamp1", "text": "First"},
+            {"title": "Timestamp2", "text": "Second"}
+        ])
+
+        tw_module.insert_tiddler(self.test_wiki, tiddlers_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+
+        ts1 = next(t for t in tiddlers if t['title'] == 'Timestamp1')
+        self.assertIn('created', ts1)
+        self.assertIn('modified', ts1)
+        self.assertEqual(len(ts1['created']), 17)
+        self.assertEqual(len(ts1['modified']), 17)
+
+        ts2 = next(t for t in tiddlers if t['title'] == 'Timestamp2')
+        self.assertIn('created', ts2)
+        self.assertIn('modified', ts2)
+
+    def test_insert_array_preserves_user_timestamps(self):
+        """Test that inserting an array preserves user-provided timestamps"""
+        tiddlers_json = json.dumps([
+            {
+                "title": "UserTime1",
+                "text": "First",
+                "created": "20200101120000000",
+                "modified": "20200102120000000"
+            },
+            {
+                "title": "UserTime2",
+                "text": "Second",
+                "created": "20210101120000000",
+                "modified": "20210102120000000"
+            }
+        ])
+
+        tw_module.insert_tiddler(self.test_wiki, tiddlers_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+
+        ut1 = next(t for t in tiddlers if t['title'] == 'UserTime1')
+        self.assertEqual(ut1['created'], '20200101120000000')
+        self.assertEqual(ut1['modified'], '20200102120000000')
+
+        ut2 = next(t for t in tiddlers if t['title'] == 'UserTime2')
+        self.assertEqual(ut2['created'], '20210101120000000')
+        self.assertEqual(ut2['modified'], '20210102120000000')
 
 class TestAlphabeticalOrdering(unittest.TestCase):
     """Test that tiddlers are stored in alphabetical order by title"""

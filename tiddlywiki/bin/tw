@@ -420,25 +420,42 @@ def get_tiddler_field(wiki_path, tiddler_title, field_name):
     # Print the field value
     print(tiddler[field_name])
 
-def json_tiddler(wiki_path, tiddler_title):
-    """Output a tiddler as JSON"""
+def json_tiddler(wiki_path, *tiddler_titles):
+    """Output tiddler(s) as JSON.
+
+    If one tiddler is specified, outputs a JSON object.
+    If multiple tiddlers are specified, outputs a JSON array.
+    """
     import json
+
+    if not tiddler_titles:
+        print("Error: At least one tiddler title is required", file=sys.stderr)
+        sys.exit(1)
 
     all_tiddlers = load_all_tiddlers(wiki_path)
 
-    # Find the tiddler with matching title
-    tiddler = None
-    for t in all_tiddlers:
-        if t.get('title') == tiddler_title:
-            tiddler = t
-            break
+    # Find all requested tiddlers
+    found_tiddlers = []
+    for title in tiddler_titles:
+        tiddler = None
+        for t in all_tiddlers:
+            if t.get('title') == title:
+                tiddler = t
+                break
 
-    if not tiddler:
-        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
-        sys.exit(1)
+        if not tiddler:
+            print(f"Error: Tiddler '{title}' not found", file=sys.stderr)
+            sys.exit(1)
 
-    # Print as formatted JSON
-    print(json.dumps(tiddler, indent=2, ensure_ascii=False))
+        found_tiddlers.append(tiddler)
+
+    # Output format depends on number of tiddlers
+    if len(found_tiddlers) == 1:
+        # Single tiddler - output as object (backward compatible)
+        print(json.dumps(found_tiddlers[0], indent=2, ensure_ascii=False))
+    else:
+        # Multiple tiddlers - output as array
+        print(json.dumps(found_tiddlers, indent=2, ensure_ascii=False))
 
 def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
     """Set the value of a specific field in a tiddler"""
@@ -752,30 +769,40 @@ def append_tiddler(wiki_path, tiddler_title, text_to_append=None):
     insert_tiddler(wiki_path, tiddler_json)
 
 def insert_tiddler(wiki_path, tiddler_json):
-    """Insert a tiddler from JSON, replacing if it already exists"""
+    """Insert tiddler(s) from JSON, replacing if they already exist.
+
+    Accepts either a single tiddler as a JSON object or multiple tiddlers as a JSON array.
+    """
     import json
 
     # Parse the input JSON
     try:
-        new_tiddler = json.loads(tiddler_json)
+        parsed_json = json.loads(tiddler_json)
     except json.JSONDecodeError as e:
         print(f"Error: Invalid JSON: {e}", file=sys.stderr)
         sys.exit(1)
 
-    # Verify it has a title field
-    if 'title' not in new_tiddler:
-        print("Error: Tiddler JSON must have a 'title' field", file=sys.stderr)
+    # Determine if we have a single tiddler (dict) or multiple tiddlers (list)
+    if isinstance(parsed_json, dict):
+        # Single tiddler - use existing logic
+        tiddlers_to_insert = [parsed_json]
+    elif isinstance(parsed_json, list):
+        # Multiple tiddlers
+        tiddlers_to_insert = parsed_json
+    else:
+        print("Error: JSON must be either an object (single tiddler) or an array (multiple tiddlers)", file=sys.stderr)
         sys.exit(1)
 
-    # Ensure timestamps exist - always ensure created, and add modified only if missing
-    # This preserves user-provided timestamps in the JSON
-    if 'created' not in new_tiddler:
-        new_tiddler['created'] = get_tiddlywiki_timestamp()
-    if 'modified' not in new_tiddler:
-        new_tiddler['modified'] = get_tiddlywiki_timestamp()
+    # Validate all tiddlers before inserting any
+    for i, tiddler in enumerate(tiddlers_to_insert):
+        if not isinstance(tiddler, dict):
+            print(f"Error: Array element {i} is not a valid tiddler object", file=sys.stderr)
+            sys.exit(1)
+        if 'title' not in tiddler:
+            print(f"Error: Array element {i} is missing required 'title' field", file=sys.stderr)
+            sys.exit(1)
 
-    tiddler_title = new_tiddler['title']
-
+    # Load the wiki once
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
@@ -785,16 +812,37 @@ def insert_tiddler(wiki_path, tiddler_json):
         print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
         sys.exit(1)
 
-    # Check if tiddler already exists and remove it from all stores
-    found = False
-    for store in stores:
-        original_count = len(store['tiddlers'])
-        store['tiddlers'] = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
-        if len(store['tiddlers']) < original_count:
-            found = True
+    # Track which tiddlers were replaced vs inserted
+    replaced_titles = []
+    inserted_titles = []
 
-    # Add the new tiddler to the first store
-    stores[0]['tiddlers'].append(new_tiddler)
+    # Process each tiddler
+    for new_tiddler in tiddlers_to_insert:
+        # Ensure timestamps exist - always ensure created, and add modified only if missing
+        # This preserves user-provided timestamps in the JSON
+        if 'created' not in new_tiddler:
+            new_tiddler['created'] = get_tiddlywiki_timestamp()
+        if 'modified' not in new_tiddler:
+            new_tiddler['modified'] = get_tiddlywiki_timestamp()
+
+        tiddler_title = new_tiddler['title']
+
+        # Check if tiddler already exists and remove it from all stores
+        found = False
+        for store in stores:
+            original_count = len(store['tiddlers'])
+            store['tiddlers'] = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
+            if len(store['tiddlers']) < original_count:
+                found = True
+
+        # Add the new tiddler to the first store
+        stores[0]['tiddlers'].append(new_tiddler)
+
+        # Track what happened
+        if found:
+            replaced_titles.append(tiddler_title)
+        else:
+            inserted_titles.append(tiddler_title)
 
     # Build replacements for all stores
     replacements = []
@@ -817,10 +865,11 @@ def insert_tiddler(wiki_path, tiddler_json):
     with open(wiki_path, 'w', encoding='utf-8') as f:
         f.write(new_content)
 
-    if found:
-        print(f"Replaced tiddler: {tiddler_title}")
-    else:
-        print(f"Inserted tiddler: {tiddler_title}")
+    # Print summary
+    for title in replaced_titles:
+        print(f"Replaced tiddler: {title}")
+    for title in inserted_titles:
+        print(f"Inserted tiddler: {title}")
 
 def install_live_reload_plugin(wiki_path):
     """Install the live reload plugin into the wiki"""
@@ -1509,10 +1558,12 @@ def main():
         print("    Example: tw edit \"My Tiddler\"", file=sys.stderr)
         print("             EDITOR=vim tw edit Index", file=sys.stderr)
         print("", file=sys.stderr)
-        print("  json <tiddler>", file=sys.stderr)
-        print("    Output tiddler as JSON", file=sys.stderr)
+        print("  json <tiddler> [<tiddler2> ...]", file=sys.stderr)
+        print("    Output tiddler(s) as JSON", file=sys.stderr)
+        print("    Single tiddler returns object, multiple return array", file=sys.stderr)
         print("    Example: tw json \"My Tiddler\"", file=sys.stderr)
         print("             tw json Index | jq .text", file=sys.stderr)
+        print("             tw json Tiddler1 Tiddler2 Tiddler3", file=sys.stderr)
         print("", file=sys.stderr)
         print("  get <tiddler> <field>", file=sys.stderr)
         print("    Get a specific field value", file=sys.stderr)
@@ -1535,9 +1586,12 @@ def main():
         print("             tw touch \"My Note\" \"Initial content\"", file=sys.stderr)
         print("", file=sys.stderr)
         print("  insert <json>", file=sys.stderr)
-        print("    Insert/replace a tiddler from JSON", file=sys.stderr)
+        print("    Insert/replace tiddler(s) from JSON", file=sys.stderr)
+        print("    Accepts single object or array of objects", file=sys.stderr)
         print("    Example: tw insert '{\"title\":\"MyTiddler\",\"text\":\"content\"}'", file=sys.stderr)
         print("             tw json Source | tw insert", file=sys.stderr)
+        print("             tw insert '[{\"title\":\"T1\",\"text\":\"a\"},{\"title\":\"T2\",\"text\":\"b\"}]'", file=sys.stderr)
+        print("             tw json Tiddler1 Tiddler2 | tw insert  # roundtrip multiple tiddlers", file=sys.stderr)
         print("", file=sys.stderr)
         print("  replace <content>", file=sys.stderr)
         print("    Insert/replace from cat format", file=sys.stderr)
@@ -1606,10 +1660,11 @@ def main():
         edit_tiddler(wiki_path, tiddler_title)
     elif command == "json":
         if arg_idx + 1 >= len(sys.argv):
-            print("Error: json command requires a tiddler name", file=sys.stderr)
+            print("Error: json command requires at least one tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[arg_idx + 1]
-        json_tiddler(wiki_path, tiddler_title)
+        # Collect all remaining arguments as tiddler titles
+        tiddler_titles = sys.argv[arg_idx + 1:]
+        json_tiddler(wiki_path, *tiddler_titles)
     elif command == "get":
         if arg_idx + 2 >= len(sys.argv):
             print("Error: get command requires a tiddler name and field name", file=sys.stderr)
@@ -1639,10 +1694,15 @@ def main():
         text = sys.argv[arg_idx + 2] if arg_idx + 2 < len(sys.argv) else ""
         touch_tiddler(wiki_path, tiddler_title, text)
     elif command == "insert":
-        if arg_idx + 1 >= len(sys.argv):
-            print("Error: insert command requires a JSON string", file=sys.stderr)
-            sys.exit(1)
-        tiddler_json = sys.argv[arg_idx + 1]
+        # Accept JSON from either command line argument or stdin
+        if arg_idx + 1 < len(sys.argv):
+            tiddler_json = sys.argv[arg_idx + 1]
+        else:
+            # Read from stdin
+            tiddler_json = sys.stdin.read()
+            if not tiddler_json:
+                print("Error: insert command requires JSON string or stdin input", file=sys.stderr)
+                sys.exit(1)
         insert_tiddler(wiki_path, tiddler_json)
     elif command == "replace":
         # Accept content from either command line argument or stdin
