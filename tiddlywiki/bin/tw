@@ -211,6 +211,9 @@ def cat_tiddler(wiki_path, tiddler_title):
 
 def edit_tiddler(wiki_path, tiddler_title):
     """Open a tiddler in $EDITOR for editing in YAML-style format"""
+    import threading
+    import time
+
     # Check if EDITOR environment variable is set
     editor = os.environ.get('EDITOR')
     if not editor:
@@ -277,6 +280,64 @@ def edit_tiddler(wiki_path, tiddler_title):
                 f.write('\n')
                 f.write(tiddler['text'])
 
+        # Start background watcher for live updates
+        stop_watching = threading.Event()
+        last_mtime = [os.path.getmtime(temp_path)]
+        # Initialize with current content to avoid treating initial write-back as a change
+        with open(temp_path, 'r', encoding='utf-8') as f:
+            initial_content = f.read()
+        last_content = [initial_content]
+
+        def watch_and_update():
+            """Background thread that watches for file changes and updates the tiddler"""
+            import io
+            import contextlib
+
+            while not stop_watching.is_set():
+                time.sleep(0.5)  # Poll every 0.5 seconds
+                try:
+                    current_mtime = os.path.getmtime(temp_path)
+                    if current_mtime != last_mtime[0]:
+                        last_mtime[0] = current_mtime
+
+                        # Read the updated content
+                        with open(temp_path, 'r', encoding='utf-8') as f:
+                            updated_content = f.read()
+
+                        # Check if content actually changed (not just mtime)
+                        if updated_content == last_content[0]:
+                            # Content is identical, skip update
+                            continue
+
+                        last_content[0] = updated_content
+
+                        # Add timestamps and update the wiki
+                        updated_content_lines = updated_content.split('\n')
+                        # Find where to insert timestamps (before the empty line or text)
+                        insert_pos = 0
+                        for i, line in enumerate(updated_content_lines):
+                            if line.strip() == '':
+                                insert_pos = i
+                                break
+
+                        # Reconstruct content with timestamps
+                        new_lines = updated_content_lines[:insert_pos]
+                        # Always add created timestamp
+                        new_lines.insert(insert_pos, f"created: {tiddler['created']}")
+                        # replace_tiddler will update modified timestamp automatically
+                        new_lines.extend(updated_content_lines[insert_pos:])
+                        content_with_timestamps = '\n'.join(new_lines)
+
+                        # Update the tiddler in the wiki (suppress output)
+                        with contextlib.redirect_stdout(io.StringIO()):
+                            replace_tiddler(wiki_path, content_with_timestamps, update_modified=True)
+                except (FileNotFoundError, OSError):
+                    # File was deleted or other OS error, stop watching
+                    break
+
+        watcher = threading.Thread(target=watch_and_update, daemon=True)
+        watcher.start()
+
         # Open the file in the editor
         # Split the editor command in case it has arguments (e.g., "emacs -nw")
         editor_parts = editor.split()
@@ -293,11 +354,15 @@ def edit_tiddler(wiki_path, tiddler_title):
 
         result = subprocess.run(editor_parts + [temp_path], check=False)
 
+        # Stop the watcher
+        stop_watching.set()
+        watcher.join(timeout=2)
+
         if result.returncode != 0:
             print(f"Error: Editor exited with status {result.returncode}", file=sys.stderr)
             sys.exit(1)
 
-        # Read the edited content
+        # Read the final edited content
         with open(temp_path, 'r', encoding='utf-8') as f:
             edited_content = f.read()
 
@@ -328,36 +393,41 @@ def edit_tiddler(wiki_path, tiddler_title):
         edited_editable = get_editable_fields(edited_tiddler)
         content_changed = (edited_editable != original_editable)
 
-        # For new tiddlers, always update modified. For existing tiddlers, only update if changed.
-        should_update_modified = is_new_tiddler or content_changed
+        # Check if tiddler is missing timestamps
+        missing_timestamps = 'created' not in tiddler or 'modified' not in tiddler
 
-        # Ensure timestamps exist for both new and existing tiddlers
-        if 'created' not in tiddler:
-            tiddler['created'] = get_tiddlywiki_timestamp()
-        if 'modified' not in tiddler:
-            tiddler['modified'] = get_tiddlywiki_timestamp()
+        # Save if: content changed, new tiddler, or missing timestamps
+        if is_new_tiddler or content_changed or missing_timestamps:
+            # For new tiddlers, always update modified. For existing tiddlers, only update if changed.
+            should_update_modified = is_new_tiddler or content_changed
 
-        # Add timestamps to edited_content before saving
-        edited_content_lines = edited_content.split('\n')
-        # Find where to insert timestamps (before the empty line or text)
-        insert_pos = 0
-        for i, line in enumerate(edited_content_lines):
-            if line.strip() == '':
-                insert_pos = i
-                break
+            # Ensure timestamps exist for both new and existing tiddlers
+            if 'created' not in tiddler:
+                tiddler['created'] = get_tiddlywiki_timestamp()
+            if 'modified' not in tiddler:
+                tiddler['modified'] = get_tiddlywiki_timestamp()
 
-        # Reconstruct content with timestamps
-        new_lines = edited_content_lines[:insert_pos]
-        # Always add created timestamp
-        new_lines.insert(insert_pos, f"created: {tiddler['created']}")
-        # Only add modified if content didn't change (otherwise replace_tiddler will update it)
-        if not content_changed:
-            new_lines.insert(insert_pos + 1, f"modified: {tiddler['modified']}")
-        new_lines.extend(edited_content_lines[insert_pos:])
-        edited_content = '\n'.join(new_lines)
+            # Add timestamps to edited_content before saving
+            edited_content_lines = edited_content.split('\n')
+            # Find where to insert timestamps (before the empty line or text)
+            insert_pos = 0
+            for i, line in enumerate(edited_content_lines):
+                if line.strip() == '':
+                    insert_pos = i
+                    break
 
-        # Use replace_tiddler to save the changes
-        replace_tiddler(wiki_path, edited_content, update_modified=should_update_modified)
+            # Reconstruct content with timestamps
+            new_lines = edited_content_lines[:insert_pos]
+            # Always add created timestamp
+            new_lines.insert(insert_pos, f"created: {tiddler['created']}")
+            # Only add modified if content didn't change (otherwise replace_tiddler will update it)
+            if not content_changed:
+                new_lines.insert(insert_pos + 1, f"modified: {tiddler['modified']}")
+            new_lines.extend(edited_content_lines[insert_pos:])
+            edited_content = '\n'.join(new_lines)
+
+            # Use replace_tiddler to save the changes (final save when editor closes)
+            replace_tiddler(wiki_path, edited_content, update_modified=should_update_modified)
 
     finally:
         # Clean up the temporary file
