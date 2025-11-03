@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import os
-import re
 import sys
 import subprocess
 import tempfile
@@ -472,12 +471,10 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
 
     # Find the tiddler
     found_tiddler = None
-    target_store = None
     for store in stores:
         for tiddler in store['tiddlers']:
             if tiddler.get('title') == tiddler_title:
                 found_tiddler = tiddler
-                target_store = store
                 break
         if found_tiddler:
             break
