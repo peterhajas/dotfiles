@@ -11,8 +11,8 @@ local function whitepointForHavingScreenTint(hasScreenTint)
         whitepoint['blue'] = 0.5240478515625
         whitepoint['green'] = 0.76902770996094
         -- More intense warm tint for nighttime
-        whitepoint['blue'] = whitepoint['blue']/2
-        whitepoint['green'] = whitepoint['green']/2
+        -- whitepoint['blue'] = whitepoint['blue']/2
+        -- whitepoint['green'] = whitepoint['green']/2
         whitepoint['red'] = 1
     else
         whitepoint['blue'] = 1
