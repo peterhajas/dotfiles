@@ -22,7 +22,6 @@ hs.ipc.cliInstall()
 require "hyper"
 require "vim_movement"
 require "footpedals"
-require "preferred_screen"
 require "volume_control"
 require "darkmode"
 require "audio_output"
