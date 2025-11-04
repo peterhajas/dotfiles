@@ -1,4 +1,4 @@
-require "hyper"
+local hyper = require "hyper"
 require "util"
 require "home_assistant"
 

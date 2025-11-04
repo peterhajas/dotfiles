@@ -19,7 +19,7 @@ require "util"
 require("hs.ipc")
 hs.ipc.cliInstall()
 
-require "hyper"
+local hyper = require "hyper"
 local vim_movement = require "vim_movement"
 local footpedals = require "footpedals"
 require "volume_control"
@@ -117,7 +117,7 @@ end)
 
 -- Hyper-Delete to lock the machine
 
-hs.hotkey.bind(hyper, "delete", function()
+hs.hotkey.bind(hyper.key, "delete", function()
     hs.caffeinate.startScreensaver()
 end)
 
@@ -126,7 +126,7 @@ end)
 
 -- Hyper-escape to toggle the Hammerspoon console
 
-hs.hotkey.bind(hyper, "escape", function()
+hs.hotkey.bind(hyper.key, "escape", function()
     hs.toggleConsole()
 end)
 

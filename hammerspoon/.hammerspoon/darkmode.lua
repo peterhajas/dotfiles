@@ -1,4 +1,4 @@
-require "hyper"
+local hyper = require "hyper"
 require "util"
 
 function isInDarkMode()
@@ -27,7 +27,7 @@ end
 
 -- Hyper-\ for toggling theme
 
-hs.hotkey.bind(hyper, "\\", function()
+hs.hotkey.bind(hyper.key, "\\", function()
     toggleDarkMode()
 end)
 
