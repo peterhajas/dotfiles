@@ -375,6 +375,10 @@ end)
 flux.init()
 -- }}}
 
+-- Footpedals setup {{{
+footpedals.init()
+-- }}}
+
 hs.alert.show("hs ready!")
 
 profileStop('configTotal')
