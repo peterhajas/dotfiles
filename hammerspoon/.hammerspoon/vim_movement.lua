@@ -1,8 +1,13 @@
--- Vim Movement Shortcuts {{{
+-- Vim Movement Shortcuts Module
+-- Maps Ctrl+hjkl to arrow keys for vim-style navigation
 
+local vim_movement = {}
+
+-- Private state
 local binds = {}
 
-local function setUpVimMovementShortcuts()
+-- Initialize vim movement shortcuts
+function vim_movement.init()
     table.insert(binds, hs.hotkey.bind({"ctrl"}, "h",
                         function() local key = hs.eventtap.event.newKeyEvent({}, "left", true) key:post() end))
     table.insert(binds, hs.hotkey.bind({"ctrl"}, "j",
@@ -13,6 +18,4 @@ local function setUpVimMovementShortcuts()
                         function() local key = hs.eventtap.event.newKeyEvent({}, "right", true) key:post() end))
 end
 
-setUpVimMovementShortcuts()
-
--- }}}
+return vim_movement

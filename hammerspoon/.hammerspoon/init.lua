@@ -20,7 +20,7 @@ require("hs.ipc")
 hs.ipc.cliInstall()
 
 require "hyper"
-require "vim_movement"
+local vim_movement = require "vim_movement"
 local footpedals = require "footpedals"
 require "volume_control"
 require "darkmode"
@@ -373,6 +373,10 @@ end)
 
 -- Flux setup {{{
 flux.init()
+-- }}}
+
+-- Vim movement setup {{{
+vim_movement.init()
 -- }}}
 
 -- Footpedals setup {{{
