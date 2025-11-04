@@ -22,17 +22,16 @@ hs.ipc.cliInstall()
 local hyper = require "hyper"
 local vim_movement = require "vim_movement"
 local footpedals = require "footpedals"
-require "volume_control"
-require "darkmode"
-require "audio_output"
-require "choose"
-require "streamdeck"
-require "link_replace"
-require "youtubedl"
-require "server"
+local darkmode = require "darkmode"
+local audio_output = require "audio_output"
+local chooser = require "choose"
+local link_replace = require "link_replace"
+local youtubedl = require "youtubedl"
 local flux = require "flux"
+local iphone_mirroring = require "iphone_mirroring"
+require "streamdeck"
+require "server"
 require "tiddlywiki"
-require "iphone_mirroring"
 
 profileStop('imports')
 profileStart('globals')
@@ -339,7 +338,7 @@ profileStop('caffeinate')
 profileStart('pasteboard')
 -- {{{ Pasteboard
 pasteboardWatcher = hs.pasteboard.watcher.new(function(contents)
-    replacePasteboardLinkIfNecessary(contents)
+    link_replace.replacePasteboardLinkIfNecessary(contents)
 end)
 -- }}}
 profileStop('pasteboard')

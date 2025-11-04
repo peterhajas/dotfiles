@@ -1,5 +1,9 @@
--- Replaces links that are found on the clipboard, if applicable
+-- Link Replace Module
+-- Automatically replaces certain URLs with farside.link privacy-respecting alternatives
 
+local link_replace = {}
+
+-- URLs that should be replaced with farside.link alternatives
 local urlsToReplace = {
     'imgur.com',
     'instagram.com',
@@ -12,11 +16,13 @@ local urlsToReplace = {
     'x.com',
 }
 
+-- Private helper function
 local function startsWith(str, start)
     return string.sub(str, 1, string.len(start)) == start
 end
 
-function replacePasteboardLinkIfNecessary(contents)
+-- Replace pasteboard link with farside.link if it matches one of the configured URLs
+function link_replace.replacePasteboardLinkIfNecessary(contents)
     if contents == nil then
         return
     end
@@ -32,3 +38,5 @@ function replacePasteboardLinkIfNecessary(contents)
         end
     end
 end
+
+return link_replace
