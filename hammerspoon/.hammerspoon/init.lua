@@ -382,6 +382,10 @@ vim_movement.init()
 footpedals.init()
 -- }}}
 
+-- YouTube downloader setup {{{
+youtubedl.init()
+-- }}}
+
 -- iPhone mirroring setup {{{
 iphone_mirroring.init()
 -- }}}
