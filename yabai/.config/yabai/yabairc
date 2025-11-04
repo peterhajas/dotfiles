@@ -23,6 +23,8 @@ yabai -m signal --add event="display_changed" action="~/bin/update_tiling"
 yabai -m signal --add event="display_removed" action="~/bin/update_tiling"
 yabai -m signal --add event="display_resized" action="~/bin/update_tiling"
 yabai -m signal --add event="system_woke" action="~/bin/update_tiling"
+yabai -m signal --add event="window_created" action="~/bin/update_tiling"
+yabai -m signal --add event="window_title_changed" action="~/bin/update_tiling"
 
 update_tiling
 
