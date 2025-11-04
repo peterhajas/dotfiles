@@ -1,9 +1,17 @@
-require 'util' 
+-- Chooser Module
+-- Provides a UI chooser for selecting from a list of options
 
--- Prepares the chooser for some options, calling `completion` with the chosen
--- item
-function showChooser(choices, completion)
-    local chooser = hs.chooser.new(function(picked)
+local chooser = {}
+
+require 'util'
+
+-- Private state for CLI chooser
+local chosen = nil
+local exited = false
+
+-- Show a chooser with the given choices, calling completion with the chosen item
+function chooser.show(choices, completion)
+    local hs_chooser = hs.chooser.new(function(picked)
         local pickedContents = nil
         if picked ~= nil then
             local text = picked['text']:getString()
@@ -24,15 +32,13 @@ function showChooser(choices, completion)
         table.insert(chooserChoices, { text = styledText })
     end
 
-    chooser:width(20)
-    chooser:choices(chooserChoices)
-    chooser:show()
+    hs_chooser:width(20)
+    hs_chooser:choices(chooserChoices)
+    hs_chooser:show()
 end
 
-local chosen = nil
-local exited = false
-
-function showChooserCLI(args)
+-- Show chooser from CLI with pipe-separated arguments
+function chooser.showCLI(args)
     chosen = nil
     exited = false
 
@@ -42,14 +48,15 @@ function showChooserCLI(args)
         table.insert(choices, v)
     end
 
-    showChooser(choices, function(picked)
+    chooser.show(choices, function(picked)
         exited = true
         if not picked then return end
         chosen = picked
     end)
 end
 
-function getCLIChosen()
+-- Get the chosen value from CLI chooser
+function chooser.getCLIChosen()
     local out = nil
     if exited then
         if chosen then
@@ -64,4 +71,11 @@ function getCLIChosen()
 
     return out
 end
+
+-- Export as globals for CLI compatibility
+showChooserCLI = chooser.showCLI
+getCLIChosen = chooser.getCLIChosen
+showChooser = chooser.show
+
+return chooser
 
