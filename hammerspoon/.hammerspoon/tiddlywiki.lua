@@ -7,11 +7,6 @@ end
 -- Metrics
 local yOffset = 0
 
--- Bind hyper-space
-hs.hotkey.bind(hyper, 'space', function()
-    peekAtApp("TiddlyDesktop")
-end)
-
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
 local cachedWikiContents = ""
