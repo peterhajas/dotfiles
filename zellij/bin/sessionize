@@ -6,6 +6,20 @@ $HOME
 $HOME/src
 "
 
+# Function to get the appropriate layout for a session
+get_layout() {
+    session_name="$1"
+    layout_dir="$HOME/.config/zellij/layouts"
+
+    # First try session-specific layout
+    if [ -f "$layout_dir/$session_name.kdl" ]; then
+        echo "$session_name"
+    else
+        # Fall back to phajas layout
+        echo "phajas"
+    fi
+}
+
 # Get existing zellij sessions with visual indicator
 SESSIONS=""
 if zellij list-sessions >/dev/null 2>&1; then
@@ -59,11 +73,24 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
     if [ -z "$SESSION_NAME" ]; then
         exit 0
     fi
-    # Zellij doesn't support creating detached sessions, so we use 'action'
-    if [ -n "$ZELLIJ" ]; then
-        zellij action new-tab --name "$SESSION_NAME"
+    LAYOUT=$(get_layout "$SESSION_NAME")
+
+    # Check if session already exists
+    if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION_NAME$"; then
+        # Session exists, attach to it
+        if [ -n "$ZELLIJ" ]; then
+            # Can't switch sessions from within Zellij, do nothing
+            exit 0
+        else
+            zellij attach "$SESSION_NAME"
+        fi
     else
-        zellij --session "$SESSION_NAME"
+        # Session doesn't exist, create it
+        if [ -n "$ZELLIJ" ]; then
+            zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
+        else
+            zellij --new-session-with-layout "$LAYOUT" --session "$SESSION_NAME"
+        fi
     fi
     exit 0
 fi
@@ -72,8 +99,8 @@ fi
 if echo "$SELECTION" | grep -q "\[active session\]"; then
     SESSION_NAME=$(echo "$SELECTION" | sed 's/ \[active session\]//')
     if [ -n "$ZELLIJ" ]; then
-        # Switch to existing session using action
-        zellij action switch-session "$SESSION_NAME"
+        # Can't switch sessions from within Zellij, do nothing
+        exit 0
     else
         zellij attach "$SESSION_NAME"
     fi
@@ -83,10 +110,24 @@ fi
 # Handle predefined session selection
 if echo "$PREDEFINED_SESSIONS" | grep -q "^$SELECTION$"; then
     SESSION_NAME="$SELECTION"
-    if [ -n "$ZELLIJ" ]; then
-        zellij action new-tab --name "$SESSION_NAME"
+    LAYOUT=$(get_layout "$SESSION_NAME")
+
+    # Check if session already exists
+    if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION_NAME$"; then
+        # Session exists, attach to it
+        if [ -n "$ZELLIJ" ]; then
+            # Can't switch sessions from within Zellij, do nothing
+            exit 0
+        else
+            zellij attach "$SESSION_NAME"
+        fi
     else
-        zellij --session "$SESSION_NAME"
+        # Session doesn't exist, create it
+        if [ -n "$ZELLIJ" ]; then
+            zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
+        else
+            zellij --new-session-with-layout "$LAYOUT" --session "$SESSION_NAME"
+        fi
     fi
     exit 0
 fi
@@ -96,18 +137,22 @@ DIR="$SELECTION"
 SESSION_NAME=$(basename "$DIR")
 
 # Check if session exists
-if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION_NAME"; then
+if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION_NAME$"; then
+    # Session exists, attach to it
     if [ -n "$ZELLIJ" ]; then
-        zellij action switch-session "$SESSION_NAME"
+        # Can't switch sessions from within Zellij, do nothing
+        exit 0
     else
         zellij attach "$SESSION_NAME"
     fi
 else
+    # Session doesn't exist
     if [ -n "$ZELLIJ" ]; then
-        # Create new tab in current session with the directory
-        zellij action new-tab --layout default --cwd "$DIR" --name "$SESSION_NAME"
+        # Inside Zellij: just switch (do nothing if session doesn't exist)
+        exit 0
     else
-        # Create new session
-        cd "$DIR" && zellij --session "$SESSION_NAME"
+        # Outside Zellij: create new session
+        LAYOUT=$(get_layout "$SESSION_NAME")
+        cd "$DIR" && zellij --new-session-with-layout "$LAYOUT" --session "$SESSION_NAME"
     fi
 fi

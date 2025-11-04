@@ -1,0 +1,6 @@
+layout {
+    pane split_direction="horizontal" {
+        pane command="btop" size="70%"
+        pane command="nvtop" size="30%"
+    }
+}
