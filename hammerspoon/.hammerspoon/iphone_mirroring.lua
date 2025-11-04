@@ -1,3 +1,10 @@
+-- iPhone Mirroring Module
+-- Automatically positions and resizes the iPhone Mirroring window
+
+local iphone_mirroring = {}
+
+-- Private helper functions
+
 local function updateiPhoneMirroringFrame()
     local app = hs.application.find("iPhone Mirroring")
     if app ~= nil then
@@ -39,17 +46,26 @@ local function phoneMirroringResize(bigger)
     end
 end
 
-PhoneMirroringAppWatcher = hs.application.watcher.new(function(name, type, app)
-    if name == "iPhone Mirroring" then
-        if type == hs.application.watcher.activated then
-            phoneMirroringResize(true)
-        elseif type == hs.application.watcher.deactivated then
-            phoneMirroringResize(false)
+-- Module state
+local phoneMirroringAppWatcher = nil
+local phoneMirroringScreenWatcher = nil
+
+-- Initialize iPhone mirroring watchers
+function iphone_mirroring.init()
+    phoneMirroringAppWatcher = hs.application.watcher.new(function(name, type, app)
+        if name == "iPhone Mirroring" then
+            if type == hs.application.watcher.activated then
+                phoneMirroringResize(true)
+            elseif type == hs.application.watcher.deactivated then
+                phoneMirroringResize(false)
+            end
+            updateiPhoneMirroringFrame()
         end
-        updateiPhoneMirroringFrame()
-    end
-end):start()
+    end):start()
 
-PhoneMirroringScreenWatcher = hs.screen.watcher.new(updateiPhoneMirroringFrame):start()
+    phoneMirroringScreenWatcher = hs.screen.watcher.new(updateiPhoneMirroringFrame):start()
 
-updateiPhoneMirroringFrame()
+    updateiPhoneMirroringFrame()
+end
+
+return iphone_mirroring

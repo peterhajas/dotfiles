@@ -382,6 +382,10 @@ vim_movement.init()
 footpedals.init()
 -- }}}
 
+-- iPhone mirroring setup {{{
+iphone_mirroring.init()
+-- }}}
+
 hs.alert.show("hs ready!")
 
 profileStop('configTotal')
