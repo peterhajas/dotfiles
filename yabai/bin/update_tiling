@@ -53,14 +53,25 @@ yabai -m rule --apply
 RIGHTMOST_DISPLAY=$(yabai -m query --displays | jq 'sort_by(.frame.x) | .[-1].index')
 NUM_DISPLAYS=$(yabai -m query --displays | jq 'length')
 
-# Only manage sysmon windows if we have more than one display
+# Only manage special windows if we have more than one display
 if [[ $NUM_DISPLAYS -gt 1 ]]; then
+    LEFTMOST_DISPLAY=$(yabai -m query --displays | jq 'sort_by(.frame.x) | .[0].index')
+
     # Find all windows with "sysmon" in the title (case-insensitive)
     SYSMON_WINDOWS=$(yabai -m query --windows | jq -r '.[] | select(.title | test("sysmon"; "i")) | .id')
 
     # Move each sysmon window to the rightmost display and make it fullscreen
     for WINDOW_ID in $SYSMON_WINDOWS; do
         yabai -m window $WINDOW_ID --display $RIGHTMOST_DISPLAY --grid 1:1:0:0:1:1 2>/dev/null
+    done
+
+    # Find all Claude.app, ChatGPT.app windows, or windows with title STARTING with "claude"
+    # Sort by app name alphabetically for predictable ordering
+    AI_WINDOWS=$(yabai -m query --windows | jq -r '.[] | select(.app == "Claude" or .app == "ChatGPT" or (.title | test("^claude"; "i"))) | "\(.app):\(.id)"' | sort | cut -d: -f2)
+
+    # Move each AI window to the leftmost display
+    for WINDOW_ID in $AI_WINDOWS; do
+        yabai -m window $WINDOW_ID --display $LEFTMOST_DISPLAY 2>/dev/null
     done
 fi
 
