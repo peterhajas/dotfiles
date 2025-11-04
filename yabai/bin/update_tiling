@@ -49,6 +49,21 @@ done
 # apply all rules
 yabai -m rule --apply
 
+# Function to move windows only if they're not already on the target display
+# Args: $1 = target display index, $2+ = window IDs
+move_windows_if_needed() {
+    local target_display=$1
+    shift
+    local window_ids=("$@")
+
+    for window_id in "${window_ids[@]}"; do
+        local current_display=$(yabai -m query --windows --window $window_id 2>/dev/null | jq -r '.display')
+        if [[ -n "$current_display" && "$current_display" != "$target_display" ]]; then
+            yabai -m window $window_id --display $target_display 2>/dev/null
+        fi
+    done
+}
+
 # Manage sysmon windows - move to rightmost display and make fullscreen
 RIGHTMOST_DISPLAY=$(yabai -m query --displays | jq 'sort_by(.frame.x) | .[-1].index')
 NUM_DISPLAYS=$(yabai -m query --displays | jq 'length')
@@ -58,20 +73,20 @@ if [[ $NUM_DISPLAYS -gt 1 ]]; then
     LEFTMOST_DISPLAY=$(yabai -m query --displays | jq 'sort_by(.frame.x) | .[0].index')
 
     # Find all windows with "sysmon" in the title (case-insensitive)
-    SYSMON_WINDOWS=$(yabai -m query --windows | jq -r '.[] | select(.title | test("sysmon"; "i")) | .id')
+    SYSMON_WINDOWS=($(yabai -m query --windows | jq -r '.[] | select(.title | test("sysmon"; "i")) | .id'))
 
-    # Move each sysmon window to the rightmost display and make it fullscreen
-    for WINDOW_ID in $SYSMON_WINDOWS; do
-        yabai -m window $WINDOW_ID --display $RIGHTMOST_DISPLAY --grid 1:1:0:0:1:1 2>/dev/null
+    # Move sysmon windows to the rightmost display (only if not already there)
+    move_windows_if_needed $RIGHTMOST_DISPLAY "${SYSMON_WINDOWS[@]}"
+
+    # Make each sysmon window fullscreen
+    for WINDOW_ID in "${SYSMON_WINDOWS[@]}"; do
+        yabai -m window $WINDOW_ID --grid 1:1:0:0:1:1 2>/dev/null
     done
 
     # Find all Claude.app, ChatGPT.app windows, or windows with title STARTING with "claude"
-    # Sort by app name alphabetically for predictable ordering
-    AI_WINDOWS=$(yabai -m query --windows | jq -r '.[] | select(.app == "Claude" or .app == "ChatGPT" or (.title | test("^claude"; "i"))) | "\(.app):\(.id)"' | sort | cut -d: -f2)
+    AI_WINDOWS=($(yabai -m query --windows | jq -r '.[] | select(.app == "Claude" or .app == "ChatGPT" or (.title | test("^claude"; "i"))) | .id'))
 
-    # Move each AI window to the leftmost display
-    for WINDOW_ID in $AI_WINDOWS; do
-        yabai -m window $WINDOW_ID --display $LEFTMOST_DISPLAY 2>/dev/null
-    done
+    # Move AI windows to the leftmost display (only if not already there)
+    move_windows_if_needed $LEFTMOST_DISPLAY "${AI_WINDOWS[@]}"
 fi
 
