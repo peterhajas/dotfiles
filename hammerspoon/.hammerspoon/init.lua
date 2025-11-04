@@ -31,7 +31,7 @@ require "streamdeck"
 require "link_replace"
 require "youtubedl"
 require "server"
-require "flux"
+local flux = require "flux"
 require "tiddlywiki"
 require "iphone_mirroring"
 
@@ -308,7 +308,7 @@ profileStart('screenChanges')
 --screen configuration changes
 
 function handleScreenEvent()
-    updateFluxiness()
+    flux.update()
 end
 
 screenWatcher = hs.screen.watcher.new(handleScreenEvent)
@@ -322,7 +322,7 @@ profileStart('caffeinate')
 function caffeinateCallback(eventType)
     if (eventType == hs.caffeinate.watcher.screensDidSleep) then
     elseif (eventType == hs.caffeinate.watcher.screensDidWake) then
-        fluxSignificantTimeDidChange()
+        flux.significantTimeDidChange()
     elseif (eventType == hs.caffeinate.watcher.screensDidLock) then
         streamdeck_sleep()
         -- hs.execute("osascript -e 'tell application \"DisplayLink Manager\" to quit'")
@@ -373,7 +373,7 @@ end)
 -- {{ Bootstrapping
 
 -- Flux setup {{{
-updateFluxiness()
+flux.init()
 -- }}}
 
 hs.alert.show("hs ready!")

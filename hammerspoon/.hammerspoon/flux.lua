@@ -1,7 +1,9 @@
-require "hyper"
-require "util"
+-- F.lux Functionality Module
+-- Provides automatic screen color temperature adjustment based on time of day
 
--- F.lux Functionality {{{
+local flux = {}
+
+-- Private helper functions
 
 local function whitepointForHavingScreenTint(hasScreenTint)
     local whitepoint = { }
@@ -40,7 +42,9 @@ local overrideFluxSetting = nil
 local function fluxShouldBeEnabledForLocation()
     local location = hs.location.get()
 
-    if location == nil then return end
+    if location == nil then
+        return true  -- Default to enabled if location unavailable
+    end
     local latitude = location['latitude']
     local longitude = location['longitude']
     local now = os.time()
@@ -93,7 +97,7 @@ local function shouldHaveFluxEnabled()
 end
 
 -- Updates the flux setting to `shouldBeEnabled`
-function updateFluxinessEnabled(shouldBeEnabled)
+local function updateFluxinessEnabled(shouldBeEnabled)
     -- Determine the gamma to set on our displays
 
     local whitepoint = whitepointForHavingScreenTint(shouldBeEnabled)
@@ -107,19 +111,19 @@ function updateFluxinessEnabled(shouldBeEnabled)
     end
 end
 
-function updateFluxiness()
+local function updateFluxiness()
     hs.screen.restoreGamma()
     updateFluxinessEnabled(shouldHaveFluxEnabled())
 end
 
-function fluxSignificantTimeDidChange()
+local function fluxSignificantTimeDidChange()
     overrideFluxSetting = nil
     updateFluxiness()
 end
 
 -- Function for flux toggle setting
 
-function fluxAdvance()
+local function fluxAdvance()
     local onNow = shouldHaveFluxEnabled()
     -- Determine new state
     if overrideFluxSetting == nil then
@@ -144,9 +148,52 @@ function fluxAdvance()
     updateFluxiness()
 end
 
--- Set up a timer to check flux status every 5 minutes (300 seconds)
-fluxTimer = hs.timer.doEvery(300, function()
-    updateFluxiness()
-end)
-updateFluxiness()
+-- Module state
+local fluxScreenWatcher = nil
+local fluxTimer = nil
+local locationObserver = nil
 
+-- Public API
+
+-- Initialize the flux module
+function flux.init()
+    -- Set up screen watcher to update when screens change
+    fluxScreenWatcher = hs.screen.watcher.new(updateFluxiness)
+    fluxScreenWatcher:start()
+
+    -- Set up location observer to update when location changes
+    locationObserver = hs.location.new()
+    locationObserver:callback(function(obj, msg, data)
+        if msg == "didUpdateLocations" then
+            updateFluxiness()
+        elseif msg == "didChangeAuthorizationStatus" then
+            updateFluxiness()
+        end
+    end)
+    locationObserver:startTracking()
+
+    -- Set up a timer to check flux status every 5 minutes (300 seconds)
+    fluxTimer = hs.timer.doEvery(300, function()
+        updateFluxiness()
+    end)
+
+    -- Apply initial flux settings
+    updateFluxiness()
+end
+
+-- Toggle flux override setting
+function flux.advance()
+    fluxAdvance()
+end
+
+-- Reset flux on significant time changes (e.g., after sleep/wake)
+function flux.significantTimeDidChange()
+    fluxSignificantTimeDidChange()
+end
+
+-- Manually update flux (useful for external triggers)
+function flux.update()
+    updateFluxiness()
+end
+
+return flux
