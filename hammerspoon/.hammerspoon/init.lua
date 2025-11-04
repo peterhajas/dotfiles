@@ -386,6 +386,10 @@ footpedals.init()
 darkmode.init()
 -- }}}
 
+-- Audio output setup {{{
+audio_output.init()
+-- }}}
+
 -- YouTube downloader setup {{{
 youtubedl.init()
 -- }}}
