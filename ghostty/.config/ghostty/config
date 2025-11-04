@@ -1,5 +1,7 @@
 # reload with ctrl+shift+, (Linux) or cmd+shift+, (macOS)
 
+command = "/opt/homebrew/bin/zellij -l welcome"
+
 cursor-style = "block"
 cursor-style-blink = "false"
 font-family = "Menlo"
