@@ -1,7 +1,13 @@
-local hyper = require "hyper"
-require "util"
+-- Dark Mode Module
+-- Toggles macOS dark mode via Hyper-\
 
-function isInDarkMode()
+local darkmode = {}
+
+local hyper = require "hyper"
+
+-- Private helper functions
+
+local function isInDarkMode()
     -- Read defaults
     local defaultsCommand = "defaults read -g AppleInterfaceStyle"
     local result = hs.execute(defaultsCommand)
@@ -12,7 +18,7 @@ function isInDarkMode()
     end
 end
 
-function toggleDarkMode()
+local function toggleDarkMode()
     local applescript = [[
         tell application "System Events"
             tell appearance preferences
@@ -25,9 +31,13 @@ function toggleDarkMode()
     hs.console.darkMode(isInDarkMode())
 end
 
--- Hyper-\ for toggling theme
+-- Initialize dark mode module
+function darkmode.init()
+    -- Hyper-\ for toggling theme
+    hs.hotkey.bind(hyper.key, "\\", function()
+        toggleDarkMode()
+    end)
+end
 
-hs.hotkey.bind(hyper.key, "\\", function()
-    toggleDarkMode()
-end)
+return darkmode
 

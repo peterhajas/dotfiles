@@ -382,6 +382,10 @@ vim_movement.init()
 footpedals.init()
 -- }}}
 
+-- Dark mode setup {{{
+darkmode.init()
+-- }}}
+
 -- YouTube downloader setup {{{
 youtubedl.init()
 -- }}}
