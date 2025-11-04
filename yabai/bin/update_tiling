@@ -49,3 +49,18 @@ done
 # apply all rules
 yabai -m rule --apply
 
+# Manage sysmon windows - move to rightmost display and make fullscreen
+RIGHTMOST_DISPLAY=$(yabai -m query --displays | jq 'sort_by(.frame.x) | .[-1].index')
+NUM_DISPLAYS=$(yabai -m query --displays | jq 'length')
+
+# Only manage sysmon windows if we have more than one display
+if [[ $NUM_DISPLAYS -gt 1 ]]; then
+    # Find all windows with "sysmon" in the title (case-insensitive)
+    SYSMON_WINDOWS=$(yabai -m query --windows | jq -r '.[] | select(.title | test("sysmon"; "i")) | .id')
+
+    # Move each sysmon window to the rightmost display and make it fullscreen
+    for WINDOW_ID in $SYSMON_WINDOWS; do
+        yabai -m window $WINDOW_ID --display $RIGHTMOST_DISPLAY --grid 1:1:0:0:1:1 2>/dev/null
+    done
+fi
+
