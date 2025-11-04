@@ -35,24 +35,22 @@ require "tiddlywiki"
 
 profileStop('imports')
 profileStart('globals')
--- Global 'doc' variable that I can use inside of the Hammerspoon {{{
 
+-- Global 'doc' variable that I can use inside of the Hammerspoon
 doc = hs.doc
 
--- }}}
--- Global 'inspectThing' function for inspecting objects {{{
-
+-- Global 'inspectThing' function for inspecting objects
 function inspectThing(thing)
     return hs.inspect.inspect(thing)
 end
 
--- }}}
--- Global variables {{{
+-- Global variables
 hs.window.animationDuration = 0.0
 caffeinateWatcher = nil
 pasteboardWatcher = nil
--- }}}
+
 profileStop('globals')
+
 -- Notifying {{{
 
 function notifySoftly(notificationString)
@@ -95,15 +93,12 @@ hs.urlevent.bind("notifyUrgently", function(eventName, params)
 end)
 
 -- }}}
--- Easy Locking {{{
 
--- Hyper-Delete to lock the machine
-
+-- Easy Locking - Hyper-Delete to lock the machine
 hs.hotkey.bind(hyper.key, "delete", function()
     hs.caffeinate.startScreensaver()
 end)
 
--- }}}
 -- Other Shortcuts {{{
 
 -- Hyper-escape to toggle the Hammerspoon console
@@ -161,14 +156,16 @@ caffeinateWatcher:start()
 -- }}}
 profileStop('caffeinate')
 profileStart('pasteboard')
--- {{{ Pasteboard
+
+-- Pasteboard
 pasteboardWatcher = hs.pasteboard.watcher.new(function(contents)
     link_replace.replacePasteboardLinkIfNecessary(contents)
 end)
--- }}}
+
 profileStop('pasteboard')
 profileStart('reloading')
--- Reloading {{{
+
+-- Reloading
 -- I can reload the config when this file changes. From:
 -- http://www.hammerspoon.org/go/#fancyreload
 function reload_config(files)
@@ -177,7 +174,6 @@ end
 
 hs.pathwatcher.new(os.getenv("HOME") .. "/.hammerspoon/", reload_config):start()
 
--- }}}
 profileStop('reloading')
 -- AXBrowse {{{
 local axbrowse = require("axbrowse")
@@ -193,35 +189,15 @@ hs.hotkey.bind({"cmd", "alt", "ctrl"}, "b", function()
 end)
 -- }}}
 
--- {{ Bootstrapping
+-- Bootstrapping
 
--- Flux setup {{{
 flux.init()
--- }}}
-
--- Vim movement setup {{{
 vim_movement.init()
--- }}}
-
--- Footpedals setup {{{
 footpedals.init()
--- }}}
-
--- Dark mode setup {{{
 darkmode.init()
--- }}}
-
--- Audio output setup {{{
 audio_output.init()
--- }}}
-
--- YouTube downloader setup {{{
 youtubedl.init()
--- }}}
-
--- iPhone mirroring setup {{{
 iphone_mirroring.init()
--- }}}
 
 hs.alert.show("hs ready!")
 
