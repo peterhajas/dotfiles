@@ -39,6 +39,9 @@ profileStart('globals')
 -- Global 'doc' variable that I can use inside of the Hammerspoon
 doc = hs.doc
 
+-- Global 'ntfy' module for easy CLI access
+ntfy = require "ntfy"
+
 -- Global 'inspectThing' function for inspecting objects
 function inspectThing(thing)
     return hs.inspect.inspect(thing)
