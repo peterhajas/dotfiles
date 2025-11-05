@@ -150,7 +150,15 @@ function M.grep(opts)
 
           -- Try to jump to the matching line
           if entry.value.line_number then
-            vim.api.nvim_win_set_cursor(self.state.winid, {entry.value.line_number, 0})
+            local line_num = entry.value.line_number
+            local total_lines = #lines
+
+            -- Only set cursor if line number is valid
+            if line_num > 0 and line_num <= total_lines then
+              vim.schedule(function()
+                pcall(vim.api.nvim_win_set_cursor, self.state.winid, {line_num, 0})
+              end)
+            end
           end
         end
       end,
