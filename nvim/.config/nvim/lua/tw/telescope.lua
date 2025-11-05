@@ -90,6 +90,25 @@ end
 function M.grep(opts)
   opts = opts or {}
 
+  -- Pre-load all tiddler content into cache (once at startup)
+  local tiddlers = tw_wrapper.list()
+  local cache = {}
+
+  vim.notify("Loading tiddlers...", vim.log.levels.INFO)
+
+  for _, tiddler_name in ipairs(tiddlers) do
+    -- Skip system tiddlers
+    if not tiddler_name:match("^%$/") then
+      local content = tw_wrapper.get(tiddler_name)
+      if content then
+        local lines = vim.split(content, "\n", { plain = true })
+        cache[tiddler_name] = lines
+      end
+    end
+  end
+
+  vim.notify(string.format("Loaded %d tiddlers", vim.tbl_count(cache)), vim.log.levels.INFO)
+
   pickers.new(opts, {
     prompt_title = "Search Tiddler Content",
     finder = finders.new_dynamic({
@@ -98,28 +117,31 @@ function M.grep(opts)
           return {}
         end
 
-        -- Search tiddler content
-        local results = tw_wrapper.grep(prompt, {
-          case_sensitive = false,
-          include_system = false,
-        })
+        -- Search cached content (fast!)
+        local results = {}
+        local search_pattern = prompt:lower()
 
-        -- Format results for telescope
-        local formatted = {}
-        for _, result in ipairs(results) do
-          table.insert(formatted, {
-            display = string.format("%s:%d: %s",
-              result.tiddler,
-              result.line_number,
-              result.line:gsub("^%s+", "")),  -- trim leading whitespace
-            ordinal = result.tiddler .. " " .. result.line,
-            tiddler = result.tiddler,
-            line_number = result.line_number,
-            line = result.line,
-          })
+        for tiddler_name, lines in pairs(cache) do
+          for line_num, line in ipairs(lines) do
+            local search_line = line:lower()
+            local start_pos = search_line:find(search_pattern, 1, true)
+
+            if start_pos then
+              table.insert(results, {
+                display = string.format("%s:%d: %s",
+                  tiddler_name,
+                  line_num,
+                  line:gsub("^%s+", "")),  -- trim leading whitespace
+                ordinal = tiddler_name .. " " .. line,
+                tiddler = tiddler_name,
+                line_number = line_num,
+                line = line,
+              })
+            end
+          end
         end
 
-        return formatted
+        return results
       end,
       entry_maker = function(entry)
         return {
