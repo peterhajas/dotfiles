@@ -1,0 +1,65 @@
+#!/bin/bash
+# Simple ntfy hook for Claude Code notifications
+
+# Configuration
+NTFY_SERVER="${NTFY_SERVER:-https://ntfy.peterhajas.com}"
+
+# Get the ntfy prefix from TiddlyWiki to avoid exposing topic names in public repos
+ntfy_prefix=$(tw ~/phajas-wiki/phajas-wiki.html get "ntfy_prefix" "text" 2>/dev/null | tr -d '\n')
+
+# Use prefix if available, otherwise fall back to default
+if [ -n "$ntfy_prefix" ]; then
+    NTFY_TOPIC="${ntfy_prefix}claude_notify"
+else
+    NTFY_TOPIC="${NTFY_TOPIC:-claude_notify}"
+fi
+
+# Read JSON from stdin
+input=$(cat)
+
+# Extract the message using jq if available, otherwise use grep/sed
+if command -v jq &> /dev/null; then
+    message=$(echo "$input" | jq -r '.message // "Claude notification"')
+    hook_event=$(echo "$input" | jq -r '.hook_event_name // "unknown"')
+    cwd=$(echo "$input" | jq -r '.cwd // ""')
+else
+    # Fallback to basic parsing
+    message=$(echo "$input" | grep -o '"message":"[^"]*"' | cut -d'"' -f4)
+    hook_event=$(echo "$input" | grep -o '"hook_event_name":"[^"]*"' | cut -d'"' -f4)
+fi
+
+# Only send notification if there's a message
+if [ -z "$message" ]; then
+    exit 0
+fi
+
+# Get hostname and prepend to message
+hostname=$(hostname -s)
+message="Claude on $hostname: $message"
+
+# Build notification title based on event type
+case "$hook_event" in
+    "Notification")
+        title="Claude Waiting"
+        tags="bell"
+        ;;
+    "Stop")
+        title="Claude Done"
+        tags="white_check_mark"
+        ;;
+    *)
+        title="Claude Notification"
+        tags="speech_balloon"
+        ;;
+esac
+
+# Send the notification
+curl -s \
+    -H "Title: $title" \
+    -H "Tags: $tags" \
+    -d "$message" \
+    "$NTFY_SERVER/$NTFY_TOPIC" \
+    > /dev/null 2>&1
+
+# Always exit successfully to not block Claude
+exit 0

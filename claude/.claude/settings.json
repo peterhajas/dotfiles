@@ -30,5 +30,19 @@
             "Bash(*/tw:*)",
             "Bash(tw:*)"
         ]
+    },
+    "hooks": {
+        "Notification": [
+            {
+                "matcher": "*",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "/Users/phajas/dotfiles/claude/bin/ntfy_hook",
+                        "timeout": 5000
+                    }
+                ]
+            }
+        ]
     }
 }
