@@ -5,7 +5,7 @@
 
 ## Achieving Goals
 * Unless the request is trivial, come up with a plan and run it by Peter first.
-  * If you write a plan, save it in `.claude/2025-10-25T22:58:00` (`.claude/` followed by the ISO-8601 datetime string) also.
+  * If you write a plan, save it in `~/.claude/phajas_plans/2025-10-25T22:58:00` (`~/.claude/phajas_plans/` followed by the ISO-8601 datetime string) also.
 
 ## Interaction Instructions
 * Reply in Markdown where it makes sense.

@@ -18,7 +18,9 @@
             "Bash(python3:*)",
             "Bash(ssh:*)",
             "Bash(which:*)",
-            "WebSearch"
+            "WebSearch",
+            "Read(/Users/phajas/.claude/phajas_plans/**)",
+            "Write(/Users/phajas/.claude/phajas_plans/**)"
         ],
         "ask": [
             "Bash(git checkout:*)",
