@@ -85,6 +85,9 @@ local plugins = {
 
     -- Theme
     {"miikanissi/modus-themes.nvim", priority = 1000 },
+
+    -- Local plugins
+    { dir = "~/.config/nvim/lua/tw", name = "tw" },
 }
 
 local opts = {}

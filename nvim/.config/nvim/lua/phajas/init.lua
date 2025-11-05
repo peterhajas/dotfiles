@@ -22,3 +22,6 @@ require("phajas.plugins.theme")
 require("phajas.plugins.treesitter")
 require("phajas.plugins.undotree")
 require("phajas.plugins.zen-mode")
+
+-- my plugins
+require("phajas.plugins.tw")
