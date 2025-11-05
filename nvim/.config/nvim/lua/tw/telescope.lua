@@ -15,7 +15,6 @@ local buffer_manager = require("tw.buffer")
 -- Create tiddler picker
 function M.tiddlers(opts)
   opts = opts or {}
-  opts.initial_mode = opts.initial_mode or "normal"
 
   -- Get list of tiddlers
   local tiddlers = tw_wrapper.list()
@@ -24,11 +23,6 @@ function M.tiddlers(opts)
     vim.notify("No tiddlers found", vim.log.levels.WARN)
     return
   end
-
-  -- Schedule entering insert mode after a delay to avoid character leak
-  vim.defer_fn(function()
-    vim.cmd("startinsert")
-  end, 200)
 
   pickers.new(opts, {
     prompt_title = "Tiddlers",
@@ -95,12 +89,6 @@ end
 -- Create content search picker (grep)
 function M.grep(opts)
   opts = opts or {}
-  opts.initial_mode = opts.initial_mode or "normal"
-
-  -- Schedule entering insert mode after a delay to avoid character leak
-  vim.defer_fn(function()
-    vim.cmd("startinsert")
-  end, 200)
 
   pickers.new(opts, {
     prompt_title = "Search Tiddler Content",
