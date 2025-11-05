@@ -43,7 +43,7 @@ local function fluxShouldBeEnabledForLocation()
     local location = hs.location.get()
 
     if location == nil then
-        return true  -- Default to enabled if location unavailable
+        return false  -- Default to disabled if location unavailable
     end
     local latitude = location['latitude']
     local longitude = location['longitude']
