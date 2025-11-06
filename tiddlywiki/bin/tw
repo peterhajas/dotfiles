@@ -6,11 +6,21 @@ import subprocess
 import tempfile
 import urllib.request
 import urllib.error
+import re
 from collections import OrderedDict
 
 # Global cache to store original field orders for tiddlers
 # Key: (wiki_path, tiddler_title) -> List of field names in original order
 _original_field_orders = {}
+
+# Pre-compiled regex patterns for performance
+_STORE_AREA_PATTERN = re.compile(r'<div id="storeArea"[^>]*>')
+_DIV_PATTERN = re.compile(r'<div(?:\s+[^>]*)?>|</div>', re.DOTALL)
+_TIDDLER_DIV_PATTERN = re.compile(r'<div\s+([^>]+?)>', re.DOTALL)
+_ATTR_PATTERN = re.compile(r'(\w+)=(["\'])([^\2]*?)\2')
+_TITLE_ATTR_PATTERN = re.compile(r'<div[^>]+title="([^"]*)"', re.DOTALL)
+_PRE_PATTERN = re.compile(r'<pre>(.*?)</pre>', re.DOTALL)
+_JSON_TITLE_PATTERN = re.compile(r'"title"\s*:\s*"([^"]*)"')
 
 # Mapping of TiddlyWiki MIME types to Neovim filetypes
 MIME_TO_VIM_FILETYPE = {
@@ -101,8 +111,16 @@ def get_wiki_path(wiki_path=None):
 
     return wiki_path
 
-def extract_tiddler_stores(content):
-    """Extract tiddler store JSON arrays from HTML content."""
+def extract_tiddler_stores(content, target_title=None):
+    """Extract tiddler store JSON arrays from HTML content.
+
+    Args:
+        content: HTML content of the wiki file
+        target_title: If provided, stop parsing after finding a store with this tiddler
+
+    Returns list of store dictionaries with 'start', 'end', and 'tiddlers' keys.
+    If target_title is provided, may return early with partial results.
+    """
     import json
 
     stores = []
@@ -137,6 +155,13 @@ def extract_tiddler_stores(content):
                 'end': end_match + len(end_tag),
                 'tiddlers': tiddlers
             })
+
+            # Early exit if we found the target tiddler
+            if target_title:
+                for tiddler in tiddlers:
+                    if tiddler.get('title') == target_title:
+                        return stores
+
         except json.JSONDecodeError as e:
             print(f"Warning: Failed to parse tiddler store: {e}", file=sys.stderr)
 
@@ -215,31 +240,73 @@ def detect_format_streaming(filepath):
         print(f"Error: Could not read file: {e}", file=sys.stderr)
         sys.exit(1)
 
-def extract_legacy_tiddlers(content):
-    """Extract tiddlers from legacy <div id="storeArea"> format.
+def extract_titles_only_legacy(content):
+    """Extract only tiddler titles from legacy format - FAST path for ls.
 
-    Returns a list of tiddler dictionaries in the same format as modern wikis.
+    This is much faster than extract_legacy_tiddlers() because it only
+    extracts titles without parsing full tiddler content, attributes, or HTML.
+
+    Returns:
+        List of tiddler title strings
     """
     import html
-    import re
+
+    # Find storeArea
+    store_match = _STORE_AREA_PATTERN.search(content)
+    if not store_match:
+        return []
+
+    # Extract all title="..." attributes from divs in storeArea
+    # This is much faster than full parsing
+    titles = []
+    for match in _TITLE_ATTR_PATTERN.finditer(content, store_match.end()):
+        title = html.unescape(match.group(1))
+        titles.append(title)
+
+    return titles
+
+def extract_titles_only_modern(content):
+    """Extract only tiddler titles from modern JSON format - FAST path for ls.
+
+    This extracts titles using regex instead of parsing full JSON,
+    which is much faster for large wikis with many tiddlers.
+
+    Returns:
+        List of tiddler title strings
+    """
+    # Find all "title":"..." in JSON stores
+    titles = []
+    for match in _JSON_TITLE_PATTERN.finditer(content):
+        # JSON strings don't need HTML unescaping, but may have escaped quotes
+        title = match.group(1).replace('\\"', '"')
+        titles.append(title)
+
+    return titles
+
+def extract_legacy_tiddlers(content, target_title=None):
+    """Extract tiddlers from legacy <div id="storeArea"> format.
+
+    Args:
+        content: HTML content of the wiki file
+        target_title: If provided, stop parsing after finding this tiddler (for performance)
+
+    Returns a list of tiddler dictionaries in the same format as modern wikis.
+    If target_title is provided, returns a list with at most one tiddler.
+    """
+    import html
 
     # Find the storeArea div
-    store_pattern = r'<div id="storeArea"[^>]*>'
-    store_match = re.search(store_pattern, content)
+    store_match = _STORE_AREA_PATTERN.search(content)
     if not store_match:
         return []
 
     store_start = store_match.end()
 
-    # Find all div open and close tags with their positions
-    # This is much faster than character-by-character scanning
-    div_open_pattern = re.compile(r'<div(?:\s+[^>]*)?>|</div>', re.DOTALL)
-
     # Find the closing </div> for storeArea
     div_count = 1
     store_end = None
 
-    for match in div_open_pattern.finditer(content, store_start):
+    for match in _DIV_PATTERN.finditer(content, store_start):
         tag = match.group()
         if tag.startswith('</'):
             div_count -= 1
@@ -259,13 +326,9 @@ def extract_legacy_tiddlers(content):
     # Parse individual tiddler divs
     tiddlers = []
 
-    # Find all tiddler divs - they have attributes (especially 'title')
-    # Match pattern: <div ...attributes...>
-    tiddler_div_pattern = re.compile(r'<div\s+([^>]+?)>', re.DOTALL)
-
     # Build list of all div positions (open and close) in store_content
     all_divs = []
-    for match in div_open_pattern.finditer(store_content):
+    for match in _DIV_PATTERN.finditer(store_content):
         tag = match.group()
         all_divs.append({
             'pos': match.start(),
@@ -275,7 +338,7 @@ def extract_legacy_tiddlers(content):
 
     # Find all tiddler start positions
     tiddler_starts = []
-    for match in tiddler_div_pattern.finditer(store_content):
+    for match in _TIDDLER_DIV_PATTERN.finditer(store_content):
         tiddler_starts.append({
             'pos': match.start(),
             'end': match.end(),
@@ -290,8 +353,7 @@ def extract_legacy_tiddlers(content):
 
         # Parse attributes
         tiddler = {}
-        attr_pattern = r'(\w+)=(["\'])([^\2]*?)\2'
-        for attr_match in re.finditer(attr_pattern, attr_string):
+        for attr_match in _ATTR_PATTERN.finditer(attr_string):
             attr_name = attr_match.group(1)
             attr_value = attr_match.group(3)
             # Decode HTML entities in attribute values
@@ -326,7 +388,7 @@ def extract_legacy_tiddlers(content):
         tiddler_content_html = store_content[tiddler_content_start:tiddler_end_pos]
 
         # Extract text from <pre> tags if present
-        pre_match = re.search(r'<pre>(.*?)</pre>', tiddler_content_html, re.DOTALL)
+        pre_match = _PRE_PATTERN.search(tiddler_content_html)
         if pre_match:
             text_content = pre_match.group(1)
             # Decode HTML entities in the text
@@ -341,17 +403,40 @@ def extract_legacy_tiddlers(content):
 
         tiddlers.append(tiddler)
 
+        # Early exit if we found the target tiddler
+        if target_title and tiddler.get('title') == target_title:
+            return [tiddler]
+
     return tiddlers
 
-def load_all_tiddlers(wiki_path):
+def load_all_tiddlers(wiki_path, titles_only=False, target_title=None):
+    """Load tiddlers from wiki file.
+
+    Args:
+        wiki_path: Path to the wiki HTML file
+        titles_only: If True, use fast path to extract only titles (for ls command)
+        target_title: If provided, stop parsing after finding this tiddler (for cat/get)
+
+    Returns:
+        If titles_only=True: list of title strings
+        Otherwise: list of tiddler dictionaries
+    """
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
     # Detect format
     wiki_format = detect_wiki_format(content)
 
+    # Fast path for titles only
+    if titles_only:
+        if wiki_format == 'modern':
+            return extract_titles_only_modern(content)
+        else:  # legacy
+            return extract_titles_only_legacy(content)
+
+    # Full parsing path
     if wiki_format == 'modern':
-        stores = extract_tiddler_stores(content)
+        stores = extract_tiddler_stores(content, target_title=target_title)
 
         if not stores:
             print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
@@ -368,7 +453,7 @@ def load_all_tiddlers(wiki_path):
                     record_field_order(wiki_path, tiddler['title'], field_order)
 
     elif wiki_format == 'legacy':
-        all_tiddlers = extract_legacy_tiddlers(content)
+        all_tiddlers = extract_legacy_tiddlers(content, target_title=target_title)
 
         if not all_tiddlers:
             print("Error: Could not find any tiddlers in wiki", file=sys.stderr)
@@ -387,10 +472,10 @@ def load_all_tiddlers(wiki_path):
     return all_tiddlers
 
 def list_tiddlers(wiki_path):
-    all_tiddlers = load_all_tiddlers(wiki_path)
+    # Use fast path to extract only titles
+    titles = load_all_tiddlers(wiki_path, titles_only=True)
 
-    # Collect all titles and sort alphabetically
-    titles = [tiddler['title'] for tiddler in all_tiddlers if 'title' in tiddler]
+    # Sort alphabetically
     titles.sort()
 
     # Print all tiddler titles
@@ -398,7 +483,8 @@ def list_tiddlers(wiki_path):
         print(title)
 
 def cat_tiddler(wiki_path, tiddler_title):
-    all_tiddlers = load_all_tiddlers(wiki_path)
+    # Use early-exit optimization to stop parsing after finding target
+    all_tiddlers = load_all_tiddlers(wiki_path, target_title=tiddler_title)
 
     # Find the tiddler with matching title
     tiddler = None
@@ -444,7 +530,8 @@ def edit_tiddler(wiki_path, tiddler_title):
         print("Error: $EDITOR environment variable is not set and no fallback editor found", file=sys.stderr)
         sys.exit(1)
 
-    all_tiddlers = load_all_tiddlers(wiki_path)
+    # Use early-exit optimization to stop parsing after finding target
+    all_tiddlers = load_all_tiddlers(wiki_path, target_title=tiddler_title)
 
     # Find the tiddler with matching title
     tiddler = None
@@ -685,7 +772,8 @@ def ensure_timestamps(tiddler, is_modification=True):
 
 def get_tiddler_field(wiki_path, tiddler_title, field_name):
     """Get the value of a specific field from a tiddler"""
-    all_tiddlers = load_all_tiddlers(wiki_path)
+    # Use early-exit optimization to stop parsing after finding target
+    all_tiddlers = load_all_tiddlers(wiki_path, target_title=tiddler_title)
 
     # Find the tiddler with matching title
     tiddler = None
@@ -752,7 +840,8 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
     wiki_format = detect_wiki_format(content)
 
     if wiki_format == 'modern':
-        stores = extract_tiddler_stores(content)
+        # Use early-exit optimization to stop parsing after finding target
+        stores = extract_tiddler_stores(content, target_title=tiddler_title)
         if not stores:
             print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
             sys.exit(1)
