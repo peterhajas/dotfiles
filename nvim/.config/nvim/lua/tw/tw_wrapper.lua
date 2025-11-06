@@ -8,6 +8,63 @@ M.config = {
   tw_binary = nil,
 }
 
+-- Cache for all tiddlers loaded via json --all
+-- Structure: { wiki_path -> { mtime, tiddlers = {} } }
+local _wiki_cache = {}
+
+-- Get file modification time
+local function get_file_mtime(filepath)
+  local stat = vim.loop.fs_stat(filepath)
+  if stat then
+    return stat.mtime.sec
+  end
+  return nil
+end
+
+-- Load all tiddlers from cache or via json --all
+local function load_all_tiddlers_cached(wiki_path)
+  -- Check if we have a valid cache
+  local cached = _wiki_cache[wiki_path]
+  local current_mtime = get_file_mtime(wiki_path)
+
+  if cached and cached.mtime == current_mtime then
+    -- Cache is valid!
+    return cached.tiddlers
+  end
+
+  -- Cache miss or stale - load all tiddlers via json --all
+  local cmd = string.format("TIDDLYWIKI_WIKI_PATH=%s %s json --all",
+    vim.fn.shellescape(wiki_path),
+    M.config.tw_binary or "tw")
+
+  local output = vim.fn.system(cmd)
+
+  if vim.v.shell_error ~= 0 then
+    vim.notify("Failed to load wiki: " .. output, vim.log.levels.ERROR)
+    return {}
+  end
+
+  -- Parse JSON
+  local ok, tiddlers = pcall(vim.json.decode, output)
+  if not ok or type(tiddlers) ~= "table" then
+    vim.notify("Failed to parse wiki JSON", vim.log.levels.ERROR)
+    return {}
+  end
+
+  -- Update cache
+  _wiki_cache[wiki_path] = {
+    mtime = current_mtime,
+    tiddlers = tiddlers
+  }
+
+  return tiddlers
+end
+
+-- Invalidate cache for a wiki (call after writes)
+local function invalidate_cache(wiki_path)
+  _wiki_cache[wiki_path] = nil
+end
+
 -- Build the tw command with proper environment
 local function build_tw_cmd(args)
   local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
@@ -29,40 +86,79 @@ end
 
 -- List all tiddler names
 function M.list()
-  local cmd = build_tw_cmd("ls")
-  local output = vim.fn.system(cmd)
+  local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
 
-  if vim.v.shell_error ~= 0 then
-    vim.notify("Failed to list tiddlers: " .. output, vim.log.levels.ERROR)
+  if not wiki_path then
+    vim.notify("No wiki path configured", vim.log.levels.ERROR)
     return {}
   end
 
-  -- Parse output into table of tiddler names
-  local tiddlers = {}
-  for line in output:gmatch("[^\n]+") do
-    if line ~= "" then
-      table.insert(tiddlers, line)
+  -- Use cache to get all tiddlers
+  local all_tiddlers = load_all_tiddlers_cached(wiki_path)
+
+  -- Extract just the titles
+  local titles = {}
+  for _, tiddler in ipairs(all_tiddlers) do
+    if tiddler.title then
+      table.insert(titles, tiddler.title)
     end
   end
 
-  return tiddlers
+  -- Sort alphabetically (tw ls does this)
+  table.sort(titles)
+
+  return titles
 end
 
 -- Get tiddler content (raw tw cat output)
 function M.get(tiddler_name)
-  local cmd = build_tw_cmd(string.format("cat %s", vim.fn.shellescape(tiddler_name)))
-  local output = vim.fn.system(cmd)
+  local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
 
-  if vim.v.shell_error ~= 0 then
-    vim.notify("Failed to get tiddler: " .. output, vim.log.levels.ERROR)
+  if not wiki_path then
+    vim.notify("No wiki path configured", vim.log.levels.ERROR)
     return nil
   end
 
-  return output
+  -- Use cache to get the tiddler
+  local all_tiddlers = load_all_tiddlers_cached(wiki_path)
+
+  -- Find the tiddler
+  for _, tiddler in ipairs(all_tiddlers) do
+    if tiddler.title == tiddler_name then
+      -- Format as tw cat output (title: value\nfield: value\n\ntext)
+      local lines = {}
+      table.insert(lines, "title: " .. tiddler.title)
+
+      -- Add other fields (sorted, excluding text and title)
+      local fields = {}
+      for key, value in pairs(tiddler) do
+        if key ~= "title" and key ~= "text" then
+          table.insert(fields, key)
+        end
+      end
+      table.sort(fields)
+
+      for _, key in ipairs(fields) do
+        table.insert(lines, key .. ": " .. tostring(tiddler[key]))
+      end
+
+      -- Add text after blank line
+      if tiddler.text then
+        table.insert(lines, "")
+        table.insert(lines, tiddler.text)
+      end
+
+      return table.concat(lines, "\n")
+    end
+  end
+
+  vim.notify("Tiddler not found: " .. tiddler_name, vim.log.levels.ERROR)
+  return nil
 end
 
 -- Replace tiddler content (content must be in tw cat format with title: field)
 function M.replace(tiddler_name, content)
+  local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
   local cmd = build_tw_cmd("replace")
 
   -- Pass content via stdin
@@ -73,11 +169,14 @@ function M.replace(tiddler_name, content)
     return false
   end
 
+  -- Invalidate cache after successful write
+  invalidate_cache(wiki_path)
   return true
 end
 
 -- Delete tiddler
 function M.delete(tiddler_name)
+  local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
   local cmd = build_tw_cmd(string.format("rm %s", vim.fn.shellescape(tiddler_name)))
   local output = vim.fn.system(cmd)
 
@@ -86,11 +185,14 @@ function M.delete(tiddler_name)
     return false
   end
 
+  -- Invalidate cache after successful write
+  invalidate_cache(wiki_path)
   return true
 end
 
 -- Create new tiddler
 function M.create(tiddler_name, content)
+  local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
   local cmd = build_tw_cmd(string.format("touch %s", vim.fn.shellescape(tiddler_name)))
   local output = vim.fn.system(cmd, content or "")
 
@@ -99,11 +201,14 @@ function M.create(tiddler_name, content)
     return false
   end
 
+  -- Invalidate cache after successful write
+  invalidate_cache(wiki_path)
   return true
 end
 
 -- Append text to tiddler
 function M.append(tiddler_name, text)
+  local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
   local cmd = build_tw_cmd(string.format("append %s", vim.fn.shellescape(tiddler_name)))
   local output = vim.fn.system(cmd, text)
 
@@ -112,6 +217,8 @@ function M.append(tiddler_name, text)
     return false
   end
 
+  -- Invalidate cache after successful write
+  invalidate_cache(wiki_path)
   return true
 end
 
@@ -132,6 +239,7 @@ end
 
 -- Set a field value on a tiddler
 function M.set_field(tiddler_name, field, value)
+  local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
   local cmd = build_tw_cmd(string.format("set %s %s %s",
     vim.fn.shellescape(tiddler_name),
     vim.fn.shellescape(field),
@@ -143,6 +251,8 @@ function M.set_field(tiddler_name, field, value)
     return false
   end
 
+  -- Invalidate cache after successful write
+  invalidate_cache(wiki_path)
   return true
 end
 

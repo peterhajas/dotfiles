@@ -793,13 +793,21 @@ def get_tiddler_field(wiki_path, tiddler_title, field_name):
     # Print the field value
     print(tiddler[field_name])
 
-def json_tiddler(wiki_path, *tiddler_titles):
+def json_tiddler(wiki_path, *tiddler_titles, export_all=False):
     """Output tiddler(s) as JSON.
 
     If one tiddler is specified, outputs a JSON object.
     If multiple tiddlers are specified, outputs a JSON array.
+    If export_all is True, exports all tiddlers as a JSON array.
     """
     import json
+
+    # Handle --all flag
+    if export_all:
+        all_tiddlers = load_all_tiddlers(wiki_path)
+        # Export all tiddlers as compact JSON array (no indentation for speed)
+        print(json.dumps(all_tiddlers, ensure_ascii=False))
+        return
 
     if not tiddler_titles:
         print("Error: At least one tiddler title is required", file=sys.stderr)
@@ -2155,11 +2163,14 @@ def main():
         print("             EDITOR=vim tw edit Index", file=sys.stderr)
         print("", file=sys.stderr)
         print("  json <tiddler> [<tiddler2> ...]", file=sys.stderr)
+        print("  json --all", file=sys.stderr)
         print("    Output tiddler(s) as JSON", file=sys.stderr)
         print("    Single tiddler returns object, multiple return array", file=sys.stderr)
+        print("    --all exports all tiddlers as compact JSON array (fast for bulk operations)", file=sys.stderr)
         print("    Example: tw json \"My Tiddler\"", file=sys.stderr)
         print("             tw json Index | jq .text", file=sys.stderr)
         print("             tw json Tiddler1 Tiddler2 Tiddler3", file=sys.stderr)
+        print("             tw json --all > all_tiddlers.json", file=sys.stderr)
         print("", file=sys.stderr)
         print("  get <tiddler> <field>", file=sys.stderr)
         print("    Get a specific field value", file=sys.stderr)
@@ -2260,12 +2271,16 @@ def main():
         tiddler_title = sys.argv[arg_idx + 1]
         edit_tiddler(wiki_path, tiddler_title)
     elif command == "json":
-        if arg_idx + 1 >= len(sys.argv):
-            print("Error: json command requires at least one tiddler name", file=sys.stderr)
+        # Check for --all flag
+        if arg_idx + 1 < len(sys.argv) and sys.argv[arg_idx + 1] == "--all":
+            json_tiddler(wiki_path, export_all=True)
+        elif arg_idx + 1 >= len(sys.argv):
+            print("Error: json command requires at least one tiddler name or --all flag", file=sys.stderr)
             sys.exit(1)
-        # Collect all remaining arguments as tiddler titles
-        tiddler_titles = sys.argv[arg_idx + 1:]
-        json_tiddler(wiki_path, *tiddler_titles)
+        else:
+            # Collect all remaining arguments as tiddler titles
+            tiddler_titles = sys.argv[arg_idx + 1:]
+            json_tiddler(wiki_path, *tiddler_titles)
     elif command == "get":
         if arg_idx + 2 >= len(sys.argv):
             print("Error: get command requires a tiddler name and field name", file=sys.stderr)

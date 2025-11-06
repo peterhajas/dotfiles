@@ -90,11 +90,10 @@ end
 function M.grep(opts)
   opts = opts or {}
 
-  -- Pre-load all tiddler content into cache (once at startup)
+  -- Build cache of tiddler content using the wrapper's internal cache
+  -- This is now FAST because tw_wrapper caches json --all results!
   local tiddlers = tw_wrapper.list()
   local cache = {}
-
-  vim.notify("Loading tiddlers...", vim.log.levels.INFO)
 
   for _, tiddler_name in ipairs(tiddlers) do
     -- Skip system tiddlers
@@ -106,8 +105,6 @@ function M.grep(opts)
       end
     end
   end
-
-  vim.notify(string.format("Loaded %d tiddlers", vim.tbl_count(cache)), vim.log.levels.INFO)
 
   pickers.new(opts, {
     prompt_title = "Search Tiddler Content",

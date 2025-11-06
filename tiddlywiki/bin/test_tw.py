@@ -1163,6 +1163,121 @@ class TestJsonCommand(unittest.TestCase):
         minimal_tiddler = next(t for t in tiddlers if t['title'] == 'MinimalTiddler')
         self.assertEqual(minimal_tiddler['text'], 'Minimal')
 
+    def test_json_all_flag_exports_all_tiddlers(self):
+        """Test that json --all exports all tiddlers as a JSON array"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, export_all=True)
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # Should be a list/array
+        self.assertIsInstance(parsed, list)
+
+        # Should contain both our test tiddlers
+        titles = [t['title'] for t in parsed]
+        self.assertIn('TestTiddler', titles)
+        self.assertIn('MinimalTiddler', titles)
+        self.assertEqual(len(parsed), 2)
+
+    def test_json_all_output_is_compact(self):
+        """Test that json --all outputs compact JSON (no indentation for speed)"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, export_all=True)
+
+        output = f.getvalue()
+
+        # Should be single-line JSON (compact format)
+        # Should not have 2-space indentation like regular json output
+        lines = output.strip().split('\n')
+        # Compact JSON should be mostly on one line (or very few lines for large output)
+        # For a small wiki with 2 tiddlers, should be just 1 line
+        self.assertLessEqual(len(lines), 2)  # Allow for trailing newline
+
+    def test_json_all_preserves_all_fields(self):
+        """Test that json --all includes all tiddler fields"""
+        import io
+        import contextlib
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, export_all=True)
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # Find TestTiddler in the output
+        test_tiddler = next(t for t in parsed if t['title'] == 'TestTiddler')
+
+        # Check all expected fields are present
+        self.assertEqual(test_tiddler['title'], 'TestTiddler')
+        self.assertEqual(test_tiddler['text'], 'Test content with "quotes" and <angles>')
+        self.assertEqual(test_tiddler['created'], '20230101000000000')
+        self.assertEqual(test_tiddler['modified'], '20230102000000000')
+        self.assertEqual(test_tiddler['tags'], 'tag1 tag2')
+        self.assertEqual(test_tiddler['type'], 'text/vnd.tiddlywiki')
+
+    def test_json_all_roundtrip(self):
+        """Test that json --all output can be inserted back via insert command"""
+        import io
+        import contextlib
+
+        # Get all tiddlers as JSON
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, export_all=True)
+
+        json_output = f.getvalue()
+
+        # Remove all tiddlers
+        tw_module.remove_tiddler(self.test_wiki, "TestTiddler")
+        tw_module.remove_tiddler(self.test_wiki, "MinimalTiddler")
+
+        # Insert them all back (wiki is now empty)
+        tw_module.insert_tiddler(self.test_wiki, json_output)
+
+        # Verify both are back
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 2)
+
+        test_tiddler = next(t for t in tiddlers if t['title'] == 'TestTiddler')
+        self.assertEqual(test_tiddler['text'], 'Test content with "quotes" and <angles>')
+
+        minimal_tiddler = next(t for t in tiddlers if t['title'] == 'MinimalTiddler')
+        self.assertEqual(minimal_tiddler['text'], 'Minimal')
+
+    def test_json_all_with_many_tiddlers(self):
+        """Test that json --all works efficiently with many tiddlers"""
+        import io
+        import contextlib
+
+        # Add more tiddlers to the wiki
+        for i in range(10):
+            tw_module.touch_tiddler(self.test_wiki, f"BulkTiddler{i}", f"Bulk content {i}")
+
+        f = io.StringIO()
+        with contextlib.redirect_stdout(f):
+            tw_module.json_tiddler(self.test_wiki, export_all=True)
+
+        output = f.getvalue()
+        parsed = json.loads(output)
+
+        # Should have all tiddlers (2 original + 10 bulk = 12)
+        self.assertEqual(len(parsed), 12)
+
+        # Check that bulk tiddlers are present
+        titles = [t['title'] for t in parsed]
+        for i in range(10):
+            self.assertIn(f"BulkTiddler{i}", titles)
+
 class TestInsertCommand(unittest.TestCase):
     """Test the insert command for inserting/replacing tiddlers from JSON"""
 
