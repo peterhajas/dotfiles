@@ -5470,5 +5470,496 @@ class TestTimestampBehavior(unittest.TestCase):
                 del os.environ['EDITOR']
 
 
+class TestLegacyWikiFormat(unittest.TestCase):
+    """Test basic legacy wiki format detection and extraction"""
+
+    def setUp(self):
+        """Create a temporary legacy test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'legacy_wiki.html')
+
+        # Create a minimal legacy wiki with storeArea format
+        legacy_html = '''<!DOCTYPE html>
+<html>
+<head><title>Legacy Wiki</title></head>
+<body>
+<h1>Legacy TiddlyWiki</h1>
+<div id="storeArea" style="display:none;">
+<div created="20230101000000000" modified="20230101120000000" tags="tag1 tag2" title="LegacyTiddler1">
+<pre>This is the first legacy tiddler</pre>
+</div>
+<div created="20230102000000000" modified="20230102120000000" tags="[[multi word tag]]" title="LegacyTiddler2">
+<pre>This is the second legacy tiddler with &lt;html&gt; entities</pre>
+</div>
+<div created="20230103000000000" creator="testuser" modified="20230103120000000" modifier="testuser" revision="0" tags="" title="LegacyTiddler3">
+<pre>This one has extra fields</pre>
+</div>
+</div>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_format_detection(self):
+        """Test that legacy format is correctly detected"""
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        wiki_format = tw_module.detect_wiki_format(content)
+        self.assertEqual(wiki_format, 'legacy')
+
+    def test_extract_legacy_tiddlers(self):
+        """Test extracting tiddlers from legacy format"""
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        tiddlers = tw_module.extract_legacy_tiddlers(content)
+        self.assertEqual(len(tiddlers), 3)
+
+        # Check first tiddler
+        t1 = next(t for t in tiddlers if t['title'] == 'LegacyTiddler1')
+        self.assertEqual(t1['text'], 'This is the first legacy tiddler')
+        self.assertEqual(t1['created'], '20230101000000000')
+        self.assertEqual(t1['modified'], '20230101120000000')
+        self.assertEqual(t1['tags'], 'tag1 tag2')
+
+    def test_html_entity_decoding(self):
+        """Test that HTML entities are properly decoded"""
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        tiddlers = tw_module.extract_legacy_tiddlers(content)
+        t2 = next(t for t in tiddlers if t['title'] == 'LegacyTiddler2')
+
+        # HTML entities should be decoded
+        self.assertIn('<html>', t2['text'])
+        self.assertNotIn('&lt;', t2['text'])
+
+    def test_extra_fields_preserved(self):
+        """Test that extra fields like creator, modifier, revision are preserved"""
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        tiddlers = tw_module.extract_legacy_tiddlers(content)
+        t3 = next(t for t in tiddlers if t['title'] == 'LegacyTiddler3')
+
+        self.assertEqual(t3['creator'], 'testuser')
+        self.assertEqual(t3['modifier'], 'testuser')
+        self.assertEqual(t3['revision'], '0')
+
+
+class TestLegacyWikiOperations(unittest.TestCase):
+    """Test all tw commands on legacy format wikis"""
+
+    def setUp(self):
+        """Create a temporary legacy test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'legacy_wiki.html')
+
+        # Create a legacy wiki
+        legacy_html = '''<!DOCTYPE html>
+<html>
+<head><title>Legacy Wiki</title></head>
+<body>
+<div id="storeArea" style="display:none;">
+<div created="20230101000000000" modified="20230101120000000" tags="tag1" title="TestTiddler1">
+<pre>Content 1</pre>
+</div>
+<div created="20230102000000000" modified="20230102120000000" tags="tag2" title="TestTiddler2">
+<pre>Content 2</pre>
+</div>
+</div>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_ls_command(self):
+        """Test listing tiddlers in legacy wiki"""
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+
+        self.assertIn('TestTiddler1', titles)
+        self.assertIn('TestTiddler2', titles)
+        self.assertEqual(len(tiddlers), 2)
+
+    def test_cat_command(self):
+        """Test displaying tiddler content from legacy wiki"""
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        t1 = next(t for t in tiddlers if t['title'] == 'TestTiddler1')
+
+        self.assertEqual(t1['text'], 'Content 1')
+        self.assertEqual(t1['tags'], 'tag1')
+
+    def test_touch_create(self):
+        """Test creating new tiddler in legacy wiki"""
+        tw_module.touch_tiddler(self.test_wiki, "NewTiddler", "New content")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        new_tiddler = next((t for t in tiddlers if t['title'] == 'NewTiddler'), None)
+
+        self.assertIsNotNone(new_tiddler)
+        self.assertEqual(new_tiddler['text'], 'New content')
+        self.assertIn('created', new_tiddler)
+        self.assertIn('modified', new_tiddler)
+
+    def test_touch_update(self):
+        """Test updating existing tiddler in legacy wiki"""
+        tw_module.touch_tiddler(self.test_wiki, "TestTiddler1", "Updated content")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        updated = next(t for t in tiddlers if t['title'] == 'TestTiddler1')
+
+        self.assertEqual(updated['text'], 'Updated content')
+
+    def test_set_field(self):
+        """Test setting field value in legacy wiki"""
+        tw_module.set_tiddler_field(self.test_wiki, "TestTiddler1", "customfield", "customvalue")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        t1 = next(t for t in tiddlers if t['title'] == 'TestTiddler1')
+
+        self.assertEqual(t1['customfield'], 'customvalue')
+
+    def test_remove_tiddler(self):
+        """Test removing tiddler from legacy wiki"""
+        tw_module.remove_tiddler(self.test_wiki, "TestTiddler1")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+
+        self.assertNotIn('TestTiddler1', titles)
+        self.assertIn('TestTiddler2', titles)
+
+    def test_insert_single_tiddler(self):
+        """Test inserting single tiddler via JSON in legacy wiki"""
+        tiddler_json = json.dumps({
+            "title": "InsertedTiddler",
+            "text": "Inserted content",
+            "tags": "testtag"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, tiddler_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        inserted = next((t for t in tiddlers if t['title'] == 'InsertedTiddler'), None)
+
+        self.assertIsNotNone(inserted)
+        self.assertEqual(inserted['text'], 'Inserted content')
+        self.assertEqual(inserted['tags'], 'testtag')
+
+    def test_insert_multiple_tiddlers(self):
+        """Test inserting multiple tiddlers via JSON in legacy wiki"""
+        tiddlers_json = json.dumps([
+            {"title": "Multi1", "text": "Content 1"},
+            {"title": "Multi2", "text": "Content 2"}
+        ])
+
+        tw_module.insert_tiddler(self.test_wiki, tiddlers_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+
+        self.assertIn('Multi1', titles)
+        self.assertIn('Multi2', titles)
+
+    def test_replace_existing_tiddler(self):
+        """Test that insert replaces existing tiddler in legacy wiki"""
+        tiddler_json = json.dumps({
+            "title": "TestTiddler1",
+            "text": "Replaced content"
+        })
+
+        tw_module.insert_tiddler(self.test_wiki, tiddler_json)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        # Should still only have 2 tiddlers (not 3)
+        self.assertEqual(len(tiddlers), 2)
+
+        t1 = next(t for t in tiddlers if t['title'] == 'TestTiddler1')
+        self.assertEqual(t1['text'], 'Replaced content')
+
+
+class TestLegacyFormatPreservation(unittest.TestCase):
+    """Test that format is preserved (legacy stays legacy, modern stays modern)"""
+
+    def setUp(self):
+        """Create temporary wikis"""
+        self.test_dir = tempfile.mkdtemp()
+        self.legacy_wiki = os.path.join(self.test_dir, 'legacy.html')
+        self.modern_wiki = os.path.join(self.test_dir, 'modern.html')
+
+        # Create legacy wiki
+        legacy_html = '''<!DOCTYPE html>
+<html>
+<head><title>Legacy</title></head>
+<body>
+<div id="storeArea" style="display:none;">
+<div created="20230101000000000" modified="20230101120000000" title="Test">
+<pre>Legacy content</pre>
+</div>
+</div>
+</body>
+</html>'''
+        with open(self.legacy_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+        # Create modern wiki
+        modern_html = '''<!DOCTYPE html>
+<html>
+<head><title>Modern</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">
+[
+{"title":"Test","text":"Modern content","created":"20230101000000000"}
+]
+</script>
+</body>
+</html>'''
+        with open(self.modern_wiki, 'w', encoding='utf-8') as f:
+            f.write(modern_html)
+
+    def tearDown(self):
+        """Clean up"""
+        shutil.rmtree(self.test_dir)
+
+    def test_legacy_stays_legacy_after_insert(self):
+        """Test that legacy wiki remains in legacy format after insert"""
+        tw_module.insert_tiddler(self.legacy_wiki, '{"title":"NewTiddler","text":"New"}')
+
+        with open(self.legacy_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Should still have storeArea
+        self.assertIn('<div id="storeArea"', content)
+        self.assertNotIn('<script class="tiddlywiki-tiddler-store"', content)
+
+        # Verify format detection still works
+        self.assertEqual(tw_module.detect_wiki_format(content), 'legacy')
+
+    def test_legacy_stays_legacy_after_remove(self):
+        """Test that legacy wiki remains in legacy format after remove"""
+        tw_module.remove_tiddler(self.legacy_wiki, "Test")
+
+        with open(self.legacy_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        self.assertIn('<div id="storeArea"', content)
+        self.assertNotIn('<script class="tiddlywiki-tiddler-store"', content)
+
+    def test_legacy_stays_legacy_after_touch(self):
+        """Test that legacy wiki remains in legacy format after touch"""
+        tw_module.touch_tiddler(self.legacy_wiki, "NewTiddler", "Content")
+
+        with open(self.legacy_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        self.assertIn('<div id="storeArea"', content)
+        self.assertNotIn('<script class="tiddlywiki-tiddler-store"', content)
+
+    def test_legacy_stays_legacy_after_set(self):
+        """Test that legacy wiki remains in legacy format after set"""
+        tw_module.set_tiddler_field(self.legacy_wiki, "Test", "newfield", "value")
+
+        with open(self.legacy_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        self.assertIn('<div id="storeArea"', content)
+        self.assertNotIn('<script class="tiddlywiki-tiddler-store"', content)
+
+    def test_modern_stays_modern_after_operations(self):
+        """Test that modern wiki remains in modern format after operations"""
+        tw_module.insert_tiddler(self.modern_wiki, '{"title":"NewTiddler","text":"New"}')
+
+        with open(self.modern_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Should still be modern format
+        self.assertIn('<script class="tiddlywiki-tiddler-store"', content)
+        self.assertNotIn('<div id="storeArea"', content)
+
+        # Verify format detection still works
+        self.assertEqual(tw_module.detect_wiki_format(content), 'modern')
+
+
+class TestLegacyEdgeCases(unittest.TestCase):
+    """Test edge cases in legacy wiki format"""
+
+    def setUp(self):
+        """Create test directory"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'edge_wiki.html')
+
+    def tearDown(self):
+        """Clean up"""
+        shutil.rmtree(self.test_dir)
+
+    def test_special_characters_in_title(self):
+        """Test tiddler with special characters in title"""
+        legacy_html = '''<!DOCTYPE html>
+<html><body>
+<div id="storeArea" style="display:none;">
+<div title="Test &amp; Title &lt;&gt; &quot;Quotes&quot;">
+<pre>Content</pre>
+</div>
+</div>
+</body></html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 1)
+        # HTML entities should be decoded
+        self.assertEqual(tiddlers[0]['title'], 'Test & Title <> "Quotes"')
+
+    def test_special_characters_in_content(self):
+        """Test tiddler with special characters in content"""
+        legacy_html = '''<!DOCTYPE html>
+<html><body>
+<div id="storeArea" style="display:none;">
+<div title="Test">
+<pre>Content with &lt;tags&gt; and &amp; symbols &quot;quotes&quot;</pre>
+</div>
+</div>
+</body></html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertIn('<tags>', tiddlers[0]['text'])
+        self.assertIn('&', tiddlers[0]['text'])
+        self.assertIn('"quotes"', tiddlers[0]['text'])
+
+    def test_tiddler_without_pre_tag(self):
+        """Test tiddler with content directly in div (no pre tag)"""
+        legacy_html = '''<!DOCTYPE html>
+<html><body>
+<div id="storeArea" style="display:none;">
+<div title="NoPre">
+Direct content without pre tag
+</div>
+</div>
+</body></html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        # Should handle content without pre tags
+        self.assertEqual(len(tiddlers), 1)
+
+    def test_empty_tiddler(self):
+        """Test empty tiddler (no content)"""
+        legacy_html = '''<!DOCTYPE html>
+<html><body>
+<div id="storeArea" style="display:none;">
+<div title="Empty">
+<pre></pre>
+</div>
+</div>
+</body></html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 1)
+        self.assertEqual(tiddlers[0]['text'], '')
+
+    def test_round_trip_with_special_chars(self):
+        """Test that special characters survive round trip"""
+        legacy_html = '''<!DOCTYPE html>
+<html><body>
+<div id="storeArea" style="display:none;">
+<div title="Special">
+<pre>Content with &lt;html&gt; &amp; "quotes"</pre>
+</div>
+</div>
+</body></html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+        # Read it
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        original_text = tiddlers[0]['text']
+
+        # Modify and write back
+        tw_module.touch_tiddler(self.test_wiki, "Special", original_text)
+
+        # Read again
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        new_text = tiddlers[0]['text']
+
+        # Should be identical
+        self.assertEqual(original_text, new_text)
+
+    def test_unicode_preservation(self):
+        """Test that Unicode characters are preserved"""
+        legacy_html = '''<!DOCTYPE html>
+<html><body>
+<div id="storeArea" style="display:none;">
+<div title="Unicode Test">
+<pre>Curly quotes: "test" — Unicode: 中文 émojis: 🎉</pre>
+</div>
+</div>
+</body></html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertIn('"test"', tiddlers[0]['text'])
+        self.assertIn('中文', tiddlers[0]['text'])
+        self.assertIn('🎉', tiddlers[0]['text'])
+
+        # Test round trip
+        tw_module.touch_tiddler(self.test_wiki, "Unicode Test", tiddlers[0]['text'])
+        tiddlers2 = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(tiddlers[0]['text'], tiddlers2[0]['text'])
+
+    def test_tiddler_sorting(self):
+        """Test that tiddlers are sorted alphabetically in output"""
+        legacy_html = '''<!DOCTYPE html>
+<html><body>
+<div id="storeArea" style="display:none;">
+<div title="Zebra"><pre>Z</pre></div>
+<div title="Apple"><pre>A</pre></div>
+<div title="Banana"><pre>B</pre></div>
+</div>
+</body></html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(legacy_html)
+
+        # Touch a tiddler to trigger rewrite
+        tw_module.touch_tiddler(self.test_wiki, "Zebra", "Z")
+
+        # Read the file and check order
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Find positions of each title
+        apple_pos = content.find('title="Apple"')
+        banana_pos = content.find('title="Banana"')
+        zebra_pos = content.find('title="Zebra"')
+
+        # Should be in alphabetical order
+        self.assertLess(apple_pos, banana_pos)
+        self.assertLess(banana_pos, zebra_pos)
+
+
 if __name__ == '__main__':
     unittest.main()

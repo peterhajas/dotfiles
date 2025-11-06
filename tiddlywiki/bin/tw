@@ -144,22 +144,188 @@ def extract_tiddler_stores(content):
 
     return stores
 
+def detect_wiki_format(content):
+    """Detect whether a wiki uses modern (JSON) or legacy (div) format.
+
+    Returns:
+        'modern': Uses <script class="tiddlywiki-tiddler-store"> format
+        'legacy': Uses <div id="storeArea"> format
+
+    Raises:
+        SystemExit if neither format is detected
+    """
+    has_modern = '<script class="tiddlywiki-tiddler-store"' in content
+    has_legacy = '<div id="storeArea"' in content
+
+    if has_modern:
+        return 'modern'
+    elif has_legacy:
+        return 'legacy'
+    else:
+        print("Error: Could not detect wiki format (neither modern JSON stores nor legacy storeArea found)", file=sys.stderr)
+        sys.exit(1)
+
+def extract_legacy_tiddlers(content):
+    """Extract tiddlers from legacy <div id="storeArea"> format.
+
+    Returns a list of tiddler dictionaries in the same format as modern wikis.
+    """
+    import html
+    import re
+
+    # Find the storeArea div
+    store_pattern = r'<div id="storeArea"[^>]*>'
+    store_match = re.search(store_pattern, content)
+    if not store_match:
+        return []
+
+    store_start = store_match.end()
+
+    # Find all div open and close tags with their positions
+    # This is much faster than character-by-character scanning
+    div_open_pattern = re.compile(r'<div(?:\s+[^>]*)?>|</div>', re.DOTALL)
+
+    # Find the closing </div> for storeArea
+    div_count = 1
+    store_end = None
+
+    for match in div_open_pattern.finditer(content, store_start):
+        tag = match.group()
+        if tag.startswith('</'):
+            div_count -= 1
+            if div_count == 0:
+                store_end = match.start()
+                break
+        else:
+            div_count += 1
+
+    if store_end is None:
+        print("Error: Could not find closing tag for storeArea", file=sys.stderr)
+        sys.exit(1)
+
+    # Extract the store area content
+    store_content = content[store_start:store_end]
+
+    # Parse individual tiddler divs
+    tiddlers = []
+
+    # Find all tiddler divs - they have attributes (especially 'title')
+    # Match pattern: <div ...attributes...>
+    tiddler_div_pattern = re.compile(r'<div\s+([^>]+?)>', re.DOTALL)
+
+    # Build list of all div positions (open and close) in store_content
+    all_divs = []
+    for match in div_open_pattern.finditer(store_content):
+        tag = match.group()
+        all_divs.append({
+            'pos': match.start(),
+            'end': match.end(),
+            'is_close': tag.startswith('</')
+        })
+
+    # Find all tiddler start positions
+    tiddler_starts = []
+    for match in tiddler_div_pattern.finditer(store_content):
+        tiddler_starts.append({
+            'pos': match.start(),
+            'end': match.end(),
+            'attr_string': match.group(1)
+        })
+
+    # For each tiddler, find its closing tag
+    for tidx, tiddler_info in enumerate(tiddler_starts):
+        tiddler_start_pos = tiddler_info['pos']
+        tiddler_content_start = tiddler_info['end']
+        attr_string = tiddler_info['attr_string']
+
+        # Parse attributes
+        tiddler = {}
+        attr_pattern = r'(\w+)=(["\'])([^\2]*?)\2'
+        for attr_match in re.finditer(attr_pattern, attr_string):
+            attr_name = attr_match.group(1)
+            attr_value = attr_match.group(3)
+            # Decode HTML entities in attribute values
+            attr_value = html.unescape(attr_value)
+            tiddler[attr_name] = attr_value
+
+        # Only process tiddlers with a title
+        if 'title' not in tiddler:
+            continue
+
+        # Find the matching closing </div> for this tiddler
+        nest_count = 1
+        tiddler_end_pos = None
+
+        for div_info in all_divs:
+            if div_info['pos'] <= tiddler_content_start:
+                continue
+
+            if div_info['is_close']:
+                nest_count -= 1
+                if nest_count == 0:
+                    tiddler_end_pos = div_info['pos']
+                    break
+            else:
+                nest_count += 1
+
+        if tiddler_end_pos is None:
+            # Couldn't find closing tag
+            continue
+
+        # Extract tiddler content
+        tiddler_content_html = store_content[tiddler_content_start:tiddler_end_pos]
+
+        # Extract text from <pre> tags if present
+        pre_match = re.search(r'<pre>(.*?)</pre>', tiddler_content_html, re.DOTALL)
+        if pre_match:
+            text_content = pre_match.group(1)
+            # Decode HTML entities in the text
+            text_content = html.unescape(text_content)
+            tiddler['text'] = text_content
+        elif tiddler_content_html.strip():
+            # If no <pre> tag, use the content directly (but this is rare)
+            text_content = html.unescape(tiddler_content_html.strip())
+            # Only set text if there's actual content and doesn't look like HTML tags
+            if text_content and not text_content.startswith('<'):
+                tiddler['text'] = text_content
+
+        tiddlers.append(tiddler)
+
+    return tiddlers
+
 def load_all_tiddlers(wiki_path):
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    stores = extract_tiddler_stores(content)
+    # Detect format
+    wiki_format = detect_wiki_format(content)
 
-    if not stores:
-        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
-        sys.exit(1)
+    if wiki_format == 'modern':
+        stores = extract_tiddler_stores(content)
 
-    # Collect all tiddlers from all stores and record their field order
-    all_tiddlers = []
-    for store in stores:
-        all_tiddlers.extend(store['tiddlers'])
-        # Record the field order for each tiddler as it appears in the file
-        for tiddler in store['tiddlers']:
+        if not stores:
+            print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+            sys.exit(1)
+
+        # Collect all tiddlers from all stores and record their field order
+        all_tiddlers = []
+        for store in stores:
+            all_tiddlers.extend(store['tiddlers'])
+            # Record the field order for each tiddler as it appears in the file
+            for tiddler in store['tiddlers']:
+                if 'title' in tiddler:
+                    field_order = list(tiddler.keys())
+                    record_field_order(wiki_path, tiddler['title'], field_order)
+
+    elif wiki_format == 'legacy':
+        all_tiddlers = extract_legacy_tiddlers(content)
+
+        if not all_tiddlers:
+            print("Error: Could not find any tiddlers in wiki", file=sys.stderr)
+            sys.exit(1)
+
+        # Record field order for legacy tiddlers too
+        for tiddler in all_tiddlers:
             if 'title' in tiddler:
                 field_order = list(tiddler.keys())
                 record_field_order(wiki_path, tiddler['title'], field_order)
@@ -527,192 +693,264 @@ def json_tiddler(wiki_path, *tiddler_titles):
         print(json.dumps(found_tiddlers, indent=2, ensure_ascii=False))
 
 def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
-    """Set the value of a specific field in a tiddler"""
+    """Set the value of a specific field in a tiddler. Works with both modern and legacy formats."""
     import json
 
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    stores = extract_tiddler_stores(content)
+    wiki_format = detect_wiki_format(content)
 
-    if not stores:
-        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
-        sys.exit(1)
+    if wiki_format == 'modern':
+        stores = extract_tiddler_stores(content)
+        if not stores:
+            print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+            sys.exit(1)
 
-    # Find the tiddler
-    found_tiddler = None
-    for store in stores:
-        for tiddler in store['tiddlers']:
+        # Find the tiddler in any store
+        found_tiddler = None
+        for store in stores:
+            for tiddler in store['tiddlers']:
+                if tiddler.get('title') == tiddler_title:
+                    found_tiddler = tiddler
+                    break
+            if found_tiddler:
+                break
+
+        is_new_tiddler = False
+        if not found_tiddler:
+            # Create new tiddler if it doesn't exist
+            found_tiddler = {
+                "title": tiddler_title
+            }
+            is_new_tiddler = True
+            # Add to the first store
+            stores[0]['tiddlers'].append(found_tiddler)
+            print(f"Created tiddler: {tiddler_title}")
+
+        # Check if the field value actually changed
+        old_value = found_tiddler.get(field_name)
+        field_changed = (old_value != field_value)
+
+        # Set the field value
+        found_tiddler[field_name] = field_value
+
+        # Update timestamps if:
+        # 1. This is a new tiddler, OR
+        # 2. The field changed AND we're not setting timestamps directly
+        if is_new_tiddler or (field_changed and field_name not in ('modified', 'created')):
+            ensure_timestamps(found_tiddler, is_modification=True)
+        elif not is_new_tiddler:
+            # For existing tiddlers, ensure created exists even if nothing changed
+            ensure_timestamps(found_tiddler, is_modification=False)
+
+        # Build replacements for all stores
+        replacements = []
+        for store in stores:
+            sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
+            tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
+            new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            new_json = new_json.replace('<', '\\u003C')
+            new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+            replacements.append((store['start'], store['end'], new_store))
+
+        new_content = content
+        for start, end, replacement in reversed(replacements):
+            new_content = new_content[:start] + replacement + new_content[end:]
+
+        with open(wiki_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+
+    elif wiki_format == 'legacy':
+        # Load all tiddlers
+        all_tiddlers = load_all_tiddlers(wiki_path)
+
+        # Find the tiddler
+        found_tiddler = None
+        for tiddler in all_tiddlers:
             if tiddler.get('title') == tiddler_title:
                 found_tiddler = tiddler
                 break
-        if found_tiddler:
-            break
 
-    is_new_tiddler = False
-    if not found_tiddler:
-        # Create new tiddler if it doesn't exist
-        found_tiddler = {
-            "title": tiddler_title
-        }
-        is_new_tiddler = True
-        # Add to the first store
-        stores[0]['tiddlers'].append(found_tiddler)
-        print(f"Created tiddler: {tiddler_title}")
+        is_new_tiddler = False
+        if not found_tiddler:
+            # Create new tiddler if it doesn't exist
+            found_tiddler = {
+                "title": tiddler_title
+            }
+            is_new_tiddler = True
+            all_tiddlers.append(found_tiddler)
+            print(f"Created tiddler: {tiddler_title}")
 
-    # Check if the field value actually changed
-    old_value = found_tiddler.get(field_name)
-    field_changed = (old_value != field_value)
+        # Check if the field value actually changed
+        old_value = found_tiddler.get(field_name)
+        field_changed = (old_value != field_value)
 
-    # Set the field value
-    found_tiddler[field_name] = field_value
+        # Set the field value
+        found_tiddler[field_name] = field_value
 
-    # Update timestamps if:
-    # 1. This is a new tiddler, OR
-    # 2. The field changed AND we're not setting timestamps directly
-    if is_new_tiddler or (field_changed and field_name not in ('modified', 'created')):
-        ensure_timestamps(found_tiddler, is_modification=True)
-    elif not is_new_tiddler:
-        # For existing tiddlers, ensure created exists even if nothing changed
-        ensure_timestamps(found_tiddler, is_modification=False)
+        # Update timestamps
+        if is_new_tiddler or (field_changed and field_name not in ('modified', 'created')):
+            ensure_timestamps(found_tiddler, is_modification=True)
+        elif not is_new_tiddler:
+            ensure_timestamps(found_tiddler, is_modification=False)
 
-    # Build replacements for all stores
-    replacements = []
-    for store in stores:
-        # Sort tiddlers alphabetically by title
-        sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
-        # Rebuild the script tag
-        tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
-        new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
-        new_json = new_json.replace('<', '\\u003C')
-        new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
-        replacements.append((store['start'], store['end'], new_store))
-
-    # Apply replacements in reverse order
-    new_content = content
-    for start, end, replacement in reversed(replacements):
-        new_content = new_content[:start] + replacement + new_content[end:]
-
-    # Write back
-    with open(wiki_path, 'w', encoding='utf-8') as f:
-        f.write(new_content)
+        write_legacy_wiki(wiki_path, all_tiddlers)
 
     print(f"Set {field_name} = {field_value}")
 
 def touch_tiddler(wiki_path, tiddler_title, text=""):
-    """Create a new tiddler or update an existing one"""
+    """Create a new tiddler or update an existing one. Works with both modern and legacy formats."""
     import json
 
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    stores = extract_tiddler_stores(content)
+    wiki_format = detect_wiki_format(content)
 
-    if not stores:
-        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
-        sys.exit(1)
+    if wiki_format == 'modern':
+        stores = extract_tiddler_stores(content)
+        if not stores:
+            print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+            sys.exit(1)
 
-    # Check if tiddler already exists
-    existing_tiddler = None
-    for store in stores:
-        for tiddler in store['tiddlers']:
+        # Check if tiddler already exists
+        existing_tiddler = None
+        for store in stores:
+            for tiddler in store['tiddlers']:
+                if tiddler.get('title') == tiddler_title:
+                    existing_tiddler = tiddler
+                    break
+            if existing_tiddler:
+                break
+
+        if existing_tiddler:
+            # Update existing tiddler's modified timestamp and ensure created exists
+            ensure_timestamps(existing_tiddler, is_modification=True)
+            if text:
+                existing_tiddler['text'] = text
+            print(f"Updated tiddler: {tiddler_title}")
+        else:
+            # Create new tiddler
+            new_tiddler = {
+                "title": tiddler_title,
+                "text": text
+            }
+            ensure_timestamps(new_tiddler, is_modification=True)
+
+            # Add to the first store
+            stores[0]['tiddlers'].append(new_tiddler)
+            print(f"Created tiddler: {tiddler_title}")
+
+        # Build replacements for all stores
+        replacements = []
+        for store in stores:
+            sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
+            tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
+            new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            new_json = new_json.replace('<', '\\u003C')
+            new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+            replacements.append((store['start'], store['end'], new_store))
+
+        new_content = content
+        for start, end, replacement in reversed(replacements):
+            new_content = new_content[:start] + replacement + new_content[end:]
+
+        with open(wiki_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+
+    elif wiki_format == 'legacy':
+        # Load all tiddlers
+        all_tiddlers = load_all_tiddlers(wiki_path)
+
+        # Check if tiddler already exists
+        existing_tiddler = None
+        for tiddler in all_tiddlers:
             if tiddler.get('title') == tiddler_title:
                 existing_tiddler = tiddler
                 break
+
         if existing_tiddler:
-            break
+            # Update existing tiddler's modified timestamp and ensure created exists
+            ensure_timestamps(existing_tiddler, is_modification=True)
+            if text:
+                existing_tiddler['text'] = text
+            print(f"Updated tiddler: {tiddler_title}")
+        else:
+            # Create new tiddler
+            new_tiddler = {
+                "title": tiddler_title,
+                "text": text
+            }
+            ensure_timestamps(new_tiddler, is_modification=True)
+            all_tiddlers.append(new_tiddler)
+            print(f"Created tiddler: {tiddler_title}")
 
-    if existing_tiddler:
-        # Update existing tiddler's modified timestamp and ensure created exists
-        ensure_timestamps(existing_tiddler, is_modification=True)
-        if text:
-            existing_tiddler['text'] = text
-        print(f"Updated tiddler: {tiddler_title}")
-    else:
-        # Create new tiddler
-        new_tiddler = {
-            "title": tiddler_title,
-            "text": text
-        }
-        ensure_timestamps(new_tiddler, is_modification=True)
-
-        # Add to the first store
-        stores[0]['tiddlers'].append(new_tiddler)
-        print(f"Created tiddler: {tiddler_title}")
-
-    # Build replacements for all stores
-    replacements = []
-    for store in stores:
-        # Sort tiddlers alphabetically by title
-        sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
-        # Rebuild the script tag
-        tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
-        new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
-        new_json = new_json.replace('<', '\\u003C')
-        new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
-        replacements.append((store['start'], store['end'], new_store))
-
-    # Apply replacements in reverse order
-    new_content = content
-    for start, end, replacement in reversed(replacements):
-        new_content = new_content[:start] + replacement + new_content[end:]
-
-    # Write back
-    with open(wiki_path, 'w', encoding='utf-8') as f:
-        f.write(new_content)
+        write_legacy_wiki(wiki_path, all_tiddlers)
 
 def remove_tiddler(wiki_path, tiddler_title):
+    """Remove a tiddler from the wiki. Works with both modern and legacy formats."""
     import json
 
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    stores = extract_tiddler_stores(content)
+    wiki_format = detect_wiki_format(content)
 
-    if not stores:
-        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
-        sys.exit(1)
+    if wiki_format == 'modern':
+        stores = extract_tiddler_stores(content)
+        if not stores:
+            print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+            sys.exit(1)
 
-    found = False
+        found = False
 
-    # Build list of replacements
-    replacements = []
-    for store in stores:
-        original_count = len(store['tiddlers'])
-        # Filter out the tiddler with matching title
-        filtered_tiddlers = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
+        # Build list of replacements, removing from each store
+        replacements = []
+        for store in stores:
+            original_count = len(store['tiddlers'])
+            # Filter out the tiddler with matching title
+            filtered_tiddlers = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
 
-        if len(filtered_tiddlers) < original_count:
-            found = True
+            if len(filtered_tiddlers) < original_count:
+                found = True
 
-        # Sort tiddlers alphabetically by title
-        sorted_tiddlers = sorted(filtered_tiddlers, key=lambda t: t.get('title', ''))
+            # Sort tiddlers alphabetically by title
+            sorted_tiddlers = sorted(filtered_tiddlers, key=lambda t: t.get('title', ''))
 
-        # Rebuild the script tag with filtered tiddlers
-        # Use ensure_ascii=False to preserve Unicode characters like curly quotes
-        # Format each tiddler on its own line
-        tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
-        new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            # Rebuild the script tag with filtered tiddlers
+            tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
+            new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            new_json = new_json.replace('<', '\\u003C')
+            new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+            replacements.append((store['start'], store['end'], new_store))
 
-        # Escape only < (not >) as Unicode to match TiddlyWiki format
-        new_json = new_json.replace('<', '\\u003C')
+        if not found:
+            print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+            sys.exit(1)
 
-        new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+        # Apply replacements in reverse order
+        new_content = content
+        for start, end, replacement in reversed(replacements):
+            new_content = new_content[:start] + replacement + new_content[end:]
 
-        replacements.append((store['start'], store['end'], new_store))
+        # Write back
+        with open(wiki_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
 
-    # Apply replacements in reverse order to maintain correct positions
-    new_content = content
-    for start, end, replacement in reversed(replacements):
-        new_content = new_content[:start] + replacement + new_content[end:]
+    elif wiki_format == 'legacy':
+        # Load all tiddlers
+        all_tiddlers = load_all_tiddlers(wiki_path)
 
-    if not found:
-        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
-        sys.exit(1)
+        # Filter out the tiddler to remove
+        original_count = len(all_tiddlers)
+        filtered_tiddlers = [t for t in all_tiddlers if t.get('title') != tiddler_title]
 
-    # Write the modified content back to the file
-    with open(wiki_path, 'w', encoding='utf-8') as f:
-        f.write(new_content)
+        if len(filtered_tiddlers) == original_count:
+            print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+            sys.exit(1)
+
+        write_legacy_wiki(wiki_path, filtered_tiddlers)
 
     print(f"Removed tiddler: {tiddler_title}")
 
@@ -835,10 +1073,128 @@ def append_tiddler(wiki_path, tiddler_title, text_to_append=None):
     tiddler_json = json.dumps(tiddler)
     insert_tiddler(wiki_path, tiddler_json)
 
+def serialize_legacy_tiddler(tiddler):
+    """Convert a tiddler dictionary to legacy div format.
+
+    Args:
+        tiddler: Dictionary with tiddler fields
+
+    Returns:
+        HTML string representing the tiddler as a div
+    """
+    import html
+
+    # Standard attribute order for consistency
+    attr_order = ['created', 'creator', 'modified', 'modifier', 'revision', 'tags', 'title']
+
+    # Build attributes string
+    attrs = []
+    for attr_name in attr_order:
+        if attr_name in tiddler:
+            attr_value = str(tiddler[attr_name])
+            # Escape HTML entities in attribute values
+            attr_value = html.escape(attr_value, quote=True)
+            attrs.append(f'{attr_name}="{attr_value}"')
+
+    # Add any other attributes not in the standard order
+    for attr_name, attr_value in tiddler.items():
+        if attr_name not in attr_order and attr_name != 'text':
+            attr_value = html.escape(str(attr_value), quote=True)
+            attrs.append(f'{attr_name}="{attr_value}"')
+
+    attrs_str = ' '.join(attrs)
+
+    # Build the div
+    div_parts = [f'<div {attrs_str}>']
+
+    # Add text content wrapped in <pre> tag if present
+    if 'text' in tiddler:
+        text_content = tiddler['text']
+        # Escape HTML entities in text
+        text_content = html.escape(text_content, quote=False)
+        div_parts.append(f'<pre>{text_content}</pre>')
+
+    div_parts.append('</div>')
+
+    return '\n'.join(div_parts)
+
+def build_legacy_store(tiddlers):
+    """Build a complete legacy storeArea from a list of tiddlers.
+
+    Args:
+        tiddlers: List of tiddler dictionaries
+
+    Returns:
+        HTML string with <div id="storeArea"> containing all tiddlers
+    """
+    # Sort tiddlers by title
+    sorted_tiddlers = sorted(tiddlers, key=lambda t: t.get('title', ''))
+
+    store_parts = ['<div id="storeArea" style="display:none;">']
+
+    for tiddler in sorted_tiddlers:
+        tiddler_html = serialize_legacy_tiddler(tiddler)
+        store_parts.append(tiddler_html)
+
+    store_parts.append('</div>')
+
+    return '\n'.join(store_parts)
+
+def write_legacy_wiki(wiki_path, tiddlers):
+    """Write tiddlers back to a legacy format wiki.
+
+    Args:
+        wiki_path: Path to the wiki file
+        tiddlers: List of tiddler dictionaries to write
+    """
+    import re
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    # Find the storeArea location
+    store_pattern = r'<div id="storeArea"[^>]*>'
+    store_match = re.search(store_pattern, content)
+    if not store_match:
+        print("Error: Could not find storeArea in wiki", file=sys.stderr)
+        sys.exit(1)
+
+    store_start = store_match.start()
+
+    # Find the closing </div> for storeArea
+    div_open_pattern = re.compile(r'<div(?:\s+[^>]*)?>|</div>', re.DOTALL)
+    div_count = 1
+    store_end = None
+
+    for match in div_open_pattern.finditer(content, store_match.end()):
+        tag = match.group()
+        if tag.startswith('</'):
+            div_count -= 1
+            if div_count == 0:
+                store_end = match.end()
+                break
+        else:
+            div_count += 1
+
+    if store_end is None:
+        print("Error: Could not find closing tag for storeArea", file=sys.stderr)
+        sys.exit(1)
+
+    # Build new store area
+    new_store = build_legacy_store(tiddlers)
+
+    # Replace the old store with the new one
+    new_content = content[:store_start] + new_store + content[store_end:]
+
+    # Write back
+    with open(wiki_path, 'w', encoding='utf-8') as f:
+        f.write(new_content)
+
 def insert_tiddler(wiki_path, tiddler_json):
     """Insert tiddler(s) from JSON, replacing if they already exist.
 
     Accepts either a single tiddler as a JSON object or multiple tiddlers as a JSON array.
+    Works with both modern and legacy wiki formats.
     """
     import json
 
@@ -869,68 +1225,102 @@ def insert_tiddler(wiki_path, tiddler_json):
             print(f"Error: Array element {i} is missing required 'title' field", file=sys.stderr)
             sys.exit(1)
 
-    # Load the wiki once
+    # Load the wiki and detect format
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
-    stores = extract_tiddler_stores(content)
-
-    if not stores:
-        print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
-        sys.exit(1)
+    wiki_format = detect_wiki_format(content)
 
     # Track which tiddlers were replaced vs inserted
     replaced_titles = []
     inserted_titles = []
 
-    # Process each tiddler
-    for new_tiddler in tiddlers_to_insert:
-        # Ensure timestamps exist - always ensure created, and add modified only if missing
-        # This preserves user-provided timestamps in the JSON
-        if 'created' not in new_tiddler:
-            new_tiddler['created'] = get_tiddlywiki_timestamp()
-        if 'modified' not in new_tiddler:
-            new_tiddler['modified'] = get_tiddlywiki_timestamp()
+    if wiki_format == 'modern':
+        # Use modern format - maintain separate stores
+        stores = extract_tiddler_stores(content)
+        if not stores:
+            print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+            sys.exit(1)
 
-        tiddler_title = new_tiddler['title']
+        # Process each tiddler to insert
+        for new_tiddler in tiddlers_to_insert:
+            # Ensure timestamps exist
+            if 'created' not in new_tiddler:
+                new_tiddler['created'] = get_tiddlywiki_timestamp()
+            if 'modified' not in new_tiddler:
+                new_tiddler['modified'] = get_tiddlywiki_timestamp()
 
-        # Check if tiddler already exists and remove it from all stores
-        found = False
+            tiddler_title = new_tiddler['title']
+
+            # Check if tiddler already exists in any store and remove it
+            found = False
+            for store in stores:
+                original_count = len(store['tiddlers'])
+                store['tiddlers'] = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
+                if len(store['tiddlers']) < original_count:
+                    found = True
+
+            # Add the new tiddler to the first store
+            stores[0]['tiddlers'].append(new_tiddler)
+
+            # Track what happened
+            if found:
+                replaced_titles.append(tiddler_title)
+            else:
+                inserted_titles.append(tiddler_title)
+
+        # Build replacements for all stores
+        replacements = []
         for store in stores:
-            original_count = len(store['tiddlers'])
-            store['tiddlers'] = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
-            if len(store['tiddlers']) < original_count:
-                found = True
+            sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
+            tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
+            new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            new_json = new_json.replace('<', '\\u003C')
+            new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+            replacements.append((store['start'], store['end'], new_store))
 
-        # Add the new tiddler to the first store
-        stores[0]['tiddlers'].append(new_tiddler)
+        # Apply replacements in reverse order
+        new_content = content
+        for start, end, replacement in reversed(replacements):
+            new_content = new_content[:start] + replacement + new_content[end:]
 
-        # Track what happened
-        if found:
-            replaced_titles.append(tiddler_title)
-        else:
-            inserted_titles.append(tiddler_title)
+        # Write back
+        with open(wiki_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
 
-    # Build replacements for all stores
-    replacements = []
-    for store in stores:
-        # Sort tiddlers alphabetically by title
-        sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
-        # Rebuild the script tag
-        tiddler_jsons = [json.dumps(reorder_tiddler_fields(t, wiki_path, t.get('title', '')), ensure_ascii=False, separators=(',', ':')) for t in sorted_tiddlers]
-        new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
-        new_json = new_json.replace('<', '\\u003C')
-        new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
-        replacements.append((store['start'], store['end'], new_store))
+    elif wiki_format == 'legacy':
+        # Load all existing tiddlers
+        all_tiddlers = load_all_tiddlers(wiki_path)
 
-    # Apply replacements in reverse order
-    new_content = content
-    for start, end, replacement in reversed(replacements):
-        new_content = new_content[:start] + replacement + new_content[end:]
+        # Process each tiddler to insert
+        for new_tiddler in tiddlers_to_insert:
+            # Ensure timestamps exist
+            if 'created' not in new_tiddler:
+                new_tiddler['created'] = get_tiddlywiki_timestamp()
+            if 'modified' not in new_tiddler:
+                new_tiddler['modified'] = get_tiddlywiki_timestamp()
 
-    # Write back
-    with open(wiki_path, 'w', encoding='utf-8') as f:
-        f.write(new_content)
+            tiddler_title = new_tiddler['title']
+
+            # Check if tiddler already exists
+            found = False
+            for i, existing in enumerate(all_tiddlers):
+                if existing.get('title') == tiddler_title:
+                    all_tiddlers[i] = new_tiddler
+                    found = True
+                    break
+
+            if not found:
+                all_tiddlers.append(new_tiddler)
+
+            # Track what happened
+            if found:
+                replaced_titles.append(tiddler_title)
+            else:
+                inserted_titles.append(tiddler_title)
+
+        # Use legacy format writing
+        write_legacy_wiki(wiki_path, all_tiddlers)
 
     # Print summary
     for title in replaced_titles:
