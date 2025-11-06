@@ -35,6 +35,40 @@ function M.setup(opts)
   -- Setup buffer management
   buffer_manager.setup()
 
+  -- Auto-open wiki files when opening .html files
+  if opts.auto_open_wiki_files then
+    vim.api.nvim_create_autocmd({"BufReadPost"}, {
+      pattern = {"*.html"},
+      callback = function(ev)
+        local filepath = vim.api.nvim_buf_get_name(ev.buf)
+
+        -- Use tw to detect format (more efficient and centralized)
+        local tw_binary = opts.tw_binary or "tw"
+        local cmd = string.format("%s %s detect", tw_binary, vim.fn.shellescape(filepath))
+        local output = vim.fn.system(cmd)
+
+        if vim.v.shell_error ~= 0 then
+          -- Not a TiddlyWiki file (or error occurred)
+          return
+        end
+
+        local format = vim.trim(output)  -- "modern" or "legacy"
+
+        -- Close the HTML buffer (we don't want to edit raw HTML)
+        vim.api.nvim_buf_delete(ev.buf, { force = true })
+
+        -- Reconfigure tw to use this wiki
+        tw_wrapper.config.wiki_path = filepath
+
+        -- Launch the picker
+        vim.schedule(function()
+          vim.notify("Opening TiddlyWiki (" .. format .. "): " .. vim.fn.fnamemodify(filepath, ":t"), vim.log.levels.INFO)
+          telescope_picker.tiddlers()
+        end)
+      end,
+    })
+  end
+
   -- Create user commands
   vim.api.nvim_create_user_command("TiddlerEdit", function()
     telescope_picker.tiddlers()

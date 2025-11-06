@@ -165,6 +165,56 @@ def detect_wiki_format(content):
         print("Error: Could not detect wiki format (neither modern JSON stores nor legacy storeArea found)", file=sys.stderr)
         sys.exit(1)
 
+def detect_format_streaming(filepath):
+    """Detect wiki format by streaming file with early exit.
+
+    This is more efficient than loading the entire file for large wikis.
+    Returns as soon as either format marker is found.
+
+    Args:
+        filepath: Path to the wiki HTML file
+
+    Returns:
+        'modern': Uses <script class="tiddlywiki-tiddler-store"> format
+        'legacy': Uses <div id="storeArea"> format
+
+    Raises:
+        SystemExit if file cannot be read or no format detected
+    """
+    CHUNK_SIZE = 1024 * 1024  # 1MB chunks
+    OVERLAP = 1024  # Keep 1KB overlap for patterns split across chunks
+
+    modern_marker = b'<script class="tiddlywiki-tiddler-store"'
+    legacy_marker = b'<div id="storeArea"'
+
+    try:
+        with open(filepath, 'rb') as f:
+            previous_chunk_end = b''
+
+            while True:
+                chunk = f.read(CHUNK_SIZE)
+                if not chunk:
+                    break
+
+                # Check in overlap region + current chunk
+                search_region = previous_chunk_end + chunk
+
+                if modern_marker in search_region:
+                    return 'modern'
+                if legacy_marker in search_region:
+                    return 'legacy'
+
+                # Save end of chunk for overlap check
+                previous_chunk_end = chunk[-OVERLAP:] if len(chunk) >= OVERLAP else chunk
+
+        # Reached end of file without finding a format marker
+        print("Error: Could not detect wiki format (neither modern JSON stores nor legacy storeArea found)", file=sys.stderr)
+        sys.exit(1)
+
+    except IOError as e:
+        print(f"Error: Could not read file: {e}", file=sys.stderr)
+        sys.exit(1)
+
 def extract_legacy_tiddlers(content):
     """Extract tiddlers from legacy <div id="storeArea"> format.
 
@@ -2061,6 +2111,11 @@ def main():
         print("             tw append MyLog some text here", file=sys.stderr)
         print("             echo \"More content\" | tw append \"My Tiddler\"", file=sys.stderr)
         print("", file=sys.stderr)
+        print("  detect", file=sys.stderr)
+        print("    Detect wiki format (modern or legacy)", file=sys.stderr)
+        print("    Example: tw detect", file=sys.stderr)
+        print("             tw ~/my-wiki.html detect", file=sys.stderr)
+        print("", file=sys.stderr)
         print("  install_plugin", file=sys.stderr)
         print("    Install live reload plugin", file=sys.stderr)
         print("    Example: tw install_plugin", file=sys.stderr)
@@ -2185,6 +2240,10 @@ def main():
         else:
             # No text argument, will read from stdin
             append_tiddler(wiki_path, tiddler_title)
+    elif command == "detect":
+        # Use streaming detection for efficiency
+        format_type = detect_format_streaming(wiki_path)
+        print(format_type)
     elif command == "install_plugin":
         install_live_reload_plugin(wiki_path)
     elif command == "serve":

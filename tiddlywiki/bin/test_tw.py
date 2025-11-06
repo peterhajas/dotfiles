@@ -17,6 +17,7 @@ import os
 import sys
 import tempfile
 import shutil
+import subprocess
 
 # Import the tw script
 # Since tw has no .py extension, we need to import it specially
@@ -5959,6 +5960,133 @@ Direct content without pre tag
         # Should be in alphabetical order
         self.assertLess(apple_pos, banana_pos)
         self.assertLess(banana_pos, zebra_pos)
+
+
+class TestDetectCommand(unittest.TestCase):
+    """Test the detect command for identifying wiki formats"""
+
+    def setUp(self):
+        """Create test wiki files in both formats"""
+        # Create a modern format wiki
+        self.modern_wiki = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+        self.modern_wiki.write('''<!DOCTYPE html>
+<html>
+<head><title>Modern Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">
+[
+{"title":"TestTiddler","text":"Test content"}
+]
+</script>
+</body>
+</html>''')
+        self.modern_wiki.close()
+
+        # Create a legacy format wiki
+        self.legacy_wiki = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+        self.legacy_wiki.write('''<!DOCTYPE html>
+<html>
+<head><title>Legacy Test Wiki</title></head>
+<body>
+<div id="storeArea" style="display:none;">
+<div title="TestTiddler" created="20230101000000000" modified="20230101000000000">
+<pre>Test content</pre>
+</div>
+</div>
+</body>
+</html>''')
+        self.legacy_wiki.close()
+
+        # Create a non-wiki HTML file
+        self.non_wiki = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+        self.non_wiki.write('''<!DOCTYPE html>
+<html>
+<head><title>Not a Wiki</title></head>
+<body>
+<p>Just a regular HTML file</p>
+</body>
+</html>''')
+        self.non_wiki.close()
+
+    def tearDown(self):
+        """Clean up test files"""
+        os.unlink(self.modern_wiki.name)
+        os.unlink(self.legacy_wiki.name)
+        os.unlink(self.non_wiki.name)
+
+    def test_detect_modern_format(self):
+        """Test detecting modern format wiki"""
+        result = subprocess.run(
+            ['python3', 'tw', self.modern_wiki.name, 'detect'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'modern')
+
+    def test_detect_legacy_format(self):
+        """Test detecting legacy format wiki"""
+        result = subprocess.run(
+            ['python3', 'tw', self.legacy_wiki.name, 'detect'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'legacy')
+
+    def test_detect_non_wiki_fails(self):
+        """Test that detect fails on non-wiki HTML files"""
+        result = subprocess.run(
+            ['python3', 'tw', self.non_wiki.name, 'detect'],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Could not detect wiki format', result.stderr)
+
+    def test_detect_with_environment_variable(self):
+        """Test detect command using TIDDLYWIKI_WIKI_PATH environment variable"""
+        env = os.environ.copy()
+        env['TIDDLYWIKI_WIKI_PATH'] = self.modern_wiki.name
+        result = subprocess.run(
+            ['python3', 'tw', 'detect'],
+            capture_output=True,
+            text=True,
+            env=env
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'modern')
+
+    def test_detect_with_large_wiki(self):
+        """Test detect with a larger wiki to verify streaming works"""
+        # Create a wiki with a lot of JavaScript before the store
+        large_wiki = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+        # Write a large preamble (simulate TiddlyWiki's JavaScript)
+        large_wiki.write('<!DOCTYPE html>\n<html>\n<head>\n')
+        large_wiki.write('<script>\n')
+        # Write ~1MB of JavaScript comments to push storeArea further into file
+        for i in range(20000):
+            large_wiki.write(f'// Comment line {i} with some padding text to make it larger\n')
+        large_wiki.write('</script>\n</head>\n<body>\n')
+        # Now write the legacy storeArea
+        large_wiki.write('<div id="storeArea" style="display:none;">\n')
+        large_wiki.write('<div title="TestTiddler" created="20230101000000000">')
+        large_wiki.write('<pre>Content</pre>')
+        large_wiki.write('</div>\n')
+        large_wiki.write('</div>\n')
+        large_wiki.write('</body>\n</html>')
+        large_wiki.close()
+
+        try:
+            result = subprocess.run(
+                ['python3', 'tw', large_wiki.name, 'detect'],
+                capture_output=True,
+                text=True
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertEqual(result.stdout.strip(), 'legacy')
+        finally:
+            os.unlink(large_wiki.name)
 
 
 if __name__ == '__main__':
