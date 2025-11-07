@@ -2216,6 +2216,11 @@ def main():
         print("    Example: tw detect", file=sys.stderr)
         print("             tw ~/my-wiki.html detect", file=sys.stderr)
         print("", file=sys.stderr)
+        print("  filetype-map", file=sys.stderr)
+        print("    Output MIME type to filetype mapping as JSON", file=sys.stderr)
+        print("    Used by editor integrations (e.g., neovim plugin)", file=sys.stderr)
+        print("    Example: tw filetype-map", file=sys.stderr)
+        print("", file=sys.stderr)
         print("  install_plugin", file=sys.stderr)
         print("    Install live reload plugin", file=sys.stderr)
         print("    Example: tw install_plugin", file=sys.stderr)
@@ -2244,7 +2249,7 @@ def main():
         print("Error: No command provided", file=sys.stderr)
         sys.exit(1)
 
-    # Handle 'init' command separately since it doesn't need a wiki path parameter
+    # Handle commands that don't need a wiki path
     if command == "init":
         if arg_idx + 1 >= len(sys.argv):
             print("Error: init command requires a destination path", file=sys.stderr)
@@ -2252,6 +2257,11 @@ def main():
         # init doesn't use wiki_path_arg - it creates a new wiki
         dest_path = sys.argv[arg_idx + 1]
         init_wiki(dest_path)
+        return
+    elif command == "filetype-map":
+        # Output MIME type to filetype mapping as JSON (doesn't need wiki path)
+        import json
+        print(json.dumps(MIME_TO_VIM_FILETYPE, ensure_ascii=False))
         return
 
     wiki_path = get_wiki_path(wiki_path_arg)

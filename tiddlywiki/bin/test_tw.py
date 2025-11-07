@@ -6204,5 +6204,76 @@ class TestDetectCommand(unittest.TestCase):
             os.unlink(large_wiki.name)
 
 
+class TestFiletypeMap(unittest.TestCase):
+    """Tests for the filetype-map command"""
+
+    def test_filetype_map_outputs_json(self):
+        """Test that filetype-map outputs valid JSON"""
+        import io
+        import contextlib
+
+        # Capture stdout from the main() function
+        result = subprocess.run(
+            ['python3', 'tw', 'filetype-map'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+
+        # Should be valid JSON
+        parsed = json.loads(result.stdout)
+        self.assertIsInstance(parsed, dict)
+
+    def test_filetype_map_contains_expected_mappings(self):
+        """Test that filetype-map includes expected MIME type mappings"""
+        result = subprocess.run(
+            ['python3', 'tw', 'filetype-map'],
+            capture_output=True,
+            text=True
+        )
+
+        parsed = json.loads(result.stdout)
+
+        # Test a few expected mappings
+        self.assertEqual(parsed.get('text/vnd.tiddlywiki'), 'markdown')
+        self.assertEqual(parsed.get('text/css'), 'css')
+        self.assertEqual(parsed.get('application/javascript'), 'javascript')
+        self.assertEqual(parsed.get('text/x-python'), 'python')
+        self.assertEqual(parsed.get('text/html'), 'html')
+
+    def test_filetype_map_no_wiki_required(self):
+        """Test that filetype-map works without a wiki path"""
+        # Should work without TIDDLYWIKI_WIKI_PATH env var
+        env = os.environ.copy()
+        env.pop('TIDDLYWIKI_WIKI_PATH', None)
+
+        result = subprocess.run(
+            ['python3', 'tw', 'filetype-map'],
+            capture_output=True,
+            text=True,
+            env=env
+        )
+
+        self.assertEqual(result.returncode, 0)
+        parsed = json.loads(result.stdout)
+        self.assertIsInstance(parsed, dict)
+        self.assertGreater(len(parsed), 0)
+
+    def test_filetype_map_all_values_are_strings(self):
+        """Test that all filetype mappings are strings"""
+        result = subprocess.run(
+            ['python3', 'tw', 'filetype-map'],
+            capture_output=True,
+            text=True
+        )
+
+        parsed = json.loads(result.stdout)
+
+        for mime_type, filetype in parsed.items():
+            self.assertIsInstance(mime_type, str, f"MIME type key should be string: {mime_type}")
+            self.assertIsInstance(filetype, str, f"Filetype value should be string: {filetype}")
+
+
 if __name__ == '__main__':
     unittest.main()

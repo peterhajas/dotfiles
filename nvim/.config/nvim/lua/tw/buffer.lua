@@ -43,8 +43,9 @@ function M.open(tiddler_name)
   -- Set buffer type to acwrite (autocmd-writable)
   vim.api.nvim_buf_set_option(bufnr, "buftype", "acwrite")
 
-  -- Set filetype to markdown
-  vim.api.nvim_buf_set_option(bufnr, "filetype", "markdown")
+  -- Set filetype based on tiddler's type field
+  local filetype = tw_wrapper.get_tiddler_filetype(tiddler_name)
+  vim.api.nvim_buf_set_option(bufnr, "filetype", filetype)
 
   -- Store mapping
   buffer_map[bufnr] = tiddler_name

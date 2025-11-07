@@ -12,6 +12,49 @@ M.config = {
 -- Structure: { wiki_path -> { mtime, tiddlers = {} } }
 local _wiki_cache = {}
 
+-- Cache for MIME type to filetype mapping
+local _filetype_mapping_cache = nil
+
+-- Load MIME type to filetype mapping from tw filetype-map
+local function load_filetype_mapping()
+  if _filetype_mapping_cache then
+    return _filetype_mapping_cache
+  end
+
+  local tw_binary = M.config.tw_binary or "tw"
+  local cmd = tw_binary .. " filetype-map"
+  local output = vim.fn.system(cmd)
+
+  if vim.v.shell_error ~= 0 then
+    vim.notify("Failed to load filetype mapping: " .. output, vim.log.levels.WARN)
+    -- Return empty table as fallback
+    _filetype_mapping_cache = {}
+    return _filetype_mapping_cache
+  end
+
+  -- Parse JSON
+  local ok, mapping = pcall(vim.json.decode, output)
+  if not ok or type(mapping) ~= "table" then
+    vim.notify("Failed to parse filetype mapping JSON", vim.log.levels.WARN)
+    _filetype_mapping_cache = {}
+    return _filetype_mapping_cache
+  end
+
+  _filetype_mapping_cache = mapping
+  return _filetype_mapping_cache
+end
+
+-- Get Neovim filetype from tiddler's MIME type
+-- Returns: filetype string, defaults to 'markdown' if not found
+local function get_filetype_from_mime(mime_type)
+  if not mime_type or mime_type == "" then
+    return 'markdown'  -- Default for TiddlyWiki content
+  end
+
+  local mapping = load_filetype_mapping()
+  return mapping[mime_type] or 'markdown'
+end
+
 -- Get file modification time
 local function get_file_mtime(filepath)
   local stat = vim.loop.fs_stat(filepath)
@@ -110,8 +153,9 @@ function M.list()
   return titles
 end
 
--- Get tiddler content (raw tw cat output)
-function M.get(tiddler_name)
+-- Get tiddler object (raw from cache)
+-- Returns the tiddler as a table with all fields
+function M.get_tiddler_object(tiddler_name)
   local wiki_path = M.config.wiki_path or vim.env.TIDDLYWIKI_WIKI_PATH
 
   if not wiki_path then
@@ -125,35 +169,57 @@ function M.get(tiddler_name)
   -- Find the tiddler
   for _, tiddler in ipairs(all_tiddlers) do
     if tiddler.title == tiddler_name then
-      -- Format as tw cat output (title: value\nfield: value\n\ntext)
-      local lines = {}
-      table.insert(lines, "title: " .. tiddler.title)
-
-      -- Add other fields (sorted, excluding text and title)
-      local fields = {}
-      for key, value in pairs(tiddler) do
-        if key ~= "title" and key ~= "text" then
-          table.insert(fields, key)
-        end
-      end
-      table.sort(fields)
-
-      for _, key in ipairs(fields) do
-        table.insert(lines, key .. ": " .. tostring(tiddler[key]))
-      end
-
-      -- Add text after blank line
-      if tiddler.text then
-        table.insert(lines, "")
-        table.insert(lines, tiddler.text)
-      end
-
-      return table.concat(lines, "\n")
+      return tiddler
     end
   end
 
-  vim.notify("Tiddler not found: " .. tiddler_name, vim.log.levels.ERROR)
   return nil
+end
+
+-- Get the Neovim filetype for a tiddler based on its 'type' field
+-- Returns: filetype string, defaults to 'markdown'
+function M.get_tiddler_filetype(tiddler_name)
+  local tiddler = M.get_tiddler_object(tiddler_name)
+  if not tiddler then
+    return 'markdown'
+  end
+
+  return get_filetype_from_mime(tiddler.type)
+end
+
+-- Get tiddler content (raw tw cat output)
+function M.get(tiddler_name)
+  local tiddler = M.get_tiddler_object(tiddler_name)
+
+  if not tiddler then
+    vim.notify("Tiddler not found: " .. tiddler_name, vim.log.levels.ERROR)
+    return nil
+  end
+
+  -- Format as tw cat output (title: value\nfield: value\n\ntext)
+  local lines = {}
+  table.insert(lines, "title: " .. tiddler.title)
+
+  -- Add other fields (sorted, excluding text and title)
+  local fields = {}
+  for key, value in pairs(tiddler) do
+    if key ~= "title" and key ~= "text" then
+      table.insert(fields, key)
+    end
+  end
+  table.sort(fields)
+
+  for _, key in ipairs(fields) do
+    table.insert(lines, key .. ": " .. tostring(tiddler[key]))
+  end
+
+  -- Add text after blank line
+  if tiddler.text then
+    table.insert(lines, "")
+    table.insert(lines, tiddler.text)
+  end
+
+  return table.concat(lines, "\n")
 end
 
 -- Replace tiddler content (content must be in tw cat format with title: field)
