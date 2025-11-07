@@ -1202,19 +1202,25 @@ def append_tiddler(wiki_path, tiddler_title, text_to_append=None):
             break
 
     if not tiddler:
-        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
-        sys.exit(1)
-
-    # Append to existing text
-    existing_text = tiddler.get('text', '')
-    if existing_text:
-        # Add newline between existing and new content if both have content
-        tiddler['text'] = existing_text + '\n' + text_to_append
+        # Create new tiddler if it doesn't exist
+        tiddler = {
+            "title": tiddler_title,
+            "text": text_to_append
+        }
+        # This is a new tiddler, so use is_modification=False to set both created and modified
+        ensure_timestamps(tiddler, is_modification=True)
+        print(f"Created tiddler: {tiddler_title}")
     else:
-        tiddler['text'] = text_to_append
+        # Append to existing text
+        existing_text = tiddler.get('text', '')
+        if existing_text:
+            # Add newline between existing and new content if both have content
+            tiddler['text'] = existing_text + '\n' + text_to_append
+        else:
+            tiddler['text'] = text_to_append
 
-    # Update modified timestamp and ensure created exists
-    ensure_timestamps(tiddler, is_modification=True)
+        # Update modified timestamp and ensure created exists
+        ensure_timestamps(tiddler, is_modification=True)
 
     # Use insert_tiddler to save (it handles the full update)
     tiddler_json = json.dumps(tiddler)

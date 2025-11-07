@@ -4486,14 +4486,19 @@ class TestAppendTiddler(unittest.TestCase):
         self.assertEqual(tiddler.get('created'), original_created)
 
     def test_append_to_nonexistent_tiddler(self):
-        """Test that appending to non-existent tiddler exits with error"""
+        """Test that appending to non-existent tiddler creates it"""
         import io
         import unittest.mock
 
         f = io.StringIO("some text")
         with unittest.mock.patch('sys.stdin', f):
-            with self.assertRaises(SystemExit):
-                tw_module.append_tiddler(self.test_wiki, "NonExistentTiddler")
+            tw_module.append_tiddler(self.test_wiki, "NonExistentTiddler")
+
+        # Verify tiddler was created
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next((t for t in tiddlers if t['title'] == 'NonExistentTiddler'), None)
+        self.assertIsNotNone(tiddler)
+        self.assertEqual(tiddler['text'], 'some text')
 
     def test_append_updates_modified_timestamp(self):
         """Test that modified timestamp is updated after append"""
@@ -4632,6 +4637,23 @@ class TestAppendTiddler(unittest.TestCase):
 
         expected = "Line 1\nLine 2\nFrom stdin"
         self.assertEqual(tiddler['text'], expected)
+
+    def test_append_creates_tiddler_with_timestamps(self):
+        """Test that appending to non-existent tiddler creates it with created and modified timestamps"""
+        tw_module.append_tiddler(self.test_wiki, "NewTiddlerViaAppend", "Initial content")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        tiddler = next((t for t in tiddlers if t['title'] == 'NewTiddlerViaAppend'), None)
+
+        # Verify tiddler was created
+        self.assertIsNotNone(tiddler)
+        self.assertEqual(tiddler['text'], 'Initial content')
+
+        # Verify timestamps exist
+        self.assertIn('created', tiddler)
+        self.assertIn('modified', tiddler)
+        self.assertIsNotNone(tiddler['created'])
+        self.assertIsNotNone(tiddler['modified'])
 
 
 class TestUnchangedContentPreservesTimestamp(unittest.TestCase):
