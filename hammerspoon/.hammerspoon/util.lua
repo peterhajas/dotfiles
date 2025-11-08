@@ -60,7 +60,7 @@ function fileExists(file)
 end
 
 -- https://stackoverflow.com/questions/11201262/how-to-read-data-from-a-file-in-lua
--- get all lines from a file, returns an empty 
+-- get all lines from a file, returns an empty
 -- list/table if the file does not exist
 function linesInFile(file)
     if not fileExists(file) then return {} end
