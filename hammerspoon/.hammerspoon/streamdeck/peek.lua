@@ -43,15 +43,16 @@ function calendarPeekButton()
     local headerFontSize = 16
     local bodyFontSize = 42
 
-    local headerText = os.date("%b")
-    -- +0 to strip leading 0
-    local bodyText = os.date("%d") + 0
-
     button['image'] = nil
     button['stateProvider'] = function()
         return os.date("%d") + 0
     end
     button['imageProvider'] = function(state)
+        -- Evaluate these fresh each time the image is rendered
+        local headerText = os.date("%b")
+        -- +0 to strip leading 0
+        local bodyText = os.date("%d") + 0
+
         local elements = {}
 
         -- White background

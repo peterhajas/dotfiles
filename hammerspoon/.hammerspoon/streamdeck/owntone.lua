@@ -64,6 +64,7 @@ function owntoneButton(server, port)
             lengthMS = math.max(progressMS, lengthMS)
             local progressFraction = progressMS / lengthMS
 
+            local artworkURL = nil
             local itemID = player['item_id']
             for index,playerItem in pairs(queue['items']) do
                 if playerItem['id'] == itemID then
@@ -73,13 +74,14 @@ function owntoneButton(server, port)
             end
 
             if artworkURL == nil then
-                local artworkURL = player['artwork_url']
+                artworkURL = player['artwork_url']
                 if tableLength(queue['items']) > 0 then
                     local firstItem = queue['items'][1]
                     artworkURL = firstItem['artwork_url'] or artworkURL
                 end
             end
 
+            local artworkImage = nil
             if artworkURL ~= nil then
                 if not string.find(artworkURL, 'http') then
                     artworkURL = server .. ':' .. port .. '/' .. artworkURL

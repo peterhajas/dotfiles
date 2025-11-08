@@ -33,10 +33,10 @@ function currentiTunesArtwork()
 
     return f]]
 
-    ok, result = hs.applescript.applescript(applescript_str)
+    local ok, result = hs.applescript.applescript(applescript_str)
 
     if ok == true then
-        path = string.gsub(result, ":", "/")
+        local path = string.gsub(result, ":", "/")
 
         -- Applescript paths include the name of the disk as the first
         -- component of the path. We should shave this off, so that calls
@@ -49,7 +49,7 @@ function currentiTunesArtwork()
 
         path = string.gsub(path, disk_name, "")
 
-        image = hs.image.imageFromPath(path)
+        local image = hs.image.imageFromPath(path)
 
         return image
     else

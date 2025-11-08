@@ -59,7 +59,7 @@ commandToFunction = {
         return result
     end,
     ["tw_glance"] = function(args, body)
-        bodyTable = hs.json.decode(body)
+        local bodyTable = hs.json.decode(body)
         local tiddler = bodyTable["tiddler"]
         if tiddler ~= nil then
             SendGlanceToTiddler(tiddler)
@@ -100,7 +100,7 @@ function parseHTTPCommand(cmd, headers, contents)
     local command = components[1]
     local outSuccess = false
     local outOutput = ""
-    arguments = {}
+    local arguments = {}
     if components[2] ~= nil then
         local args = components[2]
         args = url_decode(args)
@@ -108,8 +108,8 @@ function parseHTTPCommand(cmd, headers, contents)
         for _, v in pairs(argElements) do
             local eqPos = v:find("=")
             if eqPos then
-                argName = v:sub(1, eqPos - 1)
-                argValue = v:sub(eqPos + 1)
+                local argName = v:sub(1, eqPos - 1)
+                local argValue = v:sub(eqPos + 1)
                 arguments[argName] = argValue
             end
         end
@@ -142,8 +142,8 @@ server = hs.httpserver.new(false, false)
         ["Access-Control-Allow-Origin"] = "*"
     }
 
-    command = path:sub(2)
-    success, output = parseHTTPCommand(command, headers, contents)
+    local command = path:sub(2)
+    local success, output = parseHTTPCommand(command, headers, contents)
     if success == false then
         return "An error occurred", 400, additionalHeaders
     end
@@ -153,7 +153,7 @@ end)
 :start()
 
 function printHomeAssistantYAML(host)
-    out = "\n"
+    local out = "\n"
     out = out .. "rest_command:\n"
     for name, _ in pairs(commandToFunction) do
         out = out .. "  " .. "hammerspoon_" .. name .. ":\n"

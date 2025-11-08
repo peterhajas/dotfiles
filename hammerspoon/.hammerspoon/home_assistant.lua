@@ -29,7 +29,10 @@ function homeAssistantRun(method, endpoint, parameters)
     end
 
     -- Return output
-    outputTable = hs.json.decode(output)
+    local success, outputTable = pcall(hs.json.decode, output)
+    if not success then
+        return nil
+    end
     return outputTable
 end
 

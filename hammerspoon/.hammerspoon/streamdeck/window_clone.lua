@@ -71,10 +71,13 @@ function windowClone()
                 if app == nil then goto continue end
                 local bundleID = app:bundleID()
                 if bundleID == nil then goto continue end
+                -- Capture loop variables to avoid closure bug
+                local capturedWindow = window
+                local capturedBundleID = bundleID
                 appButton = {
                     ['imageProvider'] = function()
-                        local snap = window:snapshot()
-                        local icon = hs.image.imageFromAppBundle(bundleID)
+                        local snap = capturedWindow:snapshot()
+                        local icon = hs.image.imageFromAppBundle(capturedBundleID)
                         local elements = {}
                         table.insert(elements, {
                             type = "image",
@@ -89,7 +92,7 @@ function windowClone()
                         return streamdeck_imageWithCanvasContents(elements)
                     end,
                     ['children'] = function(context)
-                        return panelChildren(context, button(window))
+                        return panelChildren(context, button(capturedWindow))
                     end,
                 }
                 out[#out+1] = appButton

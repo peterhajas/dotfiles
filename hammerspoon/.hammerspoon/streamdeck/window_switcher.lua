@@ -9,10 +9,13 @@ function windowSwitcher()
                 if app == nil then goto continue end
                 local bundleID = app:bundleID()
                 if bundleID == nil then goto continue end
-                appButton = {
+                -- Capture loop variables to avoid closure bug
+                local capturedWindow = window
+                local capturedBundleID = bundleID
+                local appButton = {
                     ['imageProvider'] = function()
-                        local snap = window:snapshot()
-                        local icon = hs.image.imageFromAppBundle(bundleID)
+                        local snap = capturedWindow:snapshot()
+                        local icon = hs.image.imageFromAppBundle(capturedBundleID)
                         local elements = {}
                         table.insert(elements, {
                             type = "image",
@@ -27,9 +30,9 @@ function windowSwitcher()
                         return streamdeck_imageWithCanvasContents(elements)
                     end,
                     ['onClick'] = function()
-                        window:unminimize()
-                        window:becomeMain()
-                        window:focus()
+                        capturedWindow:unminimize()
+                        capturedWindow:becomeMain()
+                        capturedWindow:focus()
                         popButtonState()
                     end
                 }

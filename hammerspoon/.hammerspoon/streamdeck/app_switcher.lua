@@ -14,7 +14,7 @@ function appSwitcher()
                 if string.find(path, '/System/Library') then goto continue end
                 if string.find(path, 'appex') then goto continue end
                 if string.find(path, 'XPCServices') then goto continue end
-                appButton = peekButtonFor(app:bundleID())
+                local appButton = peekButtonFor(app:bundleID())
                 out[#out+1] = appButton
                 ::continue::
             end

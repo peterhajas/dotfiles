@@ -64,15 +64,15 @@ end
 -- list/table if the file does not exist
 function linesInFile(file)
     if not fileExists(file) then return {} end
-    lines = {}
-    for line in io.lines(file) do 
+    local lines = {}
+    for line in io.lines(file) do
       lines[#lines + 1] = line
     end
     return lines
 end
 
 function writeLinesToFile(file, lines)
-    handle = io.open(file, 'w')
+    local handle = io.open(file, 'w')
     for i, line in pairs(lines) do
         handle:write(line)
         handle:write('\n')

@@ -45,7 +45,7 @@ function homeAssistant()
         end,
         ['children'] = function()
             local homeAssistantState = homeAssistantRun('GET', 'states') or { }
-            children = { }
+            local children = { }
 
             for index, state in pairs(homeAssistantState) do
                 local entityID = state['entity_id']
