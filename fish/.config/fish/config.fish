@@ -1,13 +1,15 @@
 # Shell
 
 ## ~/bin is where personal executables are stored
-set PATH $PATH (find -L ~/bin -type d)
+for dir in (find -L ~/bin -type d)
+    fish_add_path $dir
+end
 
 ## ~/.bitbar/plugins is where bitbar plugs are stored
-set PATH $PATH ~/.bitbar/plugins
+fish_add_path ~/.bitbar/plugins
 
 ## /usr/local/bin is where brew installs stuff
-set PATH /usr/local/bin $PATH;
+fish_add_path /usr/local/bin
 
 # Editor
 
@@ -15,7 +17,9 @@ set PATH /usr/local/bin $PATH;
 set -gx EDITOR (which nvim)
 
 # Abbreviations
-abbrev
+if type -q abbrev
+    abbrev
+end
 
 # Shell management
 
