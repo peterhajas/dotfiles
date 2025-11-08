@@ -5,13 +5,17 @@
 	editor = nvim
 	excludesfile = /Users/phajas/.gitignore_global
 [diff]
-	tool = "nvim -d"
+	tool = nvimdiff
 [difftool]
 	prompt = false
+[difftool "nvimdiff"]
+	cmd = nvim -d $LOCAL $REMOTE
 [mergetool]
 	prompt = false
 [merge]
-	tool = "nvim -d"
+	tool = nvimdiff
+[mergetool "nvimdiff"]
+	cmd = nvim -d $LOCAL $REMOTE $MERGED -c '$wincmd w' -c 'wincmd J'
 [push]
 	default = matching
 [init]
