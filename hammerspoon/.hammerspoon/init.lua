@@ -202,6 +202,26 @@ audio_output.init()
 youtubedl.init()
 iphone_mirroring.init()
 
+-- Subscribe to ntfy topics
+-- Load topics dynamically from TiddlyWiki
+local topicsRaw = TiddlyWikiRender("ntfy topics")
+if topicsRaw then
+    print("ntfy: Loading topics from TiddlyWiki")
+    -- Parse topics (one per line, trim whitespace)
+    for topic in topicsRaw:gmatch("[^\r\n]+") do
+        topic = topic:match("^%s*(.-)%s*$")  -- trim whitespace
+        if topic ~= "" then
+            print("ntfy: Subscribing to topic: " .. topic)
+            ntfy.subscribe({
+                server = "https://ntfy.peterhajas.com",
+                topic = topic
+            })
+        end
+    end
+else
+    print("ntfy: Failed to load topics from TiddlyWiki")
+end
+
 hs.alert.show("hs ready!")
 
 profileStop('configTotal')

@@ -1,6 +1,8 @@
 -- Rendering
 function TiddlyWikiRender(name)
-    local out, _, _, _ = hs.execute('~/bin/tiddlywiki_render ' .. name)
+    -- Escape single quotes in name and wrap in single quotes for shell safety
+    local escaped = name:gsub("'", "'\\''")
+    local out, _, _, _ = hs.execute("~/bin/tiddlywiki_render '" .. escaped .. "'")
     return out
 end
 
