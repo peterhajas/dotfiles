@@ -30,7 +30,7 @@ function homeAssistantEntity(entityID)
 
             homeAssistantRun(method, endpoint, parameters)
         end,
-        ['updateInterval'] = 1
+        ['updateInterval'] = 5
     }
 end
 
