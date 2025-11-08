@@ -14,9 +14,12 @@ local function weatherButtonForLocation(location)
                 url = "wttr.in/" .. location
                 url = url .. "?format=1"
             end
-            local command = 'curl --max-time 0.5 --silent ' .. url
+            local command = 'curl --max-time 2 --silent ' .. url
             command = command .. '| sed "s/+//" | sed "s/F//" | grep -v "Unknow"'
-            local output = hs.execute(command)
+            local success, output = pcall(hs.execute, command)
+            if not success or not output or output == "" then
+                output = "Weather\nUnavailable"
+            end
             local fontSize = 40
             if location ~= nil then
                 output = location .. '\n' .. output
