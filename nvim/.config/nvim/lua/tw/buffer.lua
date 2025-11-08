@@ -41,11 +41,11 @@ function M.open(tiddler_name)
   vim.api.nvim_buf_set_name(bufnr, bufname)
 
   -- Set buffer type to acwrite (autocmd-writable)
-  vim.api.nvim_buf_set_option(bufnr, "buftype", "acwrite")
+  vim.bo[bufnr].buftype = "acwrite"
 
   -- Set filetype based on tiddler's type field
   local filetype = tw_wrapper.get_tiddler_filetype(tiddler_name)
-  vim.api.nvim_buf_set_option(bufnr, "filetype", filetype)
+  vim.bo[bufnr].filetype = filetype
 
   -- Store mapping
   buffer_map[bufnr] = tiddler_name
@@ -55,7 +55,7 @@ function M.open(tiddler_name)
   vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, lines)
 
   -- Mark buffer as not modified
-  vim.api.nvim_buf_set_option(bufnr, "modified", false)
+  vim.bo[bufnr].modified = false
 
   -- Switch to the buffer
   vim.api.nvim_set_current_buf(bufnr)
@@ -85,7 +85,7 @@ function M.save(bufnr)
 
   if success then
     -- Mark buffer as saved
-    vim.api.nvim_buf_set_option(bufnr, "modified", false)
+    vim.bo[bufnr].modified = false
     vim.notify("Saved: " .. tiddler_name, vim.log.levels.INFO)
     return true
   end
