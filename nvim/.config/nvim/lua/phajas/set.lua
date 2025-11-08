@@ -101,7 +101,10 @@ vim.api.nvim_create_autocmd({"BufReadPre", "FileReadPre"}, {
 
             -- Disable LSP for this buffer
             vim.schedule(function()
-                vim.lsp.stop_client(vim.lsp.get_clients())
+                local clients = vim.lsp.get_clients({ bufnr = 0 })
+                for _, client in ipairs(clients) do
+                    vim.lsp.buf_detach_client(0, client.id)
+                end
             end)
         end
     end,
