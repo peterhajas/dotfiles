@@ -1,0 +1,297 @@
+#!/usr/bin/env bash
+
+# tiddlywiki_import_file - Import files into TiddlyWiki with optional crushing
+#
+# Usage: tiddlywiki_import_file <file_path> [--wiki <wiki_path>]
+#
+# This script imports images and videos into a TiddlyWiki, optionally compressing
+# them ("crushing") by resizing, converting format, and stripping metadata.
+
+set -euo pipefail
+
+# Default wiki path
+DEFAULT_WIKI_PATH="$HOME/phajas-wiki/phajas-wiki.html"
+
+# Colors for output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+
+# Print error message and exit
+error() {
+    echo -e "${RED}Error: $1${NC}" >&2
+    exit 1
+}
+
+# Print success message
+success() {
+    echo -e "${GREEN}$1${NC}"
+}
+
+# Print info message
+info() {
+    echo -e "${YELLOW}$1${NC}"
+}
+
+# Check dependencies
+check_dependencies() {
+    local missing_deps=()
+
+    if [[ "$1" == "crush" ]]; then
+        if ! command -v ffmpeg &> /dev/null; then
+            missing_deps+=("ffmpeg")
+        fi
+        if ! command -v exiftool &> /dev/null; then
+            missing_deps+=("exiftool")
+        fi
+    fi
+
+    if ! command -v ~/dotfiles/tiddlywiki/bin/tw &> /dev/null; then
+        error "tw script not found at ~/dotfiles/tiddlywiki/bin/tw"
+    fi
+
+    if [ ${#missing_deps[@]} -ne 0 ]; then
+        error "Missing dependencies for crush operation: ${missing_deps[*]}"
+    fi
+}
+
+# Detect if file is an image or video
+detect_media_type() {
+    local file="$1"
+    local mime_type
+
+    # Use file command to detect type
+    mime_type=$(file -b --mime-type "$file")
+
+    if [[ "$mime_type" == image/* ]]; then
+        echo "image"
+    elif [[ "$mime_type" == video/* ]]; then
+        echo "video"
+    else
+        echo "other"
+    fi
+}
+
+# Ask user if they want to crush the file
+ask_crush() {
+    local response
+
+    while true; do
+        read -r -p "Crush this file? [Y/n] " response
+        response=${response:-Y}  # Default to Y if empty
+
+        case "$response" in
+            [Yy]|[Yy][Ee][Ss])
+                echo "yes"
+                return
+                ;;
+            [Nn]|[Nn][Oo])
+                echo "no"
+                return
+                ;;
+            *)
+                echo "Please answer yes or no."
+                ;;
+        esac
+    done
+}
+
+# Crush an image
+crush_image() {
+    local input="$1"
+    local output="$2"
+
+    info "Crushing image: $input → $output"
+
+    # Resize to max 1024 width, convert to JPEG
+    if ! ffmpeg -i "$input" -vf "scale='min(1024,iw)':'-1'" -q:v 2 "$output" -y 2>/dev/null; then
+        error "Failed to crush image with ffmpeg"
+    fi
+
+    # Strip metadata
+    if ! exiftool -all= -overwrite_original "$output" 2>/dev/null; then
+        error "Failed to strip metadata with exiftool"
+    fi
+
+    success "Image crushed successfully"
+}
+
+# Crush a video
+crush_video() {
+    local input="$1"
+    local output="$2"
+
+    info "Crushing video: $input → $output"
+
+    # Resize to max 1024 width, convert to MP4
+    if ! ffmpeg -i "$input" -vf "scale='min(1024,iw)':'-1'" -c:v libx264 -crf 23 -preset medium -c:a aac -b:a 128k "$output" -y 2>/dev/null; then
+        error "Failed to crush video with ffmpeg"
+    fi
+
+    # Strip metadata
+    if ! exiftool -all= -overwrite_original "$output" 2>/dev/null; then
+        error "Failed to strip metadata with exiftool"
+    fi
+
+    success "Video crushed successfully"
+}
+
+# Main script
+main() {
+    # Parse arguments
+    if [ $# -lt 1 ]; then
+        echo "Usage: tiddlywiki_import_file <file_path> [--wiki <wiki_path>]" >&2
+        exit 1
+    fi
+
+    local input_file="$1"
+    local wiki_path="$DEFAULT_WIKI_PATH"
+
+    # Parse optional wiki path
+    shift
+    while [ $# -gt 0 ]; do
+        case "$1" in
+            --wiki)
+                if [ $# -lt 2 ]; then
+                    error "--wiki requires a path argument"
+                fi
+                wiki_path="$2"
+                shift 2
+                ;;
+            *)
+                error "Unknown argument: $1"
+                ;;
+        esac
+    done
+
+    # Expand tilde in wiki path
+    wiki_path="${wiki_path/#\~/$HOME}"
+
+    # Check if input file exists
+    if [ ! -f "$input_file" ]; then
+        error "Input file does not exist: $input_file"
+    fi
+
+    # Check if wiki exists
+    if [ ! -f "$wiki_path" ]; then
+        error "Wiki file does not exist: $wiki_path"
+    fi
+
+    # Detect media type
+    local media_type
+    media_type=$(detect_media_type "$input_file")
+
+    # Determine if we should offer crushing
+    local should_crush="no"
+    local crushed_file=""
+    local file_to_copy="$input_file"
+    local final_filename
+    final_filename=$(basename "$input_file")
+
+    if [[ "$media_type" == "image" ]] || [[ "$media_type" == "video" ]]; then
+        info "Detected $media_type file: $input_file"
+
+        local crush_answer
+        crush_answer=$(ask_crush)
+
+        if [[ "$crush_answer" == "yes" ]]; then
+            should_crush="yes"
+            check_dependencies "crush"
+
+            # Create temp file for crushed version
+            local temp_dir
+            temp_dir=$(mktemp -d)
+
+            # Determine output extension based on media type
+            local base_name
+            base_name=$(basename "$input_file")
+            base_name="${base_name%.*}"  # Remove extension
+
+            if [[ "$media_type" == "image" ]]; then
+                final_filename="${base_name}.jpeg"
+                crushed_file="${temp_dir}/${final_filename}"
+                crush_image "$input_file" "$crushed_file"
+            else
+                final_filename="${base_name}.mp4"
+                crushed_file="${temp_dir}/${final_filename}"
+                crush_video "$input_file" "$crushed_file"
+            fi
+
+            file_to_copy="$crushed_file"
+        fi
+    else
+        info "File is not an image or video, copying as-is"
+    fi
+
+    # Calculate wiki directory
+    local wiki_dir
+    wiki_dir=$(dirname "$wiki_path")
+
+    # Default destination path
+    local default_dest="${wiki_dir}/assets/${final_filename}"
+
+    # Ask user for destination path with prefilled value
+    echo ""
+    info "Enter destination path (relative to wiki root):"
+    read -r -e -i "$default_dest" dest_path
+
+    # Expand tilde in destination path
+    dest_path="${dest_path/#\~/$HOME}"
+
+    # Create destination directory if it doesn't exist
+    local dest_dir
+    dest_dir=$(dirname "$dest_path")
+    mkdir -p "$dest_dir"
+
+    # Copy or move file
+    if [[ "$should_crush" == "yes" ]]; then
+        info "Moving crushed file to: $dest_path"
+        mv "$file_to_copy" "$dest_path"
+        # Clean up temp dir
+        rmdir "$(dirname "$crushed_file")" 2>/dev/null || true
+    else
+        info "Copying file to: $dest_path"
+        cp "$file_to_copy" "$dest_path"
+    fi
+
+    success "File copied to: $dest_path"
+
+    # Calculate relative path from wiki root
+    local relative_path
+    # Get absolute paths
+    local abs_wiki_dir abs_dest_path
+    abs_wiki_dir=$(cd "$wiki_dir" && pwd)
+    abs_dest_path=$(cd "$(dirname "$dest_path")" && pwd)/$(basename "$dest_path")
+
+    # Calculate relative path by removing wiki_dir prefix
+    relative_path="${abs_dest_path#$abs_wiki_dir/}"
+
+    info "Creating tiddler: $relative_path"
+
+    # Get MIME type for the file
+    local mime_type
+    mime_type=$(~/dotfiles/tiddlywiki/bin/tw mimetype "$dest_path")
+
+    # Create tiddler in wiki
+    if ! TIDDLYWIKI_WIKI_PATH="$wiki_path" ~/dotfiles/tiddlywiki/bin/tw touch "$relative_path" ""; then
+        error "Failed to create tiddler"
+    fi
+
+    # Set _canonical_uri field
+    if ! TIDDLYWIKI_WIKI_PATH="$wiki_path" ~/dotfiles/tiddlywiki/bin/tw set "$relative_path" _canonical_uri "$relative_path"; then
+        error "Failed to set _canonical_uri field"
+    fi
+
+    # Set type field
+    if ! TIDDLYWIKI_WIKI_PATH="$wiki_path" ~/dotfiles/tiddlywiki/bin/tw set "$relative_path" type "$mime_type"; then
+        error "Failed to set type field"
+    fi
+
+    success "✓ Import complete!"
+    success "  File: $dest_path"
+    success "  Tiddler: $relative_path"
+    success "  MIME type: $mime_type"
+}
+
+main "$@"

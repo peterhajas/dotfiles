@@ -6297,5 +6297,162 @@ class TestFiletypeMap(unittest.TestCase):
             self.assertIsInstance(filetype, str, f"Filetype value should be string: {filetype}")
 
 
+class TestMimetypeCommand(unittest.TestCase):
+    """Tests for the mimetype command"""
+
+    def test_mimetype_jpg(self):
+        """Test that mimetype returns correct MIME type for JPG"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', 'test.jpg'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'image/jpeg')
+
+    def test_mimetype_jpeg(self):
+        """Test that mimetype returns correct MIME type for JPEG"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', 'test.jpeg'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'image/jpeg')
+
+    def test_mimetype_png(self):
+        """Test that mimetype returns correct MIME type for PNG"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', 'image.png'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'image/png')
+
+    def test_mimetype_mp4(self):
+        """Test that mimetype returns correct MIME type for MP4"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', 'video.mp4'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'video/mp4')
+
+    def test_mimetype_uppercase_extension(self):
+        """Test that mimetype handles uppercase extensions"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', 'image.PNG'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'image/png')
+
+    def test_mimetype_with_path(self):
+        """Test that mimetype works with full paths"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', '/path/to/file.mp4'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'video/mp4')
+
+    def test_mimetype_unknown_extension(self):
+        """Test that mimetype returns default for unknown extensions"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', 'file.xyz123'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'application/octet-stream')
+
+    def test_mimetype_no_extension(self):
+        """Test that mimetype handles files without extensions"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', 'filename'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'application/octet-stream')
+
+    def test_mimetype_no_wiki_required(self):
+        """Test that mimetype works without a wiki path"""
+        # Should work without TIDDLYWIKI_WIKI_PATH env var
+        env = os.environ.copy()
+        env.pop('TIDDLYWIKI_WIKI_PATH', None)
+
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype', 'test.jpg'],
+            capture_output=True,
+            text=True,
+            env=env
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'image/jpeg')
+
+    def test_mimetype_common_video_formats(self):
+        """Test various video formats"""
+        test_cases = [
+            ('video.avi', 'video/x-msvideo'),
+            ('video.mov', 'video/quicktime'),
+            ('video.webm', 'video/webm'),
+            ('video.mkv', 'video/x-matroska'),
+        ]
+
+        for filename, expected_mime in test_cases:
+            with self.subTest(filename=filename):
+                result = subprocess.run(
+                    ['python3', 'tw', 'mimetype', filename],
+                    capture_output=True,
+                    text=True
+                )
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(result.stdout.strip(), expected_mime)
+
+    def test_mimetype_common_image_formats(self):
+        """Test various image formats"""
+        test_cases = [
+            ('image.gif', 'image/gif'),
+            ('image.webp', 'image/webp'),
+            ('image.svg', 'image/svg+xml'),
+            ('image.bmp', 'image/bmp'),
+        ]
+
+        for filename, expected_mime in test_cases:
+            with self.subTest(filename=filename):
+                result = subprocess.run(
+                    ['python3', 'tw', 'mimetype', filename],
+                    capture_output=True,
+                    text=True
+                )
+                self.assertEqual(result.returncode, 0)
+                self.assertEqual(result.stdout.strip(), expected_mime)
+
+    def test_mimetype_missing_filename(self):
+        """Test that mimetype fails gracefully without filename"""
+        result = subprocess.run(
+            ['python3', 'tw', 'mimetype'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Error', result.stderr)
+
+
 if __name__ == '__main__':
     unittest.main()

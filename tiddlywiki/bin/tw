@@ -22,6 +22,89 @@ _TITLE_ATTR_PATTERN = re.compile(r'<div[^>]+title="([^"]*)"', re.DOTALL)
 _PRE_PATTERN = re.compile(r'<pre>(.*?)</pre>', re.DOTALL)
 _JSON_TITLE_PATTERN = re.compile(r'"title"\s*:\s*"([^"]*)"')
 
+# Mapping of file extensions to MIME types
+EXT_TO_MIME_TYPE = {
+    # Images
+    '.apng': 'image/apng',
+    '.avif': 'image/avif',
+    '.bmp': 'image/bmp',
+    '.gif': 'image/gif',
+    '.ico': 'image/vnd.microsoft.icon',
+    '.jpeg': 'image/jpeg',
+    '.jpg': 'image/jpeg',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.tif': 'image/tiff',
+    '.tiff': 'image/tiff',
+    '.webp': 'image/webp',
+
+    # Videos
+    '.avi': 'video/x-msvideo',
+    '.3gp': 'video/3gpp',
+    '.3g2': 'video/3gpp2',
+    '.mp4': 'video/mp4',
+    '.mpeg': 'video/mpeg',
+    '.mpg': 'video/mpeg',
+    '.mov': 'video/quicktime',
+    '.ogv': 'video/ogg',
+    '.ts': 'video/mp2t',
+    '.webm': 'video/webm',
+    '.mkv': 'video/x-matroska',
+
+    # Audio
+    '.aac': 'audio/aac',
+    '.mid': 'audio/midi',
+    '.midi': 'audio/midi',
+    '.mp3': 'audio/mpeg',
+    '.oga': 'audio/ogg',
+    '.opus': 'audio/ogg',
+    '.wav': 'audio/wav',
+    '.weba': 'audio/webm',
+    '.m4a': 'audio/mp4',
+
+    # Documents
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.pdf': 'application/pdf',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.odt': 'application/vnd.oasis.opendocument.text',
+    '.ods': 'application/vnd.oasis.opendocument.spreadsheet',
+    '.odp': 'application/vnd.oasis.opendocument.presentation',
+
+    # Archives
+    '.7z': 'application/x-7z-compressed',
+    '.bz': 'application/x-bzip',
+    '.bz2': 'application/x-bzip2',
+    '.gz': 'application/gzip',
+    '.rar': 'application/vnd.rar',
+    '.tar': 'application/x-tar',
+    '.zip': 'application/zip',
+
+    # Web & Code
+    '.css': 'text/css',
+    '.csv': 'text/csv',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.js': 'text/javascript',
+    '.mjs': 'text/javascript',
+    '.json': 'application/json',
+    '.xml': 'application/xml',
+    '.txt': 'text/plain',
+    '.md': 'text/markdown',
+    '.markdown': 'text/markdown',
+
+    # Programming
+    '.py': 'text/x-python',
+    '.sh': 'text/x-shellscript',
+    '.bash': 'text/x-shellscript',
+    '.yaml': 'text/x-yaml',
+    '.yml': 'text/x-yaml',
+    '.sql': 'text/x-sql',
+}
+
 # Mapping of TiddlyWiki MIME types to Neovim filetypes
 MIME_TO_VIM_FILETYPE = {
     # TiddlyWiki formats
@@ -2227,6 +2310,11 @@ def main():
         print("    Used by editor integrations (e.g., neovim plugin)", file=sys.stderr)
         print("    Example: tw filetype-map", file=sys.stderr)
         print("", file=sys.stderr)
+        print("  mimetype <filename>", file=sys.stderr)
+        print("    Get MIME type for a file extension", file=sys.stderr)
+        print("    Example: tw mimetype image.jpg", file=sys.stderr)
+        print("             tw mimetype video.mp4", file=sys.stderr)
+        print("", file=sys.stderr)
         print("  install_plugin", file=sys.stderr)
         print("    Install live reload plugin", file=sys.stderr)
         print("    Example: tw install_plugin", file=sys.stderr)
@@ -2268,6 +2356,18 @@ def main():
         # Output MIME type to filetype mapping as JSON (doesn't need wiki path)
         import json
         print(json.dumps(MIME_TO_VIM_FILETYPE, ensure_ascii=False))
+        return
+    elif command == "mimetype":
+        # Get MIME type for a file extension (doesn't need wiki path)
+        if arg_idx + 1 >= len(sys.argv):
+            print("Error: mimetype command requires a filename", file=sys.stderr)
+            sys.exit(1)
+        filename = sys.argv[arg_idx + 1]
+        # Get extension (including the dot)
+        _, ext = os.path.splitext(filename)
+        ext = ext.lower()
+        mime_type = EXT_TO_MIME_TYPE.get(ext, 'application/octet-stream')
+        print(mime_type)
         return
 
     wiki_path = get_wiki_path(wiki_path_arg)
