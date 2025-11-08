@@ -10,7 +10,7 @@ function fish_prompt
     set_color green; echo -n (echo (prompt_pwd | sed 's/\~\///' | sed 's/\~//'))
     # Only print a space if we're not in ~
     # (~ isn't shown, so we just want the prompt char)
-    pwd | read working_dir
+    set working_dir (pwd)
     if test $working_dir != $HOME
         echo -n ' '
     end
