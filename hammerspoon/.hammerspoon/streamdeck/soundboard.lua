@@ -10,7 +10,7 @@ end
 function buttonForSoundPath(soundPath)
     local pathElements = split(soundPath, '/')
     local name = pathElements[tableLength(pathElements)]
-    name = split(name, ".mp3")
+    name = split(name, ".mp3")[1]
     return {
         ['name'] = "Soundboard" .. soundPath,
         ['image'] = streamdeck_imageFromText(name, { ['fontSize'] = 24 } ),
