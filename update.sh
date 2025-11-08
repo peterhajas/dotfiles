@@ -2,7 +2,7 @@
 
 PLATFORM_NAME=`uname`
 
-if [ "$PLATFORM_NAME" == "Darwin" ]; then
+if [ "$PLATFORM_NAME" = "Darwin" ]; then
     echo "Detected OS X install, proceeding with OS X setup..."
     bash osx_update.bash
 else
