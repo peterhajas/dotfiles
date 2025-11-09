@@ -30,6 +30,9 @@ This will:
 - **Jellyfin** (`service_jellyfin.yml`): Media server with hardware transcoding
   - Accessible at http://torch:8096
   - Media mounted readonly from `/volume1/media`
+- **Navidrome** (`service_navidrome.yml`): Music streaming server
+  - Accessible at http://torch:4533
+  - Music mounted readonly from `/volume1/media/music`
 
 ## Standard Pattern for Container Services
 
