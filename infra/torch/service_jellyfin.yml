@@ -22,14 +22,31 @@
       containers.podman.podman_container:
         name: jellyfin
         image: docker.io/jellyfin/jellyfin:latest
-        restart_policy: always
         recreate: true
+        group_add:
+          - keep-groups
         ports:
           - "8096:8096"
         volumes:
           - /home/phajas/services/jellyfin/config:/config
           - /home/phajas/services/jellyfin/cache:/cache
           - /volume1/media:/media:ro
+        device:
+          - /dev/dri:/dev/dri
+        env:
+          TZ: America/Denver
+          LIBVA_DRIVER_NAME: iHD
+        generate_systemd:
+          path: /home/phajas/.config/systemd/user/
+          restart_policy: always
+          new: true
+
+    - name: Enable Jellyfin systemd service
+      ansible.builtin.systemd:
+        name: container-jellyfin
+        enabled: yes
+        scope: user
+        daemon_reload: yes
 
     - name: Display Jellyfin access info
       debug:

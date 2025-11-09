@@ -16,6 +16,18 @@
         state: present
         update_cache: yes
 
+    - name: Add phajas to render group (for GPU access)
+      ansible.builtin.user:
+        name: phajas
+        groups: render
+        append: yes
+
+    - name: Add phajas to video group (for GPU access)
+      ansible.builtin.user:
+        name: phajas
+        groups: video
+        append: yes
+
     - name: Enable linger for phajas user (for rootless containers)
       ansible.builtin.command:
         cmd: loginctl enable-linger phajas
