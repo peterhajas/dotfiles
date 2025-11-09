@@ -1,0 +1,34 @@
+---
+- name: Install common dependencies for torch
+  hosts: torch
+  become: yes
+  tasks:
+    - name: Install common packages
+      ansible.builtin.apt:
+        name:
+          - podman
+          - htop
+          - fish
+          - git
+          - curl
+          - vim
+          - tmux
+        state: present
+        update_cache: yes
+
+    - name: Enable linger for phajas user (for rootless containers)
+      ansible.builtin.command:
+        cmd: loginctl enable-linger phajas
+      register: linger_result
+      changed_when: linger_result.rc == 0
+      failed_when: false
+
+    - name: Verify linger is enabled
+      ansible.builtin.command:
+        cmd: loginctl show-user phajas --property=Linger
+      register: linger_status
+      changed_when: false
+
+    - name: Display linger status
+      ansible.builtin.debug:
+        msg: "Linger status for phajas: {{ linger_status.stdout }}"

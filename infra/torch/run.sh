@@ -8,4 +8,9 @@ cd "$(dirname "$0")"
 echo "Running torch setup playbook..."
 ansible-playbook setup.yml -i hosts -K
 
-echo "✓ Setup complete!"
+echo ""
+echo "Installing dependencies..."
+ansible-playbook dependencies.yml -i hosts -K
+
+echo ""
+echo "✓ All setup complete!"
