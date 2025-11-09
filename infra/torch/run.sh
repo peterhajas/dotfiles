@@ -25,4 +25,8 @@ echo "Setting up Jellyfin..."
 ansible-playbook service_jellyfin.yml -i hosts
 
 echo ""
+echo "Enabling rsync daemon..."
+ansible-playbook enable_rsync_daemon.yml -i hosts -e "@$VARS_FILE"
+
+echo ""
 echo "✓ All setup complete!"
