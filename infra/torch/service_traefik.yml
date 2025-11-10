@@ -1,0 +1,121 @@
+---
+- name: Setup Traefik reverse proxy
+  hosts: torch
+  become: false
+  tasks:
+    - name: Create Traefik network
+      containers.podman.podman_network:
+        name: traefik
+        state: present
+
+    - name: Create Traefik service directory
+      file:
+        path: /home/phajas/services/traefik
+        state: directory
+
+    - name: Create Traefik config directory
+      file:
+        path: /home/phajas/services/traefik/config
+        state: directory
+
+    - name: Create Traefik dynamic config directory
+      file:
+        path: /home/phajas/services/traefik/config/dynamic
+        state: directory
+
+    - name: Create Traefik certificates directory
+      file:
+        path: /home/phajas/services/traefik/certs
+        state: directory
+
+    - name: Create Traefik static configuration
+      copy:
+        content: |
+          # Traefik static configuration
+
+          [global]
+            checkNewVersion = false
+            sendAnonymousUsage = false
+
+          [log]
+            level = "INFO"
+
+          [api]
+            dashboard = true
+            insecure = true  # Dashboard on :8080 without auth (for now)
+
+          [entryPoints]
+            [entryPoints.web]
+              address = ":80"
+
+            [entryPoints.websecure]
+              address = ":443"
+
+          [providers]
+            [providers.file]
+              directory = "/etc/traefik/dynamic"
+              watch = true
+
+            [providers.docker]
+              endpoint = "unix:///run/podman/podman.sock"
+              exposedByDefault = false
+              network = "traefik"
+        dest: /home/phajas/services/traefik/traefik.toml
+        mode: '0644'
+
+    - name: Create Traefik dynamic configuration placeholder
+      copy:
+        content: |
+          # Traefik dynamic configuration
+          # Routes are now configured via container labels
+        dest: /home/phajas/services/traefik/config/dynamic/dynamic.toml
+        mode: '0644'
+
+    - name: Stop existing Traefik container if present
+      containers.podman.podman_container:
+        name: traefik
+        state: absent
+      ignore_errors: yes
+
+    - name: Create Traefik container
+      containers.podman.podman_container:
+        name: traefik
+        image: docker.io/traefik:latest
+        state: started
+        network: traefik
+        ports:
+          - "80:80"
+          - "443:443"
+          - "8080:8080"
+        volumes:
+          - /home/phajas/services/traefik/traefik.toml:/etc/traefik/traefik.toml:ro
+          - /home/phajas/services/traefik/config/dynamic:/etc/traefik/dynamic:ro
+          - /home/phajas/services/traefik/certs:/certs
+          - /run/user/1000/podman/podman.sock:/run/podman/podman.sock:ro
+        env:
+          TZ: America/Denver
+
+    - name: Generate systemd service for Traefik
+      containers.podman.podman_generate_systemd:
+        name: traefik
+        dest: /home/phajas/.config/systemd/user/
+        restart_policy: always
+        new: true
+
+    - name: Enable Traefik systemd service
+      ansible.builtin.systemd:
+        name: container-traefik
+        enabled: yes
+        scope: user
+        daemon_reload: yes
+
+    - name: Display Traefik access info
+      debug:
+        msg:
+          - "Traefik is running!"
+          - "  Dashboard: http://torch:8080"
+          - "  HTTP entrypoint: port 80"
+          - "  HTTPS entrypoint: port 443"
+          - ""
+          - "Configure routes in /home/phajas/services/traefik/config/dynamic/"
+          - "Or use Podman labels on containers for automatic discovery"

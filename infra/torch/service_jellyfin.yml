@@ -23,6 +23,7 @@
         name: jellyfin
         image: docker.io/jellyfin/jellyfin:latest
         recreate: true
+        network: traefik
         group_add:
           - keep-groups
         ports:
@@ -36,6 +37,12 @@
         env:
           TZ: America/Denver
           LIBVA_DRIVER_NAME: iHD
+        label:
+          traefik.enable: "true"
+          traefik.docker.network: "traefik"
+          traefik.http.routers.jellyfin.rule: "Host(`jellyfin.penny.lol`)"
+          traefik.http.routers.jellyfin.entrypoints: "web"
+          traefik.http.services.jellyfin.loadbalancer.server.port: "8096"
         generate_systemd:
           path: /home/phajas/.config/systemd/user/
           restart_policy: always
