@@ -77,3 +77,19 @@
     - name: Display storage driver
       debug:
         msg: "Storage driver is now: {{ storage_driver.stdout }}"
+
+    - name: Enable Podman API socket
+      become: false
+      ansible.builtin.systemd:
+        name: podman.socket
+        enabled: yes
+        state: started
+        scope: user
+        daemon_reload: yes
+
+    - name: Verify Podman socket is running
+      become: false
+      ansible.builtin.systemd:
+        name: podman.socket
+        state: started
+        scope: user
