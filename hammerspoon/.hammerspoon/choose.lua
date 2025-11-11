@@ -32,7 +32,7 @@ function chooser.show(choices, completion)
         table.insert(chooserChoices, { text = styledText })
     end
 
-    hs_chooser:width(20)
+    hs_chooser:width(1280)
     hs_chooser:choices(chooserChoices)
     hs_chooser:show()
 end
