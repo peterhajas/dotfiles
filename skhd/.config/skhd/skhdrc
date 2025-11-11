@@ -17,3 +17,4 @@ shift + ctrl + alt - v : open -a "Maps"
 shift + ctrl + alt - x : open -a "FindMy"
 shift + ctrl + alt - c : open -a "Calendar"
 shift + ctrl + alt - r : open -a "Finder"
+shift + ctrl + alt - p : ~/bin/password_chooser
