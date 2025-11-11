@@ -15,23 +15,6 @@ function M.setup(opts)
   tw_wrapper.config.wiki_path = opts.wiki_path
   tw_wrapper.config.tw_binary = opts.tw_binary or "tw"
 
-  -- Auto-init wiki if it doesn't exist (and auto_init is true)
-  if opts.auto_init and opts.wiki_path then
-    local wiki_path = vim.fn.expand(opts.wiki_path)
-    if vim.fn.filereadable(wiki_path) == 0 then
-      vim.notify("Wiki not found, initializing: " .. wiki_path, vim.log.levels.INFO)
-      local tw_binary = opts.tw_binary or "tw"
-      local cmd = string.format("%s init %s", tw_binary, vim.fn.shellescape(wiki_path))
-      local output = vim.fn.system(cmd)
-
-      if vim.v.shell_error ~= 0 then
-        vim.notify("Failed to initialize wiki: " .. output, vim.log.levels.ERROR)
-      else
-        vim.notify("Wiki initialized successfully", vim.log.levels.INFO)
-      end
-    end
-  end
-
   -- Setup buffer management
   buffer_manager.setup()
 
