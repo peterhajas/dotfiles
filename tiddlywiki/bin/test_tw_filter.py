@@ -721,5 +721,228 @@ class TestWikiOperators(unittest.TestCase):
         self.assertEqual(int(results[0]), 4)  # "high" has 4 characters
 
 
+class TestOrderingOperators(unittest.TestCase):
+    """Test ordering operators (sort, reverse, nsort)"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers for testing"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Add test tiddlers with various values
+        test_tiddlers = [
+            ("Item1", "First", "3", "zebra"),
+            ("Item2", "Second", "1", "apple"),
+            ("Item3", "Third", "10", "banana"),
+            ("Item4", "Fourth", "2", "Apple"),
+        ]
+
+        for title, text, priority, name in test_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'tags', 'test'],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'priority', priority],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'name', name],
+                          cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_sort_by_field(self):
+        """Test sort operator by field"""
+        results = tw_filter.evaluate_filter('[tag[test]sort[priority]]', wiki_path=self.test_wiki)
+        # Should sort by priority: 1, 10, 2, 3 (string sort)
+        self.assertEqual(len(results), 4)
+        self.assertEqual(results[0], 'Item2')  # priority "1"
+        self.assertEqual(results[1], 'Item3')  # priority "10"
+
+    def test_sort_by_title(self):
+        """Test sort by title (default)"""
+        results = tw_filter.evaluate_filter('[tag[test]sort[title]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 4)
+        self.assertEqual(results[0], 'Item1')
+        self.assertEqual(results[1], 'Item2')
+
+    def test_sortcs_case_sensitive(self):
+        """Test case-sensitive sort"""
+        results = tw_filter.evaluate_filter('[tag[test]sortcs[name]]', wiki_path=self.test_wiki)
+        # Case-sensitive: Apple < apple < banana < zebra
+        self.assertEqual(len(results), 4)
+        self.assertEqual(results[0], 'Item4')  # Apple
+        self.assertEqual(results[1], 'Item2')  # apple
+
+    def test_nsort_natural_sort(self):
+        """Test natural sort (numeric-aware)"""
+        results = tw_filter.evaluate_filter('[tag[test]nsort[priority]]', wiki_path=self.test_wiki)
+        # Should sort numerically: 1, 2, 3, 10
+        self.assertEqual(len(results), 4)
+        self.assertEqual(results[0], 'Item2')  # priority 1
+        self.assertEqual(results[1], 'Item4')  # priority 2
+        self.assertEqual(results[2], 'Item1')  # priority 3
+        self.assertEqual(results[3], 'Item3')  # priority 10
+
+    def test_reverse(self):
+        """Test reverse operator"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]reverse[]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0], '3')
+        self.assertEqual(results[1], '2')
+        self.assertEqual(results[2], '1')
+
+
+class TestListManipulationOperators(unittest.TestCase):
+    """Test list manipulation operators"""
+
+    def test_limit_operator(self):
+        """Test limit operator"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]] [[4]] [[5]]limit[3]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0], '1')
+        self.assertEqual(results[2], '3')
+
+    def test_limit_more_than_available(self):
+        """Test limit with more than available items"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]]limit[10]')
+        self.assertEqual(len(results), 2)
+
+    def test_nth_operator(self):
+        """Test nth operator"""
+        results = tw_filter.evaluate_filter('[[a]] [[b]] [[c]]nth[2]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'b')
+
+    def test_nth_first(self):
+        """Test nth with first item"""
+        results = tw_filter.evaluate_filter('[[a]] [[b]] [[c]]nth[1]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'a')
+
+    def test_nth_out_of_range(self):
+        """Test nth with out of range index"""
+        results = tw_filter.evaluate_filter('[[a]] [[b]]nth[5]')
+        self.assertEqual(len(results), 0)
+
+    def test_count_operator(self):
+        """Test count operator"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]count[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], '3')
+
+    def test_count_empty(self):
+        """Test count on empty list"""
+        results = tw_filter.evaluate_filter('[[1]]rest[]count[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], '0')
+
+
+class TestComparisonOperators(unittest.TestCase):
+    """Test comparison operators (min, max)"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers for testing"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Add test tiddlers with numeric scores
+        test_tiddlers = [
+            ("Score1", "First", "85"),
+            ("Score2", "Second", "92"),
+            ("Score3", "Third", "78"),
+            ("Score4", "Fourth", "92"),  # Tie for max
+        ]
+
+        for title, text, score in test_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'tags', 'test'],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'score', score],
+                          cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_min_operator(self):
+        """Test min operator"""
+        results = tw_filter.evaluate_filter('[tag[test]min[score]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Score3')  # score 78
+
+    def test_max_operator(self):
+        """Test max operator"""
+        results = tw_filter.evaluate_filter('[tag[test]max[score]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 2)  # Two tiddlers with score 92
+        self.assertIn('Score2', results)
+        self.assertIn('Score4', results)
+
+
+class TestEachOperator(unittest.TestCase):
+    """Test each operator"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers for testing"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Add test tiddlers with duplicate categories
+        test_tiddlers = [
+            ("Item1", "First", "A"),
+            ("Item2", "Second", "B"),
+            ("Item3", "Third", "A"),  # Duplicate category
+            ("Item4", "Fourth", "C"),
+            ("Item5", "Fifth", "B"),  # Duplicate category
+        ]
+
+        for title, text, category in test_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'tags', 'test'],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'category', category],
+                          cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_each_operator(self):
+        """Test each operator selects one per unique value"""
+        results = tw_filter.evaluate_filter('[tag[test]each[category]]', wiki_path=self.test_wiki)
+        # Should return 3 tiddlers (one for each unique category: A, B, C)
+        self.assertEqual(len(results), 3)
+        # Should be Item1 (A), Item2 (B), Item4 (C) - first occurrence of each
+        self.assertIn('Item1', results)
+        self.assertIn('Item2', results)
+        self.assertIn('Item4', results)
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -296,6 +296,10 @@ def apply_list_operator(operator_name, param, values):
     - rest[] - return all but first item
     - butfirst[] - same as rest
     - butlast[] - return all but last item
+    - limit[N] - limit to first N items
+    - nth[N] - get the Nth item (1-indexed)
+    - count[] - count items (returns list with count as string)
+    - reverse[] - reverse order
     """
     if operator_name == 'first':
         n = int(param) if param else 1
@@ -307,6 +311,20 @@ def apply_list_operator(operator_name, param, values):
         return values[1:] if len(values) > 0 else []
     elif operator_name == 'butlast':
         return values[:-1] if len(values) > 0 else []
+    elif operator_name == 'limit':
+        n = int(param) if param else 1
+        return values[:n]
+    elif operator_name == 'nth':
+        # TiddlyWiki uses 1-based indexing
+        n = int(param) if param else 1
+        if 1 <= n <= len(values):
+            return [values[n - 1]]
+        return []
+    elif operator_name == 'count':
+        # Returns the count as a string
+        return [str(len(values))]
+    elif operator_name == 'reverse':
+        return list(reversed(values))
     else:
         raise ValueError(f"Unknown list operator: {operator_name}")
 
@@ -318,6 +336,12 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
     - tag[TagName] - filter tiddlers by tag
     - has[field] - filter tiddlers that have a field
     - get[field] - get field values from tiddlers
+    - sort[field] - sort by field (case-insensitive)
+    - sortcs[field] - sort by field (case-sensitive)
+    - nsort[field] - natural sort (numeric-aware)
+    - each[field] - one tiddler per unique field value
+    - min[field] - tiddler(s) with minimum field value
+    - max[field] - tiddler(s) with maximum field value
 
     Args:
         operator_name: The operator name
@@ -375,6 +399,101 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
                         results.append(str(field_value))
         return results
 
+    elif operator_name == 'sort' or operator_name == 'sortcs':
+        # Sort tiddlers by field value
+        field_name = param if param else 'title'
+        case_sensitive = (operator_name == 'sortcs')
+
+        def get_sort_key(title):
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                value = tiddler.get(field_name, title)
+                if isinstance(value, list):
+                    value = ' '.join(str(v) for v in value)
+                value_str = str(value)
+                if not case_sensitive:
+                    value_str = value_str.lower()
+                return value_str
+            return title if not case_sensitive else title
+
+        return sorted(tiddler_titles, key=get_sort_key)
+
+    elif operator_name == 'nsort':
+        # Natural sort (numeric-aware)
+        import re
+        field_name = param if param else 'title'
+
+        def natural_sort_key(title):
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                value = tiddler.get(field_name, title)
+                if isinstance(value, list):
+                    value = ' '.join(str(v) for v in value)
+                text = str(value)
+            else:
+                text = title
+
+            # Split into text and number parts
+            parts = []
+            for part in re.split(r'(\d+)', text):
+                if part.isdigit():
+                    parts.append(int(part))
+                else:
+                    parts.append(part.lower())
+            return parts
+
+        return sorted(tiddler_titles, key=natural_sort_key)
+
+    elif operator_name == 'each':
+        # Select one tiddler for each unique field value
+        field_name = param if param else 'title'
+        seen_values = set()
+        results = []
+
+        for title in tiddler_titles:
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                value = tiddler.get(field_name, None)
+                if isinstance(value, list):
+                    value = ' '.join(str(v) for v in value)
+                value_str = str(value) if value is not None else None
+
+                if value_str not in seen_values:
+                    seen_values.add(value_str)
+                    results.append(title)
+
+        return results
+
+    elif operator_name == 'min' or operator_name == 'max':
+        # Get tiddler(s) with min/max field value
+        field_name = param if param else 'title'
+        is_min = (operator_name == 'min')
+
+        # Build list of (title, numeric_value) pairs
+        values = []
+        for title in tiddler_titles:
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                value = tiddler.get(field_name, None)
+                if value is not None:
+                    try:
+                        if isinstance(value, list):
+                            value = value[0] if value else None
+                        if value is not None:
+                            numeric_value = float(value)
+                            values.append((title, numeric_value))
+                    except (ValueError, TypeError):
+                        pass
+
+        if not values:
+            return []
+
+        # Find min or max value
+        target_value = min(values, key=lambda x: x[1])[1] if is_min else max(values, key=lambda x: x[1])[1]
+
+        # Return all tiddlers with that value
+        return [title for title, value in values if value == target_value]
+
     else:
         raise ValueError(f"Unknown wiki operator: {operator_name}")
 
@@ -414,12 +533,12 @@ def evaluate_filter(filter_expr, wiki_path=None):
         # Apply each operator to all current values
         for operator_name, param in run['operators']:
             # Check if this is a wiki operator
-            if operator_name in ['tag', 'has', 'get']:
+            if operator_name in ['tag', 'has', 'get', 'sort', 'sortcs', 'nsort', 'each', 'min', 'max']:
                 if not wiki_path:
                     raise ValueError(f"Operator '{operator_name}' requires a wiki file")
                 new_values = apply_wiki_operator(operator_name, param, new_values, tiddlers_dict)
             # Check if this is a list-level operator
-            elif operator_name in ['first', 'last', 'rest', 'butfirst', 'butlast']:
+            elif operator_name in ['first', 'last', 'rest', 'butfirst', 'butlast', 'limit', 'nth', 'count', 'reverse']:
                 # These operate on the entire list
                 new_values = apply_list_operator(operator_name, param, new_values)
             else:
