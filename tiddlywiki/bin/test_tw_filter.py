@@ -1,0 +1,588 @@
+#!/usr/bin/env python3
+"""
+Tests for TiddlyWiki filter expression evaluator (tw_filter.py)
+
+This test suite tests the filter module directly, without going through
+the command-line interface.
+"""
+
+import unittest
+import sys
+import os
+
+# Add current directory to path so we can import tw_filter
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, script_dir)
+
+import tw_filter
+
+
+class TestMathOperators(unittest.TestCase):
+    """Test the math operators in filter expressions"""
+
+    def test_simple_literal(self):
+        """Test that a simple literal value works"""
+        results = tw_filter.evaluate_filter('[[5]]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], '5')
+
+    def test_add_operator(self):
+        """Test the add operator"""
+        results = tw_filter.evaluate_filter('[[5]]add[7]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 12.0)
+
+    def test_subtract_operator(self):
+        """Test the subtract operator"""
+        results = tw_filter.evaluate_filter('[[10]]subtract[3]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 7.0)
+
+    def test_multiply_operator(self):
+        """Test the multiply operator"""
+        results = tw_filter.evaluate_filter('[[6]]multiply[7]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 42.0)
+
+    def test_divide_operator(self):
+        """Test the divide operator"""
+        results = tw_filter.evaluate_filter('[[20]]divide[4]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 5.0)
+
+    def test_divide_with_remainder(self):
+        """Test division that produces a decimal"""
+        results = tw_filter.evaluate_filter('[[10]]divide[3]')
+        self.assertEqual(len(results), 1)
+        # Should be approximately 3.333...
+        self.assertAlmostEqual(float(results[0]), 3.333333, places=5)
+
+    def test_remainder_operator(self):
+        """Test the remainder operator"""
+        results = tw_filter.evaluate_filter('[[10]]remainder[3]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 1.0)
+
+    def test_negate_operator(self):
+        """Test the negate operator"""
+        results = tw_filter.evaluate_filter('[[5]]negate[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), -5.0)
+
+    def test_abs_operator(self):
+        """Test the abs operator"""
+        results = tw_filter.evaluate_filter('[[-5]]abs[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 5.0)
+
+    def test_abs_positive(self):
+        """Test that abs works on positive numbers"""
+        results = tw_filter.evaluate_filter('[[5]]abs[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 5.0)
+
+    def test_chained_operators(self):
+        """Test chaining multiple operators"""
+        results = tw_filter.evaluate_filter('[[5]]add[7]multiply[2]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 24.0)  # (5+7)*2 = 24
+
+    def test_complex_chain(self):
+        """Test a more complex chain of operations"""
+        results = tw_filter.evaluate_filter('[[10]]add[5]multiply[2]subtract[10]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 20.0)  # ((10+5)*2)-10 = 20
+
+    def test_multiple_literals(self):
+        """Test multiple literal inputs"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0], '1')
+        self.assertEqual(results[1], '2')
+        self.assertEqual(results[2], '3')
+
+    def test_multiple_inputs_with_operator(self):
+        """Test applying operator to multiple inputs"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]] +[add[10]]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(float(results[0]), 11.0)
+        self.assertEqual(float(results[1]), 12.0)
+        self.assertEqual(float(results[2]), 13.0)
+
+    def test_multiple_inputs_multiply(self):
+        """Test multiplying multiple inputs"""
+        results = tw_filter.evaluate_filter('[[2]] [[3]] [[4]] +[multiply[10]]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(float(results[0]), 20.0)
+        self.assertEqual(float(results[1]), 30.0)
+        self.assertEqual(float(results[2]), 40.0)
+
+    def test_negative_numbers(self):
+        """Test with negative numbers"""
+        results = tw_filter.evaluate_filter('[[-10]]add[5]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), -5.0)
+
+    def test_decimal_numbers(self):
+        """Test with decimal numbers"""
+        results = tw_filter.evaluate_filter('[[3.5]]add[2.5]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 6.0)
+
+    def test_decimal_with_remainder(self):
+        """Test decimal that doesn't simplify to integer"""
+        results = tw_filter.evaluate_filter('[[5]]divide[2]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 2.5)
+
+    def test_division_by_zero(self):
+        """Test that division by zero is handled"""
+        with self.assertRaises(ValueError) as context:
+            tw_filter.evaluate_filter('[[5]]divide[0]')
+        self.assertIn('Division by zero', str(context.exception))
+
+    def test_remainder_by_zero(self):
+        """Test that modulo by zero is handled"""
+        with self.assertRaises(ValueError) as context:
+            tw_filter.evaluate_filter('[[5]]remainder[0]')
+        self.assertIn('Modulo by zero', str(context.exception))
+
+    def test_empty_filter(self):
+        """Test empty filter expression"""
+        results = tw_filter.evaluate_filter('')
+        self.assertEqual(len(results), 0)
+
+    def test_whitespace_handling(self):
+        """Test that whitespace is handled correctly"""
+        results = tw_filter.evaluate_filter('  [[5]]  add[7]  ')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 12.0)
+
+    def test_multiple_spaces_between_literals(self):
+        """Test multiple spaces between literals"""
+        results = tw_filter.evaluate_filter('[[1]]   [[2]]   [[3]]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0], '1')
+        self.assertEqual(results[1], '2')
+        self.assertEqual(results[2], '3')
+
+    def test_zero_operations(self):
+        """Test operations with zero"""
+        results = tw_filter.evaluate_filter('[[0]]add[5]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 5.0)
+
+    def test_multiply_by_zero(self):
+        """Test multiplying by zero"""
+        results = tw_filter.evaluate_filter('[[10]]multiply[0]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 0.0)
+
+    def test_negate_zero(self):
+        """Test negating zero"""
+        results = tw_filter.evaluate_filter('[[0]]negate[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 0.0)
+
+    def test_large_numbers(self):
+        """Test with large numbers"""
+        results = tw_filter.evaluate_filter('[[1000000]]multiply[1000]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 1000000000.0)
+
+    def test_very_small_decimals(self):
+        """Test with very small decimal numbers"""
+        results = tw_filter.evaluate_filter('[[0.1]]add[0.2]')
+        self.assertEqual(len(results), 1)
+        # Due to floating point precision, we check if it's close to 0.3
+        self.assertAlmostEqual(float(results[0]), 0.3, places=5)
+
+    def test_unclosed_literal(self):
+        """Test that unclosed literal is caught"""
+        with self.assertRaises(ValueError) as context:
+            tw_filter.evaluate_filter('[[5')
+        self.assertIn('Unclosed literal', str(context.exception))
+
+    def test_unclosed_operator_param(self):
+        """Test that unclosed operator parameter is caught"""
+        with self.assertRaises(ValueError) as context:
+            tw_filter.evaluate_filter('[[5]]add[7')
+        self.assertIn('Unclosed operator parameter', str(context.exception))
+
+    def test_unknown_operator(self):
+        """Test that unknown operator is caught"""
+        with self.assertRaises(ValueError) as context:
+            tw_filter.evaluate_filter('[[5]]unknown[7]')
+        self.assertIn('Unknown operator', str(context.exception))
+
+
+class TestStringOperators(unittest.TestCase):
+    """Test the string operators in filter expressions"""
+
+    def test_uppercase_operator(self):
+        """Test the uppercase operator"""
+        results = tw_filter.evaluate_filter('[[hello world]]uppercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'HELLO WORLD')
+
+    def test_lowercase_operator(self):
+        """Test the lowercase operator"""
+        results = tw_filter.evaluate_filter('[[HELLO WORLD]]lowercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello world')
+
+    def test_titlecase_operator(self):
+        """Test the titlecase operator"""
+        results = tw_filter.evaluate_filter('[[hello world]]titlecase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Hello World')
+
+    def test_sentencecase_operator(self):
+        """Test the sentencecase operator"""
+        results = tw_filter.evaluate_filter('[[hello WORLD]]sentencecase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Hello world')
+
+    def test_sentencecase_empty(self):
+        """Test sentencecase with empty string"""
+        results = tw_filter.evaluate_filter('[[]]sentencecase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], '')
+
+    def test_trim_operator(self):
+        """Test the trim operator"""
+        results = tw_filter.evaluate_filter('[[  hello world  ]]trim[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello world')
+
+    def test_trim_leading_only(self):
+        """Test trim with leading whitespace only"""
+        results = tw_filter.evaluate_filter('[[  hello]]trim[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello')
+
+    def test_trim_trailing_only(self):
+        """Test trim with trailing whitespace only"""
+        results = tw_filter.evaluate_filter('[[hello  ]]trim[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello')
+
+    def test_trim_no_spaces(self):
+        """Test trim with no whitespace"""
+        results = tw_filter.evaluate_filter('[[hello]]trim[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello')
+
+    def test_length_operator(self):
+        """Test the length operator"""
+        results = tw_filter.evaluate_filter('[[hello]]length[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(int(results[0]), 5)
+
+    def test_length_empty_string(self):
+        """Test length with empty string"""
+        results = tw_filter.evaluate_filter('[[]]length[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(int(results[0]), 0)
+
+    def test_length_with_spaces(self):
+        """Test length includes spaces"""
+        results = tw_filter.evaluate_filter('[[hello world]]length[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(int(results[0]), 11)
+
+    def test_split_operator(self):
+        """Test the split operator"""
+        results = tw_filter.evaluate_filter('[[hello world]]split[ ]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'hello')
+        self.assertEqual(results[1], 'world')
+
+    def test_split_with_comma(self):
+        """Test split with comma delimiter"""
+        results = tw_filter.evaluate_filter('[[apple,banana,cherry]]split[,]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0], 'apple')
+        self.assertEqual(results[1], 'banana')
+        self.assertEqual(results[2], 'cherry')
+
+    def test_split_default_delimiter(self):
+        """Test split with default space delimiter"""
+        results = tw_filter.evaluate_filter('[[one two three]]split[]')
+        self.assertEqual(len(results), 3)
+
+    def test_split_no_match(self):
+        """Test split when delimiter not found"""
+        results = tw_filter.evaluate_filter('[[hello]]split[,]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello')
+
+    def test_chained_string_operators(self):
+        """Test chaining string operators"""
+        results = tw_filter.evaluate_filter('[[  hello world  ]]trim[]uppercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'HELLO WORLD')
+
+    def test_uppercase_then_split(self):
+        """Test uppercase followed by split"""
+        results = tw_filter.evaluate_filter('[[hello world]]uppercase[]split[ ]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'HELLO')
+        self.assertEqual(results[1], 'WORLD')
+
+    def test_split_then_uppercase(self):
+        """Test split followed by uppercase on each part"""
+        results = tw_filter.evaluate_filter('[[hello world]]split[ ]+[uppercase[]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'HELLO')
+        self.assertEqual(results[1], 'WORLD')
+
+    def test_multiple_inputs_uppercase(self):
+        """Test uppercase on multiple inputs"""
+        results = tw_filter.evaluate_filter('[[hello]] [[world]]+[uppercase[]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'HELLO')
+        self.assertEqual(results[1], 'WORLD')
+
+    def test_trim_then_length(self):
+        """Test trim followed by length"""
+        results = tw_filter.evaluate_filter('[[  hello  ]]trim[]length[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(int(results[0]), 5)
+
+    def test_uppercase_with_numbers(self):
+        """Test uppercase with numbers"""
+        results = tw_filter.evaluate_filter('[[hello123]]uppercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'HELLO123')
+
+    def test_lowercase_with_numbers(self):
+        """Test lowercase with numbers"""
+        results = tw_filter.evaluate_filter('[[HELLO123]]lowercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello123')
+
+    def test_titlecase_with_apostrophe(self):
+        """Test titlecase with apostrophe"""
+        results = tw_filter.evaluate_filter("[[don't worry]]titlecase[]")
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], "Don'T Worry")
+
+    def test_split_empty_string(self):
+        """Test split on empty string"""
+        results = tw_filter.evaluate_filter('[[]]split[ ]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], '')
+
+    def test_special_characters_uppercase(self):
+        """Test uppercase with special characters"""
+        results = tw_filter.evaluate_filter('[[hello!@#$%]]uppercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'HELLO!@#$%')
+
+    def test_mixed_operators(self):
+        """Test mixing string and math operators"""
+        results = tw_filter.evaluate_filter('[[5]]add[3]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(float(results[0]), 8.0)
+
+        # Now test string operator
+        results = tw_filter.evaluate_filter('[[hello]]uppercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'HELLO')
+
+    def test_length_of_number(self):
+        """Test length operator on numbers"""
+        results = tw_filter.evaluate_filter('[[12345]]length[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(int(results[0]), 5)
+
+    def test_unicode_uppercase(self):
+        """Test uppercase with unicode characters"""
+        results = tw_filter.evaluate_filter('[[café]]uppercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'CAFÉ')
+
+    def test_unicode_lowercase(self):
+        """Test lowercase with unicode characters"""
+        results = tw_filter.evaluate_filter('[[CAFÉ]]lowercase[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'café')
+
+
+class TestStringManipulationOperators(unittest.TestCase):
+    """Test string manipulation operators (prefix, suffix, removeprefix, removesuffix)"""
+
+    def test_prefix_operator(self):
+        """Test prefix operator filters items starting with text"""
+        results = tw_filter.evaluate_filter('[[hello]] [[world]] [[help]]+[prefix[hel]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'hello')
+        self.assertEqual(results[1], 'help')
+
+    def test_prefix_no_match(self):
+        """Test prefix operator with no matches"""
+        results = tw_filter.evaluate_filter('[[apple]] [[banana]]+[prefix[orange]]')
+        self.assertEqual(len(results), 0)
+
+    def test_prefix_empty(self):
+        """Test prefix with empty parameter matches all"""
+        results = tw_filter.evaluate_filter('[[hello]] [[world]]+[prefix[]]')
+        self.assertEqual(len(results), 2)
+
+    def test_suffix_operator(self):
+        """Test suffix operator filters items ending with text"""
+        results = tw_filter.evaluate_filter('[[testing]] [[test]] [[best]]+[suffix[st]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'test')
+        self.assertEqual(results[1], 'best')
+
+    def test_suffix_no_match(self):
+        """Test suffix operator with no matches"""
+        results = tw_filter.evaluate_filter('[[hello]] [[world]]+[suffix[ing]]')
+        self.assertEqual(len(results), 0)
+
+    def test_removeprefix_operator(self):
+        """Test removeprefix operator removes leading text"""
+        results = tw_filter.evaluate_filter('[[prefix_hello]] [[prefix_world]]+[removeprefix[prefix_]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'hello')
+        self.assertEqual(results[1], 'world')
+
+    def test_removeprefix_no_match(self):
+        """Test removeprefix with non-matching prefix leaves value unchanged"""
+        results = tw_filter.evaluate_filter('[[hello]]removeprefix[world]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello')
+
+    def test_removeprefix_empty(self):
+        """Test removeprefix with empty parameter"""
+        results = tw_filter.evaluate_filter('[[hello]]removeprefix[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello')
+
+    def test_removesuffix_operator(self):
+        """Test removesuffix operator removes trailing text"""
+        results = tw_filter.evaluate_filter('[[hello_suffix]] [[world_suffix]]+[removesuffix[_suffix]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'hello')
+        self.assertEqual(results[1], 'world')
+
+    def test_removesuffix_no_match(self):
+        """Test removesuffix with non-matching suffix leaves value unchanged"""
+        results = tw_filter.evaluate_filter('[[hello]]removesuffix[world]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello')
+
+    def test_removesuffix_empty(self):
+        """Test removesuffix with empty parameter"""
+        results = tw_filter.evaluate_filter('[[hello]]removesuffix[]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'hello')
+
+    def test_chained_prefix_removeprefix(self):
+        """Test chaining prefix filter and removeprefix"""
+        results = tw_filter.evaluate_filter('[[Draft of hello]] [[Draft of world]] [[hello]]+[prefix[Draft ]]+[removeprefix[Draft of ]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'hello')
+        self.assertEqual(results[1], 'world')
+
+    def test_prefix_with_uppercase(self):
+        """Test combining prefix with uppercase"""
+        results = tw_filter.evaluate_filter('[[hello]] [[help]] [[world]]+[prefix[hel]]+[uppercase[]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'HELLO')
+        self.assertEqual(results[1], 'HELP')
+
+
+class TestListOperators(unittest.TestCase):
+    """Test list manipulation operators"""
+
+    def test_first_operator_default(self):
+        """Test first operator with default (1 item)"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]+[first[]]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], '1')
+
+    def test_first_operator_multiple(self):
+        """Test first operator with multiple items"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]] [[4]] [[5]]+[first[3]]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0], '1')
+        self.assertEqual(results[1], '2')
+        self.assertEqual(results[2], '3')
+
+    def test_first_operator_more_than_available(self):
+        """Test first operator requesting more items than available"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]]+[first[5]]')
+        self.assertEqual(len(results), 2)
+
+    def test_last_operator_default(self):
+        """Test last operator with default (1 item)"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]+[last[]]')
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], '3')
+
+    def test_last_operator_multiple(self):
+        """Test last operator with multiple items"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]] [[4]] [[5]]+[last[2]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], '4')
+        self.assertEqual(results[1], '5')
+
+    def test_rest_operator(self):
+        """Test rest operator removes first item"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]+[rest[]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], '2')
+        self.assertEqual(results[1], '3')
+
+    def test_rest_empty_list(self):
+        """Test rest on empty list"""
+        results = tw_filter.evaluate_filter('[[1]]+[rest[]]+[rest[]]')
+        self.assertEqual(len(results), 0)
+
+    def test_butfirst_operator(self):
+        """Test butfirst operator (same as rest)"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]+[butfirst[]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], '2')
+        self.assertEqual(results[1], '3')
+
+    def test_butlast_operator(self):
+        """Test butlast operator removes last item"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]+[butlast[]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], '1')
+        self.assertEqual(results[1], '2')
+
+    def test_butlast_single_item(self):
+        """Test butlast with single item returns empty"""
+        results = tw_filter.evaluate_filter('[[1]]+[butlast[]]')
+        self.assertEqual(len(results), 0)
+
+    def test_chained_list_operators(self):
+        """Test chaining list operators"""
+        results = tw_filter.evaluate_filter('[[1]] [[2]] [[3]] [[4]] [[5]]+[rest[]]+[butlast[]]')
+        self.assertEqual(len(results), 3)
+        self.assertEqual(results[0], '2')
+        self.assertEqual(results[1], '3')
+        self.assertEqual(results[2], '4')
+
+    def test_first_then_uppercase(self):
+        """Test first followed by uppercase"""
+        results = tw_filter.evaluate_filter('[[hello]] [[world]] [[test]]+[first[2]]+[uppercase[]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'HELLO')
+        self.assertEqual(results[1], 'WORLD')
+
+    def test_split_then_first(self):
+        """Test split followed by first"""
+        results = tw_filter.evaluate_filter('[[one two three four]]split[ ]+[first[2]]')
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'one')
+        self.assertEqual(results[1], 'two')
+
+
+if __name__ == '__main__':
+    unittest.main()
