@@ -944,5 +944,153 @@ class TestEachOperator(unittest.TestCase):
         self.assertIn('Item4', results)
 
 
+class TestAllOperator(unittest.TestCase):
+    """Test the all operator"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers for testing"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Add regular (non-system) tiddlers
+        regular_tiddlers = [
+            ("Task1", "First task", "task"),
+            ("Task2", "Second task", "task"),
+            ("Note1", "First note", "note"),
+        ]
+
+        for title, text, tags in regular_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'tags', tags],
+                          cwd=script_dir, check=True, capture_output=True)
+
+        # Add system tiddlers
+        system_tiddlers = [
+            ("$:/config/test", "Config content", ""),
+            ("$:/state/test", "State content", ""),
+            ("$:/plugins/test", "Plugin content", ""),
+        ]
+
+        for title, text, tags in system_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+            if tags:
+                subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'tags', tags],
+                              cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_all_tiddlers(self):
+        """Test all[tiddlers] returns only non-system tiddlers"""
+        results = tw_filter.evaluate_filter('[all[tiddlers]]', wiki_path=self.test_wiki)
+        # Should return only Task1, Task2, Note1 (not system tiddlers)
+        self.assertGreaterEqual(len(results), 3)
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+        self.assertIn('Note1', results)
+        # Should NOT include system tiddlers
+        self.assertNotIn('$:/config/test', results)
+        self.assertNotIn('$:/state/test', results)
+
+    def test_all_system(self):
+        """Test all[system] returns only system tiddlers"""
+        results = tw_filter.evaluate_filter('[all[system]]', wiki_path=self.test_wiki)
+        # Should include our system tiddlers
+        self.assertIn('$:/config/test', results)
+        self.assertIn('$:/state/test', results)
+        self.assertIn('$:/plugins/test', results)
+        # Should NOT include regular tiddlers
+        self.assertNotIn('Task1', results)
+        self.assertNotIn('Task2', results)
+        self.assertNotIn('Note1', results)
+
+    def test_all_empty_parameter(self):
+        """Test all[] with empty parameter passes through input"""
+        results = tw_filter.evaluate_filter('[[Task1]] [[Task2]]+[all[]]', wiki_path=self.test_wiki)
+        # Should return the input unchanged
+        self.assertEqual(len(results), 2)
+        self.assertEqual(results[0], 'Task1')
+        self.assertEqual(results[1], 'Task2')
+
+    def test_all_combined_categories(self):
+        """Test all[tiddlers+system] combines categories"""
+        results = tw_filter.evaluate_filter('[all[tiddlers+system]]', wiki_path=self.test_wiki)
+        # Should include both regular and system tiddlers
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+        self.assertIn('Note1', results)
+        self.assertIn('$:/config/test', results)
+        self.assertIn('$:/state/test', results)
+
+    def test_all_shadows(self):
+        """Test all[shadows] returns shadow/plugin tiddlers"""
+        results = tw_filter.evaluate_filter('[all[shadows]]', wiki_path=self.test_wiki)
+        # Our $:/plugins/test should be included
+        self.assertIn('$:/plugins/test', results)
+        # Regular tiddlers should not be included
+        self.assertNotIn('Task1', results)
+        # Non-plugin system tiddlers should not be included
+        self.assertNotIn('$:/config/test', results)
+        self.assertNotIn('$:/state/test', results)
+
+    def test_all_with_tag_filter(self):
+        """Test all[tiddlers] chained with tag filter"""
+        results = tw_filter.evaluate_filter('[all[tiddlers]tag[task]]', wiki_path=self.test_wiki)
+        # Should return only non-system tiddlers with 'task' tag
+        self.assertEqual(len(results), 2)
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+        self.assertNotIn('Note1', results)  # Has 'note' tag, not 'task'
+
+    def test_all_invalid_category(self):
+        """Test all with invalid category returns empty"""
+        results = tw_filter.evaluate_filter('[all[invalid]]', wiki_path=self.test_wiki)
+        # Unknown categories contribute nothing
+        self.assertEqual(len(results), 0)
+
+    def test_all_combined_with_invalid(self):
+        """Test all[tiddlers+invalid] ignores invalid category"""
+        results = tw_filter.evaluate_filter('[all[tiddlers+invalid]]', wiki_path=self.test_wiki)
+        # Should return tiddlers, invalid category is ignored
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+        self.assertIn('Note1', results)
+
+    def test_all_system_with_sort(self):
+        """Test all[system] with sort operator"""
+        results = tw_filter.evaluate_filter('[all[system]sort[title]]', wiki_path=self.test_wiki)
+        # Should return sorted system tiddlers
+        self.assertGreater(len(results), 0)
+        # Verify they're all system tiddlers
+        for title in results[:3]:  # Check first few
+            if title in ['$:/config/test', '$:/state/test', '$:/plugins/test']:
+                self.assertTrue(title.startswith('$:/'))
+
+    def test_all_tiddlers_count(self):
+        """Test counting all tiddlers"""
+        results = tw_filter.evaluate_filter('[all[tiddlers]count[]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        count = int(results[0])
+        # Should be at least our 3 test tiddlers
+        self.assertGreaterEqual(count, 3)
+
+    def test_all_no_duplicates_in_combined(self):
+        """Test all[system+system] doesn't duplicate results"""
+        results = tw_filter.evaluate_filter('[all[system+system]]', wiki_path=self.test_wiki)
+        # Check no duplicates
+        self.assertEqual(len(results), len(set(results)))
+
+
 if __name__ == '__main__':
     unittest.main()

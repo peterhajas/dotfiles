@@ -342,6 +342,7 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
     - each[field] - one tiddler per unique field value
     - min[field] - tiddler(s) with minimum field value
     - max[field] - tiddler(s) with maximum field value
+    - all[category] - select tiddlers by category (tiddlers, system, shadows, or combined with +)
 
     Args:
         operator_name: The operator name
@@ -494,6 +495,50 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
         # Return all tiddlers with that value
         return [title for title, value in values if value == target_value]
 
+    elif operator_name == 'all':
+        # Select tiddlers by category
+        # Special case: empty parameter returns input unchanged
+        if not param:
+            return tiddler_titles
+
+        # Split by '+' for combined categories
+        categories = param.split('+')
+
+        # Use a list to maintain order and set to track what we've added
+        result_list = []
+        seen = set()
+
+        for category in categories:
+            category = category.strip()
+
+            if category == 'tiddlers':
+                # Non-system tiddlers (not starting with $:/)
+                for title in tiddlers_dict.keys():
+                    if not title.startswith('$:/') and title not in seen:
+                        result_list.append(title)
+                        seen.add(title)
+
+            elif category == 'system':
+                # System tiddlers (starting with $:/)
+                for title in tiddlers_dict.keys():
+                    if title.startswith('$:/') and title not in seen:
+                        result_list.append(title)
+                        seen.add(title)
+
+            elif category == 'shadows':
+                # Shadow tiddlers (simple heuristic: plugin tiddlers)
+                # These typically start with $:/plugins/, $:/themes/, or $:/languages/
+                for title in tiddlers_dict.keys():
+                    if (title.startswith('$:/plugins/') or
+                        title.startswith('$:/themes/') or
+                        title.startswith('$:/languages/')) and title not in seen:
+                        result_list.append(title)
+                        seen.add(title)
+
+            # Unknown categories are ignored (contribute nothing to output)
+
+        return result_list
+
     else:
         raise ValueError(f"Unknown wiki operator: {operator_name}")
 
@@ -533,7 +578,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
         # Apply each operator to all current values
         for operator_name, param in run['operators']:
             # Check if this is a wiki operator
-            if operator_name in ['tag', 'has', 'get', 'sort', 'sortcs', 'nsort', 'each', 'min', 'max']:
+            if operator_name in ['tag', 'has', 'get', 'sort', 'sortcs', 'nsort', 'each', 'min', 'max', 'all']:
                 if not wiki_path:
                     raise ValueError(f"Operator '{operator_name}' requires a wiki file")
                 new_values = apply_wiki_operator(operator_name, param, new_values, tiddlers_dict)
