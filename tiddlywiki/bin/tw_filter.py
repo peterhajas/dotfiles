@@ -3,12 +3,23 @@
 TiddlyWiki Filter Expression Evaluator
 
 This module provides functionality to parse and evaluate TiddlyWiki filter expressions
-with support for various operator types: math, string, string manipulation, and list operators.
+with support for various operator types: math, string, string manipulation, list, and wiki operators.
 
 Based on TiddlyWiki's filter syntax: https://tiddlywiki.com/static/Filters.html
 """
 
 import sys
+import os
+
+# Import wiki loading functionality from tw script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+tw_path = os.path.join(script_dir, "tw")
+
+# Import tw module
+import importlib.util
+import importlib.machinery
+loader = importlib.machinery.SourceFileLoader("tw", tw_path)
+tw_module = loader.load_module()
 
 
 def parse_filter_expression(filter_expr):
@@ -54,16 +65,60 @@ def parse_filter_expression(filter_expr):
                 raise ValueError("Unclosed filter run bracket")
         else:
             # Regular run (not additive) - continues until +[ or end
-            next_run = filter_expr.find('+[', current_pos)
-            if next_run == -1:
-                run_end = len(filter_expr)
-            else:
-                run_end = next_run
+            # Check if it starts with [ AND is a single wrapped run (not [[literal]])
+            if current_pos < len(filter_expr) and filter_expr[current_pos] == '[' and filter_expr[current_pos:current_pos+2] != '[[':
+                # Find matching ] for outer brackets
+                bracket_count = 0
+                pos = current_pos
+                found_wrapped = False
+                while pos < len(filter_expr):
+                    if filter_expr[pos] == '[':
+                        bracket_count += 1
+                    elif filter_expr[pos] == ']':
+                        bracket_count -= 1
+                        if bracket_count == 0:
+                            # Found matching ] - check if this is the end of the run
+                            # (i.e., nothing follows except whitespace or +[)
+                            rest = filter_expr[pos+1:].lstrip()
+                            if not rest or rest.startswith('+['):
+                                # This is a wrapped run
+                                run_text = filter_expr[current_pos+1:pos]  # Content inside [...]
+                                if run_text:
+                                    runs.append((False, run_text))
+                                current_pos = pos + 1
+                                found_wrapped = True
+                                break
+                            else:
+                                # Not a wrapped run, treat as unwrapped
+                                break
+                    pos += 1
+                else:
+                    raise ValueError("Unclosed filter run bracket")
 
-            run_text = filter_expr[current_pos:run_end].strip()
-            if run_text:
-                runs.append((False, run_text))
-            current_pos = run_end
+                # If we didn't find a wrapped run, treat as unwrapped
+                if not found_wrapped:
+                    next_run = filter_expr.find('+[', current_pos)
+                    if next_run == -1:
+                        run_end = len(filter_expr)
+                    else:
+                        run_end = next_run
+
+                    run_text = filter_expr[current_pos:run_end].strip()
+                    if run_text:
+                        runs.append((False, run_text))
+                    current_pos = run_end
+            else:
+                # No brackets or starts with [[, continues until +[ or end
+                next_run = filter_expr.find('+[', current_pos)
+                if next_run == -1:
+                    run_end = len(filter_expr)
+                else:
+                    run_end = next_run
+
+                run_text = filter_expr[current_pos:run_end].strip()
+                if run_text:
+                    runs.append((False, run_text))
+                current_pos = run_end
 
     # Parse each run into literals and operators
     parsed_runs = []
@@ -256,28 +311,115 @@ def apply_list_operator(operator_name, param, values):
         raise ValueError(f"Unknown list operator: {operator_name}")
 
 
-def evaluate_filter(filter_expr):
+def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
+    """Apply a wiki operator that works with tiddlers.
+
+    Wiki operators from TiddlyWiki:
+    - tag[TagName] - filter tiddlers by tag
+    - has[field] - filter tiddlers that have a field
+    - get[field] - get field values from tiddlers
+
+    Args:
+        operator_name: The operator name
+        param: The operator parameter
+        tiddler_titles: List of tiddler titles (input)
+        tiddlers_dict: Dictionary mapping title -> tiddler data
+
+    Returns:
+        List of results (titles or field values)
+    """
+    results = []
+
+    if operator_name == 'tag':
+        # Filter tiddlers by tag
+        tag_name = param if param else ''
+        for title in tiddler_titles:
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                tags = tiddler.get('tags', '')
+                # Tags can be space-separated string or list
+                if isinstance(tags, list):
+                    tag_list = tags
+                elif isinstance(tags, str):
+                    tag_list = tags.split() if tags else []
+                else:
+                    tag_list = []
+
+                if tag_name in tag_list:
+                    results.append(title)
+        return results
+
+    elif operator_name == 'has':
+        # Filter tiddlers that have a field
+        field_name = param if param else ''
+        for title in tiddler_titles:
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                if field_name in tiddler:
+                    results.append(title)
+        return results
+
+    elif operator_name == 'get':
+        # Get field values from tiddlers
+        field_name = param if param else 'text'
+        for title in tiddler_titles:
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                if field_name in tiddler:
+                    field_value = tiddler[field_name]
+                    # Convert to string
+                    if isinstance(field_value, list):
+                        # For lists (like tags), join with spaces
+                        results.append(' '.join(str(v) for v in field_value))
+                    else:
+                        results.append(str(field_value))
+        return results
+
+    else:
+        raise ValueError(f"Unknown wiki operator: {operator_name}")
+
+
+def evaluate_filter(filter_expr, wiki_path=None):
     """Evaluate a TiddlyWiki filter expression and return the results.
+
+    Args:
+        filter_expr: Filter expression string
+        wiki_path: Optional path to wiki file (required for wiki operators)
 
     Returns a list of string values.
     """
     runs = parse_filter_expression(filter_expr)
 
-    # Start with empty list
+    # Load tiddlers if wiki_path provided
+    tiddlers_dict = {}
+    if wiki_path:
+        tiddlers_list = tw_module.load_all_tiddlers(wiki_path)
+        # Create dictionary mapping title -> tiddler
+        tiddlers_dict = {t['title']: t for t in tiddlers_list if 'title' in t}
+
+    # Start with empty list, or all tiddler titles if first run has no literals and wiki_path provided
     current_values = []
 
-    for run in runs:
+    for run_idx, run in enumerate(runs):
         if run['is_additive']:
             # Additive run: apply operators to current values
             new_values = current_values[:]
         else:
             # Replace run: start with literals
             new_values = run['literals'][:]
+            # Special case: if first run has no literals and wiki_path provided, start with all tiddlers
+            if run_idx == 0 and not new_values and wiki_path:
+                new_values = list(tiddlers_dict.keys())
 
         # Apply each operator to all current values
         for operator_name, param in run['operators']:
+            # Check if this is a wiki operator
+            if operator_name in ['tag', 'has', 'get']:
+                if not wiki_path:
+                    raise ValueError(f"Operator '{operator_name}' requires a wiki file")
+                new_values = apply_wiki_operator(operator_name, param, new_values, tiddlers_dict)
             # Check if this is a list-level operator
-            if operator_name in ['first', 'last', 'rest', 'butfirst', 'butlast']:
+            elif operator_name in ['first', 'last', 'rest', 'butfirst', 'butlast']:
                 # These operate on the entire list
                 new_values = apply_list_operator(operator_name, param, new_values)
             else:
@@ -299,10 +441,15 @@ def evaluate_filter(filter_expr):
     return current_values
 
 
-def filter_command(filter_expr):
-    """Execute a filter expression and print results."""
+def filter_command(filter_expr, wiki_path=None):
+    """Execute a filter expression and print results.
+
+    Args:
+        filter_expr: Filter expression string
+        wiki_path: Optional path to wiki file (required for wiki operators)
+    """
     try:
-        results = evaluate_filter(filter_expr)
+        results = evaluate_filter(filter_expr, wiki_path=wiki_path)
         for result in results:
             # Format numbers nicely (remove trailing .0 for integers)
             try:

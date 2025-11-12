@@ -2331,15 +2331,16 @@ def main():
         print("             tw serve --readonly", file=sys.stderr)
         print("", file=sys.stderr)
         print("  filter <expression>", file=sys.stderr)
-        print("    Evaluate a TiddlyWiki filter expression", file=sys.stderr)
+        print("    Evaluate a TiddlyWiki filter expression on tiddlers", file=sys.stderr)
+        print("    Wiki operators: tag[TagName], has[field], get[field]", file=sys.stderr)
         print("    Math: add, subtract, multiply, divide, remainder, negate, abs", file=sys.stderr)
         print("    String: uppercase, lowercase, titlecase, sentencecase, trim, length, split", file=sys.stderr)
         print("    String manipulation: prefix, suffix, removeprefix, removesuffix", file=sys.stderr)
         print("    List: first, last, rest, butfirst, butlast", file=sys.stderr)
-        print("    Example: tw filter \"[[5]]add[7]\"", file=sys.stderr)
-        print("             tw filter \"[[hello world]]uppercase[]\"", file=sys.stderr)
-        print("             tw filter \"[[1]] [[2]] [[3]]+[first[2]]\"", file=sys.stderr)
-        print("             tw filter \"[[prefix_test]]+[removeprefix[prefix_]]\"", file=sys.stderr)
+        print("    Example: tw wiki.html filter \"[tag[task]]\"", file=sys.stderr)
+        print("             tw wiki.html filter \"[has[priority]]\"", file=sys.stderr)
+        print("             tw wiki.html filter \"[tag[task]get[text]]\"", file=sys.stderr)
+        print("             tw wiki.html filter \"[[MyTiddler]get[priority]add[1]]\"", file=sys.stderr)
         sys.exit(1)
 
     # Parse arguments: check if first arg is a wiki path or a command
@@ -2382,14 +2383,6 @@ def main():
         ext = ext.lower()
         mime_type = EXT_TO_MIME_TYPE.get(ext, 'application/octet-stream')
         print(mime_type)
-        return
-    elif command == "filter":
-        # Filter command doesn't need a wiki path
-        if arg_idx + 1 >= len(sys.argv):
-            print("Error: filter command requires an expression", file=sys.stderr)
-            sys.exit(1)
-        filter_expr = sys.argv[arg_idx + 1]
-        tw_filter.filter_command(filter_expr)
         return
 
     wiki_path = get_wiki_path(wiki_path_arg)
@@ -2515,6 +2508,12 @@ def main():
                 sys.exit(1)
 
         serve_wiki(wiki_path, host, port, readonly)
+    elif command == "filter":
+        if arg_idx + 1 >= len(sys.argv):
+            print("Error: filter command requires an expression", file=sys.stderr)
+            sys.exit(1)
+        filter_expr = sys.argv[arg_idx + 1]
+        tw_filter.filter_command(filter_expr, wiki_path=wiki_path)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)

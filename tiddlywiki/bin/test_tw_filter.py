@@ -9,6 +9,8 @@ the command-line interface.
 import unittest
 import sys
 import os
+import tempfile
+import json
 
 # Add current directory to path so we can import tw_filter
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -582,6 +584,141 @@ class TestListOperators(unittest.TestCase):
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0], 'one')
         self.assertEqual(results[1], 'two')
+
+
+class TestWikiOperators(unittest.TestCase):
+    """Test wiki operators (tag, has, get) that work with tiddlers"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers for testing"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Add test tiddlers using tw touch
+        test_tiddlers = [
+            ("Task1", "First task content", "task urgent", "high"),
+            ("Task2", "Second task content", "task", "medium"),
+            ("Note1", "First note content", "note", None),
+            ("Task3", "Third task content", "task done", None),
+            ("NoTags", "Content without tags", None, None),
+        ]
+
+        for title, text, tags, priority in test_tiddlers:
+            # Create tiddler
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+            # Set tags if provided
+            if tags:
+                subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'tags', tags],
+                              cwd=script_dir, check=True, capture_output=True)
+            # Set priority if provided
+            if priority:
+                subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'priority', priority],
+                              cwd=script_dir, check=True, capture_output=True)
+
+        # Set category for Note1
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Note1', 'category', 'personal'],
+                      cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_tag_operator(self):
+        """Test tag operator filters tiddlers by tag"""
+        results = tw_filter.evaluate_filter('[tag[task]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 3)
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+        self.assertIn('Task3', results)
+
+    def test_tag_operator_multiple_tags(self):
+        """Test tiddler with multiple tags"""
+        results = tw_filter.evaluate_filter('[tag[urgent]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Task1')
+
+    def test_tag_operator_no_matches(self):
+        """Test tag operator with no matches"""
+        results = tw_filter.evaluate_filter('[tag[nonexistent]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 0)
+
+    def test_has_operator(self):
+        """Test has operator filters tiddlers by field existence"""
+        results = tw_filter.evaluate_filter('[has[priority]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 2)
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+
+    def test_has_operator_tags_field(self):
+        """Test has[tags] returns tiddlers with tags"""
+        results = tw_filter.evaluate_filter('[has[tags]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 4)  # All except NoTags
+
+    def test_has_operator_no_matches(self):
+        """Test has operator with non-existent field"""
+        results = tw_filter.evaluate_filter('[has[nonexistent]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 0)
+
+    def test_get_operator(self):
+        """Test get operator retrieves field values"""
+        results = tw_filter.evaluate_filter('[[Task1]]get[priority]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'high')
+
+    def test_get_text_field(self):
+        """Test get[text] retrieves text content"""
+        results = tw_filter.evaluate_filter('[[Note1]]get[text]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'First note content')
+
+    def test_get_operator_with_filter(self):
+        """Test get operator with filtered tiddlers"""
+        results = tw_filter.evaluate_filter('[tag[task]get[priority]]', wiki_path=self.test_wiki)
+        # Only Task1 and Task2 have priority field
+        self.assertEqual(len(results), 2)
+        self.assertIn('high', results)
+        self.assertIn('medium', results)
+
+    def test_combined_tag_has(self):
+        """Test combining tag and has operators"""
+        results = tw_filter.evaluate_filter('[tag[task]has[priority]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 2)
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+
+    def test_tag_get_chain(self):
+        """Test chaining tag and get operators"""
+        results = tw_filter.evaluate_filter('[tag[note]get[category]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'personal')
+
+    def test_tag_get_text_chain(self):
+        """Test getting text from tagged tiddlers"""
+        results = tw_filter.evaluate_filter('[tag[urgent]get[text]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'First task content')
+
+    def test_wiki_operator_without_wiki(self):
+        """Test that wiki operators require wiki_path"""
+        with self.assertRaises(ValueError) as context:
+            tw_filter.evaluate_filter('[tag[task]]')
+        self.assertIn('requires a wiki file', str(context.exception))
+
+    def test_get_with_math_operator(self):
+        """Test combining get with math operators"""
+        # Note: priority values are strings, but add will try to convert
+        results = tw_filter.evaluate_filter('[[Task1]]get[priority]length[]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(int(results[0]), 4)  # "high" has 4 characters
 
 
 if __name__ == '__main__':
