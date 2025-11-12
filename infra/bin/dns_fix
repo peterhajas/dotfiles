@@ -1,4 +1,0 @@
-#!/bin/sh
-pass -c unifi_ssh
-ssh root@192.168.1.1 -o HostKeyAlgorithms=+ssh-rsa 'pkill -9 dnsmasq'
-echo "asdf" | pbcopy

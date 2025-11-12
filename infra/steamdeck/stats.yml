@@ -1,9 +1,0 @@
----
-- name: steamdeck Status
-  hosts: steamdeck
-  tasks:
-    - name: get disk info
-      ansible.builtin.command: df -h
-      register: df
-    - debug:
-        var: df.stdout_lines

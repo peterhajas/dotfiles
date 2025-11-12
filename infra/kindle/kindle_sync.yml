@@ -1,6 +1,0 @@
-- hosts: localhost
-  tasks:
-    - name: Copy over books
-      copy:
-        src: ~/nextcloud/books/
-        dest: /Volumes/kindle/books/
