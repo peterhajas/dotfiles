@@ -1092,5 +1092,158 @@ class TestAllOperator(unittest.TestCase):
         self.assertEqual(len(results), len(set(results)))
 
 
+class TestFieldOperator(unittest.TestCase):
+    """Test field operators (using field names as operators)"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers for testing"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Add test tiddlers with various field values
+        test_tiddlers = [
+            ("Task1", "First task", "task", "high", "active"),
+            ("Task2", "Second task", "task", "medium", "active"),
+            ("Task3", "Third task", "task", "high", "done"),
+            ("Task4", "Fourth task", "task", "low", "active"),
+            ("Note1", "First note", "note", None, "active"),  # No priority field
+            ("Note2", "Second note", "note", "", "done"),     # Empty priority field
+        ]
+
+        for title, text, tags, priority, status in test_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'tags', tags],
+                          cwd=script_dir, check=True, capture_output=True)
+            if priority:
+                subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'priority', priority],
+                              cwd=script_dir, check=True, capture_output=True)
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'set', title, 'status', status],
+                          cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_field_operator_basic(self):
+        """Test basic field operator filtering"""
+        results = tw_filter.evaluate_filter('[tag[task]priority[high]]', wiki_path=self.test_wiki)
+        # Should return tasks with priority=high
+        self.assertEqual(len(results), 2)
+        self.assertIn('Task1', results)
+        self.assertIn('Task3', results)
+
+    def test_field_operator_single_match(self):
+        """Test field operator with single match"""
+        results = tw_filter.evaluate_filter('[tag[task]priority[low]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Task4')
+
+    def test_field_operator_no_match(self):
+        """Test field operator with no matches"""
+        results = tw_filter.evaluate_filter('[tag[task]priority[urgent]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 0)
+
+    def test_field_operator_empty_parameter(self):
+        """Test field operator with empty parameter matches missing or empty fields"""
+        results = tw_filter.evaluate_filter('[priority[]]', wiki_path=self.test_wiki)
+        # Should return Note1 (no priority field) and Note2 (empty priority field)
+        self.assertIn('Note1', results)
+        self.assertIn('Note2', results)
+        # Should NOT include tasks with priority values
+        self.assertNotIn('Task1', results)
+        self.assertNotIn('Task2', results)
+
+    def test_field_operator_chained(self):
+        """Test chaining multiple field operators"""
+        results = tw_filter.evaluate_filter('[tag[task]priority[high]status[active]]', wiki_path=self.test_wiki)
+        # Should return only Task1 (high priority AND active status)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Task1')
+
+    def test_field_operator_with_tag(self):
+        """Test field operator combined with tag"""
+        results = tw_filter.evaluate_filter('[tag[note]status[active]]', wiki_path=self.test_wiki)
+        # Should return Note1 (note tag AND active status)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Note1')
+
+    def test_field_operator_status_done(self):
+        """Test filtering by status field"""
+        results = tw_filter.evaluate_filter('[status[done]]', wiki_path=self.test_wiki)
+        # Should return Task3 and Note2
+        self.assertEqual(len(results), 2)
+        self.assertIn('Task3', results)
+        self.assertIn('Note2', results)
+
+    def test_field_operator_status_active(self):
+        """Test filtering by active status"""
+        results = tw_filter.evaluate_filter('[tag[task]status[active]]', wiki_path=self.test_wiki)
+        # Should return Task1, Task2, Task4 (active tasks)
+        self.assertEqual(len(results), 3)
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+        self.assertIn('Task4', results)
+
+    def test_field_operator_with_sort(self):
+        """Test field operator with sort"""
+        results = tw_filter.evaluate_filter('[status[active]sort[title]]', wiki_path=self.test_wiki)
+        # Should be sorted by title
+        self.assertGreater(len(results), 0)
+        # Check first few are in order
+        active_results = [r for r in results if r.startswith('Task') or r.startswith('Note')]
+        for i in range(len(active_results) - 1):
+            self.assertLessEqual(active_results[i].lower(), active_results[i+1].lower())
+
+    def test_field_operator_with_count(self):
+        """Test counting results from field operator"""
+        results = tw_filter.evaluate_filter('[priority[high]count[]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], '2')  # Task1 and Task3
+
+    def test_field_operator_all_tiddlers_then_filter(self):
+        """Test field operator on all tiddlers"""
+        results = tw_filter.evaluate_filter('[all[tiddlers]priority[medium]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Task2')
+
+    def test_field_operator_multiple_values_same_field(self):
+        """Test that we can't match multiple values (TiddlyWiki requires OR with multiple runs)"""
+        # This should only match 'high' since we can't have priority be both high AND medium
+        results = tw_filter.evaluate_filter('[priority[high]priority[medium]]', wiki_path=self.test_wiki)
+        # No tiddler can have priority equal to both high and medium
+        self.assertEqual(len(results), 0)
+
+    def test_field_operator_case_sensitive(self):
+        """Test field operator is case-sensitive for values"""
+        results = tw_filter.evaluate_filter('[priority[High]]', wiki_path=self.test_wiki)
+        # Should not match 'high' (lowercase)
+        self.assertEqual(len(results), 0)
+
+    def test_field_operator_nonexistent_field(self):
+        """Test field operator with nonexistent field"""
+        results = tw_filter.evaluate_filter('[nonexistent[value]]', wiki_path=self.test_wiki)
+        # No tiddlers have this field with this value
+        self.assertEqual(len(results), 0)
+
+    def test_field_operator_empty_nonexistent_field(self):
+        """Test field operator with empty parameter on nonexistent field"""
+        results = tw_filter.evaluate_filter('[tag[task]nonexistent[]]', wiki_path=self.test_wiki)
+        # All tasks don't have this field, so all should match
+        self.assertEqual(len(results), 4)
+        self.assertIn('Task1', results)
+        self.assertIn('Task2', results)
+        self.assertIn('Task3', results)
+        self.assertIn('Task4', results)
+
+
 if __name__ == '__main__':
     unittest.main()

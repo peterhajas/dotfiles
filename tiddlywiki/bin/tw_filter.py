@@ -343,10 +343,13 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
     - min[field] - tiddler(s) with minimum field value
     - max[field] - tiddler(s) with maximum field value
     - all[category] - select tiddlers by category (tiddlers, system, shadows, or combined with +)
+    - fieldname[value] - field operators: filter by field value (any field name can be used as operator)
+      - fieldname[value] - filter tiddlers where field equals value
+      - fieldname[] - filter tiddlers where field is empty or doesn't exist
 
     Args:
-        operator_name: The operator name
-        param: The operator parameter
+        operator_name: The operator name (or field name for field operators)
+        param: The operator parameter (or field value for field operators)
         tiddler_titles: List of tiddler titles (input)
         tiddlers_dict: Dictionary mapping title -> tiddler data
 
@@ -540,7 +543,34 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
         return result_list
 
     else:
-        raise ValueError(f"Unknown wiki operator: {operator_name}")
+        # Unknown operator - treat as field filter
+        # Field operators: filter tiddlers where the field matches the parameter value
+        # If param is None or empty, match tiddlers where field is empty or doesn't exist
+        field_name = operator_name
+        results = []
+
+        for title in tiddler_titles:
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                field_value = tiddler.get(field_name, None)
+
+                if param is None or param == '':
+                    # Empty parameter: match if field doesn't exist or is empty
+                    if field_value is None or field_value == '':
+                        results.append(title)
+                else:
+                    # Match if field value equals parameter
+                    if field_value is not None:
+                        # Convert to string for comparison
+                        if isinstance(field_value, list):
+                            field_str = ' '.join(str(v) for v in field_value)
+                        else:
+                            field_str = str(field_value)
+
+                        if field_str == param:
+                            results.append(title)
+
+        return results
 
 
 def evaluate_filter(filter_expr, wiki_path=None):
@@ -577,7 +607,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
 
         # Apply each operator to all current values
         for operator_name, param in run['operators']:
-            # Check if this is a wiki operator
+            # Check if this is a known wiki operator
             if operator_name in ['tag', 'has', 'get', 'sort', 'sortcs', 'nsort', 'each', 'min', 'max', 'all']:
                 if not wiki_path:
                     raise ValueError(f"Operator '{operator_name}' requires a wiki file")
@@ -586,7 +616,10 @@ def evaluate_filter(filter_expr, wiki_path=None):
             elif operator_name in ['first', 'last', 'rest', 'butfirst', 'butlast', 'limit', 'nth', 'count', 'reverse']:
                 # These operate on the entire list
                 new_values = apply_list_operator(operator_name, param, new_values)
-            else:
+            # Check if this is an item-level operator
+            elif operator_name in ['add', 'subtract', 'multiply', 'divide', 'remainder', 'negate', 'abs',
+                                   'uppercase', 'lowercase', 'titlecase', 'sentencecase', 'trim', 'length', 'split',
+                                   'prefix', 'suffix', 'removeprefix', 'removesuffix']:
                 # Item-level operators
                 temp_values = []
                 for v in new_values:
@@ -599,6 +632,12 @@ def evaluate_filter(filter_expr, wiki_path=None):
                         temp_values.append(str(result))
                     # If result is None, filter it out (don't append)
                 new_values = temp_values
+            else:
+                # Unknown operator - if wiki_path provided, treat as field operator
+                if wiki_path:
+                    new_values = apply_wiki_operator(operator_name, param, new_values, tiddlers_dict)
+                else:
+                    raise ValueError(f"Unknown operator: {operator_name}")
 
         current_values = new_values
 
