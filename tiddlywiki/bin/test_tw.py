@@ -6454,5 +6454,681 @@ class TestMimetypeCommand(unittest.TestCase):
         self.assertIn('Error', result.stderr)
 
 
+class TestFilterCommand(unittest.TestCase):
+    """Test the filter command for TiddlyWiki filter expressions"""
+
+    def run_filter(self, expression):
+        """Helper to run a filter expression and return stdout/stderr/returncode"""
+        result = subprocess.run(
+            ['python3', tw_path, 'filter', expression],
+            capture_output=True,
+            text=True,
+            cwd=script_dir
+        )
+        return result.stdout.strip(), result.stderr.strip(), result.returncode
+
+    def test_simple_literal(self):
+        """Test that a simple literal value works"""
+        stdout, stderr, returncode = self.run_filter('[[5]]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '5')
+
+    def test_add_operator(self):
+        """Test the add operator"""
+        stdout, stderr, returncode = self.run_filter('[[5]]add[7]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '12')
+
+    def test_subtract_operator(self):
+        """Test the subtract operator"""
+        stdout, stderr, returncode = self.run_filter('[[10]]subtract[3]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '7')
+
+    def test_multiply_operator(self):
+        """Test the multiply operator"""
+        stdout, stderr, returncode = self.run_filter('[[6]]multiply[7]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '42')
+
+    def test_divide_operator(self):
+        """Test the divide operator"""
+        stdout, stderr, returncode = self.run_filter('[[20]]divide[4]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '5')
+
+    def test_divide_with_remainder(self):
+        """Test division that produces a decimal"""
+        stdout, stderr, returncode = self.run_filter('[[10]]divide[3]')
+        self.assertEqual(returncode, 0)
+        # Should be approximately 3.333...
+        self.assertTrue(stdout.startswith('3.3'))
+
+    def test_remainder_operator(self):
+        """Test the remainder operator"""
+        stdout, stderr, returncode = self.run_filter('[[10]]remainder[3]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '1')
+
+    def test_negate_operator(self):
+        """Test the negate operator"""
+        stdout, stderr, returncode = self.run_filter('[[5]]negate[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '-5')
+
+    def test_abs_operator(self):
+        """Test the abs operator"""
+        stdout, stderr, returncode = self.run_filter('[[-5]]abs[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '5')
+
+    def test_abs_positive(self):
+        """Test that abs works on positive numbers"""
+        stdout, stderr, returncode = self.run_filter('[[5]]abs[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '5')
+
+    def test_chained_operators(self):
+        """Test chaining multiple operators"""
+        stdout, stderr, returncode = self.run_filter('[[5]]add[7]multiply[2]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '24')  # (5+7)*2 = 24
+
+    def test_complex_chain(self):
+        """Test a more complex chain of operations"""
+        stdout, stderr, returncode = self.run_filter('[[10]]add[5]multiply[2]subtract[10]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '20')  # ((10+5)*2)-10 = 20
+
+    def test_multiple_literals(self):
+        """Test multiple literal inputs"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], '1')
+        self.assertEqual(lines[1], '2')
+        self.assertEqual(lines[2], '3')
+
+    def test_multiple_inputs_with_operator(self):
+        """Test applying operator to multiple inputs"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]] +[add[10]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], '11')
+        self.assertEqual(lines[1], '12')
+        self.assertEqual(lines[2], '13')
+
+    def test_multiple_inputs_multiply(self):
+        """Test multiplying multiple inputs"""
+        stdout, stderr, returncode = self.run_filter('[[2]] [[3]] [[4]] +[multiply[10]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], '20')
+        self.assertEqual(lines[1], '30')
+        self.assertEqual(lines[2], '40')
+
+    def test_negative_numbers(self):
+        """Test with negative numbers"""
+        stdout, stderr, returncode = self.run_filter('[[-10]]add[5]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '-5')
+
+    def test_decimal_numbers(self):
+        """Test with decimal numbers"""
+        stdout, stderr, returncode = self.run_filter('[[3.5]]add[2.5]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '6')
+
+    def test_decimal_with_remainder(self):
+        """Test decimal that doesn't simplify to integer"""
+        stdout, stderr, returncode = self.run_filter('[[5]]divide[2]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '2.5')
+
+    def test_division_by_zero(self):
+        """Test that division by zero is handled"""
+        stdout, stderr, returncode = self.run_filter('[[5]]divide[0]')
+        self.assertNotEqual(returncode, 0)
+        self.assertIn('Division by zero', stderr)
+
+    def test_remainder_by_zero(self):
+        """Test that modulo by zero is handled"""
+        stdout, stderr, returncode = self.run_filter('[[5]]remainder[0]')
+        self.assertNotEqual(returncode, 0)
+        self.assertIn('Modulo by zero', stderr)
+
+    def test_empty_filter(self):
+        """Test empty filter expression"""
+        stdout, stderr, returncode = self.run_filter('')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '')
+
+    def test_whitespace_handling(self):
+        """Test that whitespace is handled correctly"""
+        stdout, stderr, returncode = self.run_filter('  [[5]]  add[7]  ')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '12')
+
+    def test_multiple_spaces_between_literals(self):
+        """Test multiple spaces between literals"""
+        stdout, stderr, returncode = self.run_filter('[[1]]   [[2]]   [[3]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], '1')
+        self.assertEqual(lines[1], '2')
+        self.assertEqual(lines[2], '3')
+
+    def test_zero_operations(self):
+        """Test operations with zero"""
+        stdout, stderr, returncode = self.run_filter('[[0]]add[5]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '5')
+
+    def test_multiply_by_zero(self):
+        """Test multiplying by zero"""
+        stdout, stderr, returncode = self.run_filter('[[10]]multiply[0]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '0')
+
+    def test_negate_zero(self):
+        """Test negating zero"""
+        stdout, stderr, returncode = self.run_filter('[[0]]negate[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '0')
+
+    def test_large_numbers(self):
+        """Test with large numbers"""
+        stdout, stderr, returncode = self.run_filter('[[1000000]]multiply[1000]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '1000000000')
+
+    def test_very_small_decimals(self):
+        """Test with very small decimal numbers"""
+        stdout, stderr, returncode = self.run_filter('[[0.1]]add[0.2]')
+        self.assertEqual(returncode, 0)
+        # Due to floating point precision, we check if it's close to 0.3
+        result = float(stdout)
+        self.assertAlmostEqual(result, 0.3, places=5)
+
+    def test_missing_expression(self):
+        """Test that filter command fails without expression"""
+        result = subprocess.run(
+            ['python3', tw_path, 'filter'],
+            capture_output=True,
+            text=True,
+            cwd=script_dir
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Error', result.stderr)
+
+    def test_unclosed_literal(self):
+        """Test that unclosed literal is caught"""
+        stdout, stderr, returncode = self.run_filter('[[5')
+        self.assertNotEqual(returncode, 0)
+        self.assertIn('Unclosed literal', stderr)
+
+    def test_unclosed_operator_param(self):
+        """Test that unclosed operator parameter is caught"""
+        stdout, stderr, returncode = self.run_filter('[[5]]add[7')
+        self.assertNotEqual(returncode, 0)
+        self.assertIn('Unclosed operator parameter', stderr)
+
+    def test_unknown_operator(self):
+        """Test that unknown operator is caught"""
+        stdout, stderr, returncode = self.run_filter('[[5]]unknown[7]')
+        self.assertNotEqual(returncode, 0)
+        self.assertIn('Unknown operator', stderr)
+
+
+class TestStringOperators(unittest.TestCase):
+    """Test the string operators in filter command"""
+
+    def run_filter(self, expression):
+        """Helper to run a filter expression and return stdout/stderr/returncode"""
+        result = subprocess.run(
+            ['python3', tw_path, 'filter', expression],
+            capture_output=True,
+            text=True,
+            cwd=script_dir
+        )
+        return result.stdout.strip(), result.stderr.strip(), result.returncode
+
+    def test_uppercase_operator(self):
+        """Test the uppercase operator"""
+        stdout, stderr, returncode = self.run_filter('[[hello world]]uppercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'HELLO WORLD')
+
+    def test_lowercase_operator(self):
+        """Test the lowercase operator"""
+        stdout, stderr, returncode = self.run_filter('[[HELLO WORLD]]lowercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello world')
+
+    def test_titlecase_operator(self):
+        """Test the titlecase operator"""
+        stdout, stderr, returncode = self.run_filter('[[hello world]]titlecase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'Hello World')
+
+    def test_sentencecase_operator(self):
+        """Test the sentencecase operator"""
+        stdout, stderr, returncode = self.run_filter('[[hello WORLD]]sentencecase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'Hello world')
+
+    def test_sentencecase_empty(self):
+        """Test sentencecase with empty string"""
+        stdout, stderr, returncode = self.run_filter('[[]]sentencecase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '')
+
+    def test_trim_operator(self):
+        """Test the trim operator"""
+        stdout, stderr, returncode = self.run_filter('[[  hello world  ]]trim[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello world')
+
+    def test_trim_leading_only(self):
+        """Test trim with leading whitespace only"""
+        stdout, stderr, returncode = self.run_filter('[[  hello]]trim[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello')
+
+    def test_trim_trailing_only(self):
+        """Test trim with trailing whitespace only"""
+        stdout, stderr, returncode = self.run_filter('[[hello  ]]trim[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello')
+
+    def test_trim_no_spaces(self):
+        """Test trim with no whitespace"""
+        stdout, stderr, returncode = self.run_filter('[[hello]]trim[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello')
+
+    def test_length_operator(self):
+        """Test the length operator"""
+        stdout, stderr, returncode = self.run_filter('[[hello]]length[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '5')
+
+    def test_length_empty_string(self):
+        """Test length with empty string"""
+        stdout, stderr, returncode = self.run_filter('[[]]length[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '0')
+
+    def test_length_with_spaces(self):
+        """Test length includes spaces"""
+        stdout, stderr, returncode = self.run_filter('[[hello world]]length[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '11')
+
+    def test_split_operator(self):
+        """Test the split operator"""
+        stdout, stderr, returncode = self.run_filter('[[hello world]]split[ ]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'hello')
+        self.assertEqual(lines[1], 'world')
+
+    def test_split_with_comma(self):
+        """Test split with comma delimiter"""
+        stdout, stderr, returncode = self.run_filter('[[apple,banana,cherry]]split[,]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], 'apple')
+        self.assertEqual(lines[1], 'banana')
+        self.assertEqual(lines[2], 'cherry')
+
+    def test_split_default_delimiter(self):
+        """Test split with default space delimiter"""
+        stdout, stderr, returncode = self.run_filter('[[one two three]]split[]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 3)
+
+    def test_split_no_match(self):
+        """Test split when delimiter not found"""
+        stdout, stderr, returncode = self.run_filter('[[hello]]split[,]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello')
+
+    def test_chained_string_operators(self):
+        """Test chaining string operators"""
+        stdout, stderr, returncode = self.run_filter('[[  hello world  ]]trim[]uppercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'HELLO WORLD')
+
+    def test_uppercase_then_split(self):
+        """Test uppercase followed by split"""
+        stdout, stderr, returncode = self.run_filter('[[hello world]]uppercase[]split[ ]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'HELLO')
+        self.assertEqual(lines[1], 'WORLD')
+
+    def test_split_then_uppercase(self):
+        """Test split followed by uppercase on each part"""
+        stdout, stderr, returncode = self.run_filter('[[hello world]]split[ ]+[uppercase[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'HELLO')
+        self.assertEqual(lines[1], 'WORLD')
+
+    def test_multiple_inputs_uppercase(self):
+        """Test uppercase on multiple inputs"""
+        stdout, stderr, returncode = self.run_filter('[[hello]] [[world]]+[uppercase[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'HELLO')
+        self.assertEqual(lines[1], 'WORLD')
+
+    def test_trim_then_length(self):
+        """Test trim followed by length"""
+        stdout, stderr, returncode = self.run_filter('[[  hello  ]]trim[]length[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '5')
+
+    def test_uppercase_with_numbers(self):
+        """Test uppercase with numbers"""
+        stdout, stderr, returncode = self.run_filter('[[hello123]]uppercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'HELLO123')
+
+    def test_lowercase_with_numbers(self):
+        """Test lowercase with numbers"""
+        stdout, stderr, returncode = self.run_filter('[[HELLO123]]lowercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello123')
+
+    def test_titlecase_with_apostrophe(self):
+        """Test titlecase with apostrophe"""
+        stdout, stderr, returncode = self.run_filter("[[don't worry]]titlecase[]")
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, "Don'T Worry")
+
+    def test_split_empty_string(self):
+        """Test split on empty string"""
+        stdout, stderr, returncode = self.run_filter('[[]]split[ ]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '')
+
+    def test_special_characters_uppercase(self):
+        """Test uppercase with special characters"""
+        stdout, stderr, returncode = self.run_filter('[[hello!@#$%]]uppercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'HELLO!@#$%')
+
+    def test_mixed_operators(self):
+        """Test mixing string and math operators"""
+        stdout, stderr, returncode = self.run_filter('[[5]]add[3]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '8')
+
+        # Now test string operator
+        stdout, stderr, returncode = self.run_filter('[[hello]]uppercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'HELLO')
+
+    def test_length_of_number(self):
+        """Test length operator on numbers"""
+        stdout, stderr, returncode = self.run_filter('[[12345]]length[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '5')
+
+    def test_unicode_uppercase(self):
+        """Test uppercase with unicode characters"""
+        stdout, stderr, returncode = self.run_filter('[[café]]uppercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'CAFÉ')
+
+    def test_unicode_lowercase(self):
+        """Test lowercase with unicode characters"""
+        stdout, stderr, returncode = self.run_filter('[[CAFÉ]]lowercase[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'café')
+
+
+class TestStringManipulationOperators(unittest.TestCase):
+    """Test string manipulation operators (prefix, suffix, removeprefix, removesuffix)"""
+
+    def run_filter(self, expression):
+        """Helper to run a filter expression and return stdout/stderr/returncode"""
+        result = subprocess.run(
+            ['python3', tw_path, 'filter', expression],
+            capture_output=True,
+            text=True,
+            cwd=script_dir
+        )
+        return result.stdout.strip(), result.stderr.strip(), result.returncode
+
+    def test_prefix_operator(self):
+        """Test prefix operator filters items starting with text"""
+        stdout, stderr, returncode = self.run_filter('[[hello]] [[world]] [[help]]+[prefix[hel]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'hello')
+        self.assertEqual(lines[1], 'help')
+
+    def test_prefix_no_match(self):
+        """Test prefix operator with no matches"""
+        stdout, stderr, returncode = self.run_filter('[[apple]] [[banana]]+[prefix[orange]]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '')
+
+    def test_prefix_empty(self):
+        """Test prefix with empty parameter matches all"""
+        stdout, stderr, returncode = self.run_filter('[[hello]] [[world]]+[prefix[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+
+    def test_suffix_operator(self):
+        """Test suffix operator filters items ending with text"""
+        stdout, stderr, returncode = self.run_filter('[[testing]] [[test]] [[best]]+[suffix[st]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'test')
+        self.assertEqual(lines[1], 'best')
+
+    def test_suffix_no_match(self):
+        """Test suffix operator with no matches"""
+        stdout, stderr, returncode = self.run_filter('[[hello]] [[world]]+[suffix[ing]]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '')
+
+    def test_removeprefix_operator(self):
+        """Test removeprefix operator removes leading text"""
+        stdout, stderr, returncode = self.run_filter('[[prefix_hello]] [[prefix_world]]+[removeprefix[prefix_]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'hello')
+        self.assertEqual(lines[1], 'world')
+
+    def test_removeprefix_no_match(self):
+        """Test removeprefix with non-matching prefix leaves value unchanged"""
+        stdout, stderr, returncode = self.run_filter('[[hello]]removeprefix[world]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello')
+
+    def test_removeprefix_empty(self):
+        """Test removeprefix with empty parameter"""
+        stdout, stderr, returncode = self.run_filter('[[hello]]removeprefix[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello')
+
+    def test_removesuffix_operator(self):
+        """Test removesuffix operator removes trailing text"""
+        stdout, stderr, returncode = self.run_filter('[[hello_suffix]] [[world_suffix]]+[removesuffix[_suffix]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'hello')
+        self.assertEqual(lines[1], 'world')
+
+    def test_removesuffix_no_match(self):
+        """Test removesuffix with non-matching suffix leaves value unchanged"""
+        stdout, stderr, returncode = self.run_filter('[[hello]]removesuffix[world]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello')
+
+    def test_removesuffix_empty(self):
+        """Test removesuffix with empty parameter"""
+        stdout, stderr, returncode = self.run_filter('[[hello]]removesuffix[]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'hello')
+
+    def test_chained_prefix_removeprefix(self):
+        """Test chaining prefix filter and removeprefix"""
+        stdout, stderr, returncode = self.run_filter('[[Draft of hello]] [[Draft of world]] [[hello]]+[prefix[Draft ]]+[removeprefix[Draft of ]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'hello')
+        self.assertEqual(lines[1], 'world')
+
+    def test_prefix_with_uppercase(self):
+        """Test combining prefix with uppercase"""
+        stdout, stderr, returncode = self.run_filter('[[hello]] [[help]] [[world]]+[prefix[hel]]+[uppercase[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'HELLO')
+        self.assertEqual(lines[1], 'HELP')
+
+
+class TestListOperators(unittest.TestCase):
+    """Test list manipulation operators"""
+
+    def run_filter(self, expression):
+        """Helper to run a filter expression and return stdout/stderr/returncode"""
+        result = subprocess.run(
+            ['python3', tw_path, 'filter', expression],
+            capture_output=True,
+            text=True,
+            cwd=script_dir
+        )
+        return result.stdout.strip(), result.stderr.strip(), result.returncode
+
+    def test_first_operator_default(self):
+        """Test first operator with default (1 item)"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]]+[first[]]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '1')
+
+    def test_first_operator_multiple(self):
+        """Test first operator with multiple items"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]] [[4]] [[5]]+[first[3]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], '1')
+        self.assertEqual(lines[1], '2')
+        self.assertEqual(lines[2], '3')
+
+    def test_first_operator_more_than_available(self):
+        """Test first operator requesting more items than available"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]]+[first[5]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+
+    def test_last_operator_default(self):
+        """Test last operator with default (1 item)"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]]+[last[]]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '3')
+
+    def test_last_operator_multiple(self):
+        """Test last operator with multiple items"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]] [[4]] [[5]]+[last[2]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], '4')
+        self.assertEqual(lines[1], '5')
+
+    def test_rest_operator(self):
+        """Test rest operator removes first item"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]]+[rest[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], '2')
+        self.assertEqual(lines[1], '3')
+
+    def test_rest_empty_list(self):
+        """Test rest on empty list"""
+        stdout, stderr, returncode = self.run_filter('[[1]]+[rest[]]+[rest[]]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '')
+
+    def test_butfirst_operator(self):
+        """Test butfirst operator (same as rest)"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]]+[butfirst[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], '2')
+        self.assertEqual(lines[1], '3')
+
+    def test_butlast_operator(self):
+        """Test butlast operator removes last item"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]]+[butlast[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], '1')
+        self.assertEqual(lines[1], '2')
+
+    def test_butlast_single_item(self):
+        """Test butlast with single item returns empty"""
+        stdout, stderr, returncode = self.run_filter('[[1]]+[butlast[]]')
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, '')
+
+    def test_chained_list_operators(self):
+        """Test chaining list operators"""
+        stdout, stderr, returncode = self.run_filter('[[1]] [[2]] [[3]] [[4]] [[5]]+[rest[]]+[butlast[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 3)
+        self.assertEqual(lines[0], '2')
+        self.assertEqual(lines[1], '3')
+        self.assertEqual(lines[2], '4')
+
+    def test_first_then_uppercase(self):
+        """Test first followed by uppercase"""
+        stdout, stderr, returncode = self.run_filter('[[hello]] [[world]] [[test]]+[first[2]]+[uppercase[]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'HELLO')
+        self.assertEqual(lines[1], 'WORLD')
+
+    def test_split_then_first(self):
+        """Test split followed by first"""
+        stdout, stderr, returncode = self.run_filter('[[one two three four]]split[ ]+[first[2]]')
+        self.assertEqual(returncode, 0)
+        lines = stdout.split('\n')
+        self.assertEqual(len(lines), 2)
+        self.assertEqual(lines[0], 'one')
+        self.assertEqual(lines[1], 'two')
+
+
 if __name__ == '__main__':
     unittest.main()
