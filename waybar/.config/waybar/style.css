@@ -1,0 +1,30 @@
+* {
+    font-family: "ProggyTinyTT SZ", monospace;
+    font-size: 16px;
+    color: #0f380f;
+    border-radius: 0px;
+}
+
+#tray > *:hover {
+    color: #9bbc0f;
+    background-color: #0f380f;
+}
+
+window#waybar {
+    background-color: #9bbc0f;
+    margin: 8px;
+}
+
+#taskbar button {
+    opacity: 0.5;
+}
+
+#taskbar button.active {
+    color: #9bbc0f;
+    background-color: #0f380f;
+}
+
+#taskbar button:hover {
+    color: #9bbc0f;
+    background-color: #0f380f;
+}

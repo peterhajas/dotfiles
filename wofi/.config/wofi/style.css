@@ -1,0 +1,49 @@
+* {
+    font-family: "ProggyTinyTT SZ", monospace;
+    font-size: 32px;
+    color: #0f380f;
+}
+
+window {
+    border-width: 2px;
+    border-color: #0f380f;
+    border-style: solid;
+    background-color: #9bbc0f;
+}
+
+#input {
+    border-radius: 0px;
+    border: 0px;
+    color: #8bac0f;
+    background-color: #0f380f;
+}
+
+#selected *,
+#selected {
+    color: #9bbc0f;
+    background-color: #0f380f;
+}
+
+#inner-box {
+    margin: 0px;
+    border: none;
+    background-color: transparent;
+}
+
+#outer-box {
+    margin: 0px;
+    border: none;
+    background-color: transparent;
+}
+
+#entry,
+#entry focus,
+#entry selected {
+    border: none;
+    background-color: transparent;
+}
+
+#entry focus,
+#entry selected {
+    color: #9bbc0f;
+}

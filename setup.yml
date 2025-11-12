@@ -1,0 +1,139 @@
+---
+- name: Setup dotfiles with stow
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  vars:
+    # ===== CONFIGURATION =====
+    # Packages available on all platforms
+    common:
+      - btop
+      - claude
+      - fish
+      - ghostty
+      - git
+      - kanata
+      - mpd
+      - mpv
+      - ncmpcpp
+      - nethack
+      - nvim
+      - ssh
+      - tiddlywiki
+      - utils
+      - youtube
+      - zellij
+
+    # macOS-only packages
+    Darwin:
+      - aerospace
+      - hammerspoon
+      - karabiner
+      - sketchybar
+      - skhd
+      - yabai
+
+    # Linux-only packages
+    Linux:
+      - alacritty
+      - hyprland
+      - qutebrowser
+      - waybar
+      - wofi
+
+    # Packages to never stow (special cases)
+    exclude:
+      - stow      # Stow's own config
+      - infra     # Infrastructure, not dotfiles
+      - .git
+      - .claude
+      # Build/temporary directories
+      - __pycache__
+      - .pytest_cache
+      - .mypy_cache
+      - node_modules
+      - build
+      - dist
+      - .egg-info
+      # Documentation
+      - docs
+
+    # Per-host overrides (optional)
+    # Example:
+    # host_overrides:
+    #   Scorpius:
+    #     exclude:
+    #       - aerospace
+    #     include:
+    #       - someExtraPackage
+    #   nyx:
+    #     exclude:
+    #       - ghostty  # Use alacritty instead on Nyx
+    host_overrides: {}
+
+    # ===== END CONFIGURATION =====
+
+  tasks:
+    - name: Display platform information
+      debug:
+        msg: "Setting up dotfiles for {{ ansible_system }} on {{ ansible_hostname }}"
+
+    - name: Build list of packages to stow
+      set_fact:
+        packages_to_stow: >-
+          {{
+            (common | default([]))
+            + (vars[ansible_system] | default([]))
+            | difference(exclude | default([]))
+            | difference(host_overrides[ansible_hostname].exclude | default([]))
+            + (host_overrides[ansible_hostname].include | default([]))
+          }}
+
+    - name: Display packages to stow
+      debug:
+        msg: "Will stow: {{ packages_to_stow | sort | join(', ') }}"
+
+    - name: Stow the stow directory first
+      command: stow -R stow
+      args:
+        chdir: "{{ playbook_dir }}"
+      register: stow_result
+      changed_when: "'LINK' in stow_result.stderr or 'UNLINK' in stow_result.stderr"
+
+    - name: Check if package directories exist
+      stat:
+        path: "{{ playbook_dir }}/{{ item }}"
+      register: package_dirs
+      loop: "{{ packages_to_stow }}"
+
+    - name: Filter out non-existent packages
+      set_fact:
+        existing_packages: "{{ package_dirs.results | selectattr('stat.exists') | map(attribute='item') | list }}"
+
+    - name: Stow each package
+      command: stow -R "{{ item }}"
+      args:
+        chdir: "{{ playbook_dir }}"
+      register: stow_results
+      changed_when: "'LINK' in stow_results.stderr or 'UNLINK' in stow_results.stderr"
+      loop: "{{ existing_packages }}"
+      when: item not in exclude
+
+    - name: Find packages with custom install.yml
+      find:
+        paths: "{{ playbook_dir }}"
+        patterns: "install.yml"
+        recurse: yes
+        file_type: file
+        depth: 2
+      register: custom_installs
+
+    - name: Run custom install playbooks
+      command: ansible-playbook "{{ item.path }}"
+      loop: "{{ custom_installs.files }}"
+      when:
+        - item.path | dirname | basename in existing_packages
+        - item.path != playbook_dir + '/setup.yml'
+      register: custom_install_results
+      changed_when: "'changed=0' not in custom_install_results.stdout"

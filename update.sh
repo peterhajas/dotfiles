@@ -10,7 +10,8 @@ else
     bash linux_update.bash
 fi
 
-bash dotfiles.bash
+echo "Setting up dotfiles with Ansible..."
+ansible-playbook setup.yml
 
 echo "Updating submodules..."
 git submodule init

@@ -1,0 +1,26 @@
+{
+    "height": 30,
+    "position": "top",
+    "modules-left": [
+        "wlr/taskbar"
+    ],
+    "modules-center": [
+    ],
+    "modules-right": [
+        "clock",
+        "battery"
+    ],
+    "clock": {
+        "format": "{:%H:%M}",
+        "format-alt": "{:%F}"
+    },
+    "battery": {
+        "format": "{capacity}%"
+    },
+    "wlr/taskbar": {
+        "icon-size": 50,
+        "format": "{title:.10}",
+        "on-click": "activate",
+        "on-click-right": "close"
+    }
+}
