@@ -82,6 +82,7 @@ local plugins = {
     {'nvim-lualine/lualine.nvim', dependencies = {
         'nvim-tree/nvim-web-devicons',
     }},
+    {'nvim-mini/mini.indentscope', version = false},
 
     -- Theme
     {"miikanissi/modus-themes.nvim", priority = 1000 },
