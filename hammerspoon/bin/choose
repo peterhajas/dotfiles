@@ -14,7 +14,7 @@ done
 # Note that we're piping STDOUT to /dev/null, as HS will sometimes output
 # strings like "Loading extension..."
 
-hs -c "showChooserCLI('$(printf '%s' "$INPUT" | sed "s/'/\\\\'/g")')" 1>>/dev/null
+hs -c "showChooserCLI('$(printf '%s' "$INPUT" | sed "s/'/\\\\'/g")')" 1>>/dev/null 2>>/dev/null
 
 # Now, poll Hammerspoon for the chosen variable until we get something
 
@@ -22,7 +22,7 @@ NOTHING="nil"
 DID_NOT_PICK="NOTHING_PICKED_IN_CHOOSER"
 while [ true ]
 do
-    CHOSEN=$(hs -c "getCLIChosen()")
+    CHOSEN=$(hs -c "getCLIChosen()" 2>>/dev/null)
     if [ "$CHOSEN" = $NOTHING ];
     then
         echo "" > /dev/null
@@ -35,5 +35,5 @@ do
             break
         fi
     fi
-    sleep 0.5
+    sleep 0.05
 done
