@@ -25,6 +25,9 @@ local function applyModus()
     local appearance = detectMacOSAppearance()
     vim.opt.background = appearance
     vim.cmd([[colorscheme modus]])
+
+    -- Set indent scope color to match comments (must be after colorscheme)
+    vim.api.nvim_set_hl(0, 'MiniIndentscopeSymbol', { link = 'Comment' })
 end
 
 local bundleID = os.getenv("__CFBundleIdentifier")
@@ -43,4 +46,12 @@ if bundleID == nil or
            vim.cmd([[colorscheme modus]])
        end
    end))
+
+   -- Set up autocommand to reapply indent scope highlight after any colorscheme change
+   vim.api.nvim_create_autocmd("ColorScheme", {
+       pattern = "*",
+       callback = function()
+           vim.api.nvim_set_hl(0, 'MiniIndentscopeSymbol', { link = 'Comment' })
+       end,
+   })
 end
