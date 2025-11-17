@@ -10,15 +10,6 @@ function abbrev -d "Install fish abbreviations"
     # fish
     abbr bu 'yabai --stop-service && brew update && brew upgrade && yabai --start-service'
 
-    # bat
-    abbr cat bat
-
-    # cd
-    abbr c cd
-
-    # ls
-    abbr ls ls -lahF
-
     # git
     abbr g git status
     abbr gm git commit
@@ -73,9 +64,6 @@ function abbrev -d "Install fish abbreviations"
 
     ## sketchybar
     abbr sr "brew services restart sketchybar"
-
-    ## ansible
-    abbr ap "find /Users/phajas/dotfiles |grep yml | grep -v undodir | grep -v plugged | fzf | xargs ansible-playbook"
 
     ## pass
     abbr p pass
