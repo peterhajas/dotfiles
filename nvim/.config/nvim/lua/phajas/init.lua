@@ -6,7 +6,7 @@ require("phajas.globals")
 -- before LSP
 require("phajas.plugins.mason")
 
-require("phajas.plugins.cmp")
+require("phajas.plugins.blink")
 require("phajas.plugins.dadbod")
 require("phajas.plugins.debug")
 require("phajas.plugins.debug_python")

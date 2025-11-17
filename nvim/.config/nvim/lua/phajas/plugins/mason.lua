@@ -1,7 +1,5 @@
-local cmp_nvim_lsp = require('cmp_nvim_lsp')
-
--- Configure LSP capabilities for nvim-cmp
-local capabilities = cmp_nvim_lsp.default_capabilities()
+-- Configure LSP capabilities for blink.cmp
+local capabilities = require('blink.cmp').get_lsp_capabilities()
 
 -- LSP keymaps and autocommands - only your custom ones, telescope handles gd/gr
 local function on_attach(_, bufnr)

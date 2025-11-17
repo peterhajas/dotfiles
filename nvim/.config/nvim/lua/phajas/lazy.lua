@@ -38,22 +38,20 @@ local plugins = {
 
     -- LSP Support
     {'neovim/nvim-lspconfig', dependencies = {
-        'hrsh7th/cmp-nvim-lsp',
         'williamboman/mason.nvim',
         'williamboman/mason-lspconfig.nvim',
         'j-hui/fidget.nvim',
     }},
 
     -- Autocompletion
-    {'hrsh7th/nvim-cmp', dependencies = {
-        'L3MON4D3/LuaSnip',
-        'hrsh7th/cmp-buffer',
-        'hrsh7th/cmp-nvim-lsp',
-        'hrsh7th/cmp-nvim-lua',
-        'hrsh7th/cmp-path',
-        'rafamadriz/friendly-snippets',
-        'saadparwaiz1/cmp_luasnip',
-    }},
+    {'saghen/blink.cmp',
+        dependencies = {
+            'L3MON4D3/LuaSnip',
+            'rafamadriz/friendly-snippets',
+        },
+        version = '*',
+        opts = {},
+    },
 
     -- Debugging
     {
