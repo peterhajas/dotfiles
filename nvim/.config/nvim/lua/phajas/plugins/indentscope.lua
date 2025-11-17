@@ -11,7 +11,7 @@ require('mini.indentscope').setup({
         -- duration per step scales with number of lines to cross
         animation = require('mini.indentscope').gen_animation.exponential({
             easing = 'in-out',
-            duration = 10,  -- ms per step (will scale with scope size)
+            duration = 0,   -- ms per step (will scale with scope size)
             unit = 'step',  -- proportional to number of lines
         }),
     },
