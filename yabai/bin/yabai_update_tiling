@@ -72,8 +72,8 @@ NUM_DISPLAYS=$(yabai -m query --displays | jq 'length')
 if [[ $NUM_DISPLAYS -gt 1 ]]; then
     LEFTMOST_DISPLAY=$(yabai -m query --displays | jq 'sort_by(.frame.x) | .[0].index')
 
-    # Find all windows with "sysmon" in the title (case-insensitive)
-    SYSMON_WINDOWS=($(yabai -m query --windows | jq -r '.[] | select(.title | test("sysmon"; "i")) | .id'))
+    # Find all windows with title exactly "sysmon" (case-insensitive)
+    SYSMON_WINDOWS=($(yabai -m query --windows | jq -r '.[] | select(.title | test("^sysmon$"; "i")) | .id'))
 
     # Move sysmon windows to the rightmost display (only if not already there)
     move_windows_if_needed $RIGHTMOST_DISPLAY "${SYSMON_WINDOWS[@]}"
