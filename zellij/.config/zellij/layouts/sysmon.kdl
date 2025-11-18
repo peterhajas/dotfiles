@@ -1,6 +1,27 @@
 layout {
     pane split_direction="horizontal" {
-        pane command="btop" size="70%"
-        pane command="nvtop" size="30%"
+        // Section 1: CPU / Memory / Network graphs
+        pane command="btop" {
+            args "--config" "/Users/phajas/dotfiles/btop/.config/btop/btop-graphs-cpu-net.conf"
+            size "30%"
+        }
+
+        // Section 2: nvtop
+        pane command="nvtop" {
+            args "--no-processes"
+            size "15%"
+        }
+
+        // Section 3: Process lists - Memory (left) and CPU (right)
+        pane split_direction="vertical" {
+            pane command="btop" {
+                args "--config" "/Users/phajas/dotfiles/btop/.config/btop/btop-proc-memory.conf"
+                size "50%"
+            }
+            pane command="btop" {
+                args "--config" "/Users/phajas/dotfiles/btop/.config/btop/btop-minimal-cpu.conf"
+                size "50%"
+            }
+        }
     }
 }
