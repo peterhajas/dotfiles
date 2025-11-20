@@ -29,7 +29,6 @@ local link_replace = require "link_replace"
 local youtubedl = require "youtubedl"
 local flux = require "flux"
 local iphone_mirroring = require "iphone_mirroring"
-local claude_usage_menu = require "claude_usage"
 require "streamdeck"
 require "server"
 require "tiddlywiki"
@@ -206,7 +205,6 @@ audio_output.init()
 youtubedl.init()
 iphone_mirroring.init()
 claudeNotifier.init()
-claude_usage_menu.init()
 
 -- Subscribe to ntfy topics
 -- Load topics dynamically from TiddlyWiki
