@@ -154,8 +154,27 @@ def reorder_tiddler_fields(tiddler, wiki_path, tiddler_title):
     original_order = get_field_order(wiki_path, tiddler_title)
 
     if not original_order:
-        # No original order recorded, return as-is
-        return tiddler
+        # No original order recorded; mimic TiddlyWiki's construction order:
+        # creation fields first, then user fields, then modification fields.
+        creation_fields = ['created', 'creator']
+        modification_fields = ['modified', 'modifier']
+
+        ordered = OrderedDict()
+
+        for field in creation_fields:
+            if field in tiddler:
+                ordered[field] = tiddler[field]
+
+        for field, value in tiddler.items():
+            if field in creation_fields or field in modification_fields:
+                continue
+            ordered[field] = value
+
+        for field in modification_fields:
+            if field in tiddler:
+                ordered[field] = tiddler[field]
+
+        return ordered
 
     # Create new dict with fields in original order
     reordered = OrderedDict()
@@ -628,6 +647,8 @@ def edit_tiddler(wiki_path, tiddler_title):
             break
 
     # If tiddler doesn't exist, create a template
+    initial_missing_timestamps = False
+
     if not tiddler:
         tiddler = {
             "title": tiddler_title,
@@ -635,6 +656,13 @@ def edit_tiddler(wiki_path, tiddler_title):
             "modified": get_tiddlywiki_timestamp()
         }
         is_new_tiddler = True
+    else:
+        initial_missing_timestamps = ('created' not in tiddler) or ('modified' not in tiddler)
+        # Ensure timestamps exist so the watcher can safely insert them
+        if 'created' not in tiddler:
+            tiddler['created'] = get_tiddlywiki_timestamp()
+        if 'modified' not in tiddler:
+            tiddler['modified'] = get_tiddlywiki_timestamp()
 
     # Store the original tiddler's meaningful content (excluding timestamps) for comparison
     def get_editable_fields(t):
@@ -782,13 +810,13 @@ def edit_tiddler(wiki_path, tiddler_title):
         edited_editable = get_editable_fields(edited_tiddler)
         content_changed = (edited_editable != original_editable)
 
-        # Check if tiddler is missing timestamps
-        missing_timestamps = 'created' not in tiddler or 'modified' not in tiddler
+        # Check if tiddler was missing timestamps before editing
+        missing_timestamps = is_new_tiddler or initial_missing_timestamps
 
         # Save if: content changed, new tiddler, or missing timestamps
         if is_new_tiddler or content_changed or missing_timestamps:
             # For new tiddlers, always update modified. For existing tiddlers, only update if changed.
-            should_update_modified = is_new_tiddler or content_changed
+            should_update_modified = is_new_tiddler or content_changed or initial_missing_timestamps
 
             # Ensure timestamps exist for both new and existing tiddlers
             if 'created' not in tiddler:

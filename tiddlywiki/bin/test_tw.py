@@ -5104,6 +5104,25 @@ class TestFieldOrderPreservation(unittest.TestCase):
         self.assertEqual(order2, ["title", "modified", "created", "type", "custom", "tags", "text"],
                         "Second tiddler field order changed after inserting new tiddler")
 
+    def test_new_tiddler_field_order_matches_tiddlywiki(self):
+        """Test that newly created tiddlers follow TiddlyWiki's timestamp ordering"""
+        tw_module.load_all_tiddlers(self.test_wiki)
+
+        new_tiddler_json = json.dumps({
+            "title": "NewOrderedTiddler",
+            "text": "New content"
+        })
+        tw_module.insert_tiddler(self.test_wiki, new_tiddler_json)
+
+        with open(self.test_wiki, 'r') as f:
+            content = f.read()
+
+        order = self.get_tiddler_field_order(content, "NewOrderedTiddler")
+
+        expected_order = ["created", "title", "text", "modified"]
+        self.assertEqual(order, expected_order,
+                         f"New tiddler field order incorrect. Expected {expected_order}, got {order}")
+
 
 class TestTimestampBehavior(unittest.TestCase):
     """Test that created and modified timestamps are properly managed across all commands"""
