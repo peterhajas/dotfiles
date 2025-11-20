@@ -36,12 +36,13 @@ fi
 # Pre-defined session names (no associated directories)
 PREDEFINED_SESSIONS="sysmon
 kanata
-claude"
+claude
+codex"
 
 # Filter out predefined sessions that are already active
 ACTIVE_SESSION_NAMES=$(echo "$SESSIONS" | sed 's/ \[active session\]//')
 FILTERED_PREDEFINED=""
-for session in sysmon kanata claude; do
+for session in sysmon kanata claude codex; do
     if ! echo "$ACTIVE_SESSION_NAMES" | grep -q "^$session$"; then
         FILTERED_PREDEFINED="$FILTERED_PREDEFINED$session
 "
