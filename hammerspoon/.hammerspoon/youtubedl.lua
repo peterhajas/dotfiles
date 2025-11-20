@@ -9,7 +9,11 @@ require "terminal"
 -- Private helper function
 local function downloadVideo(url)
     local command = "ytd \""..url.."\""
-    runInNewTerminal(command, true)
+    runInNewTerminal(command, true, {
+        float = true,
+        size = { w = 760, h = 432 }, -- roughly 80x24 chars
+        position = "top-right"
+    })
 end
 
 -- Initialize YouTube downloader
