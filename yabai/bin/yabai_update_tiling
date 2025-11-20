@@ -83,10 +83,9 @@ if [[ $NUM_DISPLAYS -gt 1 ]]; then
         yabai -m window $WINDOW_ID --grid 1:1:0:0:1:1 2>/dev/null
     done
 
-    # Find all Claude.app, ChatGPT.app windows, or windows with title STARTING with "claude"
-    AI_WINDOWS=($(yabai -m query --windows | jq -r '.[] | select(.app == "Claude" or .app == "ChatGPT" or (.title | test("^claude"; "i"))) | .id'))
+    # Find all Claude/ChatGPT/Codex windows, or titles starting with "claude" or "codex"
+    AI_WINDOWS=($(yabai -m query --windows | jq -r '.[] | select(.app == "Claude" or .app == "ChatGPT" or .app == "Codex" or (.title | test("^(claude|codex)"; "i"))) | .id'))
 
     # Move AI windows to the leftmost display (only if not already there)
     move_windows_if_needed $LEFTMOST_DISPLAY "${AI_WINDOWS[@]}"
 fi
-
