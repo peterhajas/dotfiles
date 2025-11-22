@@ -13,7 +13,11 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 local plugins = {
-    {'numToStr/Comment.nvim'},
+    {'numToStr/Comment.nvim',
+        config = function()
+            require("phajas.plugins.comment")
+        end
+    },
     {'tpope/vim-surround'},
     {'tpope/vim-unimpaired'},
 
@@ -93,4 +97,3 @@ local opts = {}
 
 -- Set up Lazy
 require("lazy").setup(plugins, opts)
-
