@@ -88,7 +88,7 @@ vim.api.nvim_create_autocmd({"WinResized"}, {
 })
 
 -- Disable LSP and syntax for large files
-vim.api.nvim_create_autocmd({"BufReadPre", "FileReadPre"}, {
+vim.api.nvim_create_autocmd({"BufReadPost"}, {
     callback = function()
         local line_count = vim.fn.line('$')
         local max_lines = 10000
