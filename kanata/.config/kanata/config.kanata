@@ -35,6 +35,7 @@
   ; (tap-hold $tap-time $hold-time-slow ; rsft)
   tab (tap-hold $tap-time $hold-time tab (multi lctl lalt lsft))
   rsf (tap-hold $shift-tap-time $shift-hold-time f13 rsft)
+  rmeh (tap-hold $tap-time $hold-time rmet (multi lctl lalt lsft))
   cap (tap-hold $tap-time $hold-time esc lctl)
 )
 
@@ -44,5 +45,5 @@
   @tab q    w    e    r    t    y    u    i    o    p    [    ]    \
   @cap @a   @s   @d   @f   g    h    @j   @k   @l   @;   '    ret
   lsft z    x    c    v    b    n    m    ,    .    /    @rsf
-  fn   lctl lalt lmet           spc            rmet ralt
+  fn   lctl lalt lmet           spc            @rmeh ralt
 )
