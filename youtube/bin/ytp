@@ -1,3 +1,6 @@
 #!/bin/sh
 
-mpv --ytdl-format="bestvideo[height<=?360]+bestaudio/best" "$*" &
+# Prefer a single low-res stream; fallback to 360p dash or the worst available.
+FORMAT='18/bv*[height<=360][fps<=30]+ba[abr<=96]/best[height<=360]/worst'
+
+mpv --ytdl-format="$FORMAT" "$@" &
