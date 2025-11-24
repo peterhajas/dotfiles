@@ -1,7 +1,7 @@
 #!/bin/bash
 
 BAR_HEIGHT=0
-EDGE_PADDING=20
+EDGE_PADDING=14
 PADDING=20
 WIDGET_PADDING=194
 # LEFT_PADDING=86 # width of the $WIDGET_PADDING minus the width the dock takes up on the left
