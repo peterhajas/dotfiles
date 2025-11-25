@@ -1,8 +1,4 @@
--- modus theme does not work well for Terminal.app, so only enable it if we're
--- not running in Terminal
---
--- macOS sets this environment variable for apps, so check the bundle ID or
--- enable if it is `nil`
+-- Palette-driven colorscheme (generated).
 
 local function detectMacOSAppearance()
     -- Query macOS for the current appearance (light or dark mode)
@@ -19,21 +15,25 @@ local function detectMacOSAppearance()
     return "light"
 end
 
-local function applyModus()
-    -- Explicitly set background based on macOS appearance
-    -- This helps when running inside Zellij/tmux where OSC 11 queries don't work
-    local appearance = detectMacOSAppearance()
-    vim.opt.background = appearance
-    vim.cmd([[colorscheme modus]])
-
-    -- Set indent scope color to match comments (must be after colorscheme)
+local function setIndentScopeHighlight()
     vim.api.nvim_set_hl(0, 'MiniIndentscopeSymbol', { link = 'Comment' })
 end
 
+local function applyTheme()
+    -- Explicitly set background based on macOS appearance
+    -- This helps when running inside Zellij/tmux where OSC 11 queries don't work
+    vim.opt.background = detectMacOSAppearance()
+
+    pcall(vim.cmd, [[colorscheme phajas_palette]])
+
+    -- Set indent scope color to match comments (must be after colorscheme)
+    setIndentScopeHighlight()
+end
+
 local bundleID = os.getenv("__CFBundleIdentifier")
-if bundleID == nil or
-   bundleID ~= "com.apple.Terminal" then
-   applyModus()
+-- if bundleID == nil or
+--    bundleID ~= "com.apple.Terminal" then
+   applyTheme()
 
    -- Set up a timer to check for appearance changes every 3 seconds
    -- This allows the theme to update when macOS dark mode is toggled
@@ -42,8 +42,7 @@ if bundleID == nil or
        local current_bg = vim.opt.background:get()
        local new_appearance = detectMacOSAppearance()
        if current_bg ~= new_appearance then
-           vim.opt.background = new_appearance
-           vim.cmd([[colorscheme modus]])
+           applyTheme()
        end
    end))
 
@@ -51,7 +50,7 @@ if bundleID == nil or
    vim.api.nvim_create_autocmd("ColorScheme", {
        pattern = "*",
        callback = function()
-           vim.api.nvim_set_hl(0, 'MiniIndentscopeSymbol', { link = 'Comment' })
+           setIndentScopeHighlight()
        end,
    })
-end
+-- end

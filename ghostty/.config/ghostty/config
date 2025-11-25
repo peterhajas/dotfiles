@@ -11,5 +11,4 @@ macos-titlebar-style = "transparent"
 resize-overlay = "never"
 shell-integration = "none"
 # theme = dark:catppuccin-mocha,light:catppuccin-latte
-theme = dark:modus_vivendi,light:modus_operandi
-
+theme = dark:phajas_dark,light:phajas_light

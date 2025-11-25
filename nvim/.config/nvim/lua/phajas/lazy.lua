@@ -86,9 +86,6 @@ local plugins = {
     }},
     {'nvim-mini/mini.indentscope', version = false},
 
-    -- Theme
-    {"miikanissi/modus-themes.nvim", priority = 1000 },
-
     -- Local plugins
     { dir = "~/.config/nvim/lua/tw", name = "tw" },
 }

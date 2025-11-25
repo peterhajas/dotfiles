@@ -79,6 +79,15 @@
       debug:
         msg: "Setting up dotfiles for {{ ansible_system }} on {{ ansible_hostname }}"
 
+    - name: Build color artifacts from palette
+      command: python3 colors/build.py
+      args:
+        chdir: "{{ playbook_dir }}"
+      environment:
+        COLOR_HOST: "{{ ansible_hostname }}"
+      register: color_build
+      changed_when: "'changed=true' in color_build.stdout"
+
     - name: Build list of packages to stow
       set_fact:
         packages_to_stow: >-
