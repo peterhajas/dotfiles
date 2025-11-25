@@ -1,6 +1,9 @@
 #!/bin/sh
 
-# Prefer a single low-res stream; fallback to 360p dash or the worst available.
-FORMAT='18/bv*[height<=360][fps<=30]+ba[abr<=96]/best[height<=360]/worst'
+OUTPATH=~/Movies/yt
+SUB_OPTS="--sub-langs en --write-subs --write-auto-subs --embed-subs --convert-subs srt"
+# Prefer single progressive (video+audio) to avoid a merge step; aim for <=240p.
+FORMAT='best[height<=240][fps<=30][vcodec!=none][acodec!=none][ext=mp4]/best[height<=240][fps<=30][vcodec!=none][acodec!=none]/18/worst'
 
-mpv --ytdl-format="$FORMAT" "$@" &
+mkdir -p "$OUTPATH" 2>>/dev/null
+yt-dlp -f "$FORMAT" -t mp4 $SUB_OPTS --sponsorblock-remove sponsor,selfpromo,interaction --mark-watched --embed-metadata --output "$OUTPATH/%(uploader)s/%(upload_date)s_%(title)s-%(id)s.%(ext)s" --download-archive "~/.vimwiki/logged/youtube_watched.txt" --exec 'mpv {} &' "$@"
