@@ -1,91 +1,273 @@
-#!/bin/bash
+#!/usr/bin/env python3
 
-BAR_HEIGHT=0
-EDGE_PADDING=14
-PADDING=20
-WIDGET_PADDING=194
-# LEFT_PADDING=86 # width of the $WIDGET_PADDING minus the width the dock takes up on the left
-LEFT_PADDING=$EDGE_PADDING
+import json
+import subprocess
+import sys
+from typing import Any, Dict, List, Optional
 
-WIDGET_PADDING=$(($WIDGET_PADDING + $EDGE_PADDING))
+# Constants
+EDGE_PADDING = 14
+PADDING = 20
+WIDGET_PADDING = 194 + EDGE_PADDING
+ULTRAWIDE_THRESHOLD = 2000 # plh-evil
 
-WIDTH=$(yabai -m query --displays | jq ".[0].frame.w")
-LAYOUT="float"
-
-# Set geometry
-yabai -m config \
-    window_gap $PADDING
-
-# less than 2000 means stack
-if awk -v num="$WIDTH" -v comp="2100" 'BEGIN { exit !(num < comp) }'; then
-    LAYOUT="stack"
-else
-    LAYOUT="float"
-fi
-
-# back to stack for now
-LAYOUT="stack"
-
-# pad for widgets just on the main display's space
-yabai -m config --space 1 \
-    layout $LAYOUT \
-    top_padding 0 \
-    bottom_padding 0 \
-    left_padding 0 \
-    right_padding $WIDGET_PADDING
+# 25/50/25 thirds mapped to a 4-column grid (col, span)
+LEFT_COL, LEFT_SPAN = 0, 1
+CENTER_COL, CENTER_SPAN = 1, 2
+RIGHT_COL, RIGHT_SPAN = 3, 1
 
 
-# don't pad the other displays
-for (( i=2; i<=30; i++ ))
-do
-    yabai -m config --space $i layout "bsp" \
-    top_padding 0 \
-    bottom_padding 0 \
-    left_padding 0 \
-    right_padding 0 \
-    2>>/dev/null
-done
+def run_json(cmd: List[str]) -> Optional[Any]:
+    try:
+        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+        return json.loads(out)
+    except Exception:
+        return None
 
-# apply all rules
-yabai -m rule --apply
 
-# Function to move windows only if they're not already on the target display
-# Args: $1 = target display index, $2+ = window IDs
-move_windows_if_needed() {
-    local target_display=$1
-    shift
-    local window_ids=("$@")
+def run_cmd(cmd: List[str]) -> None:
+    subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
 
-    for window_id in "${window_ids[@]}"; do
-        local current_display=$(yabai -m query --windows --window $window_id 2>/dev/null | jq -r '.display')
-        if [[ -n "$current_display" && "$current_display" != "$target_display" ]]; then
-            yabai -m window $window_id --display $target_display 2>/dev/null
-        fi
-    done
-}
 
-# Manage sysmon windows - move to rightmost display and make fullscreen
-RIGHTMOST_DISPLAY=$(yabai -m query --displays | jq 'sort_by(.frame.x) | .[-1].index')
-NUM_DISPLAYS=$(yabai -m query --displays | jq 'length')
+def get_display_by_index(displays: List[Dict[str, Any]], idx: int) -> Optional[Dict[str, Any]]:
+    for d in displays:
+        if d.get("index") == idx:
+            return d
+    return None
 
-# Only manage special windows if we have more than one display
-if [[ $NUM_DISPLAYS -gt 1 ]]; then
-    LEFTMOST_DISPLAY=$(yabai -m query --displays | jq 'sort_by(.frame.x) | .[0].index')
 
-    # Find all windows with title exactly "sysmon" (case-insensitive)
-    SYSMON_WINDOWS=($(yabai -m query --windows | jq -r '.[] | select(.title | test("^sysmon$"; "i")) | .id'))
+def move_window_to_display(win_id: int, target_display: int) -> None:
+    if target_display is None:
+        return
+    try:
+        win_json = run_json(["yabai", "-m", "query", "--windows", "--window", str(win_id)])
+        if not win_json:
+            return
+        if win_json.get("display") == target_display:
+            return
+    except Exception:
+        return
+    run_cmd(["yabai", "-m", "window", str(win_id), "--display", str(target_display)])
 
-    # Move sysmon windows to the rightmost display (only if not already there)
-    move_windows_if_needed $RIGHTMOST_DISPLAY "${SYSMON_WINDOWS[@]}"
 
-    # Make each sysmon window fullscreen
-    for WINDOW_ID in "${SYSMON_WINDOWS[@]}"; do
-        yabai -m window $WINDOW_ID --grid 1:1:0:0:1:1 2>/dev/null
-    done
+def apply_grid(win_id: int, rows: int, col: int, row: int, span: int) -> None:
+    run_cmd(["yabai", "-m", "window", str(win_id), "--grid", f"{rows}:4:{col}:{row}:{span}:1"])
 
-    # Find all Claude/ChatGPT/Codex windows, or titles starting with "claude" or "codex"
-    AI_WINDOWS=($(yabai -m query --windows | jq -r '.[] | select(.app == "Claude" or .app == "ChatGPT" or .app == "Codex" or (.title | test("^(claude|codex)"; "i"))) | .id'))
 
-    # Move AI windows to the leftmost display (only if not already there)
-    move_windows_if_needed $LEFTMOST_DISPLAY "${AI_WINDOWS[@]}"
-fi
+def apply_bucket(windows: List[int], col: int, span: int) -> None:
+    rows = max(1, len(windows))
+    for idx, win in enumerate(windows):
+        apply_grid(win, rows, col, idx, span)
+
+
+def overlap_center(windows: List[int]) -> None:
+    for win in windows:
+        apply_grid(win, 1, CENTER_COL, 0, CENTER_SPAN)
+
+
+def overlap_region(windows: List[int], col: int, span: int) -> None:
+    for win in windows:
+        apply_grid(win, 1, col, 0, span)
+
+
+def is_special_sysmon(win: Dict[str, Any]) -> bool:
+    title = win.get("title", "")
+    return "sysmon" in title.lower()
+
+
+def is_special_ai(win: Dict[str, Any]) -> bool:
+    app = win.get("app", "")
+    title = win.get("title", "")
+    low_app = app.lower()
+    low_title = title.lower()
+    if any(
+        key in low_app
+        for key in ["claude", "chatgpt", "codex", "openai"]
+    ):
+        return True
+    return low_title.startswith("claude") or low_title.startswith("codex") or low_title.startswith("chatgpt")
+
+
+def ensure_managed(win_id: int) -> None:
+    info = run_json(["yabai", "-m", "query", "--windows", "--window", str(win_id)]) or {}
+    if info.get("floating") == 1:
+        # toggle to managed so grid placement works
+        run_cmd(["yabai", "-m", "window", str(win_id), "--toggle", "float"])
+
+
+def main() -> None:
+    displays = run_json(["yabai", "-m", "query", "--displays"])
+    spaces = run_json(["yabai", "-m", "query", "--spaces"])
+    windows = run_json(["yabai", "-m", "query", "--windows"])
+
+    if not displays or not spaces or windows is None:
+        sys.exit(0)
+
+    # Set geometry
+    run_cmd(["yabai", "-m", "config", "window_gap", str(PADDING)])
+
+    # Find widest display over threshold
+    ultra_display = None
+    widest = max(displays, key=lambda d: d.get("frame", {}).get("w", 0))
+    if widest.get("frame", {}).get("w", 0) >= ULTRAWIDE_THRESHOLD:
+        ultra_display = widest
+
+    ultra_index = ultra_display.get("index") if ultra_display else None
+
+    # Space layouts/padding
+    for space in spaces:
+        space_index = space.get("index")
+        space_display = space.get("display")
+        pad_right = WIDGET_PADDING if space_index == 1 else 0
+        layout = "stack" if space_index == 1 else "bsp"
+        # For ultrawide spaces, float layout so manual 25/50/25 grids are not retiled by bsp/stack
+        if ultra_index is not None and space_display == ultra_index:
+            layout = "float"
+
+        run_cmd(
+            [
+                "yabai",
+                "-m",
+                "config",
+                "--space",
+                str(space_index),
+                "layout",
+                layout,
+                "top_padding",
+                "0",
+                "bottom_padding",
+                "0",
+                "left_padding",
+                "0",
+                "right_padding",
+                str(pad_right),
+            ]
+        )
+
+    # apply all rules
+    run_cmd(["yabai", "-m", "rule", "--apply"])
+
+    # Special windows
+    rightmost_display = sorted(displays, key=lambda d: d.get("frame", {}).get("x", 0))[-1].get("index")
+    leftmost_display = sorted(displays, key=lambda d: d.get("frame", {}).get("x", 0))[0].get("index")
+    num_displays = len(displays)
+
+    sysmon_windows = [w for w in windows if is_special_sysmon(w)]
+    ai_windows = [w for w in windows if is_special_ai(w)]
+
+    if ultra_index is not None:
+        for win in sysmon_windows + ai_windows:
+            wid = win.get("id")
+            move_window_to_display(wid, ultra_index)
+            ensure_managed(wid)
+    elif num_displays > 1:
+        for win in sysmon_windows:
+            wid = win.get("id")
+            move_window_to_display(wid, rightmost_display)
+            apply_grid(wid, 1, 0, 0, 1)
+        for win in ai_windows:
+            wid = win.get("id")
+            move_window_to_display(wid, leftmost_display)
+
+    # Refresh windows after special moves
+    windows = run_json(["yabai", "-m", "query", "--windows"]) or []
+
+    # 25/50/25 tiling for ultrawide
+    if ultra_index is not None:
+        ultra_frame = ultra_display.get("frame", {})
+        ultra_x = ultra_frame.get("x", 0)
+        ultra_w = ultra_frame.get("w", 1)
+        left_boundary = ultra_x + (ultra_w * 0.25)
+        right_boundary = ultra_x + (ultra_w * 0.75)
+
+        ultra_space_ids = [s.get("index") for s in spaces if s.get("display") == ultra_index]
+
+        for space_id in ultra_space_ids:
+            space_windows: List[Dict[str, Any]] = []
+            left_bucket: List[Dict[str, Any]] = []
+            center_bucket: List[Dict[str, Any]] = []
+            right_bucket: List[Dict[str, Any]] = []
+
+            for win in windows:
+                if win.get("display") != ultra_index or win.get("space") != space_id:
+                    continue
+                is_sysmon = is_special_sysmon(win)
+                is_ai = is_special_ai(win)
+                if win.get("minimized") == 1:
+                    continue
+                if win.get("floating") == 1:
+                    # Make sure floating windows get managed so grid placement works
+                    ensure_managed(win.get("id"))
+                if win.get("is-visible") is False or win.get("is-hidden") is True:
+                    # Ignore windows that are hidden/invisible so they don't reserve space
+                    continue
+                space_windows.append(win)
+
+            if not space_windows:
+                continue
+
+            # Bucket by region with special pinning
+            for win in space_windows:
+                is_sysmon = is_special_sysmon(win)
+                is_ai = is_special_ai(win)
+                # Hard-assign buckets by type; everything else goes center
+                if is_ai:
+                    left_bucket.append(win)
+                elif is_sysmon:
+                    right_bucket.append(win)
+                else:
+                    center_bucket.append(win)
+
+            if left_bucket:
+                # AI prioritized then alphabetical within this space
+                left_sorted = sorted(
+                    left_bucket,
+                    key=lambda w: (
+                        0 if is_special_ai(w) else 1,
+                        (w.get("title") or w.get("app") or "").lower(),
+                        w.get("id", 0),
+                    ),
+                )
+            right_sorted = sorted(
+                right_bucket,
+                key=lambda w: (
+                    0 if is_special_sysmon(w) else 1,
+                    (w.get("title") or w.get("app") or "").lower(),
+                    w.get("id", 0),
+                ),
+            )
+
+            buckets_present = sum(
+                1
+                for bucket in (left_bucket, center_bucket, right_bucket)
+                if bucket
+            )
+
+            if buckets_present == 1:
+                if left_bucket:
+                    apply_bucket([w.get("id") for w in left_sorted], 0, 4)
+                elif center_bucket:
+                    overlap_region([w.get("id") for w in center_bucket], 0, 4)
+                else:
+                    apply_bucket([w.get("id") for w in right_sorted], 0, 4)
+            elif buckets_present == 2:
+                if left_bucket and center_bucket:
+                    apply_bucket([w.get("id") for w in left_sorted], 0, 2)
+                    overlap_region([w.get("id") for w in center_bucket], 2, 2)
+                elif center_bucket and right_bucket:
+                    overlap_region([w.get("id") for w in center_bucket], 0, 2)
+                    apply_bucket([w.get("id") for w in right_sorted], 2, 2)
+                else:  # left + right
+                    apply_bucket([w.get("id") for w in left_sorted], 0, 2)
+                    apply_bucket([w.get("id") for w in right_sorted], 2, 2)
+            else:
+                if left_bucket:
+                    apply_bucket([w.get("id") for w in left_sorted], LEFT_COL, LEFT_SPAN)
+                if center_bucket:
+                    overlap_region([w.get("id") for w in center_bucket], CENTER_COL, CENTER_SPAN)
+                if right_bucket:
+                    apply_bucket([w.get("id") for w in right_sorted], RIGHT_COL, RIGHT_SPAN)
+
+
+if __name__ == "__main__":
+    main()
