@@ -42,9 +42,6 @@ doc = hs.doc
 -- Global 'ntfy' module for easy CLI access
 ntfy = require "ntfy"
 
--- Global 'claudeNotifier' module for visual overlay
-claudeNotifier = require "claude_notifier"
-
 -- Global 'inspectThing' function for inspecting objects
 function inspectThing(thing)
     return hs.inspect.inspect(thing)
@@ -204,7 +201,6 @@ darkmode.init()
 audio_output.init()
 youtubedl.init()
 iphone_mirroring.init()
-claudeNotifier.init()
 
 -- Subscribe to ntfy topics
 -- Load topics dynamically from TiddlyWiki
