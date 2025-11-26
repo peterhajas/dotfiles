@@ -27,6 +27,11 @@ get_layout() {
     fi
 }
 
+set_terminal_title() {
+    session_name="$1"
+    [ -n "$session_name" ] && printf '\033]0;zellij: %s\a' "$session_name"
+}
+
 # Get existing zellij sessions with visual indicator
 SESSIONS=""
 if zellij list-sessions >/dev/null 2>&1; then
@@ -91,6 +96,7 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
             exit 0
         else
             kill_existing_attach_processes "$SESSION_NAME"
+            set_terminal_title "$SESSION_NAME"
             zellij attach "$SESSION_NAME"
         fi
     else
@@ -98,6 +104,7 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
         if [ -n "$ZELLIJ" ]; then
             zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
         else
+            set_terminal_title "$SESSION_NAME"
             zellij --new-session-with-layout "$LAYOUT" --session "$SESSION_NAME"
         fi
     fi
@@ -112,6 +119,7 @@ if echo "$SELECTION" | grep -q "\[active session\]"; then
         exit 0
     else
         kill_existing_attach_processes "$SESSION_NAME"
+        set_terminal_title "$SESSION_NAME"
         zellij attach "$SESSION_NAME"
     fi
     exit 0
@@ -130,6 +138,7 @@ if echo "$PREDEFINED_SESSIONS" | grep -q "^$SELECTION$"; then
             exit 0
         else
             kill_existing_attach_processes "$SESSION_NAME"
+            set_terminal_title "$SESSION_NAME"
             zellij attach "$SESSION_NAME"
         fi
     else
@@ -137,6 +146,7 @@ if echo "$PREDEFINED_SESSIONS" | grep -q "^$SELECTION$"; then
         if [ -n "$ZELLIJ" ]; then
             zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
         else
+            set_terminal_title "$SESSION_NAME"
             zellij --new-session-with-layout "$LAYOUT" --session "$SESSION_NAME"
         fi
     fi
@@ -155,6 +165,7 @@ if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION
         exit 0
     else
         kill_existing_attach_processes "$SESSION_NAME"
+        set_terminal_title "$SESSION_NAME"
         zellij attach "$SESSION_NAME"
     fi
 else
@@ -165,6 +176,6 @@ else
     else
         # Outside Zellij: create new session
         LAYOUT=$(get_layout "$SESSION_NAME")
-        cd "$DIR" && zellij --new-session-with-layout "$LAYOUT" --session "$SESSION_NAME"
+        cd "$DIR" && set_terminal_title "$SESSION_NAME" && zellij --new-session-with-layout "$LAYOUT" --session "$SESSION_NAME"
     fi
 fi
