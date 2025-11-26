@@ -3,7 +3,7 @@ layout {
         // Section 1: CPU / Memory / Network graphs
         pane command="btop" {
             args "--config" "/Users/phajas/dotfiles/btop/.config/btop/btop-graphs-cpu-net.conf"
-            size "30%"
+            size "40%"
         }
 
         // Section 2: nvtop
