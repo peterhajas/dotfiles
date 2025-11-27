@@ -9,12 +9,12 @@ from typing import Any, Dict, List, Optional
 EDGE_PADDING = 14
 PADDING = 20
 WIDGET_PADDING = 194 + EDGE_PADDING
-ULTRAWIDE_THRESHOLD = 2000 # plh-evil
+ULTRAWIDE_THRESHOLD = 2000  # plh-evil
 
-# 25/50/25 thirds mapped to a 4-column grid (col, span)
-LEFT_COL, LEFT_SPAN = 0, 1
-CENTER_COL, CENTER_SPAN = 1, 2
-RIGHT_COL, RIGHT_SPAN = 3, 1
+# Layout tuning
+BUCKET_WEIGHTS = {"left": 1.0, "center": 2.0, "right": 1.0}  # Adjust to change relative widths
+SIDE_MAX_WIDTH_PX: Optional[int] = 1080  # Cap left/right widths in pixels (when present with center); set to None to disable
+GRID_COLUMNS = 100  # Grid resolution for column calculations (higher -> finer control)
 
 
 def run_json(cmd: List[str]) -> Optional[Any]:
@@ -51,7 +51,7 @@ def move_window_to_display(win_id: int, target_display: int) -> None:
 
 
 def apply_grid(win_id: int, rows: int, col: int, row: int, span: int) -> None:
-    run_cmd(["yabai", "-m", "window", str(win_id), "--grid", f"{rows}:4:{col}:{row}:{span}:1"])
+    run_cmd(["yabai", "-m", "window", str(win_id), "--grid", f"{rows}:{GRID_COLUMNS}:{col}:{row}:{span}:1"])
 
 
 def apply_bucket(windows: List[int], col: int, span: int) -> None:
@@ -60,14 +60,89 @@ def apply_bucket(windows: List[int], col: int, span: int) -> None:
         apply_grid(win, rows, col, idx, span)
 
 
-def overlap_center(windows: List[int]) -> None:
-    for win in windows:
-        apply_grid(win, 1, CENTER_COL, 0, CENTER_SPAN)
-
-
 def overlap_region(windows: List[int], col: int, span: int) -> None:
     for win in windows:
         apply_grid(win, 1, col, 0, span)
+
+
+def compute_bucket_widths(buckets_present: List[str], display_width: float) -> Dict[str, float]:
+    if not buckets_present or display_width <= 0:
+        return {}
+
+    total_weight = sum(BUCKET_WEIGHTS.get(bucket, 1.0) for bucket in buckets_present)
+    widths = {
+        bucket: display_width * (BUCKET_WEIGHTS.get(bucket, 1.0) / total_weight)
+        for bucket in buckets_present
+    }
+
+    if SIDE_MAX_WIDTH_PX is not None and "center" in buckets_present:
+        max_width = float(SIDE_MAX_WIDTH_PX)
+        for side in ("left", "right"):
+            if side in widths:
+                widths[side] = min(widths[side], max_width)
+
+        side_total = sum(widths[bucket] for bucket in ("left", "right") if bucket in widths)
+        if side_total >= display_width:
+            # sides eat the whole space; scale them down evenly
+            scale = display_width / max(side_total, 1.0)
+            for side in ("left", "right"):
+                if side in widths:
+                    widths[side] *= scale
+            widths["center"] = 0.0
+        else:
+            widths["center"] = display_width - side_total
+
+    total_after = sum(widths.values())
+    if "center" not in buckets_present and total_after > 0:
+        # scale to fill the available space when only sides are present
+        scale = display_width / total_after
+        for bucket in widths:
+            widths[bucket] *= scale
+
+    return widths
+
+
+def bucket_layout(buckets_present: List[str], display_width: float) -> Dict[str, Dict[str, int]]:
+    widths = compute_bucket_widths(buckets_present, display_width)
+    order = [bucket for bucket in ("left", "center", "right") if bucket in widths]
+    if not order or display_width <= 0:
+        return {}
+
+    raw_spans = [
+        (widths[bucket] / display_width) * GRID_COLUMNS
+        for bucket in order
+    ]
+    spans = [max(1, int(value)) for value in raw_spans]
+    diff = GRID_COLUMNS - sum(spans)
+
+    remainders = [value - int(value) for value in raw_spans]
+    while diff != 0:
+        if diff > 0:
+            idx = max(range(len(order)), key=lambda i: remainders[i])
+            spans[idx] += 1
+            diff -= 1
+        else:
+            candidates = [i for i, span in enumerate(spans) if span > 1]
+            if not candidates:
+                break
+            idx = max(candidates, key=lambda i: spans[i])
+            spans[idx] -= 1
+            diff += 1
+
+    final_layout: Dict[str, Dict[str, int]] = {}
+    col = 0
+    for bucket, span in zip(order, spans):
+        final_layout[bucket] = {"col": col, "span": span}
+        col += span
+
+    # ensure total columns are consumed
+    total_assigned = sum(span for span in spans)
+    if total_assigned != GRID_COLUMNS and order:
+        adjust_bucket = "center" if "center" in final_layout else order[-1]
+        adjustment = GRID_COLUMNS - total_assigned
+        final_layout[adjust_bucket]["span"] = max(1, final_layout[adjust_bucket]["span"] + adjustment)
+
+    return final_layout
 
 
 def is_special_sysmon(win: Dict[str, Any]) -> bool:
@@ -164,7 +239,7 @@ def main() -> None:
         for win in sysmon_windows:
             wid = win.get("id")
             move_window_to_display(wid, rightmost_display)
-            apply_grid(wid, 1, 0, 0, 1)
+            apply_grid(wid, 1, 0, 0, max(1, GRID_COLUMNS // 4))
         for win in ai_windows:
             wid = win.get("id")
             move_window_to_display(wid, leftmost_display)
@@ -237,36 +312,38 @@ def main() -> None:
                 ),
             )
 
-            buckets_present = sum(
-                1
-                for bucket in (left_bucket, center_bucket, right_bucket)
+            present_buckets = [
+                name
+                for name, bucket in (
+                    ("left", left_bucket),
+                    ("center", center_bucket),
+                    ("right", right_bucket),
+                )
                 if bucket
-            )
+            ]
 
-            if buckets_present == 1:
-                if left_bucket:
-                    apply_bucket([w.get("id") for w in left_sorted], 0, 4)
-                elif center_bucket:
-                    overlap_region([w.get("id") for w in center_bucket], 0, 4)
-                else:
-                    apply_bucket([w.get("id") for w in right_sorted], 0, 4)
-            elif buckets_present == 2:
-                if left_bucket and center_bucket:
-                    apply_bucket([w.get("id") for w in left_sorted], 0, 2)
-                    overlap_region([w.get("id") for w in center_bucket], 2, 2)
-                elif center_bucket and right_bucket:
-                    overlap_region([w.get("id") for w in center_bucket], 0, 2)
-                    apply_bucket([w.get("id") for w in right_sorted], 2, 2)
-                else:  # left + right
-                    apply_bucket([w.get("id") for w in left_sorted], 0, 2)
-                    apply_bucket([w.get("id") for w in right_sorted], 2, 2)
-            else:
-                if left_bucket:
-                    apply_bucket([w.get("id") for w in left_sorted], LEFT_COL, LEFT_SPAN)
-                if center_bucket:
-                    overlap_region([w.get("id") for w in center_bucket], CENTER_COL, CENTER_SPAN)
-                if right_bucket:
-                    apply_bucket([w.get("id") for w in right_sorted], RIGHT_COL, RIGHT_SPAN)
+            layout = bucket_layout(present_buckets, ultra_w)
+            if not layout:
+                continue
+
+            if left_bucket and "left" in layout:
+                apply_bucket(
+                    [w.get("id") for w in left_sorted],
+                    layout["left"]["col"],
+                    layout["left"]["span"],
+                )
+            if center_bucket and "center" in layout:
+                overlap_region(
+                    [w.get("id") for w in center_bucket],
+                    layout["center"]["col"],
+                    layout["center"]["span"],
+                )
+            if right_bucket and "right" in layout:
+                apply_bucket(
+                    [w.get("id") for w in right_sorted],
+                    layout["right"]["col"],
+                    layout["right"]["span"],
+                )
 
 
 if __name__ == "__main__":
