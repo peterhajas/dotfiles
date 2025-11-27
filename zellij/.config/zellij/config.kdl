@@ -145,9 +145,10 @@ keybinds clear-defaults=true {
         bind "Alt ]" { NextSwapLayout; }
         bind "Alt f" { ToggleFloatingPanes; }
         bind "Ctrl f" {
-            LaunchOrFocusPlugin "session-manager" {
+            Run "sh" "-lc" "sessionize" {
                 floating true
-                move_to_focused_tab true
+                close_on_exit true
+                hold_on_close false
             }
         }
         bind "Ctrl g" { SwitchToMode "locked"; }
