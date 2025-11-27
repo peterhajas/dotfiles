@@ -1,5 +1,10 @@
 #!/bin/sh
 
+if [ -n "$ZELLIJ" ]; then
+    zellij action launch-or-focus-plugin session-manager --floating --move-to-focused-tab
+    exit 0
+fi
+
 # Directories to search (edit these as needed)
 SEARCH_DIRS="
 $HOME
