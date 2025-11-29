@@ -27,8 +27,8 @@ get_layout() {
     if [ -f "$layout_dir/$session_name.kdl" ]; then
         echo "$session_name"
     else
-        # Fall back to phajas layout
-        echo "phajas"
+        # Fall back to zellij's built-in default layout
+        echo "default"
     fi
 }
 
