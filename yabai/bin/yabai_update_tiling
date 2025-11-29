@@ -1,32 +1,63 @@
 #!/usr/bin/env python3
 
 import json
+import os
 import subprocess
 import sys
 from typing import Any, Dict, List, Optional
+import re
 
 # Constants
 EDGE_PADDING = 14
 PADDING = 20
 WIDGET_PADDING = 194 + EDGE_PADDING
 ULTRAWIDE_THRESHOLD = 2000  # plh-evil
+WORKSPACE_WIDTH_THRESHOLD = 5000  # Switch to 5-bucket layout when total width exceeds this
+SUBPROCESS_TIMEOUT = 5.0
+CONFIG_EVENTS = {
+    "display_added",
+    "display_changed",
+    "display_removed",
+    "display_resized",
+    "system_woke",
+}
+
+MANAGE_OFF_RULES: List[Dict[str, Any]] = []
 
 # Layout tuning
-BUCKET_WEIGHTS = {"left": 1.0, "center": 2.0, "right": 1.0}  # Adjust to change relative widths
-SIDE_MAX_WIDTH_PX: Optional[int] = 1080  # Cap left/right widths in pixels (when present with center); set to None to disable
+BUCKET_ORDER = ["far_left", "left", "center", "right", "far_right"]
+BUCKET_WEIGHTS = {
+    "far_left": 1.0,
+    "left": 1.0,
+    "center": 2.0,
+    "right": 1.0,
+    "far_right": 1.0,
+}  # Adjust to change relative widths
+SIDE_MAX_WIDTH_PX: Optional[int] = 1080  # Cap non-center widths in pixels (when present with center); set to None to disable
 GRID_COLUMNS = 100  # Grid resolution for column calculations (higher -> finer control)
 
 
 def run_json(cmd: List[str]) -> Optional[Any]:
     try:
-        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL)
+        out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, timeout=SUBPROCESS_TIMEOUT)
         return json.loads(out)
+    except subprocess.TimeoutExpired:
+        return None
     except Exception:
         return None
 
 
 def run_cmd(cmd: List[str]) -> None:
-    subprocess.run(cmd, check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        subprocess.run(
+            cmd,
+            check=False,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            timeout=SUBPROCESS_TIMEOUT,
+        )
+    except subprocess.TimeoutExpired:
+        pass
 
 
 def get_display_by_index(displays: List[Dict[str, Any]], idx: int) -> Optional[Dict[str, Any]]:
@@ -36,7 +67,51 @@ def get_display_by_index(displays: List[Dict[str, Any]], idx: int) -> Optional[D
     return None
 
 
-def move_window_to_display(win_id: int, target_display: int) -> None:
+def resolve_display_identifier(displays: List[Dict[str, Any]], identifier: str) -> Optional[int]:
+    """Return the display index matching the given identifier (index/id/uuid/serial/name)."""
+    if not identifier:
+        return None
+    identifier = identifier.strip()
+    if not identifier:
+        return None
+
+    # Exact numeric match against index or id
+    try:
+        num = int(identifier)
+        for d in displays:
+            if d.get("index") == num or d.get("id") == num:
+                return d.get("index")
+    except ValueError:
+        pass
+
+    # String matches against common identifiers
+    lowered = identifier.lower()
+    for key in ("uuid", "serial", "name"):
+        for d in displays:
+            value = str(d.get(key) or "").lower()
+            if value and value == lowered:
+                return d.get("index")
+
+    return None
+
+
+def explicit_display_override(displays: List[Dict[str, Any]], env_vars: List[str]) -> Optional[int]:
+    """Check a list of env vars and return the first matching display index."""
+    for env_var in env_vars:
+        env_value = os.environ.get(env_var)
+        if not env_value:
+            continue
+        idx = resolve_display_identifier(displays, env_value)
+        if idx is not None:
+            return idx
+    return None
+
+
+def move_window_to_display(
+    win_id: int,
+    target_display: int,
+    displays: Optional[List[Dict[str, Any]]] = None,
+) -> None:
     if target_display is None:
         return
     try:
@@ -48,6 +123,31 @@ def move_window_to_display(win_id: int, target_display: int) -> None:
     except Exception:
         return
     run_cmd(["yabai", "-m", "window", str(win_id), "--display", str(target_display)])
+
+    # If move failed (common when scripting addition commands are blocked), fall back to a direct move
+    updated = run_json(["yabai", "-m", "query", "--windows", "--window", str(win_id)]) or {}
+    if updated.get("display") == target_display:
+        return
+    if not displays:
+        return
+
+    target_disp = get_display_by_index(displays, target_display) or {}
+    frame = target_disp.get("frame", {})
+    win_frame = updated.get("frame", {}) if updated else win_json.get("frame", {})
+    win_w = float(win_frame.get("w", 0) or 0)
+    win_h = float(win_frame.get("h", 0) or 0)
+    dst_x = float(frame.get("x", 0) or 0) + EDGE_PADDING
+    dst_y = float(frame.get("y", 0) or 0) + EDGE_PADDING
+
+    # Keep window inside the target display bounds
+    max_x = float(frame.get("x", 0) or 0) + float(frame.get("w", 0) or 0) - win_w
+    max_y = float(frame.get("y", 0) or 0) + float(frame.get("h", 0) or 0) - win_h
+    if win_w and frame.get("w", 0):
+        dst_x = min(dst_x, max_x)
+    if win_h and frame.get("h", 0):
+        dst_y = min(dst_y, max_y)
+
+    run_cmd(["yabai", "-m", "window", str(win_id), "--move", f"abs:{int(dst_x)}:{int(dst_y)}"])
 
 
 def apply_grid(win_id: int, rows: int, col: int, row: int, span: int) -> None:
@@ -77,20 +177,20 @@ def compute_bucket_widths(buckets_present: List[str], display_width: float) -> D
 
     if SIDE_MAX_WIDTH_PX is not None and "center" in buckets_present:
         max_width = float(SIDE_MAX_WIDTH_PX)
-        for side in ("left", "right"):
-            if side in widths:
-                widths[side] = min(widths[side], max_width)
+        for bucket in buckets_present:
+            if bucket != "center":
+                widths[bucket] = min(widths[bucket], max_width)
 
-        side_total = sum(widths[bucket] for bucket in ("left", "right") if bucket in widths)
-        if side_total >= display_width:
+        non_center_total = sum(widths[bucket] for bucket in widths if bucket != "center")
+        if non_center_total >= display_width:
             # sides eat the whole space; scale them down evenly
-            scale = display_width / max(side_total, 1.0)
-            for side in ("left", "right"):
-                if side in widths:
-                    widths[side] *= scale
+            scale = display_width / max(non_center_total, 1.0)
+            for bucket in widths:
+                if bucket != "center":
+                    widths[bucket] *= scale
             widths["center"] = 0.0
         else:
-            widths["center"] = display_width - side_total
+            widths["center"] = max(0.0, display_width - non_center_total)
 
     total_after = sum(widths.values())
     if "center" not in buckets_present and total_after > 0:
@@ -104,7 +204,7 @@ def compute_bucket_widths(buckets_present: List[str], display_width: float) -> D
 
 def bucket_layout(buckets_present: List[str], display_width: float) -> Dict[str, Dict[str, int]]:
     widths = compute_bucket_widths(buckets_present, display_width)
-    order = [bucket for bucket in ("left", "center", "right") if bucket in widths]
+    order = [bucket for bucket in BUCKET_ORDER if bucket in widths]
     if not order or display_width <= 0:
         return {}
 
@@ -145,6 +245,46 @@ def bucket_layout(buckets_present: List[str], display_width: float) -> Dict[str,
     return final_layout
 
 
+def workspace_width(displays: List[Dict[str, Any]]) -> float:
+    return float(sum(d.get("frame", {}).get("w", 0) for d in displays))
+
+
+def bucket_display_map(displays: List[Dict[str, Any]]) -> Dict[str, Optional[int]]:
+    if not displays:
+        return {}
+
+    sorted_displays = sorted(displays, key=lambda d: d.get("frame", {}).get("x", 0))
+    leftmost = sorted_displays[0].get("index")
+    rightmost = sorted_displays[-1].get("index")
+    middle_displays = sorted_displays[1:-1]
+
+    explicit_far_left = explicit_display_override(
+        displays, ["YABAI_FAR_LEFT_DISPLAY", "EXTERNAL_FAR_LEFT_DISPLAY"]
+    )
+    explicit_far_right = explicit_display_override(
+        displays, ["YABAI_FAR_RIGHT_DISPLAY", "EXTERNAL_FAR_RIGHT_DISPLAY"]
+    )
+
+    mapping: Dict[str, Optional[int]] = {
+        "far_left": explicit_far_left if explicit_far_left is not None else leftmost,
+        "far_right": explicit_far_right if explicit_far_right is not None else rightmost,
+    }
+
+    if middle_displays:
+        center_display = middle_displays[len(middle_displays) // 2]
+        center_idx = center_display.get("index")
+        mapping.update({"left": center_idx, "center": center_idx, "right": center_idx})
+    else:
+        # Handle 1-2 displays gracefully
+        if len(sorted_displays) == 1:
+            only = sorted_displays[0].get("index")
+            mapping.update({"left": only, "center": only, "right": only})
+        else:
+            mapping.update({"left": leftmost, "center": rightmost, "right": rightmost})
+
+    return mapping
+
+
 def is_special_sysmon(win: Dict[str, Any]) -> bool:
     title = win.get("title", "")
     return "sysmon" in title.lower()
@@ -163,14 +303,64 @@ def is_special_ai(win: Dict[str, Any]) -> bool:
     return low_title.startswith("claude") or low_title.startswith("codex") or low_title.startswith("chatgpt")
 
 
+def rule_matches_window(rule: Dict[str, Any], win: Dict[str, Any]) -> bool:
+    def match_regex(rule_value: Optional[str], value: str) -> bool:
+        if not rule_value:
+            return True
+        try:
+            return re.search(rule_value, value) is not None
+        except re.error:
+            return False
+
+    def match_int(rule_value: Optional[int], value: int) -> bool:
+        if not rule_value or rule_value == 0:
+            return True
+        return rule_value == value
+
+    return all(
+        [
+            match_regex(rule.get("app"), win.get("app", "")),
+            match_regex(rule.get("title"), win.get("title", "")),
+            match_regex(rule.get("role"), win.get("role", "")),
+            match_regex(rule.get("subrole"), win.get("subrole", "")),
+            match_int(rule.get("display"), int(win.get("display", 0))),
+            match_int(rule.get("space"), int(win.get("space", 0))),
+        ]
+    )
+
+
+def is_management_disabled(win: Optional[Dict[str, Any]]) -> bool:
+    if not win:
+        return False
+    for rule in MANAGE_OFF_RULES:
+        if rule_matches_window(rule, win):
+            return True
+    if "should-manage" in win:
+        # explicit opt-out from rules/config
+        return not bool(win.get("should-manage"))
+    # Treat other flags (managed/is-managed) as state, not intent
+    return False
+
+
 def ensure_managed(win_id: int) -> None:
     info = run_json(["yabai", "-m", "query", "--windows", "--window", str(win_id)]) or {}
+    if is_management_disabled(info):
+        return
     if info.get("floating") == 1:
         # toggle to managed so grid placement works
         run_cmd(["yabai", "-m", "window", str(win_id), "--toggle", "float"])
 
 
 def main() -> None:
+    event = (os.environ.get("YABAI_SIGNAL_EVENT") or "").strip().lower()
+
+    global MANAGE_OFF_RULES
+    MANAGE_OFF_RULES = [
+        rule
+        for rule in (run_json(["yabai", "-m", "rule", "--list"]) or [])
+        if rule.get("manage") is False
+    ]
+
     displays = run_json(["yabai", "-m", "query", "--displays"])
     spaces = run_json(["yabai", "-m", "query", "--spaces"])
     windows = run_json(["yabai", "-m", "query", "--windows"])
@@ -178,10 +368,16 @@ def main() -> None:
     if not displays or not spaces or windows is None:
         sys.exit(0)
 
-    # Set geometry
-    run_cmd(["yabai", "-m", "config", "window_gap", str(PADDING)])
+    should_update_config = not event or event in CONFIG_EVENTS
 
-    # Find widest display over threshold
+    # Set geometry only when display geometry may have changed
+    if should_update_config:
+        run_cmd(["yabai", "-m", "config", "window_gap", str(PADDING)])
+
+    total_workspace_width = workspace_width(displays)
+    use_five_buckets = total_workspace_width >= WORKSPACE_WIDTH_THRESHOLD
+
+    # Find widest display over threshold for legacy 3-bucket ultrawide mode
     ultra_display = None
     widest = max(displays, key=lambda d: d.get("frame", {}).get("w", 0))
     if widest.get("frame", {}).get("w", 0) >= ULTRAWIDE_THRESHOLD:
@@ -189,71 +385,194 @@ def main() -> None:
 
     ultra_index = ultra_display.get("index") if ultra_display else None
 
+    bucket_to_display = bucket_display_map(displays) if use_five_buckets else {}
+    display_to_buckets: Dict[int, List[str]] = {}
+    for bucket, disp in bucket_to_display.items():
+        if disp is None:
+            continue
+        display_to_buckets.setdefault(disp, []).append(bucket)
+    for disp, buckets in display_to_buckets.items():
+        display_to_buckets[disp] = [b for b in BUCKET_ORDER if b in buckets]
+
     # Space layouts/padding
-    for space in spaces:
-        space_index = space.get("index")
-        space_display = space.get("display")
-        pad_right = WIDGET_PADDING if space_index == 1 else 0
-        layout = "stack" if space_index == 1 else "bsp"
-        # For ultrawide spaces, float layout so manual 25/50/25 grids are not retiled by bsp/stack
-        if ultra_index is not None and space_display == ultra_index:
-            layout = "float"
+    if should_update_config:
+        for space in spaces:
+            space_index = space.get("index")
+            space_display = space.get("display")
+            pad_right = WIDGET_PADDING if space_index == 1 else 0
+            layout = "stack" if space_index == 1 else "bsp"
+            # For tiled spaces, float layout so manual grids are not retiled by bsp/stack
+            if use_five_buckets and space_display in display_to_buckets:
+                layout = "float"
+            elif not use_five_buckets and ultra_index is not None and space_display == ultra_index:
+                layout = "float"
 
-        run_cmd(
-            [
-                "yabai",
-                "-m",
-                "config",
-                "--space",
-                str(space_index),
-                "layout",
-                layout,
-                "top_padding",
-                "0",
-                "bottom_padding",
-                "0",
-                "left_padding",
-                "0",
-                "right_padding",
-                str(pad_right),
-            ]
-        )
+            current_layout = space.get("layout")
+            current_pad_right = space.get("right_padding")
+            needs_layout = current_layout != layout
+            needs_padding = current_pad_right != pad_right or any(
+                space.get(key) not in (0, "0") for key in ("top_padding", "bottom_padding", "left_padding")
+            )
+            if not (needs_layout or needs_padding):
+                continue
 
-    # apply all rules
-    run_cmd(["yabai", "-m", "rule", "--apply"])
+            run_cmd(
+                [
+                    "yabai",
+                    "-m",
+                    "config",
+                    "--space",
+                    str(space_index),
+                    "layout",
+                    layout,
+                    "top_padding",
+                    "0",
+                    "bottom_padding",
+                    "0",
+                    "left_padding",
+                    "0",
+                    "right_padding",
+                    str(pad_right),
+                ]
+            )
+
+        # apply all rules (expensive; only when displays change/wake)
+        run_cmd(["yabai", "-m", "rule", "--apply"])
 
     # Special windows
-    rightmost_display = sorted(displays, key=lambda d: d.get("frame", {}).get("x", 0))[-1].get("index")
-    leftmost_display = sorted(displays, key=lambda d: d.get("frame", {}).get("x", 0))[0].get("index")
+    explicit_far_left = explicit_display_override(
+        displays, ["YABAI_FAR_LEFT_DISPLAY", "EXTERNAL_FAR_LEFT_DISPLAY"]
+    )
+    explicit_far_right = explicit_display_override(
+        displays, ["YABAI_FAR_RIGHT_DISPLAY", "EXTERNAL_FAR_RIGHT_DISPLAY"]
+    )
+
+    rightmost_display = (
+        explicit_far_right
+        if explicit_far_right is not None
+        else sorted(displays, key=lambda d: d.get("frame", {}).get("x", 0))[-1].get("index")
+    )
+    leftmost_display = (
+        explicit_far_left
+        if explicit_far_left is not None
+        else sorted(displays, key=lambda d: d.get("frame", {}).get("x", 0))[0].get("index")
+    )
     num_displays = len(displays)
 
     sysmon_windows = [w for w in windows if is_special_sysmon(w)]
     ai_windows = [w for w in windows if is_special_ai(w)]
+    sysmon_windows = [w for w in sysmon_windows if not is_management_disabled(w)]
+    ai_windows = [w for w in ai_windows if not is_management_disabled(w)]
 
-    if ultra_index is not None:
+    if use_five_buckets:
+        for win in windows:
+            if is_management_disabled(win):
+                continue
+            bucket = "far_left" if is_special_ai(win) else "far_right" if is_special_sysmon(win) else "center"
+            target_display = bucket_to_display.get(bucket)
+            if target_display is None:
+                continue
+            wid = win.get("id")
+            move_window_to_display(wid, target_display, displays)
+            ensure_managed(wid)
+    elif ultra_index is not None:
         for win in sysmon_windows + ai_windows:
             wid = win.get("id")
-            move_window_to_display(wid, ultra_index)
+            move_window_to_display(wid, ultra_index, displays)
             ensure_managed(wid)
     elif num_displays > 1:
         for win in sysmon_windows:
             wid = win.get("id")
-            move_window_to_display(wid, rightmost_display)
+            move_window_to_display(wid, rightmost_display, displays)
+            ensure_managed(wid)
             apply_grid(wid, 1, 0, 0, max(1, GRID_COLUMNS // 4))
         for win in ai_windows:
             wid = win.get("id")
-            move_window_to_display(wid, leftmost_display)
+            move_window_to_display(wid, leftmost_display, displays)
+            ensure_managed(wid)
 
     # Refresh windows after special moves
     windows = run_json(["yabai", "-m", "query", "--windows"]) or []
 
-    # 25/50/25 tiling for ultrawide
-    if ultra_index is not None:
+    # 5-bucket workspace layout
+    if use_five_buckets and display_to_buckets:
+        for space in spaces:
+            space_display = space.get("display")
+            space_index = space.get("index")
+            buckets_for_display = display_to_buckets.get(space_display, [])
+            if not buckets_for_display:
+                continue
+
+            display_obj = get_display_by_index(displays, space_display) or {}
+            display_w = display_obj.get("frame", {}).get("w", 0)
+
+            buckets: Dict[str, List[Dict[str, Any]]] = {name: [] for name in buckets_for_display}
+
+            for win in windows:
+                if win.get("display") != space_display or win.get("space") != space_index:
+                    continue
+                if win.get("minimized") == 1:
+                    continue
+                if is_management_disabled(win):
+                    continue
+                if win.get("floating") == 1:
+                    ensure_managed(win.get("id"))
+                if win.get("is-visible") is False or win.get("is-hidden") is True:
+                    continue
+
+                bucket = "far_left" if is_special_ai(win) else "far_right" if is_special_sysmon(win) else "center"
+                if bucket not in buckets:
+                    continue
+                buckets[bucket].append(win)
+
+            present_buckets = [name for name in buckets_for_display if buckets.get(name)]
+            layout = bucket_layout(present_buckets, display_w)
+            if not layout:
+                continue
+
+            for bucket_name, wins in buckets.items():
+                if not wins or bucket_name not in layout:
+                    continue
+
+                if bucket_name in ("far_left", "left"):
+                    sorted_wins = sorted(
+                        wins,
+                        key=lambda w: (
+                            0 if is_special_ai(w) else 1,
+                            (w.get("title") or w.get("app") or "").lower(),
+                            w.get("id", 0),
+                        ),
+                    )
+                    apply_bucket(
+                        [w.get("id") for w in sorted_wins],
+                        layout[bucket_name]["col"],
+                        layout[bucket_name]["span"],
+                    )
+                elif bucket_name in ("far_right", "right"):
+                    sorted_wins = sorted(
+                        wins,
+                        key=lambda w: (
+                            0 if is_special_sysmon(w) else 1,
+                            (w.get("title") or w.get("app") or "").lower(),
+                            w.get("id", 0),
+                        ),
+                    )
+                    apply_bucket(
+                        [w.get("id") for w in sorted_wins],
+                        layout[bucket_name]["col"],
+                        layout[bucket_name]["span"],
+                    )
+                else:  # center
+                    overlap_region(
+                        [w.get("id") for w in wins],
+                        layout[bucket_name]["col"],
+                        layout[bucket_name]["span"],
+                    )
+
+    # 25/50/25 tiling for legacy ultrawide
+    if not use_five_buckets and ultra_index is not None:
         ultra_frame = ultra_display.get("frame", {})
-        ultra_x = ultra_frame.get("x", 0)
         ultra_w = ultra_frame.get("w", 1)
-        left_boundary = ultra_x + (ultra_w * 0.25)
-        right_boundary = ultra_x + (ultra_w * 0.75)
 
         ultra_space_ids = [s.get("index") for s in spaces if s.get("display") == ultra_index]
 
@@ -266,9 +585,9 @@ def main() -> None:
             for win in windows:
                 if win.get("display") != ultra_index or win.get("space") != space_id:
                     continue
-                is_sysmon = is_special_sysmon(win)
-                is_ai = is_special_ai(win)
                 if win.get("minimized") == 1:
+                    continue
+                if is_management_disabled(win):
                     continue
                 if win.get("floating") == 1:
                     # Make sure floating windows get managed so grid placement works
