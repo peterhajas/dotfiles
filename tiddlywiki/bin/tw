@@ -6,6 +6,7 @@ import subprocess
 import tempfile
 import urllib.request
 import urllib.error
+import urllib.parse
 import re
 from collections import OrderedDict
 
@@ -191,6 +192,36 @@ def reorder_tiddler_fields(tiddler, wiki_path, tiddler_title):
 
     return reordered
 
+def is_remote_wiki(wiki_path):
+    """Return True if the wiki path is an HTTP(S) URL."""
+    if not wiki_path:
+        return False
+    parsed = urllib.parse.urlparse(wiki_path)
+    return parsed.scheme in ('http', 'https')
+
+def ensure_local_wiki(wiki_path):
+    """Exit if the wiki path points to a remote URL."""
+    if is_remote_wiki(wiki_path):
+        print("Error: Writing to remote wikis is not supported. Download the wiki locally first.", file=sys.stderr)
+        sys.exit(1)
+
+def read_wiki_content(wiki_path):
+    """Read wiki content from a local file or remote URL."""
+    if is_remote_wiki(wiki_path):
+        try:
+            with urllib.request.urlopen(wiki_path, timeout=10) as response:
+                encoding = response.headers.get_content_charset() or 'utf-8'
+                return response.read().decode(encoding, errors='replace')
+        except urllib.error.URLError as e:
+            print(f"Error: Failed to fetch remote wiki: {e}", file=sys.stderr)
+            sys.exit(1)
+        except Exception as e:
+            print(f"Error: Failed to read remote wiki: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        return f.read()
+
 def get_wiki_path(wiki_path=None):
     """Get the wiki path from argument or environment variable.
 
@@ -198,7 +229,7 @@ def get_wiki_path(wiki_path=None):
         wiki_path: Optional wiki path. If not provided, uses TIDDLYWIKI_WIKI_PATH env var.
 
     Returns:
-        Absolute path to the wiki file.
+        Absolute path to the wiki file or a remote URL.
     """
     if not wiki_path:
         wiki_path = os.environ.get('TIDDLYWIKI_WIKI_PATH')
@@ -210,11 +241,14 @@ def get_wiki_path(wiki_path=None):
     # Expand ~ to home directory
     wiki_path = os.path.expanduser(wiki_path)
 
+    if is_remote_wiki(wiki_path):
+        return wiki_path
+
     if not os.path.exists(wiki_path):
         print(f"Error: Wiki path does not exist: {wiki_path}", file=sys.stderr)
         sys.exit(1)
 
-    return wiki_path
+    return os.path.abspath(wiki_path)
 
 def extract_tiddler_stores(content, target_title=None):
     """Extract tiddler store JSON arrays from HTML content.
@@ -526,8 +560,7 @@ def load_all_tiddlers(wiki_path, titles_only=False, target_title=None):
         If titles_only=True: list of title strings
         Otherwise: list of tiddler dictionaries
     """
-    with open(wiki_path, 'r', encoding='utf-8') as f:
-        content = f.read()
+    content = read_wiki_content(wiki_path)
 
     # Detect format
     wiki_format = detect_wiki_format(content)
@@ -620,6 +653,8 @@ def edit_tiddler(wiki_path, tiddler_title):
     """Open a tiddler in $EDITOR for editing in YAML-style format"""
     import threading
     import time
+
+    ensure_local_wiki(wiki_path)
 
     # Check if EDITOR environment variable is set
     editor = os.environ.get('EDITOR')
@@ -956,6 +991,8 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
     """Set the value of a specific field in a tiddler. Works with both modern and legacy formats."""
     import json
 
+    ensure_local_wiki(wiki_path)
+
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
@@ -1064,6 +1101,8 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
     """Create a new tiddler or update an existing one. Works with both modern and legacy formats."""
     import json
 
+    ensure_local_wiki(wiki_path)
+
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
@@ -1153,6 +1192,8 @@ def remove_tiddler(wiki_path, tiddler_title):
     """Remove a tiddler from the wiki. Works with both modern and legacy formats."""
     import json
 
+    ensure_local_wiki(wiki_path)
+
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
@@ -1228,6 +1269,8 @@ def replace_tiddler(wiki_path, markdown_content, update_modified=True):
     """
     import json
 
+    ensure_local_wiki(wiki_path)
+
     # Parse YAML frontmatter and text
     lines = markdown_content.split('\n')
 
@@ -1301,6 +1344,8 @@ def append_tiddler(wiki_path, tiddler_title, text_to_append=None):
         text_to_append: Text to append (if None, read from stdin)
     """
     import json
+
+    ensure_local_wiki(wiki_path)
 
     # Read from stdin if no text provided
     if text_to_append is None:
@@ -1416,6 +1461,8 @@ def write_legacy_wiki(wiki_path, tiddlers):
     """
     import re
 
+    ensure_local_wiki(wiki_path)
+
     with open(wiki_path, 'r', encoding='utf-8') as f:
         content = f.read()
 
@@ -1464,6 +1511,8 @@ def insert_tiddler(wiki_path, tiddler_json):
     Works with both modern and legacy wiki formats.
     """
     import json
+
+    ensure_local_wiki(wiki_path)
 
     # Parse the input JSON
     try:
@@ -1598,6 +1647,8 @@ def insert_tiddler(wiki_path, tiddler_json):
 def install_live_reload_plugin(wiki_path):
     """Install the live reload plugin into the wiki"""
     import json
+
+    ensure_local_wiki(wiki_path)
 
     # The live reload plugin code
     plugin_code = """(function(){
@@ -1967,6 +2018,7 @@ def serve_wiki(wiki_path, host='localhost', port=8080, readonly=False):
     import time
     import json
     import mimetypes
+    ensure_local_wiki(wiki_path)
 
     class WikiWatcher:
         """Watch the wiki file for changes and track version"""
@@ -2287,9 +2339,11 @@ def main():
     wiki_path_arg = None
 
     # If first arg looks like a file path (ends with .html or exists as a file), treat it as wiki path
-    if len(sys.argv) > 2 and (sys.argv[1].endswith('.html') or os.path.exists(sys.argv[1])):
-        wiki_path_arg = sys.argv[1]
-        arg_idx = 2
+    if len(sys.argv) > 2:
+        potential_path = sys.argv[1]
+        if potential_path.endswith('.html') or os.path.exists(potential_path) or is_remote_wiki(potential_path):
+            wiki_path_arg = potential_path
+            arg_idx = 2
 
     command = sys.argv[arg_idx] if arg_idx < len(sys.argv) else None
 
@@ -2415,8 +2469,12 @@ def main():
             # No text argument, will read from stdin
             append_tiddler(wiki_path, tiddler_title)
     elif command == "detect":
-        # Use streaming detection for efficiency
-        format_type = detect_format_streaming(wiki_path)
+        # Use streaming detection for local files, fetch content for remote
+        if is_remote_wiki(wiki_path):
+            content = read_wiki_content(wiki_path)
+            format_type = detect_wiki_format(content)
+        else:
+            format_type = detect_format_streaming(wiki_path)
         print(format_type)
     elif command == "install_plugin":
         install_live_reload_plugin(wiki_path)

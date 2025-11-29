@@ -21,6 +21,9 @@ import sys
 import tempfile
 import shutil
 import subprocess
+import threading
+import functools
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 # Import the tw script
 # Since tw has no .py extension, we need to import it specially
@@ -207,6 +210,60 @@ class TestTiddlyWikiScript(unittest.TestCase):
 
         tiddler3 = next(t for t in tiddlers if t['title'] == 'TestTiddler3')
         self.assertEqual(tiddler3['text'], 'Content with "quotes" and special chars')
+
+class TestRemoteWikiSupport(unittest.TestCase):
+    """Test reading from a remote (HTTP) wiki and rejecting writes"""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'remote_test_wiki.html')
+
+        test_tiddlers = [
+            {"title": "Remote1", "text": "Remote content 1", "created": "20230101000000000"},
+            {"title": "Remote2", "text": "Remote content 2", "created": "20230102000000000"},
+            {"title": "Remote3", "text": "Remote content 3", "created": "20230103000000000"},
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Remote Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+        class QuietHandler(SimpleHTTPRequestHandler):
+            def log_message(self, format, *args):
+                pass
+
+        handler = functools.partial(QuietHandler, directory=self.test_dir)
+        self.server = HTTPServer(('localhost', 0), handler)
+        self.server_thread = threading.Thread(target=self.server.serve_forever, daemon=True)
+        self.server_thread.start()
+        self.remote_url = f'http://localhost:{self.server.server_address[1]}/remote_test_wiki.html'
+
+    def tearDown(self):
+        self.server.shutdown()
+        self.server.server_close()
+        self.server_thread.join()
+        shutil.rmtree(self.test_dir)
+
+    def test_load_all_tiddlers_remote(self):
+        tiddlers = tw_module.load_all_tiddlers(self.remote_url)
+        self.assertEqual(len(tiddlers), 3)
+        titles = [t['title'] for t in tiddlers]
+        self.assertListEqual(sorted(titles), ["Remote1", "Remote2", "Remote3"])
+
+    def test_remote_write_is_rejected(self):
+        with self.assertRaises(SystemExit):
+            tw_module.set_tiddler_field(self.remote_url, "Remote1", "foo", "bar")
 
 class TestTiddlerStoreExtraction(unittest.TestCase):
     """Test edge cases in tiddler store extraction"""
