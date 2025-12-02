@@ -8,6 +8,7 @@ require'nvim-treesitter.configs'.setup {
         "luadoc",
         "markdown",
         "query",
+        "swift",
         "vim",
         "vimdoc",
     },

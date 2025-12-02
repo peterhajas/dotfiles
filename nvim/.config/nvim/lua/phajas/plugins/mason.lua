@@ -17,6 +17,12 @@ local function on_attach(_, bufnr)
     vim.keymap.set("n", "<leader>lf", vim.lsp.buf.format)
 end
 
+-- Global defaults applied to every LSP
+vim.lsp.config('*', {
+    capabilities = capabilities,
+    on_attach = on_attach,
+})
+
 require("mason").setup()
 
 local mason_lspconfig = require('mason-lspconfig')
@@ -45,10 +51,28 @@ mason_lspconfig.setup({
     handlers = {
         -- Default handler for all servers
         function(server_name)
-            require('lspconfig')[server_name].setup({
-                capabilities = capabilities,
-                on_attach = on_attach,
-            })
+            vim.lsp.enable(server_name)
         end,
     },
 })
+
+-- Swift LSP (sourcekit-lsp is not managed by Mason on macOS, so set it up directly)
+local sourcekit_cmd = nil
+if vim.fn.executable("sourcekit-lsp") == 1 then
+    sourcekit_cmd = { "sourcekit-lsp" }
+elseif vim.fn.executable("xcrun") == 1 then
+    local sourcekit_path = vim.fn.systemlist({ "xcrun", "-f", "sourcekit-lsp" })[1]
+    if vim.v.shell_error == 0 and sourcekit_path and sourcekit_path ~= "" then
+        sourcekit_cmd = { "xcrun", "sourcekit-lsp" }
+    end
+end
+
+if sourcekit_cmd then
+    vim.lsp.config('sourcekit', {
+        cmd = sourcekit_cmd,
+        root_markers = { "Package.swift", ".git" },
+    })
+    vim.lsp.enable('sourcekit')
+else
+    vim.notify("sourcekit-lsp not found. Install Xcode command line tools or Swift toolchain for Swift LSP.", vim.log.levels.WARN)
+end
