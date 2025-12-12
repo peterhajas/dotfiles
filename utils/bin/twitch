@@ -2,11 +2,5 @@
 
 channels=$(tiddlywiki_render "Live Stream Subscriptions")
 
-live_channels=""
-while IFS= read -r url; do
-    if yt-dlp --skip-download "$url" >/dev/null 2>&1; then
-        live_channels+="$url\n"
-    fi
-done <<< "$channels"
-
-echo "$live_channels" | fzf_mpv
+# Check each channel in parallel (10 at a time) and output only live ones
+echo "$channels" | xargs -P 10 -I {} sh -c 'if yt-dlp --skip-download "{}" >/dev/null 2>&1; then echo "{}"; fi' | fzf_mpv
