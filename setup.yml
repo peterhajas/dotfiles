@@ -19,6 +19,7 @@
       - ncmpcpp
       - nethack
       - nvim
+      - ranger
       - ssh
       - tiddlywiki
       - utils
