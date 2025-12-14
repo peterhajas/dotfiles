@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 
+import argparse
 import json
 import os
 import subprocess
 import sys
 from typing import Any, Dict, List, Optional
 import re
+
+# Verbose logging flag (set via command line)
+VERBOSE = False
+
+
+def log(message: str) -> None:
+    """Print a log message if verbose mode is enabled."""
+    if VERBOSE:
+        print(f"[yabai_update_tiling] {message}")
 
 # Constants
 EDGE_PADDING = 14
@@ -38,16 +48,20 @@ GRID_COLUMNS = 100  # Grid resolution for column calculations (higher -> finer c
 
 
 def run_json(cmd: List[str]) -> Optional[Any]:
+    log(f"run_json: {' '.join(cmd)}")
     try:
         out = subprocess.check_output(cmd, stderr=subprocess.DEVNULL, timeout=SUBPROCESS_TIMEOUT)
         return json.loads(out)
     except subprocess.TimeoutExpired:
+        log(f"  -> timeout after {SUBPROCESS_TIMEOUT}s")
         return None
-    except Exception:
+    except Exception as e:
+        log(f"  -> error: {e}")
         return None
 
 
 def run_cmd(cmd: List[str]) -> None:
+    log(f"run_cmd: {' '.join(cmd)}")
     try:
         subprocess.run(
             cmd,
@@ -57,7 +71,7 @@ def run_cmd(cmd: List[str]) -> None:
             timeout=SUBPROCESS_TIMEOUT,
         )
     except subprocess.TimeoutExpired:
-        pass
+        log(f"  -> timeout after {SUBPROCESS_TIMEOUT}s")
 
 
 def get_display_by_index(displays: List[Dict[str, Any]], idx: int) -> Optional[Dict[str, Any]]:
@@ -119,9 +133,11 @@ def move_window_to_display(
         if not win_json:
             return
         if win_json.get("display") == target_display:
+            log(f"Window {win_id} already on display {target_display}")
             return
     except Exception:
         return
+    log(f"Moving window {win_id} to display {target_display}")
     run_cmd(["yabai", "-m", "window", str(win_id), "--display", str(target_display)])
 
     # If move failed (common when scripting addition commands are blocked), fall back to a direct move
@@ -130,6 +146,7 @@ def move_window_to_display(
         return
     if not displays:
         return
+    log(f"Move failed for window {win_id}, using fallback absolute positioning")
 
     target_disp = get_display_by_index(displays, target_display) or {}
     frame = target_disp.get("frame", {})
@@ -151,7 +168,9 @@ def move_window_to_display(
 
 
 def apply_grid(win_id: int, rows: int, col: int, row: int, span: int) -> None:
-    run_cmd(["yabai", "-m", "window", str(win_id), "--grid", f"{rows}:{GRID_COLUMNS}:{col}:{row}:{span}:1"])
+    grid = f"{rows}:{GRID_COLUMNS}:{col}:{row}:{span}:1"
+    log(f"Applying grid {grid} to window {win_id}")
+    run_cmd(["yabai", "-m", "window", str(win_id), "--grid", grid])
 
 
 def apply_bucket(windows: List[int], col: int, span: int) -> None:
@@ -312,10 +331,13 @@ def rule_matches_window(rule: Dict[str, Any], win: Dict[str, Any]) -> bool:
         except re.error:
             return False
 
-    def match_int(rule_value: Optional[int], value: int) -> bool:
-        if not rule_value or rule_value == 0:
+    def match_int(rule_value: Any, value: Any) -> bool:
+        if rule_value is None or rule_value == "" or rule_value == 0 or rule_value == "0":
             return True
-        return rule_value == value
+        try:
+            return int(rule_value) == int(value)
+        except Exception:
+            return False
 
     return all(
         [
@@ -323,10 +345,18 @@ def rule_matches_window(rule: Dict[str, Any], win: Dict[str, Any]) -> bool:
             match_regex(rule.get("title"), win.get("title", "")),
             match_regex(rule.get("role"), win.get("role", "")),
             match_regex(rule.get("subrole"), win.get("subrole", "")),
-            match_int(rule.get("display"), int(win.get("display", 0))),
-            match_int(rule.get("space"), int(win.get("space", 0))),
+            match_int(rule.get("display"), win.get("display", 0) or 0),
+            match_int(rule.get("space"), win.get("space", 0) or 0),
         ]
     )
+
+
+def manage_is_off(value: Any) -> bool:
+    if value is False or value == 0:
+        return True
+    if isinstance(value, str):
+        return value.strip().lower() in {"off", "false", "0", "no"}
+    return False
 
 
 def is_management_disabled(win: Optional[Dict[str, Any]]) -> bool:
@@ -338,7 +368,11 @@ def is_management_disabled(win: Optional[Dict[str, Any]]) -> bool:
     if "should-manage" in win:
         # explicit opt-out from rules/config
         return not bool(win.get("should-manage"))
-    # Treat other flags (managed/is-managed) as state, not intent
+    # Fall back to state when intent cannot be inferred (e.g. rule output format drift).
+    # This avoids accidentally managing windows that yabai already considers unmanaged.
+    for key in ("managed", "is-managed"):
+        if key in win and not bool(win.get(key)):
+            return True
     return False
 
 
@@ -351,23 +385,39 @@ def ensure_managed(win_id: int) -> None:
         run_cmd(["yabai", "-m", "window", str(win_id), "--toggle", "float"])
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Update yabai tiling layout")
+    parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Enable verbose logging output"
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
+    global VERBOSE
+    args = parse_args()
+    VERBOSE = args.verbose
+
     event = (os.environ.get("YABAI_SIGNAL_EVENT") or "").strip().lower()
+    log(f"Event: {event or '(none)'}")
 
     global MANAGE_OFF_RULES
     MANAGE_OFF_RULES = [
         rule
         for rule in (run_json(["yabai", "-m", "rule", "--list"]) or [])
-        if rule.get("manage") is False
+        if manage_is_off(rule.get("manage"))
     ]
+    log(f"Manage-off rules: {len(MANAGE_OFF_RULES)}")
 
     displays = run_json(["yabai", "-m", "query", "--displays"])
     spaces = run_json(["yabai", "-m", "query", "--spaces"])
     windows = run_json(["yabai", "-m", "query", "--windows"])
 
     if not displays or not spaces or windows is None:
+        log("Missing displays/spaces/windows data, exiting")
         sys.exit(0)
 
+    log(f"Found {len(displays)} display(s), {len(spaces)} space(s), {len(windows)} window(s)")
     should_update_config = not event or event in CONFIG_EVENTS
 
     # Set geometry only when display geometry may have changed
@@ -376,6 +426,7 @@ def main() -> None:
 
     total_workspace_width = workspace_width(displays)
     use_five_buckets = total_workspace_width >= WORKSPACE_WIDTH_THRESHOLD
+    log(f"Total workspace width: {total_workspace_width}px")
 
     # Find widest display over threshold for legacy 3-bucket ultrawide mode
     ultra_display = None
@@ -384,6 +435,13 @@ def main() -> None:
         ultra_display = widest
 
     ultra_index = ultra_display.get("index") if ultra_display else None
+
+    if use_five_buckets:
+        log("Layout mode: 5-bucket (workspace width >= 5000px)")
+    elif ultra_index is not None:
+        log(f"Layout mode: ultrawide 3-bucket on display {ultra_index}")
+    else:
+        log(f"Layout mode: multi-display standard ({len(displays)} displays)")
 
     bucket_to_display = bucket_display_map(displays) if use_five_buckets else {}
     display_to_buckets: Dict[int, List[str]] = {}
@@ -464,6 +522,11 @@ def main() -> None:
     sysmon_windows = [w for w in sysmon_windows if not is_management_disabled(w)]
     ai_windows = [w for w in ai_windows if not is_management_disabled(w)]
 
+    if sysmon_windows:
+        log(f"Sysmon windows ({len(sysmon_windows)}): {[w.get('id') for w in sysmon_windows]}")
+    if ai_windows:
+        log(f"AI windows ({len(ai_windows)}): {[w.get('id') for w in ai_windows]}")
+
     if use_five_buckets:
         for win in windows:
             if is_management_disabled(win):
@@ -473,6 +536,7 @@ def main() -> None:
             if target_display is None:
                 continue
             wid = win.get("id")
+            log(f"Window {wid} ({win.get('app', 'unknown')}) -> {bucket} bucket -> display {target_display}")
             move_window_to_display(wid, target_display, displays)
             ensure_managed(wid)
     elif ultra_index is not None:
