@@ -33,6 +33,7 @@ CONFIG_EVENTS = {
 }
 
 MANAGE_OFF_RULES: List[Dict[str, Any]] = []
+MANAGE_OFF_APPS: set = set()  # Extracted app names for fast lookup
 
 # Layout tuning
 BUCKET_ORDER = ["far_left", "left", "center", "right", "far_right"]
@@ -362,17 +363,38 @@ def manage_is_off(value: Any) -> bool:
 def is_management_disabled(win: Optional[Dict[str, Any]]) -> bool:
     if not win:
         return False
+
+    win_id = win.get("id")
+    app = win.get("app", "")
+
+    # Defensive check: explicitly exclude apps that should never be managed
+    # This prevents race conditions where yabai rules haven't been applied yet (e.g., window_created events)
+    # Apps are extracted from yabai manage=off rules at startup
+    if app in MANAGE_OFF_APPS:
+        log(f"Window {win_id} ({app}) explicitly excluded from management (defensive check)")
+        return True
+
+    # Check rules
     for rule in MANAGE_OFF_RULES:
         if rule_matches_window(rule, win):
+            log(f"Window {win_id} ({app}) matched manage-off rule: {rule.get('app')}")
             return True
+
+    # Check explicit should-manage property
     if "should-manage" in win:
-        # explicit opt-out from rules/config
-        return not bool(win.get("should-manage"))
+        result = not bool(win.get("should-manage"))
+        if result:
+            log(f"Window {win_id} ({app}) has should-manage=False")
+        return result
+
     # Fall back to state when intent cannot be inferred (e.g. rule output format drift).
     # This avoids accidentally managing windows that yabai already considers unmanaged.
     for key in ("managed", "is-managed"):
         if key in win and not bool(win.get(key)):
+            log(f"Window {win_id} ({app}) has {key}=False, management disabled")
             return True
+
+    log(f"Window {win_id} ({app}) is manageable (no disable rules matched)")
     return False
 
 
@@ -401,13 +423,31 @@ def main() -> None:
     event = (os.environ.get("YABAI_SIGNAL_EVENT") or "").strip().lower()
     log(f"Event: {event or '(none)'}")
 
-    global MANAGE_OFF_RULES
+    global MANAGE_OFF_RULES, MANAGE_OFF_APPS
     MANAGE_OFF_RULES = [
         rule
         for rule in (run_json(["yabai", "-m", "rule", "--list"]) or [])
         if manage_is_off(rule.get("manage"))
     ]
     log(f"Manage-off rules: {len(MANAGE_OFF_RULES)}")
+
+    # Extract app names from rules for defensive checking (handles simple patterns like ^app$)
+    MANAGE_OFF_APPS = set()
+    for rule in MANAGE_OFF_RULES:
+        app_pattern = rule.get("app", "")
+        if app_pattern:
+            # Strip common regex anchors to get literal app name
+            app_name = app_pattern.strip("^$")
+            if app_name and not any(c in app_name for c in r".*+?[]{}()\|"):
+                # Only add if it's a simple literal (no complex regex)
+                MANAGE_OFF_APPS.add(app_name)
+
+    if VERBOSE:
+        if MANAGE_OFF_RULES:
+            for rule in MANAGE_OFF_RULES:
+                log(f"  Rule: app={rule.get('app')}, manage={rule.get('manage')}")
+        if MANAGE_OFF_APPS:
+            log(f"  Defensive app exclusions: {sorted(MANAGE_OFF_APPS)}")
 
     displays = run_json(["yabai", "-m", "query", "--displays"])
     spaces = run_json(["yabai", "-m", "query", "--spaces"])
