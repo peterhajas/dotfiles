@@ -6,8 +6,8 @@ local M = {}
 -- Configuration
 M.config = {
     enabled = true,
-    width = 400,
-    maxHeight = 600,
+    width = 196,  -- Match tiddlywiki sidebar width
+    maxHeight = 200,
     margin = 12,
     sessionTimeout = 300,  -- 5 minutes in seconds
     cleanupInterval = 60,  -- Run cleanup every 60 seconds
@@ -87,86 +87,91 @@ local function generateHTML()
         return a.last_update > b.last_update
     end)
 
-    -- Generate session bubbles HTML
-    local bubblesHTML = {}
+    -- Generate Claude mascots HTML
+    local mascotsHTML = {}
 
     if #sessionsList == 0 then
-        table.insert(bubblesHTML, [[
+        table.insert(mascotsHTML, [[
             <div class="empty-state">
-                <div class="claude-icon">🤖</div>
+                <div class="claude-icon-empty">👾</div>
                 <div class="empty-text">No active Claude sessions</div>
             </div>
         ]])
     else
+        table.insert(mascotsHTML, '<div class="claude-container">')
+
         for _, session in ipairs(sessionsList) do
-            local bubble = {}
+            local mascot = {}
 
-            table.insert(bubble, string.format(
-                '<div class="session-bubble" style="border-left: 4px solid %s">',
-                session.color
+            -- Claude mascot container with random animation offsets
+            table.insert(mascot, string.format(
+                '<div class="claude-mascot" data-status="%s" data-session-id="%s" style="--offset-x: %dpx; --offset-y: %dpx;">',
+                escapeHtml(session.status),
+                escapeHtml(session.session_id),
+                session.offset_x or 0,
+                session.offset_y or 0
             ))
 
-            -- Status text header
-            table.insert(bubble, '<div class="session-header">')
-            table.insert(bubble, string.format(
-                '<span class="status-indicator" style="background-color: %s"></span>',
-                session.color
+            -- Claude icon with random hue
+            table.insert(mascot, string.format(
+                '<div class="claude-icon" style="--hue: %ddeg;">👾</div>',
+                session.hue or 0
             ))
-            table.insert(bubble, string.format(
-                '<span class="status-text">%s</span>',
-                escapeHtml(session.status_text)
-            ))
-            table.insert(bubble, '</div>')
 
-            -- Session info
-            table.insert(bubble, '<div class="session-info">')
-            table.insert(bubble, string.format(
-                '<div class="path">%s</div>',
+            -- Tooltip
+            table.insert(mascot, '<div class="claude-tooltip">')
+            table.insert(mascot, string.format(
+                '<div class="tooltip-path">%s</div>',
                 escapeHtml(session.display_path)
+            ))
+            table.insert(mascot, string.format(
+                '<div class="tooltip-status">%s</div>',
+                escapeHtml(session.status_text)
             ))
 
             if session.current_tool then
-                table.insert(bubble, string.format(
-                    '<div class="tool">Tool: %s</div>',
+                table.insert(mascot, string.format(
+                    '<div class="tooltip-tool">Tool: %s</div>',
                     escapeHtml(session.current_tool)
                 ))
             end
 
-            table.insert(bubble, '</div>')
+            table.insert(mascot, '</div>')
 
-            -- Permission request buttons
+            -- Permission modal (only if permission_request exists)
             if session.permission_request then
                 local perm = session.permission_request
-                table.insert(bubble, '<div class="permission-info">')
-                table.insert(bubble, string.format(
-                    '<div class="permission-desc">%s</div>',
+                table.insert(mascot, '<div class="permission-modal">')
+                table.insert(mascot, string.format(
+                    '<div class="permission-text">%s</div>',
                     escapeHtml(perm.description or perm.tool_name)
                 ))
-                table.insert(bubble, '</div>')
-
-                table.insert(bubble, '<div class="permission-buttons">')
-                table.insert(bubble, string.format(
-                    '<button class="approve-btn" onclick="approve(\'%s\')">Approve</button>',
+                table.insert(mascot, '<div class="permission-buttons">')
+                table.insert(mascot, string.format(
+                    '<button class="approve-btn" onclick="approve(\'%s\')">✓ Approve</button>',
                     perm.request_id
                 ))
-                table.insert(bubble, string.format(
-                    '<button class="deny-btn" onclick="deny(\'%s\')">Deny</button>',
+                table.insert(mascot, string.format(
+                    '<button class="deny-btn" onclick="deny(\'%s\')">✗ Deny</button>',
                     perm.request_id
                 ))
-                table.insert(bubble, '</div>')
+                table.insert(mascot, '</div>')
+                table.insert(mascot, '</div>')
             end
 
-            table.insert(bubble, '</div>')
+            table.insert(mascot, '</div>')
 
-            table.insert(bubblesHTML, table.concat(bubble))
+            table.insert(mascotsHTML, table.concat(mascot))
         end
+
+        table.insert(mascotsHTML, '</div>')
     end
 
-    -- Replace placeholder and all demo content with generated bubbles
-    local bubblesContent = table.concat(bubblesHTML, "\n")
+    -- Replace placeholder and all demo content with generated mascots
+    local mascotsContent = table.concat(mascotsHTML, "\n")
 
     -- Replace from placeholder to end of body (removes demo content)
-    local html = template:gsub("<!%-%- SESSIONS_PLACEHOLDER %-%->.-</script>", bubblesContent .. "\n\n    <script>")
+    local html = template:gsub("<!%-%- SESSIONS_PLACEHOLDER %-%->.-</script>", mascotsContent .. "\n\n    <script>")
 
     return html
 end
@@ -196,7 +201,7 @@ local function createWebview()
         :level(hs.drawing.windowLevels.floating)
         :allowTextEntry(true)
         :behavior(hs.drawing.windowBehaviors.stationary)  -- Only on one space, main display
-        :alpha(0.95)  -- Translucent
+        :transparent(true)  -- Properly translucent like tiddlywiki.lua
         :html(generateHTML())
 
     -- Only show if we have sessions
@@ -222,6 +227,19 @@ function M.refreshUI()
     end
 end
 
+-- Random color/animation generation
+
+local function randomHue()
+    -- Generate random hue rotation (0-360 degrees)
+    math.randomseed(os.time() + os.clock() * 1000000)
+    return math.random(0, 360)
+end
+
+local function randomOffset()
+    -- Generate random animation offset (-10 to 10)
+    return math.random(-10, 10)
+end
+
 -- Session management
 
 function M.updateSession(data)
@@ -240,6 +258,9 @@ function M.updateSession(data)
             color = "#888888",
             status_text = "Unknown",
             last_update = os.time(),
+            hue = randomHue(),  -- Random color for this Claude
+            offset_x = randomOffset(),  -- Random horizontal drift
+            offset_y = randomOffset(),  -- Random vertical drift
         }
         state.sessions[session_id] = session
         log("Created new session: " .. session_id)

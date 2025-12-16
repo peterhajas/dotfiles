@@ -15,10 +15,10 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Menlo', monospace;
             background: transparent;
             color: #e0e0e0;
-            overflow-y: auto;
-            overflow-x: hidden;
+            overflow: hidden;
             padding: 12px;
-            min-height: 100vh;
+            height: 100vh;
+            position: relative;
         }
 
         .empty-state {
@@ -30,9 +30,10 @@
             opacity: 0.5;
         }
 
-        .claude-icon {
+        .claude-icon-empty {
             font-size: 48px;
             margin-bottom: 12px;
+            filter: grayscale(100%) brightness(1.2) sepia(100%) saturate(3);
         }
 
         .empty-text {
@@ -40,84 +41,120 @@
             color: #888;
         }
 
-        .session-bubble {
-            background: rgba(42, 42, 58, 0.95);
-            border-radius: 8px;
-            padding: 12px;
-            margin-bottom: 12px;
-            transition: all 0.2s ease;
-            backdrop-filter: blur(10px);
-        }
-
-        .session-bubble:hover {
-            background: rgba(58, 58, 74, 0.95);
-            transform: translateY(-1px);
-        }
-
-        .session-header {
+        .claude-container {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            height: 120px;
             display: flex;
+            align-items: flex-end;
+            gap: 20px;
+        }
+
+        .claude-mascot {
+            position: relative;
+            display: flex;
+            flex-direction: column;
             align-items: center;
-            margin-bottom: 8px;
+            transition: transform 0.3s ease;
         }
 
-        .status-indicator {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            margin-right: 8px;
-            flex-shrink: 0;
+        .claude-mascot:hover .claude-tooltip {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(-10px);
         }
 
-        .status-text {
-            font-size: 14px;
-            font-weight: 600;
-            flex: 1;
+        .claude-icon {
+            font-size: 48px;
+            cursor: pointer;
+            user-select: none;
+            transition: filter 0.3s ease;
         }
 
-        .session-info {
-            margin-left: 16px;
-            margin-bottom: 8px;
+        /* Tooltip */
+        .claude-tooltip {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(42, 42, 58, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 8px 12px;
+            min-width: 180px;
+            max-width: 300px;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            z-index: 100000;
+            pointer-events: none;
         }
 
-        .path {
-            font-size: 12px;
+        .tooltip-path {
+            font-size: 11px;
             color: #a0a0b0;
             font-family: 'Menlo', monospace;
             margin-bottom: 4px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .tool {
-            font-size: 11px;
+        .tooltip-status {
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 2px;
+        }
+
+        .tooltip-tool {
+            font-size: 10px;
             color: #7090c0;
             font-family: 'Menlo', monospace;
         }
 
-        .permission-info {
-            margin: 8px 0 8px 16px;
-            padding: 8px;
-            background: rgba(231, 76, 60, 0.1);
-            border-radius: 4px;
+        /* Permission Modal */
+        .permission-modal {
+            position: absolute;
+            bottom: 60px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(231, 76, 60, 0.98);
+            backdrop-filter: blur(10px);
+            border-radius: 8px;
+            padding: 12px;
+            min-width: 220px;
+            max-width: 350px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
+            z-index: 50000;
+            border: 2px solid #E74C3C;
+            pointer-events: auto;
         }
 
-        .permission-desc {
-            font-size: 12px;
-            color: #e0e0e0;
+        .permission-text {
+            font-size: 11px;
+            color: #fff;
             font-family: 'Menlo', monospace;
+            margin-bottom: 8px;
             word-break: break-all;
+            max-height: 60px;
+            overflow-y: auto;
         }
 
         .permission-buttons {
             display: flex;
             gap: 8px;
-            margin-left: 16px;
         }
 
         button {
             flex: 1;
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: none;
             border-radius: 4px;
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.15s ease;
@@ -131,62 +168,102 @@
 
         .approve-btn:hover {
             background: #27ae60;
-            transform: scale(1.02);
+            transform: scale(1.05);
         }
 
         .approve-btn:active {
-            transform: scale(0.98);
+            transform: scale(0.95);
         }
 
         .deny-btn {
-            background: #e74c3c;
+            background: #c0392b;
             color: white;
         }
 
         .deny-btn:hover {
-            background: #c0392b;
-            transform: scale(1.02);
+            background: #a93226;
+            transform: scale(1.05);
         }
 
         .deny-btn:active {
-            transform: scale(0.98);
+            transform: scale(0.95);
         }
 
-        ::-webkit-scrollbar {
-            width: 8px;
+        /* Animations */
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-12px); }
         }
 
-        ::-webkit-scrollbar-track {
-            background: #2a2a3a;
-            border-radius: 4px;
+        @keyframes glow {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
         }
 
-        ::-webkit-scrollbar-thumb {
-            background: #4a4a5a;
-            border-radius: 4px;
+        @keyframes sway {
+            0%, 100% { transform: translateX(0) rotate(0deg); }
+            25% { transform: translateX(calc(var(--offset-x, -4px) * -0.4)) rotate(-3deg); }
+            75% { transform: translateX(calc(var(--offset-x, 4px) * 0.4)) rotate(3deg); }
         }
 
-        ::-webkit-scrollbar-thumb:hover {
-            background: #5a5a6a;
+        @keyframes drift {
+            0%, 100% { transform: translate(0, 0); }
+            25% { transform: translate(var(--offset-x, 8px), calc(var(--offset-y, -3px) * -0.3)); }
+            50% { transform: translate(calc(var(--offset-x, 5px) * 0.6), var(--offset-y, -8px)); }
+            75% { transform: translate(calc(var(--offset-x, -5px) * -0.5), calc(var(--offset-y, -5px) * -0.5)); }
         }
 
-        /* Demo controls */
-        .demo-controls {
-            position: fixed;
-            top: 12px;
-            right: 12px;
-            background: #1a1a2a;
-            border: 1px solid #3a3a4a;
-            border-radius: 8px;
-            padding: 12px;
-            font-size: 11px;
-            color: #888;
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            50% { transform: translateX(6px); }
+            75% { transform: translateX(-6px); }
         }
 
-        .demo-controls h3 {
-            margin-bottom: 8px;
-            color: #fff;
-            font-size: 12px;
+        /* Status-based animations - colors now randomized via --hue variable */
+        .claude-mascot[data-status="processing"] .claude-icon {
+            animation: bounce 0.8s ease-in-out infinite, glow 2s ease-in-out infinite;
+            filter: grayscale(100%) brightness(1.2) sepia(100%) hue-rotate(var(--hue, 0deg)) saturate(6) drop-shadow(0 0 8px currentColor);
+        }
+
+        .claude-mascot[data-status="running_tool"] .claude-icon {
+            animation: bounce 0.5s ease-in-out infinite, sway 1.5s ease-in-out infinite;
+            filter: grayscale(100%) brightness(1.2) sepia(100%) hue-rotate(var(--hue, 0deg)) saturate(5) drop-shadow(0 0 8px currentColor);
+        }
+
+        .claude-mascot[data-status="idle"] .claude-icon {
+            animation: drift 3s ease-in-out infinite;
+            filter: grayscale(100%) brightness(1.2) sepia(100%) hue-rotate(var(--hue, 0deg)) saturate(5) drop-shadow(0 0 6px currentColor);
+        }
+
+        .claude-mascot[data-status="error"] .claude-icon {
+            animation: shake 0.3s ease-in-out 3;
+            filter: grayscale(100%) brightness(1.2) sepia(100%) hue-rotate(var(--hue, 0deg)) saturate(6) drop-shadow(0 0 8px currentColor);
+        }
+
+        /* No animation for waiting_permission - stopped! */
+        .claude-mascot[data-status="waiting_permission"] .claude-icon {
+            animation: none;
+            filter: grayscale(100%) brightness(1.2) sepia(100%) hue-rotate(var(--hue, 0deg)) saturate(6) drop-shadow(0 0 12px currentColor);
+        }
+
+        /* Scrollbar */
+        .permission-text::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .permission-text::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 2px;
+        }
+
+        .permission-text::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 2px;
+        }
+
+        .permission-text::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
         }
     </style>
 </head>
@@ -197,51 +274,45 @@
     To preview: open this file directly in a browser
     At runtime: Hammerspoon replaces the placeholder above
     -->
-    <div class="session-bubble" style="border-left: 4px solid #FF8C00">
-        <div class="session-header">
-            <span class="status-indicator" style="background-color: #FF8C00"></span>
-            <span class="status-text">Processing your request...</span>
+    <div class="claude-container">
+        <div class="claude-mascot" data-status="processing" data-session-id="demo-1" style="--offset-x: 8px; --offset-y: -5px;">
+            <div class="claude-icon" style="--hue: 30deg;">👾</div>
+            <div class="claude-tooltip">
+                <div class="tooltip-path">~/dotfiles/hammerspoon</div>
+                <div class="tooltip-status">Processing your request...</div>
+            </div>
         </div>
-        <div class="session-info">
-            <div class="path">~/dotfiles/hammerspoon</div>
-        </div>
-    </div>
 
-    <div class="session-bubble" style="border-left: 4px solid #4A90E2">
-        <div class="session-header">
-            <span class="status-indicator" style="background-color: #4A90E2"></span>
-            <span class="status-text">Running: npm install</span>
+        <div class="claude-mascot" data-status="running_tool" data-session-id="demo-2" style="--offset-x: -6px; --offset-y: 7px;">
+            <div class="claude-icon" style="--hue: 200deg;">👾</div>
+            <div class="claude-tooltip">
+                <div class="tooltip-path">~/projects/webapp</div>
+                <div class="tooltip-status">Running: npm install</div>
+                <div class="tooltip-tool">Tool: Bash</div>
+            </div>
         </div>
-        <div class="session-info">
-            <div class="path">~/projects/webapp</div>
-            <div class="tool">Tool: Bash</div>
-        </div>
-    </div>
 
-    <div class="session-bubble" style="border-left: 4px solid #E74C3C">
-        <div class="session-header">
-            <span class="status-indicator" style="background-color: #E74C3C"></span>
-            <span class="status-text">Needs permission: Bash</span>
+        <div class="claude-mascot" data-status="waiting_permission" data-session-id="demo-3" style="--offset-x: 3px; --offset-y: -8px;">
+            <div class="claude-icon" style="--hue: 350deg;">👾</div>
+            <div class="claude-tooltip">
+                <div class="tooltip-path">~/Documents/project</div>
+                <div class="tooltip-status">Needs permission: Bash</div>
+            </div>
+            <div class="permission-modal">
+                <div class="permission-text">rm -rf node_modules && npm ci</div>
+                <div class="permission-buttons">
+                    <button class="approve-btn" onclick="approve('demo-req-1')">✓ Approve</button>
+                    <button class="deny-btn" onclick="deny('demo-req-1')">✗ Deny</button>
+                </div>
+            </div>
         </div>
-        <div class="session-info">
-            <div class="path">~/Documents/project</div>
-        </div>
-        <div class="permission-info">
-            <div class="permission-desc">rm -rf node_modules && npm ci</div>
-        </div>
-        <div class="permission-buttons">
-            <button class="approve-btn" onclick="approve('demo-req-1')">Approve</button>
-            <button class="deny-btn" onclick="deny('demo-req-1')">Deny</button>
-        </div>
-    </div>
 
-    <div class="session-bubble" style="border-left: 4px solid #2ECC71">
-        <div class="session-header">
-            <span class="status-indicator" style="background-color: #2ECC71"></span>
-            <span class="status-text">Waiting for input</span>
-        </div>
-        <div class="session-info">
-            <div class="path">~/src/myproject</div>
+        <div class="claude-mascot" data-status="idle" data-session-id="demo-4" style="--offset-x: -9px; --offset-y: 4px;">
+            <div class="claude-icon" style="--hue: 120deg;">👾</div>
+            <div class="claude-tooltip">
+                <div class="tooltip-path">~/src/myproject</div>
+                <div class="tooltip-status">Waiting for input</div>
+            </div>
         </div>
     </div>
 
@@ -255,6 +326,18 @@
             console.log('Deny:', requestId);
             window.location.href = 'hammerspoon://claude_deny?request_id=' + encodeURIComponent(requestId);
         }
+
+        // Add slight random positioning to prevent perfect overlap
+        function positionClaudes() {
+            const claudes = document.querySelectorAll('.claude-mascot');
+            claudes.forEach((claude, index) => {
+                const randomY = Math.random() * 10 - 5;  // -5 to 5px vertical offset
+                claude.style.transform = `translateY(${randomY}px)`;
+            });
+        }
+
+        // Position on load
+        window.addEventListener('DOMContentLoaded', positionClaudes);
     </script>
 </body>
 </html>
