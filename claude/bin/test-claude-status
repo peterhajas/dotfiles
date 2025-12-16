@@ -1,0 +1,39 @@
+#!/bin/bash
+# Test script for Claude status notifications
+
+echo "=== Testing Claude Status Notification System ==="
+echo
+
+# Clear log
+echo "1. Clearing log..."
+rm -f /tmp/claude-status-hook.log
+hs -c "claudeStatus.clearAll()"
+
+# Test hook script directly
+echo "2. Testing hook script directly..."
+printf '{"hook_event_name":"UserPromptSubmit","session_id":"test-session","cwd":"/Users/phajas/dotfiles"}' | ~/dotfiles/claude/bin/claude-status-hook
+
+# Wait a moment
+sleep 1
+
+# Check if it was logged
+echo "3. Checking log file..."
+if [ -f /tmp/claude-status-hook.log ]; then
+    echo "✓ Hook script logged event"
+    cat /tmp/claude-status-hook.log
+else
+    echo "✗ No log file created"
+    exit 1
+fi
+
+echo
+echo "4. Check Hammerspoon UI..."
+echo "   Look for an orange bubble in the lower-right corner"
+echo
+echo "5. To test with a real Claude session:"
+echo "   - Exit this session"
+echo "   - Run: claude"
+echo "   - Send any message"
+echo "   - Watch for the UI to appear!"
+echo
+echo "=== Test Complete ==="

@@ -1,0 +1,89 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+hostname=$(hostname -s 2>/dev/null || echo "unknown-host")
+timestamp=$(date -Iseconds)
+message="Turn done on ${hostname} at ${timestamp}"
+
+# If the hook is invoked with JSON on stdin, capture it for richer notifications.
+payload=""
+if [ ! -t 0 ]; then
+  payload=$(cat || true)
+fi
+
+if ! command -v hs >/dev/null 2>&1; then
+  echo "Hammerspoon CLI (hs) not found; skipping Claude turn notification" >&2
+  exit 0
+fi
+
+CLAUDE_NOTIFY_MESSAGE="${message}" \
+CLAUDE_NOTIFY_PAYLOAD="${payload}" \
+hs -c 'local message = os.getenv("CLAUDE_NOTIFY_MESSAGE") or "Claude turn done"
+local payload = os.getenv("CLAUDE_NOTIFY_PAYLOAD") or ""
+
+-- Try to render the Claude icon if present
+local function claudeIcon()
+  local home = os.getenv("HOME") or ""
+  local paths = {
+    "/Applications/Claude.app/Contents/Resources/electron.icns",
+    home .. "/Applications/Claude.app/Contents/Resources/electron.icns",
+    "/Applications/Claude.app/Contents/Resources/AppIcon.icns",
+    home .. "/Applications/Claude.app/Contents/Resources/AppIcon.icns",
+  }
+  for _, p in ipairs(paths) do
+    local img = hs.image.imageFromPath(p)
+    if img then return img end
+  end
+  local bundleIds = { "com.anthropic.claude", "com.anthropic.claude.desktop" }
+  for _, bid in ipairs(bundleIds) do
+    local img = hs.image.imageFromAppBundle(bid)
+    if img then return img end
+  end
+  return nil
+end
+
+-- Enrich the message with agent metadata if the hook piped JSON
+local function enrichedText()
+  if payload == "" then return message end
+
+  local ok, data = pcall(hs.json.decode, payload)
+  if not ok or type(data) ~= "table" then
+    return message
+  end
+
+  -- Prefer any user-facing message from the payload
+  local base = data.message or data.status or data.summary or message
+
+  local details = {}
+  local agent = data.agent or data.agent_name or data.assistant or data.agentId
+  if agent and agent ~= "" then table.insert(details, "Agent: " .. tostring(agent)) end
+
+  local model = data.model or data.model_id or data.modelName
+  if model and model ~= "" then table.insert(details, "Model: " .. tostring(model)) end
+
+  local latency = data.latency_ms or data.duration_ms or data.elapsed_ms
+  if latency then table.insert(details, string.format("Latency: %sms", tostring(latency))) end
+
+  local tokens = data.output_tokens or data.tokens_out or data.total_tokens
+  if tokens then table.insert(details, "Tokens: " .. tostring(tokens)) end
+
+  if #details > 0 then
+    return base .. "\n" .. table.concat(details, " · ")
+  end
+  return base
+end
+
+local note = hs.notify.new({
+  title = "Claude Turn Done",
+  informativeText = enrichedText(),
+  autoWithdraw = false,
+  withdrawAfter = 0,
+})
+
+local icon = claudeIcon()
+if icon then
+  note:setIdImage(icon)
+  note:setContentImage(icon)
+end
+
+note:send()'

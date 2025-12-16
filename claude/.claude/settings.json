@@ -1,48 +1,132 @@
 {
-    "includeCoAuthoredBy": false,
-    "permissions": {
-        "allow": [
-            "Bash(ansible-playbook:*)",
-            "Bash(curl:*)",
-            "Bash(echo $?)",
-            "Bash(find:*)",
-            "Bash(git branch:*)",
-            "Bash(git diff:*)",
-            "Bash(git log:*)",
-            "Bash(git show:*)",
-            "Bash(git status)",
-            "Bash(grep:*)",
-            "Bash(ls:*)",
-            "Bash(mkdir:*)",
-            "Bash(pwd)",
-            "Bash(python3:*)",
-            "Bash(ssh:*)",
-            "Bash(which:*)",
-            "WebSearch",
-            "Read(/Users/phajas/.claude/phajas_plans/**)",
-            "Write(/Users/phajas/.claude/phajas_plans/**)"
-        ],
-        "ask": [
-            "Bash(git checkout:*)",
-            "Bash(git commit:*)",
-            "Bash(git push:*)",
-            "Bash(rm:*)",
-            "Bash(*/tw:*)",
-            "Bash(tw:*)"
+  "includeCoAuthoredBy": false,
+  "permissions": {
+    "allow": [
+      "Bash(ansible-playbook:*)",
+      "Bash(curl:*)",
+      "Bash(echo $?)",
+      "Bash(find:*)",
+      "Bash(git branch:*)",
+      "Bash(git diff:*)",
+      "Bash(git log:*)",
+      "Bash(git show:*)",
+      "Bash(git status)",
+      "Bash(grep:*)",
+      "Bash(ls:*)",
+      "Bash(mkdir:*)",
+      "Bash(pwd)",
+      "Bash(python3:*)",
+      "Bash(ssh:*)",
+      "Bash(which:*)",
+      "WebSearch",
+      "Read(/Users/phajas/.claude/phajas_plans/**)",
+      "Write(/Users/phajas/.claude/phajas_plans/**)"
+    ],
+    "ask": [
+      "Bash(git checkout:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(rm:*)",
+      "Bash(*/tw:*)",
+      "Bash(tw:*)"
+    ]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "timeout": 5000
+          }
         ]
-    },
-    "hooks": {
-        "Notification": [
-            {
-                "matcher": "*",
-                "hooks": [
-                    {
-                        "type": "command",
-                        "command": "/Users/phajas/dotfiles/claude/bin/ntfy_hook",
-                        "timeout": 5000
-                    }
-                ]
-            }
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "timeout": 5000
+          }
         ]
-    }
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "PermissionRequest": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "timeout": 300000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "matcher": "idle_prompt",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
 }

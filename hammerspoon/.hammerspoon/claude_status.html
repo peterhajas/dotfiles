@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Status</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Menlo', monospace;
+            background: transparent;
+            color: #e0e0e0;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: 12px;
+            min-height: 100vh;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 40px 20px;
+            opacity: 0.5;
+        }
+
+        .claude-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+
+        .empty-text {
+            font-size: 14px;
+            color: #888;
+        }
+
+        .session-bubble {
+            background: rgba(42, 42, 58, 0.95);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 12px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
+        }
+
+        .session-bubble:hover {
+            background: rgba(58, 58, 74, 0.95);
+            transform: translateY(-1px);
+        }
+
+        .session-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 8px;
+            flex-shrink: 0;
+        }
+
+        .status-text {
+            font-size: 14px;
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .session-info {
+            margin-left: 16px;
+            margin-bottom: 8px;
+        }
+
+        .path {
+            font-size: 12px;
+            color: #a0a0b0;
+            font-family: 'Menlo', monospace;
+            margin-bottom: 4px;
+        }
+
+        .tool {
+            font-size: 11px;
+            color: #7090c0;
+            font-family: 'Menlo', monospace;
+        }
+
+        .permission-info {
+            margin: 8px 0 8px 16px;
+            padding: 8px;
+            background: rgba(231, 76, 60, 0.1);
+            border-radius: 4px;
+        }
+
+        .permission-desc {
+            font-size: 12px;
+            color: #e0e0e0;
+            font-family: 'Menlo', monospace;
+            word-break: break-all;
+        }
+
+        .permission-buttons {
+            display: flex;
+            gap: 8px;
+            margin-left: 16px;
+        }
+
+        button {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+
+        .approve-btn {
+            background: #2ecc71;
+            color: white;
+        }
+
+        .approve-btn:hover {
+            background: #27ae60;
+            transform: scale(1.02);
+        }
+
+        .approve-btn:active {
+            transform: scale(0.98);
+        }
+
+        .deny-btn {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .deny-btn:hover {
+            background: #c0392b;
+            transform: scale(1.02);
+        }
+
+        .deny-btn:active {
+            transform: scale(0.98);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #2a2a3a;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #4a4a5a;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #5a5a6a;
+        }
+
+        /* Demo controls */
+        .demo-controls {
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            background: #1a1a2a;
+            border: 1px solid #3a3a4a;
+            border-radius: 8px;
+            padding: 12px;
+            font-size: 11px;
+            color: #888;
+        }
+
+        .demo-controls h3 {
+            margin-bottom: 8px;
+            color: #fff;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <!-- SESSIONS_PLACEHOLDER -->
+    <!-- Demo content below - gets replaced at runtime -->
+    <!--
+    To preview: open this file directly in a browser
+    At runtime: Hammerspoon replaces the placeholder above
+    -->
+    <div class="session-bubble" style="border-left: 4px solid #FF8C00">
+        <div class="session-header">
+            <span class="status-indicator" style="background-color: #FF8C00"></span>
+            <span class="status-text">Processing your request...</span>
+        </div>
+        <div class="session-info">
+            <div class="path">~/dotfiles/hammerspoon</div>
+        </div>
+    </div>
+
+    <div class="session-bubble" style="border-left: 4px solid #4A90E2">
+        <div class="session-header">
+            <span class="status-indicator" style="background-color: #4A90E2"></span>
+            <span class="status-text">Running: npm install</span>
+        </div>
+        <div class="session-info">
+            <div class="path">~/projects/webapp</div>
+            <div class="tool">Tool: Bash</div>
+        </div>
+    </div>
+
+    <div class="session-bubble" style="border-left: 4px solid #E74C3C">
+        <div class="session-header">
+            <span class="status-indicator" style="background-color: #E74C3C"></span>
+            <span class="status-text">Needs permission: Bash</span>
+        </div>
+        <div class="session-info">
+            <div class="path">~/Documents/project</div>
+        </div>
+        <div class="permission-info">
+            <div class="permission-desc">rm -rf node_modules && npm ci</div>
+        </div>
+        <div class="permission-buttons">
+            <button class="approve-btn" onclick="approve('demo-req-1')">Approve</button>
+            <button class="deny-btn" onclick="deny('demo-req-1')">Deny</button>
+        </div>
+    </div>
+
+    <div class="session-bubble" style="border-left: 4px solid #2ECC71">
+        <div class="session-header">
+            <span class="status-indicator" style="background-color: #2ECC71"></span>
+            <span class="status-text">Waiting for input</span>
+        </div>
+        <div class="session-info">
+            <div class="path">~/src/myproject</div>
+        </div>
+    </div>
+
+    <script>
+        function approve(requestId) {
+            console.log('Approve:', requestId);
+            window.location.href = 'hammerspoon://claude_approve?request_id=' + encodeURIComponent(requestId);
+        }
+
+        function deny(requestId) {
+            console.log('Deny:', requestId);
+            window.location.href = 'hammerspoon://claude_deny?request_id=' + encodeURIComponent(requestId);
+        }
+    </script>
+</body>
+</html>
