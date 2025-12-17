@@ -63,7 +63,6 @@
         .claude-mascot:hover .claude-tooltip {
             opacity: 1;
             visibility: visible;
-            transform: translateY(-10px);
         }
 
         .claude-icon {
@@ -73,18 +72,17 @@
             transition: filter 0.3s ease;
         }
 
-        /* Tooltip */
+        /* Tooltip - default flows right from left edge */
         .claude-tooltip {
             position: absolute;
             bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 0;
             background: rgba(42, 42, 58, 0.98);
             backdrop-filter: blur(10px);
             border-radius: 8px;
             padding: 8px 12px;
-            min-width: 180px;
-            max-width: 300px;
+            min-width: 160px;
+            max-width: 280px;
             opacity: 0;
             visibility: hidden;
             transition: all 0.2s ease;
@@ -92,6 +90,14 @@
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
             z-index: 100000;
             pointer-events: none;
+            white-space: normal;
+            word-wrap: break-word;
+        }
+
+        /* Last Claude's tooltip flows left from right edge to prevent clipping */
+        .claude-mascot:last-child .claude-tooltip {
+            left: auto;
+            right: 0;
         }
 
         .tooltip-path {
@@ -99,9 +105,9 @@
             color: #a0a0b0;
             font-family: 'Menlo', monospace;
             margin-bottom: 4px;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            white-space: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         .tooltip-status {
@@ -116,22 +122,27 @@
             font-family: 'Menlo', monospace;
         }
 
-        /* Permission Modal */
+        /* Permission Modal - default flows right from left edge */
         .permission-modal {
             position: absolute;
             bottom: 60px;
-            left: 50%;
-            transform: translateX(-50%);
+            left: 0;
             background: rgba(231, 76, 60, 0.98);
             backdrop-filter: blur(10px);
             border-radius: 8px;
             padding: 12px;
-            min-width: 220px;
-            max-width: 350px;
+            min-width: 180px;
+            max-width: 280px;
             box-shadow: 0 6px 16px rgba(0, 0, 0, 0.4);
             z-index: 50000;
             border: 2px solid #E74C3C;
             pointer-events: auto;
+        }
+
+        /* Last Claude's permission modal flows left from right edge */
+        .claude-mascot:last-child .permission-modal {
+            left: auto;
+            right: 0;
         }
 
         .permission-text {
