@@ -145,9 +145,9 @@ def parse_filter_expression(filter_expr):
                 pos = end + 2
             # Check for operator name[param]
             elif run_text[pos].isalpha():
-                # Find operator name
+                # Find operator name (allow alphanumeric, underscore, and colon)
                 name_start = pos
-                while pos < len(run_text) and (run_text[pos].isalnum() or run_text[pos] == '_'):
+                while pos < len(run_text) and (run_text[pos].isalnum() or run_text[pos] in '_:'):
                     pos += 1
                 operator_name = run_text[name_start:pos]
 
@@ -329,6 +329,110 @@ def apply_list_operator(operator_name, param, values):
         raise ValueError(f"Unknown list operator: {operator_name}")
 
 
+def normalize_date(date_str):
+    """Normalize a date string to TiddlyWiki format (YYYYMMDDHHMMSSMMM).
+
+    Supports:
+    - YYYY-MM-DD -> YYYYMMDD000000000
+    - YYYYMMDD -> YYYYMMDD000000000
+    - YYYYMMDDHHMMSSMMM -> as-is
+
+    Args:
+        date_str: Date string in various formats
+
+    Returns:
+        Normalized date string in YYYYMMDDHHMMSSMMM format
+    """
+    if not date_str:
+        return None
+
+    # Remove any hyphens or colons
+    clean_date = date_str.replace('-', '').replace(':', '').replace(' ', '')
+
+    # Pad to 17 characters (TiddlyWiki format)
+    if len(clean_date) == 8:  # YYYYMMDD
+        clean_date += '000000000'
+    elif len(clean_date) < 17:
+        # Pad with zeros to reach 17 characters
+        clean_date += '0' * (17 - len(clean_date))
+    elif len(clean_date) > 17:
+        # Truncate if too long
+        clean_date = clean_date[:17]
+
+    return clean_date
+
+
+def extract_links_from_content(content):
+    """Extract all [[Tiddler Name]] links from content.
+
+    Args:
+        content: The tiddler content as a string
+
+    Returns:
+        List of tiddler names that are linked to
+    """
+    import re
+    if not content:
+        return []
+
+    # Pattern to match [[...]] links
+    # This captures the content between [[ and ]]
+    pattern = r'\[\[([^\]]+)\]\]'
+    matches = re.findall(pattern, content)
+
+    return matches
+
+
+def find_backlinks(target_tiddler, tiddlers_dict):
+    """Find all tiddlers that link TO the target tiddler.
+
+    Args:
+        target_tiddler: The tiddler name to find backlinks to
+        tiddlers_dict: Dictionary mapping title -> tiddler data
+
+    Returns:
+        List of tiddler titles that link to the target
+    """
+    backlinks = []
+
+    for title, tiddler in tiddlers_dict.items():
+        # Get the tiddler's text content
+        text = tiddler.get('text', '')
+        if not text:
+            continue
+
+        # Extract links from this tiddler
+        links = extract_links_from_content(text)
+
+        # Check if target_tiddler is in the links
+        if target_tiddler in links:
+            backlinks.append(title)
+
+    return backlinks
+
+
+def find_forward_links(source_tiddler, tiddlers_dict):
+    """Find all tiddlers that the source tiddler links TO.
+
+    Args:
+        source_tiddler: The tiddler name to find links from
+        tiddlers_dict: Dictionary mapping title -> tiddler data
+
+    Returns:
+        List of tiddler titles that the source links to
+    """
+    if source_tiddler not in tiddlers_dict:
+        return []
+
+    tiddler = tiddlers_dict[source_tiddler]
+    text = tiddler.get('text', '')
+
+    if not text:
+        return []
+
+    return extract_links_from_content(text)
+
+
 def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
     """Apply a wiki operator that works with tiddlers.
 
@@ -343,6 +447,8 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
     - min[field] - tiddler(s) with minimum field value
     - max[field] - tiddler(s) with maximum field value
     - all[category] - select tiddlers by category (tiddlers, system, shadows, or combined with +)
+    - backlinks[TiddlerName] - find all tiddlers linking to TiddlerName (or to each input tiddler if no param)
+    - links[] - find all tiddlers that input tiddlers link to
     - fieldname[value] - field operators: filter by field value (any field name can be used as operator)
       - fieldname[value] - filter tiddlers where field equals value
       - fieldname[] - filter tiddlers where field is empty or doesn't exist
@@ -542,6 +648,123 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
 
         return result_list
 
+    elif operator_name in ['created:after', 'created:before', 'modified:after', 'modified:before']:
+        # Date comparison operators
+        field_name, comparison = operator_name.split(':')
+        target_date = normalize_date(param)
+
+        if not target_date:
+            return []
+
+        results = []
+        for title in tiddler_titles:
+            if title in tiddlers_dict:
+                tiddler = tiddlers_dict[title]
+                tiddler_date = tiddler.get(field_name, None)
+
+                if tiddler_date:
+                    # Normalize the tiddler's date
+                    normalized_tiddler_date = normalize_date(str(tiddler_date))
+
+                    if not normalized_tiddler_date:
+                        continue
+
+                    # Compare dates (string comparison works for YYYYMMDDHHMMSSMMM format)
+                    if comparison == 'after' and normalized_tiddler_date > target_date:
+                        results.append(title)
+                    elif comparison == 'before' and normalized_tiddler_date < target_date:
+                        results.append(title)
+
+        return results
+
+    elif ':' in operator_name:
+        # Field pattern matching operators (field:contains, field:prefix, field:suffix, field:regexp)
+        parts = operator_name.split(':', 1)
+        if len(parts) == 2:
+            field_name, operation = parts
+
+            if operation in ['contains', 'prefix', 'suffix', 'regexp']:
+                import re
+                results = []
+
+                for title in tiddler_titles:
+                    if title in tiddlers_dict:
+                        tiddler = tiddlers_dict[title]
+                        field_value = tiddler.get(field_name, None)
+
+                        if field_value is None:
+                            continue
+
+                        # Convert to string
+                        if isinstance(field_value, list):
+                            field_str = ' '.join(str(v) for v in field_value)
+                        else:
+                            field_str = str(field_value)
+
+                        pattern = param if param is not None else ''
+
+                        try:
+                            if operation == 'contains':
+                                if pattern.lower() in field_str.lower():
+                                    results.append(title)
+                            elif operation == 'prefix':
+                                if field_str.lower().startswith(pattern.lower()):
+                                    results.append(title)
+                            elif operation == 'suffix':
+                                if field_str.lower().endswith(pattern.lower()):
+                                    results.append(title)
+                            elif operation == 'regexp':
+                                if re.search(pattern, field_str, re.IGNORECASE):
+                                    results.append(title)
+                        except re.error:
+                            # Invalid regex - skip this tiddler
+                            pass
+
+                return results
+
+    elif operator_name == 'backlinks':
+        # Find tiddlers that link to the target tiddler(s)
+        results = []
+
+        if param:
+            # Parameter provided: find all tiddlers linking to this specific tiddler
+            # This replaces the input (standard TiddlyWiki behavior)
+            backlinks = find_backlinks(param, tiddlers_dict)
+            results.extend(backlinks)
+        else:
+            # No parameter: find backlinks for each input tiddler
+            for title in tiddler_titles:
+                backlinks = find_backlinks(title, tiddlers_dict)
+                results.extend(backlinks)
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_results = []
+        for item in results:
+            if item not in seen:
+                seen.add(item)
+                unique_results.append(item)
+
+        return unique_results
+
+    elif operator_name == 'links':
+        # Find tiddlers that the input tiddlers link to
+        results = []
+
+        for title in tiddler_titles:
+            forward_links = find_forward_links(title, tiddlers_dict)
+            results.extend(forward_links)
+
+        # Remove duplicates while preserving order
+        seen = set()
+        unique_results = []
+        for item in results:
+            if item not in seen:
+                seen.add(item)
+                unique_results.append(item)
+
+        return unique_results
+
     else:
         # Unknown operator - treat as field filter
         # Field operators: filter tiddlers where the field matches the parameter value
@@ -608,7 +831,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
         # Apply each operator to all current values
         for operator_name, param in run['operators']:
             # Check if this is a known wiki operator
-            if operator_name in ['tag', 'has', 'get', 'sort', 'sortcs', 'nsort', 'each', 'min', 'max', 'all']:
+            if operator_name in ['tag', 'has', 'get', 'sort', 'sortcs', 'nsort', 'each', 'min', 'max', 'all', 'backlinks', 'links']:
                 if not wiki_path:
                     raise ValueError(f"Operator '{operator_name}' requires a wiki file")
                 new_values = apply_wiki_operator(operator_name, param, new_values, tiddlers_dict)

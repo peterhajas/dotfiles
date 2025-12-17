@@ -1245,5 +1245,428 @@ class TestFieldOperator(unittest.TestCase):
         self.assertIn('Task4', results)
 
 
+class TestBacklinksAndLinksOperators(unittest.TestCase):
+    """Test backlinks and links operators for finding tiddler relationships"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers that link to each other"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_links_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Create tiddlers with various link patterns
+        test_tiddlers = [
+            ("Index", "Welcome to my wiki. See [[About]] and [[Projects]]."),
+            ("About", "This is about me. Check out my [[Projects]]."),
+            ("Projects", "My projects: [[Project A]] and [[Project B]]."),
+            ("Project A", "Details about Project A. Related: [[Project B]]."),
+            ("Project B", "Details about Project B. Related to [[Project A]] and back to [[Projects]]."),
+            ("Orphan", "This tiddler has no links."),
+            ("Archive", "Old project: [[Project A]]."),
+        ]
+
+        for title, text in test_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_backlinks_with_parameter(self):
+        """Test backlinks[TiddlerName] finds tiddlers linking to TiddlerName"""
+        results = tw_filter.evaluate_filter('[backlinks[Projects]]', wiki_path=self.test_wiki)
+        # Index, About, and Project B link to Projects
+        self.assertEqual(len(results), 3)
+        self.assertIn('Index', results)
+        self.assertIn('About', results)
+        self.assertIn('Project B', results)
+
+    def test_backlinks_single_backlink(self):
+        """Test tiddler with a single backlink"""
+        results = tw_filter.evaluate_filter('[backlinks[About]]', wiki_path=self.test_wiki)
+        # Only Index links to About
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Index')
+
+    def test_backlinks_multiple_backlinks(self):
+        """Test tiddler with multiple backlinks"""
+        results = tw_filter.evaluate_filter('[backlinks[Project A]]', wiki_path=self.test_wiki)
+        # Projects, Project B, and Archive link to Project A
+        self.assertEqual(len(results), 3)
+        self.assertIn('Projects', results)
+        self.assertIn('Project B', results)
+        self.assertIn('Archive', results)
+
+    def test_backlinks_no_backlinks(self):
+        """Test tiddler with no backlinks"""
+        results = tw_filter.evaluate_filter('[backlinks[Index]]', wiki_path=self.test_wiki)
+        # No tiddlers link to Index
+        self.assertEqual(len(results), 0)
+
+    def test_backlinks_nonexistent_tiddler(self):
+        """Test backlinks for nonexistent tiddler"""
+        results = tw_filter.evaluate_filter('[backlinks[DoesNotExist]]', wiki_path=self.test_wiki)
+        # No backlinks for nonexistent tiddler
+        self.assertEqual(len(results), 0)
+
+    def test_backlinks_without_parameter(self):
+        """Test backlinks[] without parameter on input tiddlers"""
+        results = tw_filter.evaluate_filter('[[Projects]]backlinks[]', wiki_path=self.test_wiki)
+        # Should find tiddlers linking to Projects
+        self.assertEqual(len(results), 3)
+        self.assertIn('Index', results)
+        self.assertIn('About', results)
+        self.assertIn('Project B', results)
+
+    def test_backlinks_multiple_input_tiddlers(self):
+        """Test backlinks[] on multiple input tiddlers"""
+        results = tw_filter.evaluate_filter('[[Project A]] [[Project B]] +[backlinks[]]', wiki_path=self.test_wiki)
+        # Backlinks to both Project A and Project B (combined, unique)
+        # Project A: Projects, Project B, Archive
+        # Project B: Projects, Project A
+        # Combined unique: Projects, Project B, Archive, Project A
+        self.assertGreater(len(results), 0)
+        self.assertIn('Projects', results)
+
+    def test_links_operator(self):
+        """Test links[] finds tiddlers that input tiddlers link to"""
+        results = tw_filter.evaluate_filter('[[Index]]links[]', wiki_path=self.test_wiki)
+        # Index links to About and Projects
+        self.assertEqual(len(results), 2)
+        self.assertIn('About', results)
+        self.assertIn('Projects', results)
+
+    def test_links_multiple_links(self):
+        """Test links[] on tiddler with multiple links"""
+        results = tw_filter.evaluate_filter('[[Projects]]links[]', wiki_path=self.test_wiki)
+        # Projects links to Project A and Project B
+        self.assertEqual(len(results), 2)
+        self.assertIn('Project A', results)
+        self.assertIn('Project B', results)
+
+    def test_links_no_links(self):
+        """Test links[] on tiddler with no links"""
+        results = tw_filter.evaluate_filter('[[Orphan]]links[]', wiki_path=self.test_wiki)
+        # Orphan has no links
+        self.assertEqual(len(results), 0)
+
+    def test_links_multiple_input_tiddlers(self):
+        """Test links[] on multiple input tiddlers"""
+        results = tw_filter.evaluate_filter('[[Index]] [[About]] +[links[]]', wiki_path=self.test_wiki)
+        # Index links to About and Projects
+        # About links to Projects
+        # Combined unique: About, Projects (About appears once despite being both input and output)
+        self.assertGreater(len(results), 0)
+        self.assertIn('Projects', results)
+
+    def test_links_circular_reference(self):
+        """Test links[] handles circular references"""
+        results = tw_filter.evaluate_filter('[[Project A]]links[]', wiki_path=self.test_wiki)
+        # Project A links to Project B
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Project B')
+
+        # Project B links to both Project A and Projects
+        results2 = tw_filter.evaluate_filter('[[Project B]]links[]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results2), 2)
+        self.assertIn('Project A', results2)
+        self.assertIn('Projects', results2)
+
+    def test_links_chain(self):
+        """Test chaining links operator"""
+        results = tw_filter.evaluate_filter('[[Index]]links[]links[]', wiki_path=self.test_wiki)
+        # Index -> (About, Projects) -> (Projects, Project A, Project B)
+        # Should get links from both About and Projects
+        self.assertGreater(len(results), 0)
+
+    def test_backlinks_combined_with_tag(self):
+        """Test combining backlinks with tag filtering"""
+        # First add tags to some tiddlers
+        import subprocess
+        subprocess.run(['python3', 'tw', self.test_wiki, 'set', 'Index', 'tags', 'important'],
+                      cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', self.test_wiki, 'set', 'About', 'tags', 'important'],
+                      cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', self.test_wiki, 'set', 'Project B', 'tags', 'important'],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # backlinks[Projects] replaces input with all tiddlers linking to Projects
+        # Then we can filter those results
+        results = tw_filter.evaluate_filter('[backlinks[Projects]tag[important]]', wiki_path=self.test_wiki)
+        # backlinks[Projects] gives Index, About, Project B
+        # Then filter to only those with tag important: all three have it now
+        self.assertEqual(len(results), 3)
+        self.assertIn('Index', results)
+        self.assertIn('About', results)
+        self.assertIn('Project B', results)
+
+    def test_extract_links_function(self):
+        """Test the extract_links_from_content helper function"""
+        content = "See [[Tiddler One]] and [[Tiddler Two]] for details. Also check [[Tiddler One]] again."
+        links = tw_filter.extract_links_from_content(content)
+        # Should find all three link instances (including duplicate)
+        self.assertEqual(len(links), 3)
+        self.assertEqual(links[0], 'Tiddler One')
+        self.assertEqual(links[1], 'Tiddler Two')
+        self.assertEqual(links[2], 'Tiddler One')
+
+    def test_extract_links_empty_content(self):
+        """Test extract_links_from_content with empty content"""
+        links = tw_filter.extract_links_from_content("")
+        self.assertEqual(len(links), 0)
+
+        links2 = tw_filter.extract_links_from_content(None)
+        self.assertEqual(len(links2), 0)
+
+    def test_extract_links_no_links(self):
+        """Test extract_links_from_content with no links"""
+        content = "This is plain text with no links at all."
+        links = tw_filter.extract_links_from_content(content)
+        self.assertEqual(len(links), 0)
+
+
+class TestDateComparisonOperators(unittest.TestCase):
+    """Test date comparison operators for filtering by created/modified dates"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers with different dates"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_dates_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Create tiddlers
+        test_tiddlers = [
+            "OldTiddler",
+            "MediumTiddler",
+            "RecentTiddler",
+            "VeryRecentTiddler",
+        ]
+
+        for title in test_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, f"Content of {title}"],
+                          cwd=script_dir, check=True, capture_output=True)
+
+        # Set different created dates
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'OldTiddler', 'created', '20200101120000000'],
+                      cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'MediumTiddler', 'created', '20220615140000000'],
+                      cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'RecentTiddler', 'created', '20231201180000000'],
+                      cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'VeryRecentTiddler', 'created', '20240315090000000'],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Set different modified dates
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'OldTiddler', 'modified', '20210501100000000'],
+                      cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'MediumTiddler', 'modified', '20230201150000000'],
+                      cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_created_after_full_timestamp(self):
+        """Test created:after with full TiddlyWiki timestamp"""
+        results = tw_filter.evaluate_filter('[created:after[20220101000000000]]', wiki_path=self.test_wiki)
+        # Should find Medium, Recent, and VeryRecent (created after 2022-01-01)
+        self.assertGreaterEqual(len(results), 3)
+        self.assertIn('MediumTiddler', results)
+        self.assertIn('RecentTiddler', results)
+        self.assertIn('VeryRecentTiddler', results)
+        self.assertNotIn('OldTiddler', results)
+
+    def test_created_after_simplified_date(self):
+        """Test created:after with YYYY-MM-DD format"""
+        results = tw_filter.evaluate_filter('[created:after[2023-01-01]]', wiki_path=self.test_wiki)
+        # Should find Recent and VeryRecent
+        self.assertGreaterEqual(len(results), 2)
+        self.assertIn('RecentTiddler', results)
+        self.assertIn('VeryRecentTiddler', results)
+        self.assertNotIn('OldTiddler', results)
+        self.assertNotIn('MediumTiddler', results)
+
+    def test_created_after_yyyymmdd_format(self):
+        """Test created:after with YYYYMMDD format"""
+        results = tw_filter.evaluate_filter('[created:after[20230601]]', wiki_path=self.test_wiki)
+        # Should find Recent and VeryRecent (created after 2023-06-01)
+        self.assertGreaterEqual(len(results), 2)
+        self.assertIn('RecentTiddler', results)
+        self.assertIn('VeryRecentTiddler', results)
+
+    def test_created_before(self):
+        """Test created:before operator"""
+        results = tw_filter.evaluate_filter('[created:before[2023-01-01]]', wiki_path=self.test_wiki)
+        # Should find Old and Medium (created before 2023-01-01)
+        self.assertGreaterEqual(len(results), 2)
+        self.assertIn('OldTiddler', results)
+        self.assertIn('MediumTiddler', results)
+        self.assertNotIn('RecentTiddler', results)
+
+    def test_modified_after(self):
+        """Test modified:after operator"""
+        results = tw_filter.evaluate_filter('[modified:after[2022-01-01]]', wiki_path=self.test_wiki)
+        # Should find MediumTiddler (modified after 2022-01-01)
+        self.assertIn('MediumTiddler', results)
+        self.assertNotIn('OldTiddler', results)
+
+    def test_modified_before(self):
+        """Test modified:before operator"""
+        results = tw_filter.evaluate_filter('[modified:before[2022-01-01]]', wiki_path=self.test_wiki)
+        # Should find OldTiddler (modified before 2022-01-01)
+        self.assertIn('OldTiddler', results)
+
+    def test_date_comparison_combined(self):
+        """Test combining date comparisons"""
+        results = tw_filter.evaluate_filter('[created:after[2021-01-01]created:before[2024-01-01]]', wiki_path=self.test_wiki)
+        # Should find MediumTiddler and RecentTiddler (created between 2021 and 2024)
+        self.assertIn('MediumTiddler', results)
+        self.assertIn('RecentTiddler', results)
+        self.assertNotIn('OldTiddler', results)  # Created in 2020
+        self.assertNotIn('VeryRecentTiddler', results)  # Created in 2024-03, after 2024-01-01
+
+    def test_normalize_date_function(self):
+        """Test the normalize_date helper function"""
+        # Test YYYY-MM-DD format
+        self.assertEqual(tw_filter.normalize_date('2023-12-25'), '20231225000000000')
+
+        # Test YYYYMMDD format
+        self.assertEqual(tw_filter.normalize_date('20231225'), '20231225000000000')
+
+        # Test full format (should remain unchanged)
+        self.assertEqual(tw_filter.normalize_date('20231225143000000'), '20231225143000000')
+
+        # Test empty/None
+        self.assertIsNone(tw_filter.normalize_date(None))
+        self.assertIsNone(tw_filter.normalize_date(''))
+
+
+class TestPatternMatchingOperators(unittest.TestCase):
+    """Test pattern matching operators for searching field content"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki with tiddlers with various content"""
+        import subprocess
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'test_pattern_wiki.html')
+
+        # Use tw init to create a proper wiki
+        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
+                      cwd=script_dir, check=True, capture_output=True)
+
+        # Create tiddlers with various titles and content
+        test_tiddlers = [
+            ("Todo: Buy groceries", "Need to buy milk and bread"),
+            ("Todo: Call dentist", "Schedule appointment for next month"),
+            ("Meeting Notes 2024-01-15", "Discussed project timeline"),
+            ("Project Plan", "Initial planning for new feature"),
+            ("Random Thoughts", "Various ideas and concepts"),
+        ]
+
+        for title, text in test_tiddlers:
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text],
+                          cwd=script_dir, check=True, capture_output=True)
+
+        # Add some custom fields
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Project Plan', 'status', 'in-progress'],
+                      cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Meeting Notes 2024-01-15', 'status', 'completed'],
+                      cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_title_contains(self):
+        """Test title:contains operator"""
+        results = tw_filter.evaluate_filter('[title:contains[todo]]', wiki_path=self.test_wiki)
+        # Should find both Todo tiddlers (case-insensitive)
+        self.assertEqual(len(results), 2)
+        self.assertIn('Todo: Buy groceries', results)
+        self.assertIn('Todo: Call dentist', results)
+
+    def test_title_prefix(self):
+        """Test title:prefix operator"""
+        results = tw_filter.evaluate_filter('[title:prefix[Todo]]', wiki_path=self.test_wiki)
+        # Should find tiddlers starting with "Todo"
+        self.assertEqual(len(results), 2)
+        self.assertIn('Todo: Buy groceries', results)
+        self.assertIn('Todo: Call dentist', results)
+
+    def test_title_suffix(self):
+        """Test title:suffix operator"""
+        results = tw_filter.evaluate_filter('[title:suffix[Plan]]', wiki_path=self.test_wiki)
+        # Should find "Project Plan"
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0], 'Project Plan')
+
+    def test_text_contains(self):
+        """Test text:contains for searching content"""
+        results = tw_filter.evaluate_filter('[text:contains[project]]', wiki_path=self.test_wiki)
+        # Should find tiddlers with "project" in content
+        self.assertGreater(len(results), 0)
+        self.assertIn('Meeting Notes 2024-01-15', results)
+
+    def test_title_regexp(self):
+        """Test title:regexp with regex pattern"""
+        results = tw_filter.evaluate_filter('[title:regexp[\\d{4}-\\d{2}-\\d{2}]]', wiki_path=self.test_wiki)
+        # Should find "Meeting Notes 2024-01-15" (contains date pattern)
+        self.assertIn('Meeting Notes 2024-01-15', results)
+
+    def test_status_contains(self):
+        """Test custom field pattern matching"""
+        results = tw_filter.evaluate_filter('[status:contains[progress]]', wiki_path=self.test_wiki)
+        # Should find "Project Plan" (status: in-progress)
+        self.assertIn('Project Plan', results)
+
+    def test_pattern_case_insensitive(self):
+        """Test that pattern matching is case-insensitive"""
+        results = tw_filter.evaluate_filter('[title:contains[TODO]]', wiki_path=self.test_wiki)
+        # Should still find Todo tiddlers
+        self.assertGreater(len(results), 0)
+
+    def test_regexp_invalid_pattern(self):
+        """Test that invalid regex patterns are handled gracefully"""
+        # Invalid regex should not crash, just return no results or skip invalid patterns
+        try:
+            results = tw_filter.evaluate_filter('[title:regexp[[invalid]]', wiki_path=self.test_wiki)
+            # Should not crash - might return empty or partial results
+            self.assertIsInstance(results, list)
+        except Exception:
+            # It's also acceptable to raise an exception for invalid regex
+            pass
+
+    def test_pattern_empty_param(self):
+        """Test pattern matching with empty parameter"""
+        results = tw_filter.evaluate_filter('[title:contains[]]', wiki_path=self.test_wiki)
+        # Empty pattern should match all tiddlers
+        self.assertGreater(len(results), 0)
+
+    def test_combined_pattern_and_date(self):
+        """Test combining pattern matching with date comparison"""
+        results = tw_filter.evaluate_filter('[title:contains[Meeting]created:after[2024-01-01]]', wiki_path=self.test_wiki)
+        # Should find Meeting Notes if created after 2024-01-01
+        # (Depends on when the tiddler was created in the test)
+        self.assertIsInstance(results, list)
+
+
 if __name__ == '__main__':
     unittest.main()
