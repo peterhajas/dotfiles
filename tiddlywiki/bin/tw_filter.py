@@ -1445,6 +1445,9 @@ def evaluate_filter(filter_expr, wiki_path=None):
         'storyviews', 'subtiddlerfields', 'variables'
     }
 
+    # Operators that can work with or without a wiki (on literal values or tiddlers)
+    flexible_wiki_ops = {'jsonget', 'jsonextract', 'jsonindexes', 'jsontype'}
+
     list_ops = {
         'first', 'last', 'rest', 'butfirst', 'bf', 'butlast', 'limit', 'nth', 'zth', 'after', 'before',
         'allafter', 'allbefore', 'reverse', 'order', 'unique', 'join', 'sort', 'sortcs', 'nsort', 'nsortcs',
@@ -1453,6 +1456,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
         'toggle', 'cycle', 'insertafter', 'insertbefore', 'move', 'putafter', 'putbefore', 'putfirst',
         'putlast', 'then', 'else', 'next', 'previous'
     }
+
     def normalize_prefix(raw_prefix):
         if raw_prefix is None or raw_prefix == '':
             return 'or'
@@ -1467,76 +1471,137 @@ def evaluate_filter(filter_expr, wiki_path=None):
             'else': 'else',
             'all': 'all',
             'intersection': 'intersection',
-            'filter': 'and',
-            'map': 'and',
-            'reduce': 'and',
-            'sort': 'and',
+            'filter': 'filter',
+            'map': 'map',
+            'reduce': 'reduce',
+            'sort': 'sort',
             'cascade': 'and',
             'then': 'and'
         }
         return mapping.get(raw_prefix.lower(), 'or')
 
-    def evaluate_run(run, current_output):
-        prefix = normalize_prefix(run.get('prefix'))
-
-        if run['literals']:
-            values = [str(v) for v in run['literals']]
-        elif prefix in ['and', 'intersection']:
-            values = current_output[:]
-        elif wiki_path:
-            values = list(tiddlers_dict.keys())
-        else:
-            values = []
-
-        for operator_name, param in run['operators']:
+    def apply_operators(values, operators):
+        current = [str(v) for v in values]
+        for operator_name, param in operators:
             negated = operator_name.startswith('!')
             op_clean = operator_name[1:] if negated else operator_name
             name_lower = op_clean.lower()
 
-            if name_lower in wiki_ops or name_lower in ['created:after', 'created:before', 'modified:after', 'modified:before'] or ':' in op_clean:
+            if (name_lower in wiki_ops or name_lower in ['created:after', 'created:before', 'modified:after', 'modified:before'] or ':' in op_clean):
                 if not wiki_path:
                     raise ValueError(f"Operator '{op_clean}' requires a wiki file")
-                step_output = apply_wiki_operator(op_clean, param, values, tiddlers_dict)
+                step_output = apply_wiki_operator(op_clean, param, current, tiddlers_dict)
+            elif name_lower in flexible_wiki_ops:
+                # These operators can work with or without wiki
+                if wiki_path:
+                    step_output = apply_wiki_operator(op_clean, param, current, tiddlers_dict)
+                else:
+                    # Apply to literal values as JSON strings
+                    step_output = []
+                    for v in current:
+                        try:
+                            data_source = json.loads(v)
+                        except Exception:
+                            continue
+                        if isinstance(data_source, dict):
+                            if name_lower == 'jsonindexes':
+                                step_output.extend(list(data_source.keys()))
+                            elif param and param in data_source:
+                                value = data_source[param]
+                                if name_lower == 'jsontype':
+                                    step_output.append(type(value).__name__)
+                                elif name_lower == 'jsonextract':
+                                    step_output.append(json.dumps(value))
+                                else:  # jsonget
+                                    step_output.append(str(value))
             elif name_lower in list_ops:
-                step_output = apply_list_operator(op_clean, param, values)
+                step_output = apply_list_operator(op_clean, param, current)
             else:
+                # Try as value operator first, fall back to field operator if we have a wiki
                 step_output = []
-                for v in values:
-                    result = apply_operator(op_clean, param, v)
-                    if isinstance(result, list):
-                        step_output.extend([str(item) for item in result])
-                    elif result is not None:
-                        step_output.append(str(result))
+                try:
+                    for v in current:
+                        result = apply_operator(op_clean, param, v)
+                        if isinstance(result, list):
+                            step_output.extend([str(item) for item in result])
+                        elif result is not None:
+                            step_output.append(str(result))
+                except ValueError as e:
+                    # Unknown operator - try as field operator if we have wiki
+                    if wiki_path and 'Unknown operator' in str(e):
+                        step_output = apply_wiki_operator(op_clean, param, current, tiddlers_dict)
+                    else:
+                        raise
 
             if negated:
                 exclusion = set(step_output)
-                values = [v for v in values if v not in exclusion]
+                current = [v for v in current if v not in exclusion]
             else:
-                values = [str(v) for v in step_output]
-
-        return values, prefix
+                current = [str(v) for v in step_output]
+        return current
 
     current_values = []
 
     for run in runs:
-        run_output, prefix = evaluate_run(run, current_values)
+        prefix = normalize_prefix(run.get('prefix'))
+        operators = run.get('operators', [])
+
+        if run['literals']:
+            base_input = [str(v) for v in run['literals']]
+        elif prefix in ['and', 'filter', 'map', 'reduce', 'sort', 'intersection']:
+            base_input = current_values[:]
+        elif wiki_path:
+            base_input = list(tiddlers_dict.keys())
+        else:
+            base_input = []
+
+        if prefix == 'filter':
+            filtered = []
+            for item in base_input:
+                if apply_operators([item], operators):
+                    if item not in filtered:
+                        filtered.append(str(item))
+            new_values = filtered
+        elif prefix == 'map':
+            mapped = []
+            for item in base_input:
+                mapped.extend(apply_operators([item], operators))
+            new_values = [str(v) for v in mapped]
+        elif prefix == 'sort':
+            def sort_key(item):
+                res = apply_operators([item], operators)
+                return safe_str(res[0]) if res else ''
+            new_values = sorted(base_input, key=sort_key)
+        elif prefix == 'reduce':
+            accumulator = []
+            for item in base_input:
+                seed = accumulator + [item]
+                accumulator = apply_operators(seed, operators) if operators else seed
+            new_values = [str(v) for v in accumulator]
+        else:
+            new_values = apply_operators(base_input, operators)
+
         if prefix == 'and':
-            current_values = run_output
+            current_values = new_values
         elif prefix == 'except':
-            exclusion = set(run_output)
-            current_values = [v for v in current_values if v not in exclusion]
+            base_current = current_values if current_values else base_input
+            exclusion = set(new_values)
+            current_values = [v for v in base_current if v not in exclusion]
         elif prefix == 'else':
             if not current_values:
-                for v in run_output:
+                for v in new_values:
                     if v not in current_values:
                         current_values.append(v)
         elif prefix == 'all':
-            current_values.extend(run_output)
+            current_values.extend(new_values)
         elif prefix == 'intersection':
-            inclusion = set(run_output)
-            current_values = [v for v in current_values if v in inclusion]
+            base_current = current_values if current_values else base_input
+            inclusion = set(new_values)
+            current_values = [v for v in base_current if v in inclusion]
+        elif prefix in ('filter', 'map', 'reduce', 'sort'):
+            current_values = new_values
         else:  # default 'or' behaviour (append without duplicates)
-            for v in run_output:
+            for v in new_values:
                 if v not in current_values:
                     current_values.append(v)
 
