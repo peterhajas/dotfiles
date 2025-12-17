@@ -81,106 +81,52 @@ def parse_search_replace(param):
 
 
 def parse_filter_expression(filter_expr):
-    """Parse a TiddlyWiki filter expression into tokens.
+    """Parse a TiddlyWiki filter expression into runs with optional prefixes."""
+    # Split runs when we see a run prefix at depth 0; whitespace alone does not split runs
+    runs_raw = []
+    buf = ''
+    depth = 0
+    for idx, ch in enumerate(filter_expr):
+        if ch == '[':
+            depth += 1
+        elif ch == ']':
+            depth = max(0, depth - 1)
 
-    Returns a list of filter runs, where each run contains literals and operators.
-    Example: "[[5]]add[7]" -> [{'literals': ['5'], 'operators': [('add', '7')]}]
-    Example: "[[1]] [[2]]+[add[10]]" -> [
-        {'literals': ['1', '2'], 'operators': []},
-        {'literals': [], 'operators': [('add', '10')]}
-    ]
-    """
-    # Split into filter runs
-    runs = []
-    current_pos = 0
+        is_prefix_char = ch in '+-~=' and (idx + 1 < len(filter_expr) and filter_expr[idx + 1] == '[')
+        named_prefix_split = ch == ':' and buf.strip()
 
-    while current_pos < len(filter_expr):
-        # Skip whitespace
-        while current_pos < len(filter_expr) and filter_expr[current_pos].isspace():
-            current_pos += 1
+        if depth == 0 and (is_prefix_char or named_prefix_split):
+            if buf.strip():
+                runs_raw.append(buf.strip())
+                buf = ch
+                continue
+        if depth == 0 and ch.isspace():
+            buf += ' '
+            continue
+        buf += ch
+    if buf.strip():
+        runs_raw.append(buf.strip())
 
-        if current_pos >= len(filter_expr):
-            break
-
-        # Check for filter run prefix +[...]
-        if filter_expr[current_pos:current_pos+2] == '+[':
-            # Find matching ]
-            bracket_count = 0
-            pos = current_pos + 1  # Start after +
-            while pos < len(filter_expr):
-                if filter_expr[pos] == '[':
-                    bracket_count += 1
-                elif filter_expr[pos] == ']':
-                    bracket_count -= 1
-                    if bracket_count == 0:
-                        # Found matching ]
-                        run_text = filter_expr[current_pos+2:pos]  # Content inside +[...]
-                        runs.append((True, run_text))
-                        current_pos = pos + 1
-                        break
-                pos += 1
-            else:
-                raise ValueError("Unclosed filter run bracket")
-        else:
-            # Regular run (not additive) - continues until +[ or end
-            # Check if it starts with [ AND is a single wrapped run (not [[literal]])
-            if current_pos < len(filter_expr) and filter_expr[current_pos] == '[' and filter_expr[current_pos:current_pos+2] != '[[':
-                # Find matching ] for outer brackets
-                bracket_count = 0
-                pos = current_pos
-                found_wrapped = False
-                while pos < len(filter_expr):
-                    if filter_expr[pos] == '[':
-                        bracket_count += 1
-                    elif filter_expr[pos] == ']':
-                        bracket_count -= 1
-                        if bracket_count == 0:
-                            # Found matching ] - check if this is the end of the run
-                            # (i.e., nothing follows except whitespace or +[)
-                            rest = filter_expr[pos+1:].lstrip()
-                            if not rest or rest.startswith('+['):
-                                # This is a wrapped run
-                                run_text = filter_expr[current_pos+1:pos]  # Content inside [...]
-                                if run_text:
-                                    runs.append((False, run_text))
-                                current_pos = pos + 1
-                                found_wrapped = True
-                                break
-                            else:
-                                # Not a wrapped run, treat as unwrapped
-                                break
-                    pos += 1
-                else:
-                    raise ValueError("Unclosed filter run bracket")
-
-                # If we didn't find a wrapped run, treat as unwrapped
-                if not found_wrapped:
-                    next_run = filter_expr.find('+[', current_pos)
-                    if next_run == -1:
-                        run_end = len(filter_expr)
-                    else:
-                        run_end = next_run
-
-                    run_text = filter_expr[current_pos:run_end].strip()
-                    if run_text:
-                        runs.append((False, run_text))
-                    current_pos = run_end
-            else:
-                # No brackets or starts with [[, continues until +[ or end
-                next_run = filter_expr.find('+[', current_pos)
-                if next_run == -1:
-                    run_end = len(filter_expr)
-                else:
-                    run_end = next_run
-
-                run_text = filter_expr[current_pos:run_end].strip()
-                if run_text:
-                    runs.append((False, run_text))
-                current_pos = run_end
-
-    # Parse each run into literals and operators
     parsed_runs = []
-    for is_additive, run_text in runs:
+    for raw in runs_raw:
+        prefix = None
+        run_text = raw
+
+        # Named prefix :and, :or, etc.
+        if run_text.startswith(':'):
+            pos = 1
+            while pos < len(run_text) and (run_text[pos].isalnum() or run_text[pos] in '_-'):
+                pos += 1
+            prefix = run_text[1:pos]
+            run_text = run_text[pos:].strip()
+        elif run_text and run_text[0] in '+-~=':
+            prefix = run_text[0]
+            run_text = run_text[1:].strip()
+
+        # Strip single wrapping [ ] (but not [[literal]])
+        if run_text.startswith('[') and run_text.endswith(']') and not run_text.startswith('[['):
+            run_text = run_text[1:-1]
+
         literals = []
         operators = []
         pos = 0
@@ -189,11 +135,9 @@ def parse_filter_expression(filter_expr):
             # Skip whitespace
             while pos < len(run_text) and run_text[pos].isspace():
                 pos += 1
-
             if pos >= len(run_text):
                 break
 
-            # Check for literal [[...]]
             if run_text[pos:pos+2] == '[[':
                 end = run_text.find(']]', pos + 2)
                 if end == -1:
@@ -201,15 +145,17 @@ def parse_filter_expression(filter_expr):
                 literal_value = run_text[pos+2:end]
                 literals.append(literal_value)
                 pos = end + 2
-            # Check for operator name[param]
-            elif run_text[pos].isalpha():
-                # Find operator name (allow alphanumeric, underscore, and colon)
+            else:
                 name_start = pos
-                while pos < len(run_text) and (run_text[pos].isalnum() or run_text[pos] in '_:-'):
+                # Allow leading ! for negation
+                if run_text[pos] == '!':
+                    pos += 1
+                while pos < len(run_text) and (run_text[pos].isalnum() or run_text[pos] in '_:!-'):
                     pos += 1
                 operator_name = run_text[name_start:pos]
+                if not operator_name:
+                    raise ValueError(f"Unexpected character '{run_text[pos]}' at position {pos}")
 
-                # Check if it has a parameter [...]
                 if pos < len(run_text) and run_text[pos] == '[':
                     param_start = pos + 1
                     param_end = run_text.find(']', param_start)
@@ -219,13 +165,10 @@ def parse_filter_expression(filter_expr):
                     operators.append((operator_name, param_value))
                     pos = param_end + 1
                 else:
-                    # Operator with no parameter
                     operators.append((operator_name, None))
-            else:
-                raise ValueError(f"Unexpected character '{run_text[pos]}' at position {pos}")
 
         parsed_runs.append({
-            'is_additive': is_additive,
+            'prefix': prefix,
             'literals': literals,
             'operators': operators
         })
@@ -1493,8 +1436,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
         tiddlers_dict = {t['title']: t for t in tiddlers_list if 'title' in t}
 
     wiki_ops = {
-        'tag', 'tagging', 'tags', 'untagged', 'has', 'get', 'getindex', 'jsonget', 'jsonextract',
-        'jsonindexes', 'jsontype', 'indexes', 'field', 'list', 'listed', 'contains', 'is', 'haschanged',
+        'tag', 'tagging', 'tags', 'untagged', 'has', 'get', 'getindex', 'indexes', 'field', 'list', 'listed', 'contains', 'is', 'haschanged',
         'sort', 'sortcs', 'nsort', 'nsortcs', 'sortan', 'sortby', 'sortsub', 'each', 'eachday', 'min',
         'max', 'all', 'days', 'sameday', 'backlinks', 'links', 'backtranscludes', 'transcludes',
         'search', 'duplicateslugs', 'filter', 'subfilter', 'reduce', 'enlist', 'enlist-input', 'lookup',
@@ -1511,58 +1453,92 @@ def evaluate_filter(filter_expr, wiki_path=None):
         'toggle', 'cycle', 'insertafter', 'insertbefore', 'move', 'putafter', 'putbefore', 'putfirst',
         'putlast', 'then', 'else', 'next', 'previous'
     }
-    # Start with empty list, or all tiddler titles if first run has no literals and wiki_path provided
+    def normalize_prefix(raw_prefix):
+        if raw_prefix is None or raw_prefix == '':
+            return 'or'
+        mapping = {
+            '+': 'and',
+            '-': 'except',
+            '~': 'else',
+            '=': 'all',
+            'and': 'and',
+            'or': 'or',
+            'except': 'except',
+            'else': 'else',
+            'all': 'all',
+            'intersection': 'intersection',
+            'filter': 'and',
+            'map': 'and',
+            'reduce': 'and',
+            'sort': 'and',
+            'cascade': 'and',
+            'then': 'and'
+        }
+        return mapping.get(raw_prefix.lower(), 'or')
+
+    def evaluate_run(run, current_output):
+        prefix = normalize_prefix(run.get('prefix'))
+
+        if run['literals']:
+            values = [str(v) for v in run['literals']]
+        elif prefix in ['and', 'intersection']:
+            values = current_output[:]
+        elif wiki_path:
+            values = list(tiddlers_dict.keys())
+        else:
+            values = []
+
+        for operator_name, param in run['operators']:
+            negated = operator_name.startswith('!')
+            op_clean = operator_name[1:] if negated else operator_name
+            name_lower = op_clean.lower()
+
+            if name_lower in wiki_ops or name_lower in ['created:after', 'created:before', 'modified:after', 'modified:before'] or ':' in op_clean:
+                if not wiki_path:
+                    raise ValueError(f"Operator '{op_clean}' requires a wiki file")
+                step_output = apply_wiki_operator(op_clean, param, values, tiddlers_dict)
+            elif name_lower in list_ops:
+                step_output = apply_list_operator(op_clean, param, values)
+            else:
+                step_output = []
+                for v in values:
+                    result = apply_operator(op_clean, param, v)
+                    if isinstance(result, list):
+                        step_output.extend([str(item) for item in result])
+                    elif result is not None:
+                        step_output.append(str(result))
+
+            if negated:
+                exclusion = set(step_output)
+                values = [v for v in values if v not in exclusion]
+            else:
+                values = [str(v) for v in step_output]
+
+        return values, prefix
+
     current_values = []
 
-    for run_idx, run in enumerate(runs):
-        if run['is_additive']:
-            # Additive run: apply operators to current values
-            new_values = current_values[:]
-        else:
-            # Replace run: start with literals
-            new_values = run['literals'][:]
-            # Special case: if first run has no literals and wiki_path provided, start with all tiddlers
-            if run_idx == 0 and not new_values and wiki_path:
-                new_values = list(tiddlers_dict.keys())
-
-        # Apply each operator to all current values
-        for operator_name, param in run['operators']:
-            name_lower = operator_name.lower()
-            # Wiki operators (require wiki_path)
-            if wiki_path and (name_lower in wiki_ops or name_lower in ['created:after', 'created:before', 'modified:after', 'modified:before']):
-                new_values = apply_wiki_operator(operator_name, param, new_values, tiddlers_dict)
-                continue
-
-            # List-level operators
-            if name_lower in list_ops:
-                new_values = apply_list_operator(operator_name, param, new_values)
-                continue
-
-            # Item-level operators
-            temp_values = []
-            failed_item_op = False
-            for v in new_values:
-                try:
-                    result = apply_operator(operator_name, param, v)
-                except ValueError as e:
-                    if str(e).startswith("Unknown operator"):
-                        failed_item_op = True
-                        break
-                    raise
-                else:
-                    if isinstance(result, list):
-                        temp_values.extend([str(item) for item in result])
-                    elif result is not None:
-                        temp_values.append(str(result))
-            if failed_item_op:
-                if wiki_path:
-                    new_values = apply_wiki_operator(operator_name, param, new_values, tiddlers_dict)
-                else:
-                    raise ValueError(f"Unknown operator: {operator_name}")
-            else:
-                new_values = temp_values
-
-        current_values = new_values
+    for run in runs:
+        run_output, prefix = evaluate_run(run, current_values)
+        if prefix == 'and':
+            current_values = run_output
+        elif prefix == 'except':
+            exclusion = set(run_output)
+            current_values = [v for v in current_values if v not in exclusion]
+        elif prefix == 'else':
+            if not current_values:
+                for v in run_output:
+                    if v not in current_values:
+                        current_values.append(v)
+        elif prefix == 'all':
+            current_values.extend(run_output)
+        elif prefix == 'intersection':
+            inclusion = set(run_output)
+            current_values = [v for v in current_values if v in inclusion]
+        else:  # default 'or' behaviour (append without duplicates)
+            for v in run_output:
+                if v not in current_values:
+                    current_values.append(v)
 
     return current_values
 

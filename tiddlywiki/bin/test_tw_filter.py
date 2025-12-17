@@ -1670,6 +1670,29 @@ class TestPatternMatchingOperators(unittest.TestCase):
         self.assertIsInstance(results, list)
 
 
+class TestFilterRunPrefixes(unittest.TestCase):
+    """Validate shortcut and named filter run prefixes"""
+
+    def test_default_or_union(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[a]] [[b]]'), ['a', 'b'])
+
+    def test_and_prefix_shortcut(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] +[addsuffix[x]]'), ['ax', 'bx'])
+
+    def test_except_prefix(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] -[[a]]'), ['b'])
+
+    def test_else_prefix(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[a]]prefix[z] ~[[b]]'), ['b'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] ~[[b]]'), ['a'])
+
+    def test_all_prefix_preserves_duplicates(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] =[[a]]'), ['a', 'a'])
+
+    def test_named_intersection_prefix(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] :intersection[[b]]'), ['b'])
+
+
 class TestAdditionalItemAndListOperators(unittest.TestCase):
     """Broader coverage of item-level and list-level operators"""
 
