@@ -6,6 +6,7 @@ local M = {}
 local tw_wrapper = require("tw.tw_wrapper")
 local buffer_manager = require("tw.buffer")
 local telescope_picker = require("tw.telescope")
+local sidebar = require("tw.sidebar")
 
 -- Setup function
 function M.setup(opts)
@@ -17,6 +18,11 @@ function M.setup(opts)
 
   -- Setup buffer management
   buffer_manager.setup()
+
+  -- Setup sidebar
+  if opts.sidebar then
+    sidebar.setup(opts.sidebar)
+  end
 
   -- Auto-open wiki files when opening .html files
   if opts.auto_open_wiki_files then
@@ -82,6 +88,11 @@ function M.setup(opts)
     telescope_picker.grep()
   end, { desc = "Search tiddler content" })
 
+  vim.api.nvim_create_user_command("TiddlerFilter", function(args)
+    local filter_expr = args.args ~= "" and args.args or nil
+    telescope_picker.filter_picker({ filter_expr = filter_expr })
+  end, { nargs = "?", desc = "Filter tiddlers by TiddlyWiki filter expression" })
+
   vim.api.nvim_create_user_command("TiddlerAppend", function(args)
     local bufnr = vim.api.nvim_get_current_buf()
     local bufname = vim.api.nvim_buf_get_name(bufnr)
@@ -134,6 +145,23 @@ function M.setup(opts)
     end
   end, { nargs = "+", desc = "Set field on current tiddler" })
 
+  -- Sidebar commands
+  vim.api.nvim_create_user_command("TiddlerSidebarToggle", function()
+    sidebar.toggle()
+  end, { desc = "Toggle TiddlyWiki sidebar" })
+
+  vim.api.nvim_create_user_command("TiddlerSidebarOpen", function()
+    sidebar.open()
+  end, { desc = "Open TiddlyWiki sidebar" })
+
+  vim.api.nvim_create_user_command("TiddlerSidebarClose", function()
+    sidebar.close()
+  end, { desc = "Close TiddlyWiki sidebar" })
+
+  vim.api.nvim_create_user_command("TiddlerSidebarRefresh", function()
+    sidebar.refresh()
+  end, { desc = "Refresh TiddlyWiki sidebar" })
+
   -- Optional: setup keybindings if provided
   if opts.keybindings then
     if opts.keybindings.edit then
@@ -145,6 +173,11 @@ function M.setup(opts)
       -- Use <Cmd> mapping to avoid timeout delays that cause characters to leak into prompt
       vim.keymap.set("n", opts.keybindings.grep, "<Cmd>TiddlerGrep<CR>", { desc = "Search tiddler content" })
     end
+
+    if opts.keybindings.sidebar_toggle then
+      -- Use <Cmd> mapping for sidebar toggle
+      vim.keymap.set("n", opts.keybindings.sidebar_toggle, "<Cmd>TiddlerSidebarToggle<CR>", { desc = "Toggle TiddlyWiki sidebar" })
+    end
   end
 end
 
@@ -152,5 +185,6 @@ end
 M.buffer = buffer_manager
 M.telescope = telescope_picker
 M.tw = tw_wrapper
+M.sidebar = sidebar
 
 return M

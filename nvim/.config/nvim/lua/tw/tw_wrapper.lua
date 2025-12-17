@@ -380,4 +380,27 @@ function M.grep(pattern, opts)
   return results
 end
 
+-- Filter tiddlers by filter expression
+-- Returns table of tiddler names matching the filter
+function M.filter(filter_expr)
+  local cmd = build_tw_cmd(string.format("filter %s", vim.fn.shellescape(filter_expr)))
+  local output = vim.fn.system(cmd)
+
+  if vim.v.shell_error ~= 0 then
+    vim.notify("Filter error: " .. output, vim.log.levels.ERROR)
+    return {}
+  end
+
+  -- Parse output (one result per line)
+  local results = {}
+  for line in output:gmatch("[^\r\n]+") do
+    local trimmed = line:match("^%s*(.-)%s*$")  -- Trim whitespace
+    if trimmed ~= "" then
+      table.insert(results, trimmed)
+    end
+  end
+
+  return results
+end
+
 return M

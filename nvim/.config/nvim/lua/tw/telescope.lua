@@ -207,4 +207,64 @@ function M.grep(opts)
   }):find()
 end
 
+-- Create filter picker (generic TiddlyWiki filter expressions)
+function M.filter_picker(opts)
+  opts = opts or {}
+  local filter_expr = opts.filter_expr
+
+  -- If no filter expression, prompt for one
+  if not filter_expr then
+    filter_expr = vim.fn.input("Filter expression: ")
+    if filter_expr == "" then
+      vim.notify("No filter expression provided", vim.log.levels.WARN)
+      return
+    end
+  end
+
+  -- Get filtered tiddlers
+  local tiddlers = tw_wrapper.filter(filter_expr)
+
+  if #tiddlers == 0 then
+    vim.notify("No tiddlers match filter: " .. filter_expr, vim.log.levels.WARN)
+    return
+  end
+
+  pickers.new(opts, {
+    prompt_title = "Filtered Tiddlers: " .. filter_expr,
+    finder = finders.new_table({
+      results = tiddlers,
+    }),
+    sorter = conf.generic_sorter(opts),
+    previewer = previewers.new_buffer_previewer({
+      title = "Tiddler Preview",
+      define_preview = function(self, entry, status)
+        -- Get tiddler content
+        local content = tw_wrapper.get(entry.value)
+
+        if content then
+          -- Split into lines and display in preview
+          local lines = vim.split(content, "\n", { plain = true })
+          vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
+
+          -- Set filetype to tiddlywiki for custom syntax highlighting
+          vim.api.nvim_buf_set_option(self.state.bufnr, "filetype", "tiddlywiki")
+        end
+      end,
+    }),
+    attach_mappings = function(prompt_bufnr, map)
+      -- Default action: open tiddler
+      actions.select_default:replace(function()
+        actions.close(prompt_bufnr)
+        local selection = action_state.get_selected_entry()
+        if selection then
+          buffer_manager.open(selection.value)
+        end
+      end)
+
+      -- Keep default mappings
+      return true
+    end,
+  }):find()
+end
+
 return M
