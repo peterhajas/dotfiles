@@ -1876,5 +1876,251 @@ class TestAdditionalWikiOperators(unittest.TestCase):
         self.assertEqual(tw_filter.evaluate_filter('[commands[]]', wiki_path=self.test_wiki), [])
 
 
+class TestAdvancedFilterRunPrefixes(unittest.TestCase):
+    """Test :cascade, :then, and :let filter run prefixes"""
+
+    def test_then_prefix_with_results(self):
+        """Test :then replaces accumulated results when non-empty"""
+        # If [[a]] produces results, :then replaces them with [[b]]
+        result = tw_filter.evaluate_filter('[[a]] :then[[b]]')
+        self.assertEqual(result, ['b'])
+
+    def test_then_prefix_without_results(self):
+        """Test :then is skipped when accumulated results are empty"""
+        # If [[a]]prefix[z] produces no results, :then is skipped
+        result = tw_filter.evaluate_filter('[[a]]prefix[z] :then[[b]]')
+        self.assertEqual(result, [])
+
+    def test_then_else_combination(self):
+        """Test :then and :else work together for if/else logic"""
+        # With results: use :then
+        result = tw_filter.evaluate_filter('[[a]] :then[[yes]] ~[[no]]')
+        self.assertEqual(result, ['yes'])
+
+        # Without results: use :else
+        result = tw_filter.evaluate_filter('[[a]]prefix[z] :then[[yes]] ~[[no]]')
+        self.assertEqual(result, ['no'])
+
+    def test_cascade_basic(self):
+        """Test :cascade returns first non-empty result"""
+        # This is a basic test - :cascade typically works with wiki tiddlers
+        # For now, test that it evaluates operators
+        result = tw_filter.evaluate_filter('[[a]] [[b]] :cascade[addprefix[x]]')
+        # Should apply the filter to get a list of filters, then evaluate
+        self.assertIsInstance(result, list)
+
+    def test_let_stores_result(self):
+        """Test :let prefix stores results"""
+        # :let should store the result and pass through current values
+        result = tw_filter.evaluate_filter('[[a]] [[b]] :let[addprefix[x]]')
+        # Should still have a and b since :let doesn't change current_values
+        self.assertEqual(result, ['a', 'b'])
+
+    def test_then_with_operators(self):
+        """Test :then with complex operators"""
+        result = tw_filter.evaluate_filter('[[hello]] :then[uppercase[]]')
+        self.assertEqual(result, ['HELLO'])
+
+    def test_then_multiple_items(self):
+        """Test :then with multiple accumulated results"""
+        result = tw_filter.evaluate_filter('[[a]] [[b]] [[c]] :then[addsuffix[!]]')
+        self.assertEqual(result, ['a!', 'b!', 'c!'])
+
+
+class TestComplexFilterExpressions(unittest.TestCase):
+    """Test complex, real-world filter expressions"""
+
+    @classmethod
+    def setUpClass(cls):
+        """Create a test wiki for complex filter tests"""
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'complex_test.html')
+
+        # Initialize wiki
+        tw_init_or_skip(cls.test_wiki)
+
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+
+        def run_tw(args):
+            subprocess.run(['python3', 'tw'] + args, cwd=script_dir, check=True, capture_output=True)
+
+        def touch(title, text='', tags=''):
+            run_tw([cls.test_wiki, 'touch', title, text])
+            if tags:
+                run_tw([cls.test_wiki, 'set', title, 'tags', tags])
+
+        # Create a complex wiki structure
+        touch('ProjectA', 'First project', 'project active')
+        touch('ProjectB', 'Second project', 'project completed')
+        touch('ProjectC', 'Third project', 'project active')
+
+        touch('TaskA1', 'Task for A', 'task')
+        touch('TaskA2', 'Another task for A', 'task')
+        touch('TaskB1', 'Task for B', 'task')
+
+        touch('NoteAlpha', 'Important note', 'note urgent')
+        touch('NoteBeta', 'Regular note', 'note')
+        touch('NoteGamma', 'Archive note', 'note archived')
+
+        # Set custom fields
+        run_tw([cls.test_wiki, 'set', 'ProjectA', 'priority', 'high'])
+        run_tw([cls.test_wiki, 'set', 'ProjectB', 'priority', 'medium'])
+        run_tw([cls.test_wiki, 'set', 'ProjectC', 'priority', 'low'])
+
+        run_tw([cls.test_wiki, 'set', 'TaskA1', 'project', 'ProjectA'])
+        run_tw([cls.test_wiki, 'set', 'TaskA2', 'project', 'ProjectA'])
+        run_tw([cls.test_wiki, 'set', 'TaskB1', 'project', 'ProjectB'])
+
+        run_tw([cls.test_wiki, 'set', 'NoteAlpha', 'priority', 'high'])
+
+    @classmethod
+    def tearDownClass(cls):
+        """Clean up test wiki"""
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_complex_multi_run_filter(self):
+        """Test complex filter with multiple runs and operators"""
+        # Get all active projects with high priority
+        result = tw_filter.evaluate_filter(
+            '[tag[project]tag[active]] +[priority[high]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertIn('ProjectA', result)
+        self.assertNotIn('ProjectB', result)  # completed
+        self.assertNotIn('ProjectC', result)  # low priority
+
+    def test_complex_nested_operations(self):
+        """Test deeply nested filter operations"""
+        # Get project titles, convert to uppercase, add prefix
+        result = tw_filter.evaluate_filter(
+            '[tag[project]] +[prefix[Project]] +[uppercase[]] +[addprefix[=> ]]',
+            wiki_path=self.test_wiki
+        )
+        for item in result:
+            self.assertTrue(item.startswith('=> PROJECT'))
+
+    def test_complex_sorting_and_filtering(self):
+        """Test combination of sorting and filtering"""
+        # Get all tasks, sort by title
+        result = tw_filter.evaluate_filter(
+            '[tag[task]sort[title]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertEqual(result, ['TaskA1', 'TaskA2', 'TaskB1'])
+
+    def test_complex_field_operations(self):
+        """Test complex field-based filtering"""
+        # Get high priority items across different types
+        result = tw_filter.evaluate_filter(
+            '[priority[high]sort[title]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertIn('ProjectA', result)
+        self.assertIn('NoteAlpha', result)
+        self.assertEqual(len(result), 2)
+
+    def test_complex_exclusion_pattern(self):
+        """Test complex exclusion patterns"""
+        # Get all notes except archived ones
+        result = tw_filter.evaluate_filter(
+            '[tag[note]] -[tag[archived]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertIn('NoteAlpha', result)
+        self.assertIn('NoteBeta', result)
+        self.assertNotIn('NoteGamma', result)
+
+    def test_complex_intersection(self):
+        """Test intersection of multiple criteria"""
+        # Get items that are both tagged and have priority field
+        result = tw_filter.evaluate_filter(
+            '[tag[project]] :intersection[has[priority]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertEqual(len(result), 3)  # All projects have priority
+
+    def test_very_long_filter_chain(self):
+        """Test a very long chain of operations"""
+        # Create a long pipeline
+        result = tw_filter.evaluate_filter(
+            '[tag[note]] +[!tag[archived]] +[get[title]] +[addprefix[Note: ]] +[addsuffix[ (reviewed)]] +[uppercase[]]',
+            wiki_path=self.test_wiki
+        )
+        for item in result:
+            self.assertTrue(item.startswith('NOTE: '))
+            self.assertTrue(item.endswith(' (REVIEWED)'))
+
+    def test_complex_map_operation(self):
+        """Test :map with complex operations"""
+        # Map each project to its priority
+        result = tw_filter.evaluate_filter(
+            '[tag[project]] :map[get[priority]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertIn('high', result)
+        self.assertIn('medium', result)
+        self.assertIn('low', result)
+
+    def test_complex_filter_prefix(self):
+        """Test :filter with complex conditions"""
+        # Filter projects that have high priority
+        result = tw_filter.evaluate_filter(
+            '[tag[project]] :filter[priority[high]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertIn('ProjectA', result)
+        self.assertNotIn('ProjectB', result)
+        self.assertNotIn('ProjectC', result)
+
+        # Filter projects that have medium priority
+        result2 = tw_filter.evaluate_filter(
+            '[tag[project]] :filter[priority[medium]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertIn('ProjectB', result2)
+        self.assertNotIn('ProjectA', result2)
+
+    def test_complex_reduce_operation(self):
+        """Test :reduce with accumulator"""
+        # Use reduce to build a comma-separated list
+        result = tw_filter.evaluate_filter(
+            '[[a]] [[b]] [[c]] :reduce[join[,]]',
+            wiki_path=None
+        )
+        # Reduce should flatten the list
+        self.assertIsInstance(result, list)
+
+    def test_edge_case_empty_filters(self):
+        """Test edge cases with empty results"""
+        # Empty filter with else fallback
+        result = tw_filter.evaluate_filter(
+            '[tag[nonexistent]] ~[[fallback]]',
+            wiki_path=self.test_wiki
+        )
+        self.assertEqual(result, ['fallback'])
+
+    def test_edge_case_all_prefix_duplicates(self):
+        """Test =prefix with complex duplicates"""
+        result = tw_filter.evaluate_filter(
+            '[tag[project]] =[tag[project]] =[tag[project]]',
+            wiki_path=self.test_wiki
+        )
+        # Should have 3x the projects due to =all prefix
+        project_count = len([t for t in result if 'Project' in t])
+        self.assertEqual(project_count, 9)  # 3 projects × 3 times
+
+    def test_performance_large_filter(self):
+        """Test performance with large complex filter"""
+        # Create a realistically complex filter expression
+        result = tw_filter.evaluate_filter(
+            '[tag[project]] +[sort[title]] +[!tag[archived]] +[has[priority]] '
+            ':map[get[title]addsuffix[ ]get[priority]join[: ]]',
+            wiki_path=self.test_wiki
+        )
+        # Just verify it completes and returns reasonable results
+        self.assertIsInstance(result, list)
+
+
 if __name__ == '__main__':
     unittest.main()

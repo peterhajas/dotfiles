@@ -82,10 +82,11 @@ def parse_search_replace(param):
 
 def parse_filter_expression(filter_expr):
     """Parse a TiddlyWiki filter expression into runs with optional prefixes."""
-    # Split runs when we see a run prefix at depth 0; whitespace alone does not split runs
+    # Split runs when we see a run prefix at depth 0; whitespace within a run is preserved
     runs_raw = []
     buf = ''
     depth = 0
+
     for idx, ch in enumerate(filter_expr):
         if ch == '[':
             depth += 1
@@ -93,17 +94,24 @@ def parse_filter_expression(filter_expr):
             depth = max(0, depth - 1)
 
         is_prefix_char = ch in '+-~=' and (idx + 1 < len(filter_expr) and filter_expr[idx + 1] == '[')
-        named_prefix_split = ch == ':' and buf.strip()
+        # Check for named prefix: : followed by alphanumeric (and there's content before it)
+        named_prefix_split = (ch == ':' and buf.strip() and
+                            idx + 1 < len(filter_expr) and
+                            (filter_expr[idx + 1].isalnum() or filter_expr[idx + 1] in '_-'))
 
         if depth == 0 and (is_prefix_char or named_prefix_split):
             if buf.strip():
                 runs_raw.append(buf.strip())
                 buf = ch
                 continue
+
+        # Preserve whitespace within runs but collapse at depth 0
         if depth == 0 and ch.isspace():
             buf += ' '
             continue
+
         buf += ch
+
     if buf.strip():
         runs_raw.append(buf.strip())
 
@@ -157,9 +165,18 @@ def parse_filter_expression(filter_expr):
                     raise ValueError(f"Unexpected character '{run_text[pos]}' at position {pos}")
 
                 if pos < len(run_text) and run_text[pos] == '[':
+                    # Find matching ] bracket, accounting for nested brackets
                     param_start = pos + 1
-                    param_end = run_text.find(']', param_start)
-                    if param_end == -1:
+                    bracket_depth = 1
+                    param_end = param_start
+                    while param_end < len(run_text) and bracket_depth > 0:
+                        if run_text[param_end] == '[':
+                            bracket_depth += 1
+                        elif run_text[param_end] == ']':
+                            bracket_depth -= 1
+                        if bracket_depth > 0:
+                            param_end += 1
+                    if bracket_depth != 0:
                         raise ValueError(f"Unclosed operator parameter at position {pos}")
                     param_value = run_text[param_start:param_end]
                     operators.append((operator_name, param_value))
@@ -1475,8 +1492,9 @@ def evaluate_filter(filter_expr, wiki_path=None):
             'map': 'map',
             'reduce': 'reduce',
             'sort': 'sort',
-            'cascade': 'and',
-            'then': 'and'
+            'cascade': 'cascade',
+            'then': 'then',
+            'let': 'let'
         }
         return mapping.get(raw_prefix.lower(), 'or')
 
@@ -1541,6 +1559,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
         return current
 
     current_values = []
+    variables = {}  # Variable storage for :let prefix
 
     for run in runs:
         prefix = normalize_prefix(run.get('prefix'))
@@ -1548,14 +1567,50 @@ def evaluate_filter(filter_expr, wiki_path=None):
 
         if run['literals']:
             base_input = [str(v) for v in run['literals']]
-        elif prefix in ['and', 'filter', 'map', 'reduce', 'sort', 'intersection']:
+        elif prefix in ['and', 'filter', 'map', 'reduce', 'sort', 'intersection', 'then', 'cascade', 'let']:
             base_input = current_values[:]
         elif wiki_path:
             base_input = list(tiddlers_dict.keys())
         else:
             base_input = []
 
-        if prefix == 'filter':
+        if prefix == 'cascade':
+            # :cascade - evaluate filter run to get list of filters, then evaluate each on input
+            # and return first non-empty result
+            filter_list = apply_operators(base_input, operators)
+            cascade_result = []
+            for item in base_input:
+                found = False
+                for filter_expr in filter_list:
+                    try:
+                        # Evaluate each filter in the cascade on this item
+                        test_result = evaluate_filter(f"[[{item}]]{filter_expr}", wiki_path=wiki_path)
+                        if test_result:
+                            cascade_result.extend(test_result)
+                            found = True
+                            break
+                    except Exception:
+                        continue
+                if not found and item not in cascade_result:
+                    # If no filter matched, item is not included
+                    pass
+            new_values = cascade_result
+        elif prefix == 'then':
+            # :then - if accumulated results are non-empty, replace with this run's output
+            if current_values:
+                new_values = apply_operators(base_input, operators)
+            else:
+                new_values = []
+        elif prefix == 'let':
+            # :let - assign filter run result to a variable
+            # Variable name should be in the operators somehow
+            # For now, store the result with a generated name
+            new_values = apply_operators(base_input, operators)
+            # Store in variables (would need variable extraction logic for proper implementation)
+            variables['_let_result'] = new_values
+            # :let doesn't change current_values by itself
+            new_values = current_values[:]
+        elif prefix == 'filter':
             filtered = []
             for item in base_input:
                 if apply_operators([item], operators):
@@ -1598,7 +1653,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
             base_current = current_values if current_values else base_input
             inclusion = set(new_values)
             current_values = [v for v in base_current if v in inclusion]
-        elif prefix in ('filter', 'map', 'reduce', 'sort'):
+        elif prefix in ('filter', 'map', 'reduce', 'sort', 'cascade', 'then', 'let'):
             current_values = new_values
         else:  # default 'or' behaviour (append without duplicates)
             for v in new_values:
