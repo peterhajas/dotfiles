@@ -315,12 +315,19 @@ def is_special_ai(win: Dict[str, Any]) -> bool:
     title = win.get("title", "")
     low_app = app.lower()
     low_title = title.lower()
-    if any(
-        key in low_app
-        for key in ["claude", "chatgpt", "codex", "openai"]
-    ):
+
+    # Only match specific cases:
+    # 1. Ghostty windows with "claude" in the title
+    if low_app == "ghostty" and "claude" in low_title:
         return True
-    return low_title.startswith("claude") or low_title.startswith("codex") or low_title.startswith("chatgpt")
+    # 2. Claude.app
+    if low_app == "claude":
+        return True
+    # 3. ChatGPT.app
+    if low_app == "chatgpt":
+        return True
+
+    return False
 
 
 def rule_matches_window(rule: Dict[str, Any], win: Dict[str, Any]) -> bool:
