@@ -301,9 +301,17 @@ end
 
 function M.removeSession(sessionId)
     if state.sessions[sessionId] then
-        state.sessions[sessionId] = nil
-        log("Removed session: " .. sessionId)
+        -- First set to "removing" status to trigger fade-out animation
+        state.sessions[sessionId].status = "removing"
+        state.sessions[sessionId].status_text = "Done"
         M.refreshUI()
+
+        -- Actually remove after fade-out animation completes (500ms)
+        hs.timer.doAfter(0.6, function()
+            state.sessions[sessionId] = nil
+            log("Removed session: " .. sessionId)
+            M.refreshUI()
+        end)
     end
 end
 
@@ -393,18 +401,19 @@ end
 
 function M.cleanupStale()
     local now = os.time()
-    local removed = 0
+    local toRemove = {}
 
     for session_id, session in pairs(state.sessions) do
-        if now - session.last_update > M.config.sessionTimeout then
-            state.sessions[session_id] = nil
-            removed = removed + 1
+        if now - session.last_update > M.config.sessionTimeout and session.status ~= "removing" then
+            table.insert(toRemove, session_id)
         end
     end
 
-    if removed > 0 then
-        log(string.format("Cleaned up %d stale session(s)", removed))
-        M.refreshUI()
+    if #toRemove > 0 then
+        log(string.format("Cleaning up %d stale session(s)", #toRemove))
+        for _, session_id in ipairs(toRemove) do
+            M.removeSession(session_id)
+        end
     end
 end
 

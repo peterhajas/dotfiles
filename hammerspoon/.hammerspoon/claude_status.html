@@ -57,7 +57,22 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            transition: transform 0.3s ease;
+            transition: transform 0.3s ease, opacity 0.5s ease;
+            animation: fadeIn 0.5s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .claude-mascot[data-status="removing"] {
+            animation: fadeOut 0.5s ease forwards;
         }
 
         .claude-mascot:hover .claude-tooltip {
@@ -256,6 +271,12 @@
         .claude-mascot[data-status="waiting_permission"] .claude-icon {
             animation: none;
             filter: grayscale(100%) brightness(1.2) sepia(100%) hue-rotate(var(--hue, 0deg)) saturate(6) drop-shadow(0 0 12px currentColor);
+        }
+
+        /* Removing - no animation, just fade out */
+        .claude-mascot[data-status="removing"] .claude-icon {
+            animation: none;
+            filter: grayscale(100%) brightness(0.8) sepia(100%) hue-rotate(var(--hue, 0deg)) saturate(3) drop-shadow(0 0 4px currentColor);
         }
 
         /* Scrollbar */
