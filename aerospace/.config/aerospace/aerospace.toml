@@ -17,9 +17,9 @@ exec-on-workspace-change = [
 [gaps]
 inner.horizontal = 0
 inner.vertical = 0
-outer.left = [{ monitor.main = 194}, 0]
+outer.left = 0
 outer.bottom = 0
-outer.top = [{ monitor.main = 30}, 0]
+outer.top = 0
 outer.right = [{ monitor.main = 194}, 0]
 
 [mode.main.binding]
@@ -81,6 +81,13 @@ r = 'mode main'
 
 # Monitor Configs
 [workspace-to-monitor-force-assignment]
+# Bucket workspaces for multi-display tiling (with fallbacks for undocked mode)
+# Pattern arrays: tries each pattern in order, falls back to 'main' if none match
+21 = ['^SyncMaster \(1\)$', 1, 'main']  # AI apps: prefer first external, fallback to main
+23 = ['^SyncMaster \(2\)$', 2, 'main']  # Regular apps: prefer second external, fallback to main
+25 = ['^SyncMaster \(2\)$', 2, 'main']  # Sysmon: prefer second external, fallback to main
+
+# Existing monitor assignments
 11 = '^SyncMaster \(2\)$'
 12 = '^SyncMaster \(1\)$'
 
@@ -127,6 +134,17 @@ run = "move-node-to-workspace 10"
 if.app-name-regex-substring = 'mpv'
 # run = ["layout floating", "move-node-to-workspace 7"]
 run = "move-node-to-workspace 7"
+
+# Bucket workspaces (21-25) for multi-display tiling
+# AI apps go to workspace 21 (leftmost/far_left bucket)
+[[on-window-detected]]
+if.app-name-regex-substring = 'Claude|ChatGPT|Codex|OpenAI'
+run = "move-node-to-workspace 21"
+
+# Sysmon windows go to workspace 25 (rightmost/far_right bucket)
+[[on-window-detected]]
+if.window-title-regex-substring = 'sysmon'
+run = "move-node-to-workspace 25"
 
 [[on-window-detected]]
 if.app-name-regex-substring = 'com.valvesoftware.steam'
