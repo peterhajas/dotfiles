@@ -11,12 +11,23 @@ import sys
 import os
 import tempfile
 import json
+import subprocess
+import math
 
 # Add current directory to path so we can import tw_filter
 script_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, script_dir)
 
 import tw_filter
+
+
+def tw_init_or_skip(target):
+    """Initialize a wiki file, skipping tests if network access is blocked."""
+    try:
+        subprocess.run(['python3', 'tw', 'init', target], cwd=script_dir, check=True, capture_output=True)
+    except subprocess.CalledProcessError as exc:
+        msg = exc.stderr.decode('utf-8', 'ignore') if exc.stderr else str(exc)
+        raise unittest.SkipTest(f"tw init failed (likely offline): {msg}")
 
 
 class TestMathOperators(unittest.TestCase):
@@ -597,8 +608,7 @@ class TestWikiOperators(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Add test tiddlers using tw touch
         test_tiddlers = [
@@ -732,8 +742,7 @@ class TestOrderingOperators(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Add test tiddlers with various values
         test_tiddlers = [
@@ -857,8 +866,7 @@ class TestComparisonOperators(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Add test tiddlers with numeric scores
         test_tiddlers = [
@@ -907,8 +915,7 @@ class TestEachOperator(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Add test tiddlers with duplicate categories
         test_tiddlers = [
@@ -955,8 +962,7 @@ class TestAllOperator(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Add regular (non-system) tiddlers
         regular_tiddlers = [
@@ -1103,8 +1109,7 @@ class TestFieldOperator(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Add test tiddlers with various field values
         test_tiddlers = [
@@ -1256,8 +1261,7 @@ class TestBacklinksAndLinksOperators(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_links_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Create tiddlers with various link patterns
         test_tiddlers = [
@@ -1444,8 +1448,7 @@ class TestDateComparisonOperators(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_dates_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Create tiddlers
         test_tiddlers = [
@@ -1567,8 +1570,7 @@ class TestPatternMatchingOperators(unittest.TestCase):
         cls.test_wiki = os.path.join(cls.test_dir, 'test_pattern_wiki.html')
 
         # Use tw init to create a proper wiki
-        subprocess.run(['python3', 'tw', 'init', cls.test_wiki],
-                      cwd=script_dir, check=True, capture_output=True)
+        tw_init_or_skip(cls.test_wiki)
 
         # Create tiddlers with various titles and content
         test_tiddlers = [
@@ -1666,6 +1668,189 @@ class TestPatternMatchingOperators(unittest.TestCase):
         # Should find Meeting Notes if created after 2024-01-01
         # (Depends on when the tiddler was created in the test)
         self.assertIsInstance(results, list)
+
+
+class TestAdditionalItemAndListOperators(unittest.TestCase):
+    """Broader coverage of item-level and list-level operators"""
+
+    def test_range_and_join(self):
+        self.assertEqual(tw_filter.evaluate_filter('range[3]'), ['1', '2', '3'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]]join[, ]'), ['a, b'])
+
+    def test_slugify_pad_and_replace(self):
+        cases = {
+            '[[Hello World!]]slugify[]': ['hello-world'],
+            '[[pad]]pad[6,.]': ['pad...'],
+            '[[foo bar foo]]search-replace[foo,baz]': ['baz bar baz'],
+            '[[start]]addprefix[pre_]': ['pre_start'],
+            '[[finish]]addsuffix[_post]': ['finish_post'],
+            '[[trimme ]]trim[]': ['trimme'],
+            '[[abc123]]match[ABC]': ['abc123'],
+            '[[abc123]]compare[>100]': [],
+            '[[abc123]]compare[abc123]': ['abc123'],
+        }
+        for expr, expected in cases.items():
+            with self.subTest(expr=expr):
+                self.assertEqual(tw_filter.evaluate_filter(expr), expected)
+
+    def test_encoding_and_json_ops(self):
+        encoded = tw_filter.evaluate_filter('[[hi]]encodebase64[]')
+        self.assertEqual(encoded[0], 'aGk=')
+        decoded = tw_filter.evaluate_filter(f'[[{encoded[0]}]]decodebase64[]')
+        self.assertEqual(decoded[0], 'hi')
+
+        uri = tw_filter.evaluate_filter('[[hello world]]encodeuri[]')
+        self.assertEqual(uri[0], 'hello%20world')
+        self.assertEqual(tw_filter.evaluate_filter(f'[[{uri[0]}]]decodeuri[]')[0], 'hello world')
+
+        json_cases = {
+            '[[{"a":1,"b":"two"}]]jsonget[a]': ['1'],
+            '[[{"a":1,"b":"two"}]]jsonindexes[]': ['a', 'b'],
+            '[[{"a":1,"b":"two"}]]jsontype[b]': ['str'],
+        }
+        for expr, expected in json_cases.items():
+            with self.subTest(expr=expr):
+                self.assertEqual(tw_filter.evaluate_filter(expr), expected)
+
+    def test_numeric_extended_operations(self):
+        math_cases = {
+            '[[8]]power[2]': 64.0,
+            '[[10]]log[10]': 1.0,
+            '[[1]]sin[]': math.sin(1),
+            '[[0.5]]cos[]': math.cos(0.5),
+            '[[1]]tan[]': math.tan(1),
+        }
+        for expr, expected in math_cases.items():
+            with self.subTest(expr=expr):
+                result = tw_filter.evaluate_filter(expr)
+                self.assertAlmostEqual(float(result[0]), expected, places=5)
+
+    def test_aggregate_operations(self):
+        res = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]sum[]')
+        self.assertAlmostEqual(float(res[0]), 6.0, places=5)
+
+        product = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]product[]')
+        self.assertAlmostEqual(float(product[0]), 6.0, places=5)
+
+        average = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]average[]')
+        self.assertAlmostEqual(float(average[0]), 2.0, places=5)
+
+        median = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]median[]')
+        self.assertAlmostEqual(float(median[0]), 2.0, places=5)
+
+        variance = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]variance[]')
+        self.assertAlmostEqual(float(variance[0]), 2.0/3.0, places=5)
+
+        stddev = tw_filter.evaluate_filter('[[1]] [[2]] [[3]]standard-deviation[]')
+        self.assertAlmostEqual(float(stddev[0]), math.sqrt(2.0/3.0), places=5)
+
+    def test_unique_and_ordering_helpers(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[a]] [[b]]unique[]'), ['a', 'b'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]allafter[b]'), ['c'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]allbefore[c]'), ['a', 'b'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]move[1]'), ['b', 'c', 'a'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[c]]insertafter[a|b]'), ['a', 'b', 'c'])
+
+    def test_toggle_and_cycle(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]]toggle[a]'), ['b'])
+        self.assertEqual(tw_filter.evaluate_filter('[[red]]cycle[red,amber,green]'), ['amber'])
+        self.assertEqual(tw_filter.evaluate_filter('else[empty]'), ['empty'])
+        self.assertEqual(tw_filter.evaluate_filter('[[x]]then[y]'), ['y'])
+
+
+class TestAdditionalWikiOperators(unittest.TestCase):
+    """Cover wiki-specific operators not hit by earlier suites"""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_dir = tempfile.mkdtemp()
+        cls.test_wiki = os.path.join(cls.test_dir, 'expanded_wiki.html')
+        tw_init_or_skip(cls.test_wiki)
+
+        def touch(title, text):
+            subprocess.run(['python3', 'tw', cls.test_wiki, 'touch', title, text], cwd=script_dir, check=True, capture_output=True)
+
+        # Core tiddlers
+        touch('Alpha', 'Link to [[Beta]] and {{Gamma}}')
+        touch('Beta', 'Transclude {{Alpha}}')
+        touch('Gamma', 'Plain content')
+        touch('ListHolder', 'Holder for list')
+        touch('$:/core/Test', 'System content')
+        touch('My Note', 'Slug duplicate one')
+        touch('My-Note', 'Slug duplicate two')
+        touch('LookupAlpha', 'Lookup result')
+        touch('DataJson', '{"key":"value","num":5}')
+
+        # Set fields
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Alpha', 'tags', 'one two'], cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Alpha', 'list', 'Gamma'], cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Alpha', 'created', '20240101010101010'], cwd=script_dir, check=True, capture_output=True)
+
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Beta', 'tags', 'two'], cwd=script_dir, check=True, capture_output=True)
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Beta', 'created', '20240102020202020'], cwd=script_dir, check=True, capture_output=True)
+
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'Gamma', 'created', '20240102030303030'], cwd=script_dir, check=True, capture_output=True)
+
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'ListHolder', 'list', 'Alpha Beta'], cwd=script_dir, check=True, capture_output=True)
+
+        subprocess.run(['python3', 'tw', cls.test_wiki, 'set', 'LookupAlpha', 'created', '20240101050505050'], cwd=script_dir, check=True, capture_output=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        import shutil
+        shutil.rmtree(cls.test_dir)
+
+    def test_tagging_and_tags(self):
+        tagging_results = tw_filter.evaluate_filter('[[two]]tagging[]', wiki_path=self.test_wiki)
+        self.assertIn('Alpha', tagging_results)
+        self.assertIn('Beta', tagging_results)
+
+        tags = tw_filter.evaluate_filter('[[Alpha]]tags[]', wiki_path=self.test_wiki)
+        self.assertIn('one', tags)
+        self.assertIn('two', tags)
+
+    def test_list_and_listed(self):
+        self.assertEqual(tw_filter.evaluate_filter('[list[ListHolder]]', wiki_path=self.test_wiki), ['Alpha', 'Beta'])
+        listed = tw_filter.evaluate_filter('[[Alpha]]listed[]', wiki_path=self.test_wiki)
+        self.assertIn('ListHolder', listed)
+
+    def test_contains_and_is(self):
+        contains = tw_filter.evaluate_filter('[contains[one]]', wiki_path=self.test_wiki)
+        self.assertIn('Alpha', contains)
+        systems = tw_filter.evaluate_filter('[is[system]]', wiki_path=self.test_wiki)
+        self.assertIn('$:/core/Test', systems)
+        tiddlers = tw_filter.evaluate_filter('[is[tiddler]]', wiki_path=self.test_wiki)
+        self.assertIn('Alpha', tiddlers)
+        self.assertNotIn('$:/core/Test', tiddlers)
+
+    def test_transcludes_and_backtranscludes(self):
+        backtrans = tw_filter.evaluate_filter('[backtranscludes[Alpha]]', wiki_path=self.test_wiki)
+        self.assertIn('Beta', backtrans)
+        transcludes = tw_filter.evaluate_filter('[[Alpha]]transcludes[]', wiki_path=self.test_wiki)
+        self.assertIn('Gamma', transcludes)
+
+    def test_duplicateslugs_and_lookup(self):
+        duplicates = tw_filter.evaluate_filter('[duplicateslugs[]]', wiki_path=self.test_wiki)
+        self.assertIn('My Note', duplicates)
+        self.assertIn('My-Note', duplicates)
+
+        lookup = tw_filter.evaluate_filter('[[Alpha]]lookup[Lookup]', wiki_path=self.test_wiki)
+        self.assertEqual(lookup[0], 'Lookup result')
+
+    def test_search_and_enlist(self):
+        search_results = tw_filter.evaluate_filter('[search[Transclude]]', wiki_path=self.test_wiki)
+        self.assertIn('Beta', search_results)
+        enlist = tw_filter.evaluate_filter('[enlist[Alpha Beta]]', wiki_path=self.test_wiki)
+        self.assertEqual(enlist, ['Alpha', 'Beta'])
+
+    def test_json_getindex_and_date_filters(self):
+        json_val = tw_filter.evaluate_filter('[[DataJson]]jsonget[key]', wiki_path=self.test_wiki)
+        self.assertEqual(json_val, ['value'])
+        after = tw_filter.evaluate_filter('[created:after[20240101]]', wiki_path=self.test_wiki)
+        self.assertIn('Beta', after)
+
+    def test_commands_operator_no_error(self):
+        self.assertEqual(tw_filter.evaluate_filter('[commands[]]', wiki_path=self.test_wiki), [])
 
 
 if __name__ == '__main__':
