@@ -41,9 +41,8 @@ function M.tiddlers(opts)
           local lines = vim.split(content, "\n", { plain = true })
           vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
 
-          -- Set filetype for syntax highlighting based on tiddler's type field
-          local filetype = tw_wrapper.get_tiddler_filetype(entry.value)
-          vim.api.nvim_buf_set_option(self.state.bufnr, "filetype", filetype)
+          -- Set filetype to tiddlywiki for custom syntax highlighting
+          vim.api.nvim_buf_set_option(self.state.bufnr, "filetype", "tiddlywiki")
         end
       end,
     }),
@@ -165,9 +164,8 @@ function M.grep(opts)
           local lines = vim.split(content, "\n", { plain = true })
           vim.api.nvim_buf_set_lines(self.state.bufnr, 0, -1, false, lines)
 
-          -- Set filetype for syntax highlighting based on tiddler's type field
-          local filetype = tw_wrapper.get_tiddler_filetype(entry.value.tiddler)
-          vim.api.nvim_buf_set_option(self.state.bufnr, "filetype", filetype)
+          -- Set filetype to tiddlywiki for custom syntax highlighting
+          vim.api.nvim_buf_set_option(self.state.bufnr, "filetype", "tiddlywiki")
 
           -- Try to jump to the matching line
           if entry.value.line_number then

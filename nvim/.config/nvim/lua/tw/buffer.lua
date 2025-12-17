@@ -43,9 +43,9 @@ function M.open(tiddler_name)
   -- Set buffer type to acwrite (autocmd-writable)
   vim.bo[bufnr].buftype = "acwrite"
 
-  -- Set filetype based on tiddler's type field
-  local filetype = tw_wrapper.get_tiddler_filetype(tiddler_name)
-  vim.bo[bufnr].filetype = filetype
+  -- Set filetype to tiddlywiki for custom syntax highlighting
+  -- This shows metadata header + content with proper highlighting
+  vim.bo[bufnr].filetype = "tiddlywiki"
 
   -- Store mapping
   buffer_map[bufnr] = tiddler_name
