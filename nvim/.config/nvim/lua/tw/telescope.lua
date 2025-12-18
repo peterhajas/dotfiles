@@ -12,6 +12,26 @@ local previewers = require("telescope.previewers")
 local tw_wrapper = require("tw.tw_wrapper")
 local buffer_manager = require("tw.buffer")
 
+-- Helper function to create new tiddler from search prompt
+local function create_tiddler_from_prompt(prompt_bufnr)
+  local prompt = action_state.get_current_line()
+
+  -- Trim whitespace
+  prompt = vim.trim(prompt)
+
+  -- Validate prompt is not empty
+  if prompt == "" then
+    vim.notify("Enter a tiddler name", vim.log.levels.WARN)
+    return
+  end
+
+  -- Close picker
+  actions.close(prompt_bufnr)
+
+  -- Create and open new tiddler
+  buffer_manager.new(prompt)
+end
+
 -- Create tiddler picker
 function M.tiddlers(opts)
   opts = opts or {}
@@ -47,12 +67,21 @@ function M.tiddlers(opts)
       end,
     }),
     attach_mappings = function(prompt_bufnr, map)
-      -- Default action: open tiddler
+      -- Default action: open tiddler or create if no results
       actions.select_default:replace(function()
-        actions.close(prompt_bufnr)
-        local selection = action_state.get_selected_entry()
-        if selection then
-          buffer_manager.open(selection.value)
+        local current_picker = action_state.get_current_picker(prompt_bufnr)
+
+        -- Check if there are any results
+        if current_picker.manager:num_results() == 0 then
+          -- No results - create new tiddler with prompt as name
+          create_tiddler_from_prompt(prompt_bufnr)
+        else
+          -- Results exist - open selected tiddler
+          actions.close(prompt_bufnr)
+          local selection = action_state.get_selected_entry()
+          if selection then
+            buffer_manager.open(selection.value)
+          end
         end
       end)
 
@@ -78,6 +107,11 @@ function M.tiddlers(opts)
             M.tiddlers(opts)
           end
         end
+      end)
+
+      -- Custom action: create new tiddler (Ctrl-n)
+      map("i", "<C-n>", function()
+        create_tiddler_from_prompt(prompt_bufnr)
       end)
 
       -- Keep default mappings
