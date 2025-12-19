@@ -524,8 +524,12 @@ def main() -> None:
         run_cmd(["yabai", "-m", "config", "window_gap", str(PADDING)])
 
     total_workspace_width = workspace_width(displays)
-    use_five_buckets = total_workspace_width >= WORKSPACE_WIDTH_THRESHOLD
-    log(f"Total workspace width: {total_workspace_width}px")
+    widest_display_width = max(d.get("frame", {}).get("w", 0) for d in displays) if displays else 0
+    use_five_buckets = (
+        total_workspace_width >= WORKSPACE_WIDTH_THRESHOLD or
+        widest_display_width >= WORKSPACE_WIDTH_THRESHOLD
+    )
+    log(f"Total workspace width: {total_workspace_width}px, widest display: {widest_display_width}px")
 
     # Find widest display over threshold for legacy 3-bucket ultrawide mode
     ultra_display = None
@@ -536,7 +540,10 @@ def main() -> None:
     ultra_index = ultra_display.get("index") if ultra_display else None
 
     if use_five_buckets:
-        log("Layout mode: 5-bucket (workspace width >= 5000px)")
+        if widest_display_width >= WORKSPACE_WIDTH_THRESHOLD:
+            log(f"Layout mode: 5-bucket (widest display {widest_display_width}px >= {WORKSPACE_WIDTH_THRESHOLD}px)")
+        else:
+            log(f"Layout mode: 5-bucket (total workspace {total_workspace_width}px >= {WORKSPACE_WIDTH_THRESHOLD}px)")
     elif ultra_index is not None:
         log(f"Layout mode: ultrawide 3-bucket on display {ultra_index}")
     else:
@@ -664,7 +671,8 @@ def main() -> None:
                     continue
                 buckets[bucket].append(win)
 
-            present_buckets = [name for name in buckets_for_display if buckets.get(name)]
+            # Always allocate space for all buckets, even if empty
+            present_buckets = buckets_for_display
             layout = bucket_layout(present_buckets, display_w)
             if not layout:
                 continue
@@ -753,15 +761,8 @@ def main() -> None:
                 ),
             )
 
-            present_buckets = [
-                name
-                for name, bucket in (
-                    ("left", left_bucket),
-                    ("center", center_bucket),
-                    ("right", right_bucket),
-                )
-                if bucket
-            ]
+            # Always allocate space for all three buckets
+            present_buckets = ["left", "center", "right"]
 
             layout = bucket_layout(present_buckets, ultra_w)
             if not layout:
