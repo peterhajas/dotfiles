@@ -6,6 +6,7 @@ require("phajas.globals")
 -- before LSP
 require("phajas.plugins.mason")
 
+require("phajas.plugins.fidget")
 require("phajas.plugins.blink")
 require("phajas.plugins.dadbod")
 require("phajas.plugins.debug")
