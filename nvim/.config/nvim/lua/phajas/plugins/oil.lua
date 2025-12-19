@@ -8,9 +8,9 @@ require("oil").setup {
     keymaps = {
         ["g?"] = "actions.show_help",
         ["<CR>"] = "actions.select",
-        ["<leader-w>"] = "actions.select_vsplit",
-        ["<leader-W>"] = "actions.select_split",
-        ["<leader-t>"] = "actions.select_tab",
+        ["<leader>w"] = "actions.select_vsplit",
+        ["<leader>W"] = "actions.select_split",
+        ["<leader>t"] = "actions.select_tab",
         ["<C-p>"] = "actions.preview",
         ["<C-c>"] = "actions.close",
         ["<C-l>"] = "actions.refresh",
@@ -33,4 +33,3 @@ vim.api.nvim_create_user_command("Beacon", function()
     vim.api.nvim_command(":edit oil-ssh://beacon/")
     -- oil-ssh://beacon/
 end, {})
-
