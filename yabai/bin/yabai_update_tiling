@@ -414,6 +414,58 @@ def ensure_managed(win_id: int) -> None:
         run_cmd(["yabai", "-m", "window", str(win_id), "--toggle", "float"])
 
 
+def determine_bucket_by_position(
+    win: Dict[str, Any],
+    display: Dict[str, Any],
+    available_buckets: List[str]
+) -> str:
+    """
+    Determine which bucket a window belongs to based on its position within the display.
+
+    Args:
+        win: Window dictionary with frame info
+        display: Display dictionary with frame info
+        available_buckets: List of bucket names available on this display (in order)
+
+    Returns:
+        The bucket name the window should be placed in
+    """
+    if not available_buckets:
+        return "center"  # fallback
+
+    if len(available_buckets) == 1:
+        return available_buckets[0]
+
+    # Get window and display frames
+    win_frame = win.get("frame", {})
+    disp_frame = display.get("frame", {})
+
+    win_x = float(win_frame.get("x", 0) or 0)
+    win_w = float(win_frame.get("w", 0) or 0)
+    disp_x = float(disp_frame.get("x", 0) or 0)
+    disp_w = float(disp_frame.get("w", 0) or 0)
+
+    # Safety checks for invalid frames
+    if disp_w <= 0 or win_w <= 0:
+        log(f"Invalid frame data (disp_w={disp_w}, win_w={win_w}), defaulting to first bucket")
+        return available_buckets[0]
+
+    # Calculate window center relative to display
+    win_center_x = win_x + (win_w / 2)
+    relative_x = win_center_x - disp_x
+    position_ratio = relative_x / disp_w
+
+    # Divide display into equal regions based on number of buckets
+    num_buckets = len(available_buckets)
+    bucket_index = int(position_ratio * num_buckets)
+    bucket_index = max(0, min(bucket_index, num_buckets - 1))
+
+    log(f"Window at x={win_x:.0f} (center={win_center_x:.0f}), display x={disp_x:.0f} w={disp_w:.0f}, "
+        f"ratio={position_ratio:.2f} -> bucket_index={bucket_index} ({available_buckets[bucket_index]})")
+
+    return available_buckets[bucket_index]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Update yabai tiling layout")
     parser.add_argument(
@@ -574,33 +626,8 @@ def main() -> None:
     if ai_windows:
         log(f"AI windows ({len(ai_windows)}): {[w.get('id') for w in ai_windows]}")
 
-    if use_five_buckets:
-        for win in windows:
-            if is_management_disabled(win):
-                continue
-            bucket = "far_left" if is_special_ai(win) else "far_right" if is_special_sysmon(win) else "center"
-            target_display = bucket_to_display.get(bucket)
-            if target_display is None:
-                continue
-            wid = win.get("id")
-            log(f"Window {wid} ({win.get('app', 'unknown')}) -> {bucket} bucket -> display {target_display}")
-            move_window_to_display(wid, target_display, displays)
-            ensure_managed(wid)
-    elif ultra_index is not None:
-        for win in sysmon_windows + ai_windows:
-            wid = win.get("id")
-            move_window_to_display(wid, ultra_index, displays)
-            ensure_managed(wid)
-    elif num_displays > 1:
-        for win in sysmon_windows:
-            wid = win.get("id")
-            move_window_to_display(wid, rightmost_display, displays)
-            ensure_managed(wid)
-            apply_grid(wid, 1, 0, 0, max(1, GRID_COLUMNS // 4))
-        for win in ai_windows:
-            wid = win.get("id")
-            move_window_to_display(wid, leftmost_display, displays)
-            ensure_managed(wid)
+    # Auto-bucketing removed: windows stay where user places them
+    # Position-based bucketing happens in the layout sections below
 
     # Refresh windows after special moves
     windows = run_json(["yabai", "-m", "query", "--windows"]) or []
@@ -631,7 +658,8 @@ def main() -> None:
                 if win.get("is-visible") is False or win.get("is-hidden") is True:
                     continue
 
-                bucket = "far_left" if is_special_ai(win) else "far_right" if is_special_sysmon(win) else "center"
+                # Determine bucket based on window position
+                bucket = determine_bucket_by_position(win, display_obj, buckets_for_display)
                 if bucket not in buckets:
                     continue
                 buckets[bucket].append(win)
@@ -645,37 +673,24 @@ def main() -> None:
                 if not wins or bucket_name not in layout:
                     continue
 
-                if bucket_name in ("far_left", "left"):
-                    sorted_wins = sorted(
-                        wins,
-                        key=lambda w: (
-                            0 if is_special_ai(w) else 1,
-                            (w.get("title") or w.get("app") or "").lower(),
-                            w.get("id", 0),
-                        ),
-                    )
-                    apply_bucket(
-                        [w.get("id") for w in sorted_wins],
-                        layout[bucket_name]["col"],
-                        layout[bucket_name]["span"],
-                    )
-                elif bucket_name in ("far_right", "right"):
-                    sorted_wins = sorted(
-                        wins,
-                        key=lambda w: (
-                            0 if is_special_sysmon(w) else 1,
-                            (w.get("title") or w.get("app") or "").lower(),
-                            w.get("id", 0),
-                        ),
-                    )
-                    apply_bucket(
-                        [w.get("id") for w in sorted_wins],
-                        layout[bucket_name]["col"],
-                        layout[bucket_name]["span"],
-                    )
-                else:  # center
+                if bucket_name == "center":
+                    # Center bucket: overlapping windows
                     overlap_region(
                         [w.get("id") for w in wins],
+                        layout[bucket_name]["col"],
+                        layout[bucket_name]["span"],
+                    )
+                else:
+                    # Side buckets: vertically stacked, sorted alphabetically
+                    sorted_wins = sorted(
+                        wins,
+                        key=lambda w: (
+                            (w.get("title") or w.get("app") or "").lower(),
+                            w.get("id", 0),
+                        ),
+                    )
+                    apply_bucket(
+                        [w.get("id") for w in sorted_wins],
                         layout[bucket_name]["col"],
                         layout[bucket_name]["span"],
                     )
@@ -711,32 +726,28 @@ def main() -> None:
             if not space_windows:
                 continue
 
-            # Bucket by region with special pinning
+            # Bucket by window position (left/center/right thirds)
+            ultrawide_buckets = ["left", "center", "right"]
             for win in space_windows:
-                is_sysmon = is_special_sysmon(win)
-                is_ai = is_special_ai(win)
-                # Hard-assign buckets by type; everything else goes center
-                if is_ai:
+                bucket = determine_bucket_by_position(win, ultra_display, ultrawide_buckets)
+                if bucket == "left":
                     left_bucket.append(win)
-                elif is_sysmon:
+                elif bucket == "right":
                     right_bucket.append(win)
                 else:
                     center_bucket.append(win)
 
-            if left_bucket:
-                # AI prioritized then alphabetical within this space
-                left_sorted = sorted(
-                    left_bucket,
-                    key=lambda w: (
-                        0 if is_special_ai(w) else 1,
-                        (w.get("title") or w.get("app") or "").lower(),
-                        w.get("id", 0),
-                    ),
-                )
+            # Sort side buckets alphabetically
+            left_sorted = sorted(
+                left_bucket,
+                key=lambda w: (
+                    (w.get("title") or w.get("app") or "").lower(),
+                    w.get("id", 0),
+                ),
+            )
             right_sorted = sorted(
                 right_bucket,
                 key=lambda w: (
-                    0 if is_special_sysmon(w) else 1,
                     (w.get("title") or w.get("app") or "").lower(),
                     w.get("id", 0),
                 ),
