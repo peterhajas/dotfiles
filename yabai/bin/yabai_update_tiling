@@ -381,6 +381,10 @@ def is_management_disabled(win: Optional[Dict[str, Any]]) -> bool:
         log(f"Window {win_id} ({app}) explicitly excluded from management (defensive check)")
         return True
 
+    # Check if window is a panel/dialog/sheet that should remain floating
+    if is_panel_or_dialog(win):
+        return True
+
     # Check rules
     for rule in MANAGE_OFF_RULES:
         if rule_matches_window(rule, win):
@@ -412,6 +416,55 @@ def ensure_managed(win_id: int) -> None:
     if info.get("floating") == 1:
         # toggle to managed so grid placement works
         run_cmd(["yabai", "-m", "window", str(win_id), "--toggle", "float"])
+
+
+def is_panel_or_dialog(win: Optional[Dict[str, Any]]) -> bool:
+    """
+    Check if a window is a panel, dialog, or sheet that should remain floating.
+
+    These window types are tracked by yabai but intentionally left floating.
+    The script should respect this decision and not force them to tile.
+
+    Args:
+        win: Window dictionary from yabai query
+
+    Returns:
+        True if the window should remain floating (is a panel/dialog/sheet)
+    """
+    if not win:
+        return False
+
+    win_id = win.get("id")
+
+    # Check role first - AXSheet is a role, not a subrole
+    role = win.get("role", "")
+    if role == "AXSheet":
+        log(f"Window {win_id} is a sheet (role=AXSheet), keeping floating")
+        return True
+
+    # Check subrole for dialog/panel types
+    subrole = win.get("subrole", "")
+
+    # List of subroles that indicate floating UI elements
+    FLOATING_SUBROLES = {
+        "AXDialog",              # Dialog windows
+        "AXSystemDialog",        # System dialogs
+        "AXFloatingWindow",      # Floating windows
+        "AXSystemFloatingWindow" # System floating windows
+    }
+
+    if subrole in FLOATING_SUBROLES:
+        log(f"Window {win_id} has floating subrole '{subrole}', keeping floating")
+        return True
+
+    # Additional check: window level
+    # Windows at non-normal levels (level != 0) are permanently floating
+    level = win.get("level")
+    if level is not None and level != 0:
+        log(f"Window {win_id} has non-normal level {level}, keeping floating")
+        return True
+
+    return False
 
 
 def determine_bucket_by_position(
