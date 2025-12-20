@@ -18,6 +18,7 @@ local state = {
     sessions = {},  -- session_id -> session_state
     webview = nil,
     cleanupTimer = nil,
+    positionWatcher = nil,
     eventHandlersInitialized = false,
 }
 
@@ -45,6 +46,34 @@ local function escapeHtml(text)
     text = text:gsub('"', "&quot;")
     text = text:gsub("'", "&#39;")
     return text
+end
+
+local function parseHammerspoonUrl(url)
+    -- Parse hammerspoon://event_name?param1=value1&param2=value2
+    local event_name = url:match("hammerspoon://([^?]+)")
+    if not event_name then return nil, {} end
+
+    local params = {}
+    local query = url:match("%?(.+)")
+    if query then
+        for key, value in query:gmatch("([^&=]+)=([^&=]+)") do
+            params[key] = hs.http.urlDecode(value)
+        end
+    end
+
+    return event_name, params
+end
+
+local function findIPhoneMirroringWindow()
+    -- Find the iPhone Mirroring window if it exists
+    local wins = hs.window.allWindows()
+    for _, win in ipairs(wins) do
+        local app = win:application()
+        if app and app:name() == "iPhone Mirroring" then
+            return win
+        end
+    end
+    return nil
 end
 
 -- Load HTML template
@@ -188,8 +217,24 @@ local function createWebview()
     local mainScreen = hs.screen.primaryScreen()
     local screenFrame = mainScreen:frame()
 
-    local x = screenFrame.x + screenFrame.w - M.config.width - M.config.margin
-    local y = screenFrame.y + screenFrame.h - M.config.maxHeight - M.config.margin
+    -- Default position: bottom-right corner
+    local x = screenFrame.x + screenFrame.w - M.config.width
+    local y = screenFrame.y + screenFrame.h - M.config.maxHeight
+
+    -- Check if iPhone Mirroring window exists and adjust position
+    local iphoneWin = findIPhoneMirroringWindow()
+    if iphoneWin then
+        local iphoneFrame = iphoneWin:frame()
+        -- Only dodge if window has valid dimensions (not 0x0)
+        if iphoneFrame.w > 0 and iphoneFrame.h > 0 then
+            -- Position above iPhone Mirroring window with a small gap
+            local gap = 12
+            y = iphoneFrame.y - M.config.maxHeight - gap
+            -- Keep same right alignment
+            x = screenFrame.x + screenFrame.w - M.config.width
+            log(string.format("iPhone Mirroring detected at y=%d, positioning above at y=%d", iphoneFrame.y, y))
+        end
+    end
 
     state.webview = hs.webview.new({
         x = x,
@@ -202,6 +247,34 @@ local function createWebview()
         :allowTextEntry(true)
         :behavior(hs.drawing.windowBehaviors.stationary)  -- Only on one space, main display
         :transparent(true)  -- Properly translucent like tiddlywiki.lua
+        :navigationCallback(function(action, webview, navID, err)
+            -- Only intercept willNavigate actions
+            if action ~= "willNavigate" then
+                return true
+            end
+
+            local url = err  -- err parameter contains the URL in this case
+            log("Navigation attempt to: " .. tostring(url))
+
+            -- Check if it's a hammerspoon:// URL
+            if url and url:match("^hammerspoon://") then
+                local event_name, params = parseHammerspoonUrl(url)
+
+                if event_name == "claude_approve" and params.request_id then
+                    M.approvePermission(params.request_id)
+                elseif event_name == "claude_deny" and params.request_id then
+                    M.denyPermission(params.request_id)
+                else
+                    log("WARNING: Unknown hammerspoon URL: " .. url)
+                end
+
+                -- Block the navigation
+                return false
+            end
+
+            -- Allow other navigation
+            return true
+        end)
         :html(generateHTML())
 
     -- Only show if we have sessions
@@ -210,6 +283,46 @@ local function createWebview()
     end
 
     log("Webview created on primary screen at " .. x .. "," .. y)
+end
+
+local function updateWebviewPosition()
+    -- Update webview position without recreating it
+    if not state.webview then
+        return
+    end
+
+    local mainScreen = hs.screen.primaryScreen()
+    local screenFrame = mainScreen:frame()
+
+    -- Default position: bottom-right corner
+    local x = screenFrame.x + screenFrame.w - M.config.width
+    local y = screenFrame.y + screenFrame.h - M.config.maxHeight
+
+    -- Check if iPhone Mirroring window exists and adjust position
+    local iphoneWin = findIPhoneMirroringWindow()
+    if iphoneWin then
+        local iphoneFrame = iphoneWin:frame()
+        -- Only dodge if window has valid dimensions (not 0x0)
+        if iphoneFrame.w > 0 and iphoneFrame.h > 0 then
+            -- Position above iPhone Mirroring window with a small gap
+            local gap = 12
+            y = iphoneFrame.y - M.config.maxHeight - gap
+        end
+    end
+
+    -- Get current position
+    local currentFrame = state.webview:frame()
+
+    -- Only update if position changed
+    if currentFrame.x ~= x or currentFrame.y ~= y then
+        state.webview:frame({
+            x = x,
+            y = y,
+            w = M.config.width,
+            h = M.config.maxHeight
+        })
+        log(string.format("Updated position to %d,%d", x, y))
+    end
 end
 
 function M.refreshUI()
@@ -448,6 +561,9 @@ function M.init()
         return
     end
 
+    -- Clean up any orphaned permission files from previous crashes
+    os.execute("rm -f /tmp/claude-perm-*.json 2>/dev/null")
+
     -- Initialize event handlers
     initializeEventHandlers()
 
@@ -456,6 +572,9 @@ function M.init()
 
     -- Start cleanup timer
     state.cleanupTimer = hs.timer.doEvery(M.config.cleanupInterval, M.cleanupStale)
+
+    -- Start position watcher (check every 2 seconds for iPhone Mirroring window)
+    state.positionWatcher = hs.timer.doEvery(2, updateWebviewPosition)
 
     log("claude_status module initialized")
 end
