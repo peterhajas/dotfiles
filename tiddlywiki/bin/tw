@@ -620,6 +620,56 @@ def list_tiddlers(wiki_path):
     for title in titles:
         print(title)
 
+def format_tiddler_cat(tiddler):
+    """Return tiddler content in tw cat format."""
+    lines = []
+
+    if 'title' in tiddler:
+        lines.append(f"title: {tiddler['title']}")
+
+    for key, value in sorted(tiddler.items()):
+        if key not in ('text', 'title'):
+            lines.append(f"{key}: {value}")
+
+    if 'text' in tiddler:
+        lines.append('')
+        lines.append(tiddler['text'])
+
+    return '\n'.join(lines)
+
+def _encode_tiddler_title_segment(title):
+    """Encode tiddler titles similar to TiddlyWiki filesystem filenames.
+
+    This is used for filesystem-based tiddler storage (not WebDAV).
+    For WebDAV, use encode_tiddler_title_for_path instead."""
+    segment = title
+    segment = segment.replace('/', '_').replace('\\', '_')
+    segment = re.sub(r'^(con|prn|aux|nul|com[0-9]|lpt[0-9])$', r'_\1_', segment, flags=re.IGNORECASE)
+    segment = re.sub(r'^ +', lambda m: '_' * len(m.group(0)), segment)
+    if not re.match(r'^\.\.{0,1}[/\\]', title):
+        segment = re.sub(r'^\.+', lambda m: '_' * len(m.group(0)), segment)
+    segment = re.sub(r'[\x00-\x1f\x80-\x9f]', '_', segment)
+    segment = re.sub(r'[<>~:"|?*^%]', '_', segment)
+    if not segment or re.match(r'^_+$', segment):
+        segment = '-'.join(str(ord(c)) for c in title)
+    return segment
+
+def encode_tiddler_title_for_path(title):
+    """Encode a tiddler title into a WebDAV-safe path segment.
+
+    Uses URL percent-encoding for a reversible transformation.
+    Safe characters (unreserved in RFC 3986): A-Z a-z 0-9 - . _ ~
+
+    Note: We don't include $ in safe chars because macOS has issues with
+    paths like $%3A%2Fcore (decodes to $:/core which is invalid on APFS/HFS+)."""
+    return urllib.parse.quote(title, safe='-_.~')
+
+def decode_tiddler_title_from_path(segment):
+    """Decode a WebDAV path segment back to the original title.
+
+    This is the inverse of encode_tiddler_title_for_path."""
+    return urllib.parse.unquote(segment)
+
 def cat_tiddler(wiki_path, tiddler_title):
     # Use early-exit optimization to stop parsing after finding target
     all_tiddlers = load_all_tiddlers(wiki_path, target_title=tiddler_title)
@@ -635,19 +685,7 @@ def cat_tiddler(wiki_path, tiddler_title):
         print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
         sys.exit(1)
 
-    # Print title first
-    if 'title' in tiddler:
-        print(f"title: {tiddler['title']}")
-
-    # Print all other fields except 'text' and 'title'
-    for key, value in sorted(tiddler.items()):
-        if key not in ('text', 'title'):
-            print(f"{key}: {value}")
-
-    # Print the text content after a newline
-    if 'text' in tiddler:
-        print()
-        print(tiddler['text'])
+    print(format_tiddler_cat(tiddler))
 
 def edit_tiddler(wiki_path, tiddler_title):
     """Open a tiddler in $EDITOR for editing in YAML-style format"""
@@ -2309,6 +2347,752 @@ def serve_wiki(wiki_path, host='localhost', port=8080, readonly=False):
             print(f"Error starting server: {e}", file=sys.stderr)
         sys.exit(1)
 
+def serve_webdav(wiki_path, host='localhost', port=8081, readonly=False):
+    """Serve tiddlers over WebDAV in tw cat format.
+
+    Args:
+        wiki_path: Path to the wiki HTML file
+        host: Host to bind to (default: localhost)
+        port: Port to bind to (default: 8081)
+        readonly: If True, disable writing via WebDAV (default: False)
+    """
+    from http.server import HTTPServer, BaseHTTPRequestHandler
+    from datetime import datetime, timezone
+    from email.utils import format_datetime
+    from xml.sax.saxutils import escape
+    import contextlib
+    import io
+    import json
+    import urllib.parse
+    import uuid
+
+    ensure_local_wiki(wiki_path)
+
+    mkcol_paths = set()
+    lock_tokens = {}
+    scratch_files = {}
+    scratch_collection_pattern = re.compile(r'\.sb-[0-9a-f]{8}-[A-Za-z0-9]{6,}', re.IGNORECASE)
+
+    def is_scratch_name(name):
+        return name.startswith('._') or name == '.DS_Store'
+
+    def looks_like_scratch_collection(name):
+        return scratch_collection_pattern.search(name) is not None
+
+    def scratch_collection_exists(collection_path):
+        if collection_path in mkcol_paths:
+            return True
+        for key in scratch_files.keys():
+            if key.startswith(collection_path):
+                return True
+        return False
+
+    def normalize_collection_path(path):
+        if not path.startswith('/'):
+            path = '/' + path
+        return path if path.endswith('/') else path + '/'
+
+    def parse_timestamp(value):
+        if not value:
+            return None
+        try:
+            base = value[:14]
+            return datetime.strptime(base, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
+        except Exception:
+            return None
+
+    def format_http_date(value):
+        if isinstance(value, datetime):
+            dt = value
+        else:
+            dt = parse_timestamp(value)
+        if dt is None:
+            dt = datetime.now(timezone.utc)
+        return format_datetime(dt, usegmt=True)
+
+    def parse_cat_content(content):
+        normalized = content.replace('\r\n', '\n').replace('\r', '\n')
+        lines = normalized.split('\n')
+        tiddler = {}
+        text_start_index = None
+
+        for i, line in enumerate(lines):
+            if line.strip() == '':
+                text_start_index = i + 1
+                break
+            elif ':' in line:
+                key, value = line.split(':', 1)
+                tiddler[key.strip()] = value.strip()
+            else:
+                text_start_index = i
+                break
+
+        if text_start_index is not None and text_start_index < len(lines):
+            text_content = '\n'.join(lines[text_start_index:])
+            if text_content:
+                text_stripped = text_content.rstrip('\n')
+                if text_stripped:
+                    tiddler['text'] = text_stripped
+
+        return tiddler
+
+    class WebDavHandler(BaseHTTPRequestHandler):
+        def log_message(self, format, *args):
+            print(f"[{self.log_date_time_string()}] {format % args}")
+
+        def send_webdav_headers(self):
+            self.send_header('DAV', '1,2')
+            self.send_header('MS-Author-Via', 'DAV')
+            self.send_header('Allow', 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, LOCK, UNLOCK, MKCOL')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'OPTIONS, PROPFIND, GET, HEAD, PUT, DELETE, LOCK, UNLOCK, MKCOL')
+            self.send_header('Access-Control-Allow-Headers', 'Content-Type, Depth, X-Requested-With, Lock-Token, If, Timeout')
+
+        def _parse_path(self):
+            parsed = urllib.parse.urlparse(self.path)
+            path = parsed.path or '/'
+            if not path.startswith('/'):
+                path = '/' + path
+
+            if path in ('', '/'):
+                return ('root', None, '/')
+
+            collection_path = normalize_collection_path(path)
+            if collection_path == '/tiddlers/':
+                return ('collection', collection_path, collection_path)
+            if collection_path in mkcol_paths:
+                collection_name = collection_path.strip('/').split('/')[-1]
+                decoded_name = decode_tiddler_title_from_path(collection_name)
+                if collection_path.startswith('/tiddlers/') and looks_like_scratch_collection(decoded_name):
+                    return ('scratch_collection', collection_path, '/tiddlers/')
+                return ('collection', collection_path, collection_path)
+
+            if path.startswith('/tiddlers/'):
+                segment = path[len('/tiddlers/'):]
+                segment = segment.rstrip('/')
+                if not segment:
+                    return ('collection', '/tiddlers/', '/tiddlers/')
+                if '/' in segment:
+                    scratch_key = '/tiddlers/' + segment
+                    return ('scratch_file', scratch_key, '/tiddlers/')
+                decoded_segment = decode_tiddler_title_from_path(segment)
+                if looks_like_scratch_collection(decoded_segment):
+                    collection_path = normalize_collection_path('/tiddlers/' + segment)
+                    if scratch_collection_exists(collection_path):
+                        return ('scratch_collection', collection_path, '/tiddlers/')
+                if is_scratch_name(decoded_segment):
+                    scratch_key = '/tiddlers/' + segment
+                    return ('scratch_file', scratch_key, '/tiddlers/')
+                return ('tiddler', decoded_segment, '/tiddlers/')
+
+            segment = path[1:].rstrip('/')
+            if not segment:
+                return ('root', None, '/')
+            return ('tiddler', decode_tiddler_title_from_path(segment), '/')
+
+        def _href_for_title(self, title, prefix='/'):
+            if not prefix.startswith('/'):
+                prefix = '/' + prefix
+            if not prefix.endswith('/'):
+                prefix = prefix + '/'
+            return prefix + encode_tiddler_title_for_path(title)
+
+        def _load_tiddlers(self, **kwargs):
+            try:
+                return load_all_tiddlers(wiki_path, **kwargs)
+            except SystemExit as e:
+                raise RuntimeError("Failed to load wiki") from e
+
+        def _get_tiddler(self, title):
+            tiddlers = self._load_tiddlers(target_title=title)
+            for tiddler in tiddlers:
+                if tiddler.get('title') == title:
+                    return tiddler
+            return None
+
+        def _resolve_title(self, encoded_title):
+            """Resolve an encoded path segment to a tiddler title.
+
+            Since encoding is now reversible, we just decode and check if it exists.
+            If it doesn't exist, we still return the decoded value to support
+            creating new tiddlers."""
+            decoded = encoded_title
+            titles = self._load_tiddlers(titles_only=True)
+
+            # Check if the decoded title exists
+            if decoded in titles:
+                return decoded
+
+            # If not found, return decoded value anyway (for creating new tiddlers)
+            return decoded
+
+        def _send_text(self, body, status=200, headers=None, include_body=True, last_modified=None):
+            body_bytes = body.encode('utf-8')
+            self.send_response(status)
+            self.send_webdav_headers()
+            self.send_header('Content-Type', 'text/plain; charset=utf-8')
+            self.send_header('Content-Length', str(len(body_bytes)))
+            if last_modified:
+                self.send_header('Last-Modified', last_modified)
+            if headers:
+                for key, value in headers.items():
+                    self.send_header(key, value)
+            self.end_headers()
+            if include_body:
+                self.wfile.write(body_bytes)
+
+        def _send_bytes(self, body_bytes, status=200, headers=None, include_body=True, content_type='application/octet-stream'):
+            self.send_response(status)
+            self.send_webdav_headers()
+            self.send_header('Content-Type', content_type)
+            self.send_header('Content-Length', str(len(body_bytes)))
+            if headers:
+                for key, value in headers.items():
+                    self.send_header(key, value)
+            self.end_headers()
+            if include_body:
+                self.wfile.write(body_bytes)
+
+        def _send_xml(self, body, status=207):
+            body_bytes = body.encode('utf-8')
+            self.send_response(status)
+            self.send_webdav_headers()
+            self.send_header('Content-Type', 'application/xml; charset=utf-8')
+            self.send_header('Content-Length', str(len(body_bytes)))
+            self.end_headers()
+            self.wfile.write(body_bytes)
+
+        def _prop_response(self, href, displayname, is_collection, length=None, modified=None, content_type=None):
+            props = []
+            if displayname is not None:
+                props.append(f"<D:displayname>{escape(displayname)}</D:displayname>")
+            if is_collection:
+                props.append("<D:resourcetype><D:collection/></D:resourcetype>")
+            else:
+                props.append("<D:resourcetype/>")
+            if modified:
+                props.append(f"<D:getlastmodified>{escape(modified)}</D:getlastmodified>")
+            if length is not None:
+                props.append(f"<D:getcontentlength>{length}</D:getcontentlength>")
+            if content_type:
+                props.append(f"<D:getcontenttype>{escape(content_type)}</D:getcontenttype>")
+
+            return (
+                "<D:response>"
+                f"<D:href>{escape(href)}</D:href>"
+                "<D:propstat>"
+                "<D:prop>"
+                + "".join(props) +
+                "</D:prop>"
+                "<D:status>HTTP/1.1 200 OK</D:status>"
+                "</D:propstat>"
+                "</D:response>"
+            )
+
+        def do_OPTIONS(self):
+            self.send_response(200)
+            self.send_webdav_headers()
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+
+        def do_PROPFIND(self):
+            kind, path_title, prefix = self._parse_path()
+            depth = self.headers.get('Depth', '1')
+            include_children = depth != '0'
+
+            try:
+                responses = []
+                if kind == 'root':
+                    root_href = '/'
+                    try:
+                        mtime = os.path.getmtime(wiki_path)
+                        root_modified = format_http_date(datetime.fromtimestamp(mtime, tz=timezone.utc))
+                    except OSError:
+                        root_modified = format_http_date(None)
+
+                    responses.append(
+                        self._prop_response(
+                            root_href,
+                            displayname="wiki",
+                            is_collection=True,
+                            length=0,
+                            modified=root_modified,
+                            content_type=None
+                        )
+                    )
+
+                    if include_children:
+                        responses.append(
+                            self._prop_response(
+                                '/tiddlers/',
+                                displayname="tiddlers",
+                                is_collection=True,
+                                length=0,
+                                modified=root_modified,
+                                content_type=None
+                            )
+                        )
+                elif kind == 'scratch_collection':
+                    collection_href = path_title
+                    if not collection_href.endswith('/'):
+                        collection_href = collection_href + '/'
+                    displayname = collection_href.strip('/').split('/')[-1]
+                    responses.append(
+                        self._prop_response(
+                            collection_href,
+                            displayname=displayname,
+                            is_collection=True,
+                            length=0,
+                            modified=format_http_date(None),
+                            content_type=None
+                        )
+                    )
+                    if include_children:
+                        for scratch_path, content in scratch_files.items():
+                            if not scratch_path.startswith(collection_href):
+                                continue
+                            name = urllib.parse.unquote(scratch_path.rstrip('/').split('/')[-1])
+                            responses.append(
+                                self._prop_response(
+                                    scratch_path,
+                                    displayname=name,
+                                    is_collection=False,
+                                    length=len(content),
+                                    modified=format_http_date(None),
+                                    content_type='application/octet-stream'
+                                )
+                            )
+                elif kind == 'scratch_file':
+                    href = urllib.parse.urlparse(self.path).path
+                    name = urllib.parse.unquote(href.rstrip('/').split('/')[-1])
+                    content = scratch_files.get(path_title, b'')
+                    responses.append(
+                        self._prop_response(
+                            href,
+                            displayname=name,
+                            is_collection=False,
+                            length=len(content),
+                            modified=format_http_date(None),
+                            content_type='application/octet-stream'
+                        )
+                    )
+                elif kind == 'collection':
+                    collection_href = prefix
+                    if not collection_href.endswith('/'):
+                        collection_href = collection_href + '/'
+                    try:
+                        mtime = os.path.getmtime(wiki_path)
+                        collection_modified = format_http_date(datetime.fromtimestamp(mtime, tz=timezone.utc))
+                    except OSError:
+                        collection_modified = format_http_date(None)
+
+                    displayname = "tiddlers" if collection_href == '/tiddlers/' else collection_href.strip('/').split('/')[-1]
+                    responses.append(
+                        self._prop_response(
+                            collection_href,
+                            displayname=displayname,
+                            is_collection=True,
+                            length=0,
+                            modified=collection_modified,
+                            content_type=None
+                        )
+                    )
+
+                    if include_children and collection_href == '/tiddlers/':
+                        tiddlers = self._load_tiddlers()
+                        tiddlers.sort(key=lambda t: t.get('title', ''))
+                        for tiddler in tiddlers:
+                            tiddler_title = tiddler.get('title')
+                            if not tiddler_title:
+                                continue
+                            content = format_tiddler_cat(tiddler)
+                            content_length = len(content.encode('utf-8'))
+                            modified = format_http_date(tiddler.get('modified') or tiddler.get('created'))
+                            responses.append(
+                                self._prop_response(
+                                    self._href_for_title(tiddler_title, prefix=collection_href),
+                                    displayname=tiddler_title,
+                                    is_collection=False,
+                                    length=content_length,
+                                    modified=modified,
+                                    content_type='text/plain; charset=utf-8'
+                                )
+                            )
+                else:
+                    try:
+                        resolved_title = self._resolve_title(path_title)
+                    except ValueError as e:
+                        self.send_error(409, str(e))
+                        return
+
+                    tiddler = self._get_tiddler(resolved_title)
+                    if not tiddler:
+                        self.send_error(404, 'Tiddler not found')
+                        return
+                    content = format_tiddler_cat(tiddler)
+                    content_length = len(content.encode('utf-8'))
+                    modified = format_http_date(tiddler.get('modified') or tiddler.get('created'))
+                    responses.append(
+                        self._prop_response(
+                            self._href_for_title(resolved_title, prefix=prefix),
+                            displayname=resolved_title,
+                            is_collection=False,
+                            length=content_length,
+                            modified=modified,
+                            content_type='text/plain; charset=utf-8'
+                        )
+                    )
+
+                xml_body = (
+                    '<?xml version="1.0" encoding="utf-8"?>'
+                    '<D:multistatus xmlns:D="DAV:">'
+                    + "".join(responses) +
+                    '</D:multistatus>'
+                )
+                self._send_xml(xml_body, status=207)
+            except RuntimeError as e:
+                self.send_error(500, str(e))
+
+        def do_GET(self):
+            kind, path_title, _ = self._parse_path()
+
+            try:
+                if kind == 'root':
+                    body = "WebDAV root. Browse /tiddlers/ for tiddlers."
+                    self._send_text(body, status=200)
+                    return
+                if kind == 'scratch_collection':
+                    self._send_text('', status=200)
+                    return
+                if kind == 'scratch_file':
+                    content = scratch_files.get(path_title, b'')
+                    self._send_bytes(content, status=200)
+                    return
+                if kind == 'collection':
+                    if _ == '/tiddlers/':
+                        titles = self._load_tiddlers(titles_only=True)
+                        titles.sort()
+                        body = '\n'.join(titles)
+                    else:
+                        body = ''
+                    self._send_text(body, status=200)
+                    return
+
+                try:
+                    resolved_title = self._resolve_title(path_title)
+                except ValueError as e:
+                    self.send_error(409, str(e))
+                    return
+
+                tiddler = self._get_tiddler(resolved_title)
+                if not tiddler:
+                    self.send_error(404, 'Tiddler not found')
+                    return
+
+                content = format_tiddler_cat(tiddler)
+                modified = format_http_date(tiddler.get('modified') or tiddler.get('created'))
+                self._send_text(content, status=200, last_modified=modified)
+            except RuntimeError as e:
+                self.send_error(500, str(e))
+
+        def do_HEAD(self):
+            kind, path_title, _ = self._parse_path()
+
+            try:
+                if kind == 'root':
+                    body = "WebDAV root. Browse /tiddlers/ for tiddlers."
+                    self._send_text(body, status=200, include_body=False)
+                    return
+                if kind == 'scratch_collection':
+                    self._send_text('', status=200, include_body=False)
+                    return
+                if kind == 'scratch_file':
+                    content = scratch_files.get(path_title, b'')
+                    self._send_bytes(content, status=200, include_body=False)
+                    return
+                if kind == 'collection':
+                    if _ == '/tiddlers/':
+                        titles = self._load_tiddlers(titles_only=True)
+                        titles.sort()
+                        body = '\n'.join(titles)
+                    else:
+                        body = ''
+                    self._send_text(body, status=200, include_body=False)
+                    return
+
+                try:
+                    resolved_title = self._resolve_title(path_title)
+                except ValueError as e:
+                    self.send_error(409, str(e))
+                    return
+
+                tiddler = self._get_tiddler(resolved_title)
+                if not tiddler:
+                    self.send_error(404, 'Tiddler not found')
+                    return
+
+                content = format_tiddler_cat(tiddler)
+                modified = format_http_date(tiddler.get('modified') or tiddler.get('created'))
+                self._send_text(content, status=200, include_body=False, last_modified=modified)
+            except RuntimeError as e:
+                self.send_error(500, str(e))
+
+        def do_PUT(self):
+            kind, path_title, _ = self._parse_path()
+            if kind == 'scratch_file':
+                if readonly:
+                    self.send_error(403, 'Server is in readonly mode')
+                    return
+                length_header = self.headers.get('Content-Length')
+                if length_header is None:
+                    self.send_error(411, 'Content-Length required')
+                    return
+                try:
+                    content_length = int(length_header)
+                except ValueError:
+                    self.send_error(400, 'Invalid Content-Length')
+                    return
+                body = b''
+                if content_length > 0:
+                    body = self.rfile.read(content_length)
+                existing = path_title in scratch_files
+                scratch_files[path_title] = body
+                status = 204 if existing else 201
+                self.send_response(status)
+                self.send_webdav_headers()
+                self.end_headers()
+                return
+            if kind != 'tiddler' or path_title is None:
+                self.send_error(400, 'Missing tiddler title')
+                return
+
+            if readonly:
+                self.send_error(403, 'Server is in readonly mode')
+                return
+
+            length_header = self.headers.get('Content-Length')
+            if length_header is None:
+                self.send_error(411, 'Content-Length required')
+                return
+
+            try:
+                content_length = int(length_header)
+            except ValueError:
+                self.send_error(400, 'Invalid Content-Length')
+                return
+
+            body = b''
+            if content_length > 0:
+                body = self.rfile.read(content_length)
+
+            try:
+                content = body.decode('utf-8')
+            except UnicodeDecodeError as e:
+                self.send_error(400, f'Invalid UTF-8 encoding: {e}')
+                return
+
+            try:
+                try:
+                    resolved_title = self._resolve_title(path_title)
+                except ValueError as e:
+                    self.send_error(409, str(e))
+                    return
+
+                existing = self._get_tiddler(resolved_title)
+                tiddler = parse_cat_content(content)
+                tiddler['title'] = resolved_title
+                tiddler_json = json.dumps(tiddler, ensure_ascii=False)
+                with contextlib.redirect_stdout(io.StringIO()):
+                    insert_tiddler(wiki_path, tiddler_json)
+                status = 204 if existing else 201
+                action = "Updated" if existing else "Created"
+                print(f"[WebDAV PUT] {action} tiddler: {resolved_title}")
+                self.send_response(status)
+                self.send_webdav_headers()
+                self.end_headers()
+            except RuntimeError as e:
+                self.send_error(500, str(e))
+            except SystemExit:
+                self.send_error(500, 'Error writing tiddler')
+
+        def do_DELETE(self):
+            kind, path_title, _ = self._parse_path()
+            if kind == 'scratch_file':
+                if readonly:
+                    self.send_error(403, 'Server is in readonly mode')
+                    return
+                scratch_files.pop(path_title, None)
+                self.send_response(204)
+                self.send_webdav_headers()
+                self.end_headers()
+                return
+            if kind == 'scratch_collection':
+                if readonly:
+                    self.send_error(403, 'Server is in readonly mode')
+                    return
+                prefix = path_title if path_title.endswith('/') else path_title + '/'
+                for key in list(scratch_files.keys()):
+                    if key.startswith(prefix):
+                        scratch_files.pop(key, None)
+                mkcol_paths.discard(prefix)
+                self.send_response(204)
+                self.send_webdav_headers()
+                self.end_headers()
+                return
+            if kind == 'collection':
+                if readonly:
+                    self.send_error(403, 'Server is in readonly mode')
+                    return
+                if path_title in ('/', '/tiddlers/'):
+                    self.send_error(405, 'Cannot delete collection')
+                    return
+                prefix = path_title if path_title.endswith('/') else path_title + '/'
+                for key in list(scratch_files.keys()):
+                    if key.startswith(prefix):
+                        scratch_files.pop(key, None)
+                mkcol_paths.discard(prefix)
+                self.send_response(204)
+                self.send_webdav_headers()
+                self.end_headers()
+                return
+            if kind != 'tiddler' or path_title is None:
+                self.send_error(400, 'Missing tiddler title')
+                return
+
+            if readonly:
+                self.send_error(403, 'Server is in readonly mode')
+                return
+
+            try:
+                try:
+                    resolved_title = self._resolve_title(path_title)
+                except ValueError as e:
+                    self.send_error(409, str(e))
+                    return
+
+                tiddler = self._get_tiddler(resolved_title)
+                if not tiddler:
+                    self.send_error(404, 'Tiddler not found')
+                    return
+
+                with contextlib.redirect_stdout(io.StringIO()):
+                    remove_tiddler(wiki_path, resolved_title)
+                print(f"[WebDAV DELETE] Removed tiddler: {resolved_title}")
+                self.send_response(204)
+                self.send_webdav_headers()
+                self.end_headers()
+            except RuntimeError as e:
+                self.send_error(500, str(e))
+            except SystemExit:
+                self.send_error(500, 'Error deleting tiddler')
+
+        def do_LOCK(self):
+            # Read and discard request body if present (WebDAV LOCK requests often include XML)
+            content_length = self.headers.get('Content-Length')
+            if content_length:
+                try:
+                    length = int(content_length)
+                    if length > 0:
+                        # Read and discard the lock request body
+                        self.rfile.read(length)
+                except (ValueError, OSError):
+                    pass
+
+            parsed = urllib.parse.urlparse(self.path)
+            path = parsed.path or '/'
+            if not path.startswith('/'):
+                path = '/' + path
+            lock_path = normalize_collection_path(path) if path.endswith('/') else path
+
+            token = "opaquelocktoken:" + str(uuid.uuid4())
+            lock_tokens[lock_path] = token
+
+            xml_body = (
+                '<?xml version="1.0" encoding="utf-8"?>'
+                '<D:prop xmlns:D="DAV:">'
+                '<D:lockdiscovery>'
+                '<D:activelock>'
+                '<D:locktype><D:write/></D:locktype>'
+                '<D:lockscope><D:exclusive/></D:lockscope>'
+                '<D:depth>infinity</D:depth>'
+                '<D:locktoken><D:href>' + escape(token) + '</D:href></D:locktoken>'
+                '</D:activelock>'
+                '</D:lockdiscovery>'
+                '</D:prop>'
+            )
+
+            body_bytes = xml_body.encode('utf-8')
+            self.send_response(200)
+            self.send_webdav_headers()
+            self.send_header('Content-Type', 'application/xml; charset=utf-8')
+            self.send_header('Content-Length', str(len(body_bytes)))
+            self.send_header('Lock-Token', f"<{token}>")
+            self.end_headers()
+            self.wfile.write(body_bytes)
+
+        def do_UNLOCK(self):
+            token = self.headers.get('Lock-Token') or ''
+            token = token.strip('<>')
+            for key, value in list(lock_tokens.items()):
+                if value == token:
+                    del lock_tokens[key]
+                    break
+            self.send_response(204)
+            self.send_webdav_headers()
+            self.end_headers()
+
+        def do_MKCOL(self):
+            # Read and discard request body if present (MKCOL should have empty body per RFC but some clients send one)
+            content_length = self.headers.get('Content-Length')
+            if content_length:
+                try:
+                    length = int(content_length)
+                    if length > 0:
+                        # Read and discard any request body
+                        self.rfile.read(length)
+                except (ValueError, OSError):
+                    pass
+
+            parsed = urllib.parse.urlparse(self.path)
+            path = parsed.path or '/'
+            if not path.startswith('/'):
+                path = '/' + path
+            if path in ('', '/'):
+                self.send_error(405, 'Collection exists')
+                return
+            collection_path = normalize_collection_path(path)
+            if collection_path == '/tiddlers/':
+                self.send_error(405, 'Collection exists')
+                return
+            if collection_path in mkcol_paths:
+                self.send_error(405, 'Collection exists')
+                return
+            mkcol_paths.add(collection_path)
+            self.send_response(201)
+            self.send_webdav_headers()
+            self.end_headers()
+
+    try:
+        server = HTTPServer((host, port), WebDavHandler)
+        if readonly:
+            print(f"Serving WebDAV at http://{host}:{port} (READONLY MODE)")
+        else:
+            print(f"Serving WebDAV at http://{host}:{port}")
+        print(f"Wiki file: {wiki_path}")
+        if readonly:
+            print("Mode: READONLY - write attempts will be rejected")
+        print("Press Ctrl+C to stop the server")
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nServer stopped")
+        sys.exit(0)
+    except OSError as e:
+        if e.errno == 48 or e.errno == 98:  # Address already in use
+            print(f"Error: Port {port} is already in use", file=sys.stderr)
+        else:
+            print(f"Error starting server: {e}", file=sys.stderr)
+        sys.exit(1)
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: tw [<wiki_path>] <command> [args]", file=sys.stderr)
@@ -2331,6 +3115,7 @@ def main():
         print("  mimetype <filename>         - Get MIME type for a file extension", file=sys.stderr)
         print("  install_plugin              - Install live reload plugin", file=sys.stderr)
         print("  serve [options]             - Serve wiki locally (--host, --port, --readonly)", file=sys.stderr)
+        print("  webdav [options]            - Serve tiddlers via WebDAV (--host, --port, --readonly)", file=sys.stderr)
         print("  filter <expression>         - Evaluate a TiddlyWiki filter expression", file=sys.stderr)
         sys.exit(1)
 
@@ -2505,6 +3290,33 @@ def main():
                 sys.exit(1)
 
         serve_wiki(wiki_path, host, port, readonly)
+    elif command == "webdav":
+        # Parse optional --host, --port, and --readonly arguments
+        host = 'localhost'
+        port = 8081
+        readonly = False
+
+        i = arg_idx + 1
+        while i < len(sys.argv):
+            if sys.argv[i] == '--host' and i + 1 < len(sys.argv):
+                host = sys.argv[i + 1]
+                i += 2
+            elif sys.argv[i] == '--port' and i + 1 < len(sys.argv):
+                try:
+                    port = int(sys.argv[i + 1])
+                except ValueError:
+                    print(f"Error: Invalid port number '{sys.argv[i + 1]}'", file=sys.stderr)
+                    sys.exit(1)
+                i += 2
+            elif sys.argv[i] == '--readonly':
+                readonly = True
+                i += 1
+            else:
+                print(f"Error: Unknown argument '{sys.argv[i]}'", file=sys.stderr)
+                print("Usage: tw [<wiki_path>] webdav [--host HOST] [--port PORT] [--readonly]", file=sys.stderr)
+                sys.exit(1)
+
+        serve_webdav(wiki_path, host, port, readonly)
     elif command == "filter":
         if arg_idx + 1 >= len(sys.argv):
             print("Error: filter command requires an expression", file=sys.stderr)

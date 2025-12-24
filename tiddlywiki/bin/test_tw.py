@@ -3789,6 +3789,503 @@ class TestWebDAVSupport(unittest.TestCase):
             "Plugin should skip reload for versions we just saved")
 
 
+class TestWebDAVTiddlers(unittest.TestCase):
+    """Test WebDAV tiddler server behavior"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        self.test_tiddlers = [
+            {"title": "Alpha", "text": "First content", "tags": "one two", "created": "20230101000000000", "modified": "20230101000000000"},
+            {"title": "Beta Note", "text": "Second content", "created": "20230102000000000", "modified": "20230102000000000"},
+            {"title": "Folder/Sub", "text": "Nested content", "created": "20230103000000000", "modified": "20230103000000000"},
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def _start_server(self, port, readonly=False):
+        import time
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_webdav,
+            args=(self.test_wiki, 'localhost', port, readonly),
+            daemon=True
+        )
+        server_thread.start()
+        time.sleep(0.2)
+
+    def test_options_returns_webdav_headers(self):
+        """OPTIONS returns WebDAV headers"""
+        import urllib.request
+
+        test_port = 20196
+        self._start_server(test_port)
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/', method='OPTIONS')
+        response = urllib.request.urlopen(req, timeout=2)
+
+        self.assertEqual(response.status, 200)
+        dav_header = response.headers.get('DAV')
+        self.assertIsNotNone(dav_header)
+        self.assertIn('1', dav_header)
+        allow_header = response.headers.get('Allow')
+        self.assertIsNotNone(allow_header)
+        self.assertIn('PROPFIND', allow_header)
+        self.assertIn('PUT', allow_header)
+        self.assertIn('DELETE', allow_header)
+        self.assertIn('LOCK', allow_header)
+        self.assertIn('UNLOCK', allow_header)
+        self.assertIn('MKCOL', allow_header)
+
+    def test_scratch_propfind_returns_207(self):
+        """PROPFIND for AppleDouble metadata avoids 404s"""
+        import urllib.request
+
+        test_port = 20197
+        self._start_server(test_port)
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/tiddlers/._Alpha', method='PROPFIND')
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(response.status, 207)
+
+    def test_scratch_put_binary_roundtrip(self):
+        """PUT for scratch files accepts binary and returns it on GET"""
+        import urllib.request
+
+        test_port = 20198
+        self._start_server(test_port)
+
+        payload = b'\x00\xffbinary'
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/._Alpha',
+            data=payload,
+            method='PUT'
+        )
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertIn(response.status, [201, 204])
+
+        got = urllib.request.urlopen(f'http://localhost:{test_port}/tiddlers/._Alpha', timeout=2).read()
+        self.assertEqual(got, payload)
+
+    def test_scratch_nested_propfind(self):
+        """PROPFIND for nested scratch paths avoids 404s"""
+        import urllib.request
+
+        test_port = 20199
+        self._start_server(test_port)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/tmp.sb-4b142eef-ABCDEF/asdf',
+            method='PROPFIND'
+        )
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(response.status, 207)
+
+    def test_scratch_collection_missing_returns_404(self):
+        """PROPFIND on missing scratch collection returns 404"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20220
+        self._start_server(test_port)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/tmp.sb-4b142eef-Missing',
+            method='PROPFIND'
+        )
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_delete_scratch_collection(self):
+        """DELETE removes scratch collections without 400s"""
+        import urllib.request
+
+        test_port = 20219
+        self._start_server(test_port)
+
+        mkcol = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/tmp.sb-4b142eef-ABCDEF',
+            method='MKCOL'
+        )
+        mkcol_resp = urllib.request.urlopen(mkcol, timeout=2)
+        self.assertEqual(mkcol_resp.status, 201)
+
+        delete_req = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/tmp.sb-4b142eef-ABCDEF/',
+            method='DELETE'
+        )
+        delete_resp = urllib.request.urlopen(delete_req, timeout=2)
+        self.assertEqual(delete_resp.status, 204)
+
+    def test_lock_unlock_cycle(self):
+        """LOCK and UNLOCK are supported for WebDAV clients"""
+        import urllib.request
+
+        test_port = 20217
+        self._start_server(test_port)
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/tiddlers/Alpha', method='LOCK')
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(response.status, 200)
+        token = response.headers.get('Lock-Token')
+        self.assertIsNotNone(token)
+
+        unlock_req = urllib.request.Request(f'http://localhost:{test_port}/tiddlers/Alpha', method='UNLOCK')
+        unlock_req.add_header('Lock-Token', token)
+        unlock_response = urllib.request.urlopen(unlock_req, timeout=2)
+        self.assertEqual(unlock_response.status, 204)
+
+    def test_mkcol_creates_collection(self):
+        """MKCOL creates a collection that can be PROPFINDed"""
+        import urllib.request
+
+        test_port = 20218
+        self._start_server(test_port)
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/tiddlers/tmp-collection', method='MKCOL')
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(response.status, 201)
+
+        propfind = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/tmp-collection/',
+            method='PROPFIND'
+        )
+        propfind.add_header('Depth', '0')
+        propfind_resp = urllib.request.urlopen(propfind, timeout=2)
+        self.assertEqual(propfind_resp.status, 207)
+        body = propfind_resp.read().decode('utf-8')
+        self.assertIn('<D:displayname>tmp-collection</D:displayname>', body)
+
+    def test_propfind_root_lists_collection_only(self):
+        """PROPFIND on root lists only the tiddlers collection"""
+        import urllib.request
+
+        test_port = 20200
+        self._start_server(test_port)
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/', method='PROPFIND')
+        req.add_header('Depth', '1')
+        response = urllib.request.urlopen(req, timeout=2)
+
+        self.assertEqual(response.status, 207)
+        body = response.read().decode('utf-8')
+        self.assertIn('<D:multistatus', body)
+        self.assertIn('<D:displayname>wiki</D:displayname>', body)
+        self.assertIn('<D:href>/tiddlers/</D:href>', body)
+        self.assertNotIn('<D:href>/Alpha</D:href>', body)
+        self.assertNotIn('<D:href>/Beta%20Note</D:href>', body)
+        # Now uses percent-encoding for slashes
+        self.assertNotIn('<D:href>/Folder%2FSub</D:href>', body)
+
+    def test_propfind_depth_zero_only_root(self):
+        """PROPFIND depth 0 returns only root collection"""
+        import urllib.request
+
+        test_port = 20204
+        self._start_server(test_port)
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/', method='PROPFIND')
+        req.add_header('Depth', '0')
+        response = urllib.request.urlopen(req, timeout=2)
+
+        self.assertEqual(response.status, 207)
+        body = response.read().decode('utf-8')
+        self.assertIn('<D:displayname>wiki</D:displayname>', body)
+        self.assertNotIn('/tiddlers/', body)
+        self.assertNotIn('/Alpha', body)
+        self.assertNotIn('/Beta%20Note', body)
+
+    def test_get_returns_cat_format(self):
+        """GET returns tiddler content in cat format"""
+        import urllib.request
+
+        test_port = 20201
+        self._start_server(test_port)
+
+        response = urllib.request.urlopen(f'http://localhost:{test_port}/Alpha', timeout=2)
+        body = response.read().decode('utf-8')
+
+        self.assertIn('title: Alpha', body)
+        self.assertIn('tags: one two', body)
+        self.assertIn('First content', body)
+        self.assertIn('text/plain', response.headers.get('Content-Type', ''))
+
+    def test_get_root_returns_hint(self):
+        """GET root returns a hint instead of listing tiddlers"""
+        import urllib.request
+
+        test_port = 20205
+        self._start_server(test_port)
+
+        response = urllib.request.urlopen(f'http://localhost:{test_port}/', timeout=2)
+        body = response.read().decode('utf-8')
+        self.assertIn('WebDAV root', body)
+        self.assertIn('/tiddlers/', body)
+
+    def test_head_includes_content_length(self):
+        """HEAD returns content length for tiddler resource"""
+        import urllib.request
+
+        test_port = 20206
+        self._start_server(test_port)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki, target_title='Alpha')
+        tiddler = next(t for t in tiddlers if t.get('title') == 'Alpha')
+        expected_length = len(tw_module.format_tiddler_cat(tiddler).encode('utf-8'))
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/Alpha', method='HEAD')
+        response = urllib.request.urlopen(req, timeout=2)
+
+        self.assertEqual(response.status, 200)
+        self.assertEqual(int(response.headers.get('Content-Length', '0')), expected_length)
+
+    def test_get_missing_returns_404(self):
+        """GET missing tiddler returns 404"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20207
+        self._start_server(test_port)
+
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(f'http://localhost:{test_port}/Missing', timeout=2)
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_put_creates_and_updates_tiddlers(self):
+        """PUT creates new tiddlers and updates existing ones"""
+        import urllib.request
+
+        test_port = 20202
+        self._start_server(test_port)
+
+        new_body = "tags: created\n\nNew content"
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/New%20Tiddler',
+            data=new_body.encode('utf-8'),
+            method='PUT'
+        )
+        req.add_header('Content-Type', 'text/plain; charset=utf-8')
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(response.status, 201)
+
+        created = urllib.request.urlopen(f'http://localhost:{test_port}/New%20Tiddler', timeout=2)
+        created_body = created.read().decode('utf-8')
+        self.assertIn('title: New Tiddler', created_body)
+        self.assertIn('tags: created', created_body)
+        self.assertIn('New content', created_body)
+
+        updated_body = "tags: updated\n\nUpdated content"
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/Alpha',
+            data=updated_body.encode('utf-8'),
+            method='PUT'
+        )
+        req.add_header('Content-Type', 'text/plain; charset=utf-8')
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(response.status, 204)
+
+        updated = urllib.request.urlopen(f'http://localhost:{test_port}/Alpha', timeout=2)
+        updated_content = updated.read().decode('utf-8')
+        self.assertIn('title: Alpha', updated_content)
+        self.assertIn('tags: updated', updated_content)
+        self.assertIn('Updated content', updated_content)
+
+    def test_put_rejects_root(self):
+        """PUT to root returns 400"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20208
+        self._start_server(test_port)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/',
+            data=b'title: Root\n\nNope',
+            method='PUT'
+        )
+        req.add_header('Content-Type', 'text/plain; charset=utf-8')
+
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(ctx.exception.code, 400)
+
+    def test_put_invalid_utf8_returns_400(self):
+        """PUT rejects invalid UTF-8 payloads"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20209
+        self._start_server(test_port)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/Alpha',
+            data=b'\xff',
+            method='PUT'
+        )
+        req.add_header('Content-Type', 'text/plain; charset=utf-8')
+
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(ctx.exception.code, 400)
+
+    def test_put_readonly_rejected(self):
+        """PUT rejected when server is readonly"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20210
+        self._start_server(test_port, readonly=True)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/Alpha',
+            data=b'tags: readonly\n\nNope',
+            method='PUT'
+        )
+        req.add_header('Content-Type', 'text/plain; charset=utf-8')
+
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(ctx.exception.code, 403)
+
+    def test_delete_removes_tiddler(self):
+        """DELETE removes an existing tiddler"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20203
+        self._start_server(test_port)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/Beta%20Note',
+            method='DELETE'
+        )
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(response.status, 204)
+
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(f'http://localhost:{test_port}/Beta%20Note', timeout=2)
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_delete_missing_returns_404(self):
+        """DELETE missing tiddler returns 404"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20211
+        self._start_server(test_port)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/Missing',
+            method='DELETE'
+        )
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_delete_readonly_rejected(self):
+        """DELETE rejected when server is readonly"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20212
+        self._start_server(test_port, readonly=True)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/Alpha',
+            method='DELETE'
+        )
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(ctx.exception.code, 403)
+
+    def test_propfind_missing_returns_404(self):
+        """PROPFIND missing tiddler returns 404"""
+        import urllib.request
+        import urllib.error
+
+        test_port = 20213
+        self._start_server(test_port)
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/Missing', method='PROPFIND')
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            urllib.request.urlopen(req, timeout=2)
+        self.assertEqual(ctx.exception.code, 404)
+
+    def test_put_overrides_title_from_path(self):
+        """PUT uses title from URL path even if body provides another title"""
+        import urllib.request
+
+        test_port = 20214
+        self._start_server(test_port)
+
+        body = "title: Wrong Title\n\nBody content"
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/Right%20Title',
+            data=body.encode('utf-8'),
+            method='PUT'
+        )
+        req.add_header('Content-Type', 'text/plain; charset=utf-8')
+        response = urllib.request.urlopen(req, timeout=2)
+        self.assertIn(response.status, [201, 204])
+
+        fetched = urllib.request.urlopen(f'http://localhost:{test_port}/Right%20Title', timeout=2)
+        fetched_body = fetched.read().decode('utf-8')
+        self.assertIn('title: Right Title', fetched_body)
+        self.assertNotIn('title: Wrong Title', fetched_body)
+
+    def test_get_title_with_slash(self):
+        """GET works for titles with slashes when WebDAV-encoded"""
+        import urllib.request
+
+        test_port = 20215
+        self._start_server(test_port)
+
+        # Now uses percent-encoding for slashes
+        response = urllib.request.urlopen(f'http://localhost:{test_port}/Folder%2FSub', timeout=2)
+        body = response.read().decode('utf-8')
+        self.assertIn('title: Folder/Sub', body)
+        self.assertIn('Nested content', body)
+
+    def test_propfind_collection_lists_tiddlers(self):
+        """PROPFIND on /tiddlers lists tiddlers with collection prefix"""
+        import urllib.request
+
+        test_port = 20216
+        self._start_server(test_port)
+
+        req = urllib.request.Request(f'http://localhost:{test_port}/tiddlers/', method='PROPFIND')
+        req.add_header('Depth', '1')
+        response = urllib.request.urlopen(req, timeout=2)
+
+        self.assertEqual(response.status, 207)
+        body = response.read().decode('utf-8')
+        self.assertIn('<D:displayname>tiddlers</D:displayname>', body)
+        self.assertIn('<D:href>/tiddlers/Alpha</D:href>', body)
+        self.assertIn('<D:href>/tiddlers/Beta%20Note</D:href>', body)
+        # Now uses percent-encoding for slashes
+        self.assertIn('<D:href>/tiddlers/Folder%2FSub</D:href>', body)
+
+
 class TestWikiPathArgument(unittest.TestCase):
     """Test wiki path as first argument"""
 
@@ -6539,6 +7036,724 @@ class TestMimetypeCommand(unittest.TestCase):
 
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Error', result.stderr)
+
+
+class TestWebDAVPathEncoding(unittest.TestCase):
+    """Test WebDAV path encoding/decoding and consistency"""
+
+    def test_encoding_decoding_roundtrip(self):
+        """Test that path encoding/decoding is reversible for all titles"""
+        test_titles = [
+            "Simple Title",
+            "Title$With$Dollar",
+            "unicode→title",
+            "$:/core",
+            "$:/isEncrypted",
+            "$:/StoryList",
+        ]
+
+        for title in test_titles:
+            encoded = tw_module.encode_tiddler_title_for_path(title)
+            decoded = tw_module.decode_tiddler_title_from_path(encoded)
+            self.assertEqual(decoded, title,
+                f"Encoding/decoding failed for {title!r}: got {decoded!r}")
+
+    def test_encoding_decoding_special_chars(self):
+        """Test that special characters are now encoded/decoded correctly"""
+        # These titles contain characters that previously caused issues
+        special_titles = [
+            "Title: With Colon",
+            "Title/With/Slash",
+            "Title~With~Tilde",
+            "Title<With>Brackets",
+            "Title|With|Pipe",
+            "Title*With*Star",
+            "Title?With?Question",
+        ]
+
+        for title in special_titles:
+            encoded = tw_module.encode_tiddler_title_for_path(title)
+            decoded = tw_module.decode_tiddler_title_from_path(encoded)
+
+            # After the fix: encoding/decoding should be symmetric
+            self.assertEqual(decoded, title,
+                f"Encoding/decoding should be reversible for {title!r}: got {decoded!r}")
+            # The encoded path should be URL-safe
+            self.assertNotIn('<', encoded)
+            self.assertNotIn('>', encoded)
+            self.assertNotIn('|', encoded)
+
+    def test_system_tiddler_encoding(self):
+        """Test that system tiddlers with $:/ are encoded correctly for macOS compatibility"""
+        system_titles = [
+            "$:/core",
+            "$:/isEncrypted",
+            "$:/StoryList",
+            "$:/themes/tiddlywiki/vanilla",
+        ]
+
+        for title in system_titles:
+            encoded = tw_module.encode_tiddler_title_for_path(title)
+            decoded = tw_module.decode_tiddler_title_from_path(encoded)
+
+            # Must be reversible
+            self.assertEqual(decoded, title,
+                f"Encoding/decoding failed for {title!r}: got {decoded!r}")
+
+            # $ should be encoded (not in safe chars anymore)
+            self.assertIn('%24', encoded,
+                f"$ should be encoded in {title!r}, got {encoded!r}")
+
+            # : should be encoded
+            self.assertIn('%3A', encoded,
+                f": should be encoded in {title!r}, got {encoded!r}")
+
+            # The encoded form should not start with $ (problematic on macOS)
+            self.assertFalse(encoded.startswith('$'),
+                f"Encoded path should not start with $: {encoded!r}")
+
+
+class TestWebDAVFileUpdates(unittest.TestCase):
+    """Test WebDAV file update operations with various title types"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        self.test_tiddlers = [
+            {"title": "Simple Title", "text": "Original content 1"},
+            {"title": "Title: With Colon", "text": "Original content 2"},
+            {"title": "Title/With/Slash", "text": "Original content 3"},
+            {"title": "Title~With~Tilde", "text": "Original content 4"},
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def _start_server(self, port, readonly=False):
+        import time
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_webdav,
+            args=(self.test_wiki, 'localhost', port, readonly),
+            daemon=True
+        )
+        server_thread.start()
+        time.sleep(0.2)
+
+    def test_update_simple_title(self):
+        """Test updating a tiddler with a simple title"""
+        import urllib.request
+
+        test_port = 20300
+        self._start_server(test_port)
+
+        # GET original content
+        title_encoded = tw_module.encode_tiddler_title_for_path("Simple Title")
+        url = f'http://localhost:{test_port}/tiddlers/{title_encoded}'
+
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("Original content 1", content)
+
+        # PUT updated content
+        new_content = "title: Simple Title\ntext: Updated content 1\n"
+        req = urllib.request.Request(url, data=new_content.encode('utf-8'), method='PUT')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertIn(response.status, [201, 204])
+
+        # GET to verify update
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("Updated content 1", content)
+
+    def test_update_title_with_colon(self):
+        """Test updating a tiddler with colon in title"""
+        import urllib.request
+
+        test_port = 20301
+        self._start_server(test_port)
+
+        # GET original content
+        title_encoded = tw_module.encode_tiddler_title_for_path("Title: With Colon")
+        url = f'http://localhost:{test_port}/tiddlers/{title_encoded}'
+
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("Original content 2", content)
+
+        # PUT updated content - use the exact title from the tiddler
+        new_content = "title: Title: With Colon\ntext: Updated content 2\n"
+        req = urllib.request.Request(url, data=new_content.encode('utf-8'), method='PUT')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertIn(response.status, [201, 204])
+
+        # GET to verify update
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("Updated content 2", content)
+            # Verify title is preserved
+            self.assertIn("title: Title: With Colon", content)
+
+    def test_update_title_with_slash(self):
+        """Test updating a tiddler with slash in title"""
+        import urllib.request
+
+        test_port = 20302
+        self._start_server(test_port)
+
+        # GET original content
+        title_encoded = tw_module.encode_tiddler_title_for_path("Title/With/Slash")
+        url = f'http://localhost:{test_port}/tiddlers/{title_encoded}'
+
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("Original content 3", content)
+
+        # PUT updated content
+        new_content = "title: Title/With/Slash\ntext: Updated content 3\n"
+        req = urllib.request.Request(url, data=new_content.encode('utf-8'), method='PUT')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertIn(response.status, [201, 204])
+
+        # GET to verify update
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("Updated content 3", content)
+            self.assertIn("title: Title/With/Slash", content)
+
+    def test_roundtrip_preserves_title(self):
+        """Test that GET -> modify -> PUT preserves exact title"""
+        import urllib.request
+
+        test_port = 20303
+        self._start_server(test_port)
+
+        test_cases = [
+            "Simple Title",
+            "Title: With Colon",
+            "Title/With/Slash",
+            "Title~With~Tilde",
+        ]
+
+        for original_title in test_cases:
+            title_encoded = tw_module.encode_tiddler_title_for_path(original_title)
+            url = f'http://localhost:{test_port}/tiddlers/{title_encoded}'
+
+            # GET original
+            with urllib.request.urlopen(url, timeout=2) as response:
+                content = response.read().decode('utf-8')
+
+                # Verify title is in content
+                self.assertIn(f"title: {original_title}", content,
+                    f"Title {original_title!r} not found in GET response")
+
+            # Modify and PUT back
+            # The format from GET is: fields, blank line, then text content
+            # We need to find the blank line and modify everything after it
+            lines = content.split('\n')
+            blank_line_idx = None
+            for i, line in enumerate(lines):
+                if line.strip() == '':
+                    blank_line_idx = i
+                    break
+
+            if blank_line_idx is not None:
+                # Replace everything after the blank line with new text
+                lines = lines[:blank_line_idx + 1] + ['Modified via roundtrip']
+            else:
+                # No blank line found, append text field
+                lines.append('text: Modified via roundtrip')
+
+            modified_content = '\n'.join(lines)
+
+            req = urllib.request.Request(url, data=modified_content.encode('utf-8'), method='PUT')
+            with urllib.request.urlopen(req, timeout=2) as response:
+                self.assertIn(response.status, [201, 204])
+
+            # GET again and verify title preserved
+            with urllib.request.urlopen(url, timeout=2) as response:
+                final_content = response.read().decode('utf-8')
+                self.assertIn(f"title: {original_title}", final_content,
+                    f"Title {original_title!r} was not preserved after roundtrip")
+                self.assertIn("Modified via roundtrip", final_content)
+
+
+class TestWebDAVNamingConsistency(unittest.TestCase):
+    """Test that file naming is consistent across WebDAV operations"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        self.test_tiddlers = [
+            {"title": "Alpha", "text": "Content alpha"},
+            {"title": "Beta: Colon", "text": "Content beta"},
+            {"title": "Gamma/Slash", "text": "Content gamma"},
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def _start_server(self, port, readonly=False):
+        import time
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_webdav,
+            args=(self.test_wiki, 'localhost', port, readonly),
+            daemon=True
+        )
+        server_thread.start()
+        time.sleep(0.2)
+
+    def test_propfind_uses_consistent_hrefs(self):
+        """Test that PROPFIND returns consistent href paths"""
+        import urllib.request
+        import xml.etree.ElementTree as ET
+
+        test_port = 20310
+        self._start_server(test_port)
+
+        # PROPFIND on /tiddlers/
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/',
+            method='PROPFIND'
+        )
+        req.add_header('Depth', '1')
+
+        with urllib.request.urlopen(req, timeout=2) as response:
+            xml_content = response.read().decode('utf-8')
+
+            # Parse XML
+            root = ET.fromstring(xml_content)
+            ns = {'D': 'DAV:'}
+
+            hrefs = [elem.text for elem in root.findall('.//D:href', ns)]
+
+            # Check that we have hrefs for our tiddlers
+            self.assertGreater(len(hrefs), 0)
+
+            # Check that each href can be used to GET the tiddler
+            for href in hrefs:
+                if href.startswith('/tiddlers/') and href != '/tiddlers/':
+                    # Try to GET this href
+                    url = f'http://localhost:{test_port}{href}'
+                    try:
+                        with urllib.request.urlopen(url, timeout=2) as get_response:
+                            self.assertEqual(get_response.status, 200,
+                                f"Failed to GET href {href} from PROPFIND")
+                    except Exception as e:
+                        self.fail(f"Failed to GET href {href} from PROPFIND: {e}")
+
+    def test_get_put_delete_use_same_path(self):
+        """Test that GET, PUT, DELETE all work with the same encoded path"""
+        import urllib.request
+
+        test_port = 20311
+        self._start_server(test_port)
+
+        # Test with special character title
+        title = "Beta: Colon"
+        encoded_path = tw_module.encode_tiddler_title_for_path(title)
+        url = f'http://localhost:{test_port}/tiddlers/{encoded_path}'
+
+        # GET should work
+        with urllib.request.urlopen(url, timeout=2) as response:
+            self.assertEqual(response.status, 200)
+            content = response.read().decode('utf-8')
+
+        # PUT should work with same path
+        new_content = f"title: {title}\ntext: Modified content\n"
+        req = urllib.request.Request(url, data=new_content.encode('utf-8'), method='PUT')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertIn(response.status, [201, 204])
+
+        # GET should still work
+        with urllib.request.urlopen(url, timeout=2) as response:
+            self.assertEqual(response.status, 200)
+
+        # DELETE should work with same path
+        req = urllib.request.Request(url, method='DELETE')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertEqual(response.status, 204)
+
+
+class TestWebDAVLockWithBody(unittest.TestCase):
+    """Test WebDAV LOCK requests with request bodies"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        self.test_tiddlers = [
+            {"title": "TestFile", "text": "Content to lock"},
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def _start_server(self, port, readonly=False):
+        import time
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_webdav,
+            args=(self.test_wiki, 'localhost', port, readonly),
+            daemon=True
+        )
+        server_thread.start()
+        time.sleep(0.2)
+
+    def test_lock_with_xml_body(self):
+        """LOCK request with XML body should not hang"""
+        import urllib.request
+
+        test_port = 20400
+        self._start_server(test_port)
+
+        # Create a LOCK request with XML body (as WebDAV clients do)
+        lock_xml = '''<?xml version="1.0" encoding="utf-8"?>
+<D:lockinfo xmlns:D="DAV:">
+    <D:lockscope><D:exclusive/></D:lockscope>
+    <D:locktype><D:write/></D:locktype>
+    <D:owner>
+        <D:href>mailto:test@example.com</D:href>
+    </D:owner>
+</D:lockinfo>'''
+
+        url = f'http://localhost:{test_port}/tiddlers/TestFile'
+        req = urllib.request.Request(
+            url,
+            data=lock_xml.encode('utf-8'),
+            method='LOCK',
+            headers={'Content-Type': 'application/xml'}
+        )
+
+        # This should complete without hanging
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertEqual(response.status, 200)
+            body = response.read().decode('utf-8')
+            self.assertIn('locktoken', body)
+            lock_token_header = response.headers.get('Lock-Token')
+            self.assertIsNotNone(lock_token_header)
+
+    def test_lock_empty_body(self):
+        """LOCK request with empty body should work"""
+        import urllib.request
+
+        test_port = 20401
+        self._start_server(test_port)
+
+        url = f'http://localhost:{test_port}/tiddlers/TestFile'
+        req = urllib.request.Request(url, method='LOCK')
+
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertEqual(response.status, 200)
+
+    def test_lock_unlock_put_cycle(self):
+        """Full LOCK -> PUT -> UNLOCK cycle should work"""
+        import urllib.request
+        import re
+
+        test_port = 20402
+        self._start_server(test_port)
+
+        url = f'http://localhost:{test_port}/tiddlers/TestFile'
+
+        # LOCK with body
+        lock_xml = '''<?xml version="1.0" encoding="utf-8"?>
+<D:lockinfo xmlns:D="DAV:"><D:lockscope><D:exclusive/></D:lockscope><D:locktype><D:write/></D:locktype></D:lockinfo>'''
+
+        req = urllib.request.Request(
+            url,
+            data=lock_xml.encode('utf-8'),
+            method='LOCK'
+        )
+        with urllib.request.urlopen(req, timeout=2) as response:
+            lock_response = response.read().decode('utf-8')
+            match = re.search(r'<D:locktoken><D:href>([^<]+)</D:href>', lock_response)
+            self.assertIsNotNone(match, "Lock token not found in response")
+            lock_token = match.group(1)
+
+        # PUT with lock token
+        new_content = "title: TestFile\ntext: Modified while locked\n"
+        req = urllib.request.Request(url, data=new_content.encode('utf-8'), method='PUT')
+        req.add_header('If', f'(<{lock_token}>)')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertIn(response.status, [200, 204])
+
+        # UNLOCK
+        req = urllib.request.Request(url, method='UNLOCK')
+        req.add_header('Lock-Token', f'<{lock_token}>')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertEqual(response.status, 204)
+
+        # Verify changes persisted
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("Modified while locked", content)
+
+    def test_textedit_workflow_simulation(self):
+        """Simulate complete TextEdit save workflow"""
+        import urllib.request
+        import re
+
+        test_port = 20403
+        self._start_server(test_port)
+
+        url = f'http://localhost:{test_port}/tiddlers/TestFile'
+
+        # TextEdit workflow:
+        # 1. PROPFIND to check if file exists
+        req = urllib.request.Request(url, method='PROPFIND')
+        req.add_header('Depth', '0')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertEqual(response.status, 207)
+
+        # 2. GET to read current content
+        with urllib.request.urlopen(url, timeout=2) as response:
+            original_content = response.read().decode('utf-8')
+            self.assertIn("Content to lock", original_content)
+
+        # 3. LOCK with XML body before editing
+        lock_xml = '''<?xml version="1.0" encoding="utf-8"?>
+<D:lockinfo xmlns:D="DAV:">
+    <D:lockscope><D:exclusive/></D:lockscope>
+    <D:locktype><D:write/></D:locktype>
+    <D:owner><D:href>TextEdit</D:href></D:owner>
+</D:lockinfo>'''
+        req = urllib.request.Request(
+            url,
+            data=lock_xml.encode('utf-8'),
+            method='LOCK',
+            headers={'Content-Type': 'application/xml', 'Depth': 'infinity', 'Timeout': 'Second-3600'}
+        )
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertEqual(response.status, 200)
+            lock_response = response.read().decode('utf-8')
+            match = re.search(r'<D:locktoken><D:href>([^<]+)</D:href>', lock_response)
+            self.assertIsNotNone(match)
+            lock_token = match.group(1)
+
+        # 4. PUT modified content with If header
+        modified_content = "title: TestFile\ntext: Edited with TextEdit\n"
+        req = urllib.request.Request(url, data=modified_content.encode('utf-8'), method='PUT')
+        req.add_header('If', f'(<{lock_token}>)')
+        req.add_header('Content-Type', 'text/plain; charset=utf-8')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertIn(response.status, [200, 204])
+
+        # 5. UNLOCK
+        req = urllib.request.Request(url, method='UNLOCK')
+        req.add_header('Lock-Token', f'<{lock_token}>')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertEqual(response.status, 204)
+
+        # 6. GET to verify changes
+        with urllib.request.urlopen(url, timeout=2) as response:
+            final_content = response.read().decode('utf-8')
+            self.assertIn("Edited with TextEdit", final_content)
+            self.assertNotIn("Content to lock", final_content)
+
+
+class TestWebDAVSystemTiddlers(unittest.TestCase):
+    """Test WebDAV access to system tiddlers with $:/ prefix"""
+
+    def setUp(self):
+        """Create a temporary test wiki with system tiddlers"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        self.test_tiddlers = [
+            {"title": "$:/core", "text": "Core system tiddler"},
+            {"title": "$:/isEncrypted", "text": "false"},
+            {"title": "$:/StoryList", "list": "one two three"},
+            {"title": "Regular Tiddler", "text": "Regular content"},
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def _start_server(self, port, readonly=False):
+        import time
+
+        server_thread = threading.Thread(
+            target=tw_module.serve_webdav,
+            args=(self.test_wiki, 'localhost', port, readonly),
+            daemon=True
+        )
+        server_thread.start()
+        time.sleep(0.2)
+
+    def test_system_tiddlers_in_propfind(self):
+        """PROPFIND should list system tiddlers with properly encoded paths"""
+        import urllib.request
+        import xml.etree.ElementTree as ET
+
+        test_port = 20500
+        self._start_server(test_port)
+
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/',
+            method='PROPFIND'
+        )
+        req.add_header('Depth', '1')
+
+        with urllib.request.urlopen(req, timeout=2) as response:
+            xml_content = response.read().decode('utf-8')
+
+            root = ET.fromstring(xml_content)
+            ns = {'D': 'DAV:'}
+
+            hrefs = [elem.text for elem in root.findall('.//D:href', ns)]
+
+            # Should have system tiddlers with encoded $ : /
+            self.assertIn('/tiddlers/%24%3A%2Fcore', hrefs)
+            self.assertIn('/tiddlers/%24%3A%2FisEncrypted', hrefs)
+            self.assertIn('/tiddlers/%24%3A%2FStoryList', hrefs)
+
+            # Should not have unencoded problematic characters
+            for href in hrefs:
+                if href != '/tiddlers/':
+                    # No unencoded $ at start (would cause macOS issues)
+                    self.assertFalse(href.startswith('/tiddlers/$'),
+                        f"Path should not start with /tiddlers/$: {href}")
+
+    def test_get_system_tiddler(self):
+        """GET system tiddler using encoded path"""
+        import urllib.request
+
+        test_port = 20501
+        self._start_server(test_port)
+
+        # GET $:/core using encoded path
+        url = f'http://localhost:{test_port}/tiddlers/%24%3A%2Fcore'
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("title: $:/core", content)
+            self.assertIn("Core system tiddler", content)
+
+    def test_update_system_tiddler(self):
+        """PUT to update system tiddler"""
+        import urllib.request
+
+        test_port = 20502
+        self._start_server(test_port)
+
+        url = f'http://localhost:{test_port}/tiddlers/%24%3A%2FisEncrypted'
+
+        # GET original
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("false", content)
+
+        # PUT updated content
+        new_content = "title: $:/isEncrypted\ntext: true\n"
+        req = urllib.request.Request(url, data=new_content.encode('utf-8'), method='PUT')
+        with urllib.request.urlopen(req, timeout=2) as response:
+            self.assertIn(response.status, [200, 204])
+
+        # GET to verify
+        with urllib.request.urlopen(url, timeout=2) as response:
+            content = response.read().decode('utf-8')
+            self.assertIn("true", content)
+
+    def test_all_hrefs_accessible(self):
+        """All hrefs returned by PROPFIND should be GETtable"""
+        import urllib.request
+        import xml.etree.ElementTree as ET
+
+        test_port = 20503
+        self._start_server(test_port)
+
+        # PROPFIND
+        req = urllib.request.Request(
+            f'http://localhost:{test_port}/tiddlers/',
+            method='PROPFIND'
+        )
+        req.add_header('Depth', '1')
+
+        with urllib.request.urlopen(req, timeout=2) as response:
+            xml_content = response.read().decode('utf-8')
+            root = ET.fromstring(xml_content)
+            ns = {'D': 'DAV:'}
+            hrefs = [elem.text for elem in root.findall('.//D:href', ns)]
+
+        # Try to GET each href (except collection)
+        for href in hrefs:
+            if href.endswith('/'):
+                continue  # Skip collections
+
+            url = f'http://localhost:{test_port}{href}'
+            with urllib.request.urlopen(url, timeout=2) as response:
+                self.assertEqual(response.status, 200,
+                    f"Failed to GET {href}")
 
 
 if __name__ == '__main__':
