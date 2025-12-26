@@ -2891,17 +2891,25 @@ def serve_webdav(wiki_path, host='localhost', port=8081, readonly=False):
                 self.send_error(400, f'Invalid UTF-8 encoding: {e}')
                 return
 
+            # Optimize: load titles only once instead of calling _resolve_title() and _get_tiddler()
+            # which each load tiddlers separately
             try:
-                try:
-                    resolved_title = self._resolve_title(path_title)
-                except ValueError as e:
-                    self.send_error(409, str(e))
-                    return
+                titles_list = self._load_tiddlers(titles_only=True)
+                titles = set(titles_list)  # Convert to set for O(1) lookup
+            except RuntimeError as e:
+                self.send_error(500, str(e))
+                return
 
-                existing = self._get_tiddler(resolved_title)
-                tiddler = parse_cat_content(content)
-                tiddler['title'] = resolved_title
-                tiddler_json = json.dumps(tiddler, ensure_ascii=False)
+            # Decode the URL-encoded path to get the actual title
+            resolved_title = decode_tiddler_title_from_path(path_title)
+            existing = resolved_title in titles
+
+            # Parse and prepare tiddler
+            tiddler = parse_cat_content(content)
+            tiddler['title'] = resolved_title
+            tiddler_json = json.dumps(tiddler, ensure_ascii=False)
+
+            try:
                 with contextlib.redirect_stdout(io.StringIO()):
                     insert_tiddler(wiki_path, tiddler_json)
                 status = 204 if existing else 201
