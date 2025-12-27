@@ -1,0 +1,25 @@
+---
+- name: Configure codex-cli
+  hosts: localhost
+  connection: local
+  gather_facts: yes
+
+  tasks:
+    - name: Ensure Codex config directory exists
+      file:
+        path: "{{ ansible_env.HOME }}/.codex"
+        state: directory
+        mode: "0700"
+
+    - name: Ensure Codex config file exists
+      file:
+        path: "{{ ansible_env.HOME }}/.codex/config.toml"
+        state: touch
+        mode: "0600"
+
+    - name: Set Codex notify handler (ntfy -> Hammerspoon)
+      lineinfile:
+        path: "{{ ansible_env.HOME }}/.codex/config.toml"
+        regexp: '^notify\\s*='
+        line: 'notify = ["sh", "{{ ansible_env.HOME }}/bin/ntfy_hook"]'
+        create: true
