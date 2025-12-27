@@ -1,0 +1,17 @@
+layout {
+    pane split_direction="vertical" {
+        // Pane 1: File watcher (syncs on changes)
+        pane command="bash" {
+            args "-c" "~/bin/tiddlywiki_watch"
+            size "50%"
+        }
+
+        // Pane 2: Web server on port 9999
+        pane {
+            cwd "~/phajas-wiki"
+            command="bash"
+            args "-c" "TIDDLYWIKI_WIKI_PATH=~/phajas-wiki/phajas-wiki.html ~/bin/tw serve --port 9999"
+            size "50%"
+        }
+    }
+}

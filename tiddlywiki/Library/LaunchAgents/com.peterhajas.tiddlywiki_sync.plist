@@ -3,10 +3,18 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>com.peterhajas.tiddlywiki_sync.plist</string>
-    <key>Program</key>
-    <string>/Users/phajas/bin/tiddlywiki_sync</string>
-    <key>StartInterval</key>
-    <integer>180</integer>
+    <string>com.peterhajas.tiddlywiki_sync</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/phajas/bin/tiddlywiki_watch</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>/tmp/tiddlywiki_watch.log</string>
+    <key>StandardErrorPath</key>
+    <string>/tmp/tiddlywiki_watch.err</string>
 </dict>
 </plist>

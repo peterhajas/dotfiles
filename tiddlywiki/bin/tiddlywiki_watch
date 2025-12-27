@@ -1,0 +1,15 @@
+#!/bin/bash
+# Watch wiki file and sync on changes using entr
+
+cd ~/phajas-wiki || exit 1
+
+while true; do
+    # entr -d: wait for file to stop changing before executing
+    # entr -p: postpone first execution until file changes
+    # entr -n: run non-interactively (for LaunchD/background use)
+    echo "$HOME/phajas-wiki/phajas-wiki.html" | \
+        /opt/homebrew/bin/entr -d -p -n ~/bin/tiddlywiki_sync
+
+    # entr exits when file is deleted/renamed, loop restarts it
+    sleep 1
+done
