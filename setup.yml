@@ -10,6 +10,7 @@
     common:
       - btop
       - claude
+      - codex
       - fish
       - ghostty
       - git
