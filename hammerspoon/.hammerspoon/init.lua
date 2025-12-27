@@ -32,7 +32,7 @@ local iphone_mirroring = require "iphone_mirroring"
 require "streamdeck"
 require "server"
 require "tiddlywiki"
--- claudeStatus = require "claude_status"
+claudeStatus = require "claude_status"
 
 profileStop('imports')
 profileStart('globals')
@@ -202,7 +202,7 @@ darkmode.init()
 audio_output.init()
 youtubedl.init()
 iphone_mirroring.init()
--- claudeStatus.init()
+claudeStatus.init()
 
 -- Subscribe to ntfy topics
 -- Load topics dynamically from TiddlyWiki

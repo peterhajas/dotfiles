@@ -1,0 +1,549 @@
+#!/bin/bash
+# Unified hook for Claude + Codex
+# Writes filesystem state for Hammerspoon UI + sends ntfy notifications
+
+# Configuration
+STATE_DIR="$HOME/.claude-state"
+SESSION_DIR="$STATE_DIR/sessions"
+PERMISSION_DIR="$STATE_DIR/permissions"
+LOG_FILE="/tmp/claude-hook.log"
+PERMISSION_TIMEOUT=300  # 5 minutes
+POLL_INTERVAL=0.5
+
+# ntfy Configuration
+NTFY_SERVER="${NTFY_SERVER:-https://ntfy.peterhajas.com}"
+
+# Get ntfy topic prefix from TiddlyWiki to avoid exposing topic names
+ntfy_prefix=""
+if command -v tw >/dev/null 2>&1; then
+    ntfy_prefix=$(tw ~/phajas-wiki/phajas-wiki.html get "ntfy_prefix" "text" 2>/dev/null | tr -d '\n')
+fi
+NTFY_TOPIC="${ntfy_prefix}claude_notify"
+if [ -z "$NTFY_TOPIC" ]; then
+    NTFY_TOPIC="claude_notify"
+fi
+
+# Logging function
+log() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] $*" >> "$LOG_FILE"
+}
+
+# Generate status text based on event and tool
+get_status_text() {
+    local event_name="$1"
+    local tool_name="$2"
+    local tool_input="$3"
+
+    case "$event_name" in
+        UserPromptSubmit)
+            echo "Processing your request..."
+            ;;
+        PreToolUse)
+            case "$tool_name" in
+                Bash)
+                    local cmd=$(echo "$tool_input" | jq -r '.command // ""' 2>/dev/null)
+                    if [ ${#cmd} -gt 50 ]; then
+                        cmd="${cmd:0:47}..."
+                    fi
+                    echo "Running: $cmd"
+                    ;;
+                Write)
+                    local path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
+                    echo "Writing: $(basename "$path")"
+                    ;;
+                Read)
+                    local path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
+                    echo "Reading: $(basename "$path")"
+                    ;;
+                Edit)
+                    local path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
+                    echo "Editing: $(basename "$path")"
+                    ;;
+                Glob)
+                    local pattern=$(echo "$tool_input" | jq -r '.pattern // ""' 2>/dev/null)
+                    echo "Finding: $pattern"
+                    ;;
+                Grep)
+                    local pattern=$(echo "$tool_input" | jq -r '.pattern // ""' 2>/dev/null)
+                    echo "Searching: $pattern"
+                    ;;
+                *)
+                    echo "Using $tool_name..."
+                    ;;
+            esac
+            ;;
+        PostToolUse)
+            echo "Processing..."
+            ;;
+        PermissionRequest)
+            if [ -n "$tool_name" ]; then
+                echo "Needs permission: $tool_name"
+            else
+                echo "Needs permission"
+            fi
+            ;;
+        Stop)
+            echo "Waiting for input"
+            ;;
+        Notification)
+            echo "Idle"
+            ;;
+        SessionStart)
+            echo "Session started"
+            ;;
+        SessionEnd)
+            echo "Session ended"
+            ;;
+        *)
+            echo "$event_name"
+            ;;
+    esac
+}
+
+# Get permission description for UI
+get_permission_description() {
+    local tool_name="$1"
+    local tool_input="$2"
+
+    if [ -z "$tool_input" ] || [ "$tool_input" = "null" ]; then
+        echo "$tool_name"
+        return
+    fi
+
+    case "$tool_name" in
+        Bash)
+            local cmd=$(echo "$tool_input" | jq -r '.command // ""' 2>/dev/null)
+            if [ ${#cmd} -gt 80 ]; then
+                cmd="${cmd:0:77}..."
+            fi
+            echo "$cmd"
+            ;;
+        Write)
+            local path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
+            echo "Write to: $path"
+            ;;
+        Edit)
+            local path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
+            echo "Edit: $path"
+            ;;
+        *)
+            echo "$tool_name"
+            ;;
+    esac
+}
+
+# Write session state to filesystem (atomic)
+write_session_state() {
+    local session_id="$1"
+    local state_json="$2"
+
+    local temp_file="$SESSION_DIR/${session_id}.tmp"
+    local final_file="$SESSION_DIR/${session_id}.json"
+
+    echo "$state_json" > "$temp_file"
+    mv "$temp_file" "$final_file"
+
+    log "Updated session state: $session_id"
+}
+
+# Remove session from filesystem
+remove_session() {
+    local session_id="$1"
+    rm -f "$SESSION_DIR/${session_id}.json"
+    log "Removed session: $session_id"
+}
+
+# Write permission request
+write_permission_request() {
+    local request_id="$1"
+    local permission_json="$2"
+
+    local temp_file="$PERMISSION_DIR/pending/${request_id}.tmp"
+    local final_file="$PERMISSION_DIR/pending/${request_id}.json"
+
+    echo "$permission_json" > "$temp_file"
+    mv "$temp_file" "$final_file"
+
+    log "Created permission request: $request_id"
+}
+
+# Wait for permission decision (poll for approval/denial file)
+wait_for_permission() {
+    local request_id="$1"
+    local start_time=$(date +%s)
+
+    log "Waiting for permission decision: $request_id"
+
+    while true; do
+        # Check for approval
+        if [ -f "$PERMISSION_DIR/approved/$request_id" ]; then
+            log "Permission approved: $request_id"
+            rm -f "$PERMISSION_DIR/approved/$request_id"
+            rm -f "$PERMISSION_DIR/pending/${request_id}.json"
+            echo "allow"
+            return 0
+        fi
+
+        # Check for denial
+        if [ -f "$PERMISSION_DIR/denied/$request_id" ]; then
+            log "Permission denied: $request_id"
+            rm -f "$PERMISSION_DIR/denied/$request_id"
+            rm -f "$PERMISSION_DIR/pending/${request_id}.json"
+            echo "deny"
+            return 0
+        fi
+
+        # Check timeout
+        local current_time=$(date +%s)
+        local elapsed=$((current_time - start_time))
+        if [ $elapsed -ge $PERMISSION_TIMEOUT ]; then
+            log "Permission timeout: $request_id"
+            rm -f "$PERMISSION_DIR/pending/${request_id}.json"
+            echo "deny"
+            return 0
+        fi
+
+        sleep $POLL_INTERVAL
+    done
+}
+
+# Send ntfy notification
+send_ntfy_notification() {
+    local event_type="$1"
+    local agent="$2"
+    local message="$3"
+
+    local title=""
+    local tags="speech_balloon"
+
+    case "$event_type" in
+        Notification)
+            title="$agent Waiting"
+            tags="bell"
+            ;;
+        Stop)
+            title="$agent Done"
+            tags="white_check_mark"
+            ;;
+        *)
+            title="$agent Notification"
+            tags="speech_balloon"
+            ;;
+    esac
+
+    # Prepend hostname
+    local hostname=$(hostname -s 2>/dev/null || echo "unknown-host")
+    local full_message="$agent on $hostname: $message"
+
+    if [ -z "$message" ]; then
+        local timestamp=$(date -Iseconds 2>/dev/null || date)
+        full_message="$agent on $hostname: Turn done at $timestamp"
+    fi
+
+    log "Sending ntfy: $title - $full_message"
+
+    curl -s \
+        -H "Title: $title" \
+        -H "Tags: $tags" \
+        -d "$full_message" \
+        "$NTFY_SERVER/$NTFY_TOPIC" \
+        > /dev/null 2>&1
+}
+
+# Main event handlers
+
+handle_session_start() {
+    local data="$1"
+    local session_id=$(echo "$data" | jq -r '.session_id // "unknown"')
+    local cwd=$(echo "$data" | jq -r '.cwd // ""')
+
+    local state=$(cat <<EOF
+{
+  "session_id": "$session_id",
+  "agent": "$agent",
+  "cwd": "$cwd",
+  "status": "idle",
+  "status_text": "Session started",
+  "color": "#2ECC71",
+  "current_tool": null,
+  "last_update": $(date +%s),
+  "hue": $((RANDOM % 360))
+}
+EOF
+)
+
+    write_session_state "$session_id" "$state"
+}
+
+handle_session_end() {
+    local data="$1"
+    local session_id=$(echo "$data" | jq -r '.session_id // "unknown"')
+    remove_session "$session_id"
+}
+
+handle_user_prompt_submit() {
+    local data="$1"
+    local session_id=$(echo "$data" | jq -r '.session_id // "unknown"')
+    local cwd=$(echo "$data" | jq -r '.cwd // ""')
+    local status_text=$(get_status_text "UserPromptSubmit")
+
+    local state=$(cat <<EOF
+{
+  "session_id": "$session_id",
+  "agent": "$agent",
+  "cwd": "$cwd",
+  "status": "processing",
+  "status_text": "$status_text",
+  "color": "#FF8C00",
+  "current_tool": null,
+  "last_update": $(date +%s)
+}
+EOF
+)
+
+    write_session_state "$session_id" "$state"
+}
+
+handle_pre_tool_use() {
+    local data="$1"
+    local session_id=$(echo "$data" | jq -r '.session_id // "unknown"')
+    local cwd=$(echo "$data" | jq -r '.cwd // ""')
+    local tool_name=$(echo "$data" | jq -r '.tool_name // "Unknown"')
+    local tool_input=$(echo "$data" | jq -c '.tool_input // {}')
+    local status_text=$(get_status_text "PreToolUse" "$tool_name" "$tool_input")
+
+    # Escape status text for JSON
+    status_text=$(echo "$status_text" | jq -Rs .)
+
+    local state=$(cat <<EOF
+{
+  "session_id": "$session_id",
+  "agent": "$agent",
+  "cwd": "$cwd",
+  "status": "running_tool",
+  "status_text": $status_text,
+  "color": "#4A90E2",
+  "current_tool": "$tool_name",
+  "last_update": $(date +%s)
+}
+EOF
+)
+
+    write_session_state "$session_id" "$state"
+}
+
+handle_post_tool_use() {
+    local data="$1"
+    local session_id=$(echo "$data" | jq -r '.session_id // "unknown"')
+    local cwd=$(echo "$data" | jq -r '.cwd // ""')
+    local status_text=$(get_status_text "PostToolUse")
+
+    local state=$(cat <<EOF
+{
+  "session_id": "$session_id",
+  "agent": "$agent",
+  "cwd": "$cwd",
+  "status": "processing",
+  "status_text": "$status_text",
+  "color": "#FF8C00",
+  "current_tool": null,
+  "last_update": $(date +%s)
+}
+EOF
+)
+
+    write_session_state "$session_id" "$state"
+}
+
+handle_permission_request() {
+    local data="$1"
+    local session_id=$(echo "$data" | jq -r '.session_id // "unknown"')
+    local cwd=$(echo "$data" | jq -r '.cwd // ""')
+    local tool_name=$(echo "$data" | jq -r '.tool_name // "Unknown"')
+    local tool_input=$(echo "$data" | jq -c '.tool_input // {}')
+    local request_id=$(uuidgen | tr '[:upper:]' '[:lower:]')
+    local description=$(get_permission_description "$tool_name" "$tool_input")
+    local status_text=$(get_status_text "PermissionRequest" "$tool_name")
+
+    # Escape for JSON
+    description=$(echo "$description" | jq -Rs .)
+    status_text=$(echo "$status_text" | jq -Rs .)
+
+    # Write permission request FIRST (small file, fast)
+    local permission_json=$(cat <<EOF
+{
+  "request_id": "$request_id",
+  "session_id": "$session_id",
+  "tool_name": "$tool_name",
+  "description": $description,
+  "timestamp": $(date +%s)
+}
+EOF
+)
+
+    write_permission_request "$request_id" "$permission_json"
+
+    # Update session state with permission request
+    local state=$(cat <<EOF
+{
+  "session_id": "$session_id",
+  "agent": "$agent",
+  "cwd": "$cwd",
+  "status": "waiting_permission",
+  "status_text": $status_text,
+  "color": "#E74C3C",
+  "permission_request": {
+    "request_id": "$request_id",
+    "tool_name": "$tool_name",
+    "description": $description
+  },
+  "last_update": $(date +%s)
+}
+EOF
+)
+
+    write_session_state "$session_id" "$state"
+
+    # Wait for decision
+    local decision=$(wait_for_permission "$request_id")
+
+    # DON'T update session state here - let the next hook event do it
+    # This prevents extra filesystem churn
+
+    # Return decision to Claude
+    cat <<EOF
+{
+  "hookSpecificOutput": {
+    "hookEventName": "PermissionRequest",
+    "decision": {
+      "behavior": "$decision",
+      "message": "User ${decision}ed"
+    }
+  }
+}
+EOF
+}
+
+handle_stop() {
+    local data="$1"
+    local session_id=$(echo "$data" | jq -r '.session_id // "unknown"')
+    local cwd=$(echo "$data" | jq -r '.cwd // ""')
+    local status_text=$(get_status_text "Stop")
+
+    local state=$(cat <<EOF
+{
+  "session_id": "$session_id",
+  "agent": "$agent",
+  "cwd": "$cwd",
+  "status": "idle",
+  "status_text": "$status_text",
+  "color": "#2ECC71",
+  "current_tool": null,
+  "last_update": $(date +%s)
+}
+EOF
+)
+
+    write_session_state "$session_id" "$state"
+
+    # Send ntfy notification
+    send_ntfy_notification "Stop" "$agent" "Turn done"
+}
+
+handle_notification() {
+    local data="$1"
+    local session_id=$(echo "$data" | jq -r '.session_id // "unknown"')
+    local cwd=$(echo "$data" | jq -r '.cwd // ""')
+    local notification_type=$(echo "$data" | jq -r '.notification_type // ""')
+    local message=$(echo "$data" | jq -r '.message // .notification_message // ""')
+
+    if [ "$notification_type" = "idle_prompt" ]; then
+        local state=$(cat <<EOF
+{
+  "session_id": "$session_id",
+  "agent": "$agent",
+  "cwd": "$cwd",
+  "status": "idle",
+  "status_text": "Idle",
+  "color": "#2ECC71",
+  "current_tool": null,
+  "last_update": $(date +%s)
+}
+EOF
+)
+
+        write_session_state "$session_id" "$state"
+
+        # Send ntfy notification
+        send_ntfy_notification "Notification" "$agent" "$message"
+    fi
+}
+
+# Main
+main() {
+    log "========== Hook invoked =========="
+
+    # Read JSON from stdin
+    input=$(cat)
+
+    if [ -z "$input" ]; then
+        log "No input data received"
+        exit 0
+    fi
+
+    log "Raw input (first 200 chars): ${input:0:200}"
+
+    # Parse event and determine agent
+    hook_event=$(echo "$input" | jq -r '.hook_event_name // ""' 2>/dev/null)
+
+    # Detect agent: Claude has hook_event_name, Codex doesn't
+    if [ -n "$hook_event" ]; then
+        agent="Claude"
+    else
+        agent="Codex"
+    fi
+
+    log "Agent: $agent, Event: $hook_event"
+
+    # Route to handler
+    case "$hook_event" in
+        SessionStart)
+            handle_session_start "$input"
+            ;;
+        SessionEnd)
+            handle_session_end "$input"
+            ;;
+        UserPromptSubmit)
+            handle_user_prompt_submit "$input"
+            ;;
+        PreToolUse)
+            handle_pre_tool_use "$input"
+            ;;
+        PostToolUse)
+            handle_post_tool_use "$input"
+            ;;
+        PermissionRequest)
+            handle_permission_request "$input"
+            ;;
+        Stop)
+            handle_stop "$input"
+            ;;
+        Notification)
+            handle_notification "$input"
+            ;;
+        "")
+            # Codex notification - just send ntfy
+            message=$(echo "$input" | jq -r '.message // .notification_message // ""')
+            send_ntfy_notification "Notification" "$agent" "$message"
+            ;;
+        *)
+            log "Unknown event: $hook_event"
+            ;;
+    esac
+
+    log "========== Hook completed =========="
+    exit 0
+}
+
+main

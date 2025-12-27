@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "command": "~/.claude/hooks/claude_hook",
             "timeout": 5000
           }
         ]
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "command": "~/.claude/hooks/claude_hook",
             "timeout": 5000
           }
         ]
@@ -67,7 +67,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "command": "~/.claude/hooks/claude_hook",
             "timeout": 5000
           }
         ]
@@ -79,7 +79,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "command": "~/.claude/hooks/claude_hook",
             "timeout": 300000
           }
         ]
@@ -91,7 +91,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "command": "~/.claude/hooks/claude_hook",
             "timeout": 5000
           }
         ]
@@ -103,7 +103,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "command": "~/.claude/hooks/claude_hook",
             "timeout": 5000
           }
         ]
@@ -115,7 +115,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "command": "~/.claude/hooks/claude_hook",
             "timeout": 5000
           }
         ]
@@ -127,7 +127,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "/Users/phajas/dotfiles/claude/bin/claude-status-hook",
+            "command": "~/.claude/hooks/claude_hook",
             "timeout": 5000
           }
         ]

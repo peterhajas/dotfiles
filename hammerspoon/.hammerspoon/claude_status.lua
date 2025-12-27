@@ -19,8 +19,17 @@ local state = {
     webview = nil,
     cleanupTimer = nil,
     positionWatcher = nil,
+    sessionWatcher = nil,  -- Filesystem watcher for sessions
+    permissionWatcher = nil,  -- Filesystem watcher for permissions
     eventHandlersInitialized = false,
+    debounceTimer = nil,  -- Debounce filesystem events
+    lastStateHash = nil,  -- Track state changes
 }
+
+-- Filesystem paths
+local STATE_DIR = os.getenv("HOME") .. "/.claude-state"
+local SESSION_DIR = STATE_DIR .. "/sessions"
+local PERMISSION_DIR = STATE_DIR .. "/permissions"
 
 -- Utility functions
 
@@ -444,70 +453,147 @@ function M.handleEvent(eventType, data)
     end
 end
 
+-- Filesystem state loading
+
+function M.loadStateFromFilesystem()
+    -- Read all session JSON files
+    local sessions = {}
+    local handle = io.popen("ls '" .. SESSION_DIR .. "'/*.json 2>/dev/null")
+    if handle then
+        local files = handle:read("*a")
+        handle:close()
+
+        for filename in files:gmatch("[^\r\n]+") do
+            local file = io.open(filename, "r")
+            if file then
+                local content = file:read("*all")
+                file:close()
+
+                local ok, session = pcall(hs.json.decode, content)
+                if ok and session and session.session_id then
+                    sessions[session.session_id] = session
+                end
+            end
+        end
+    end
+
+    -- Read pending permission requests and attach to sessions
+    handle = io.popen("ls '" .. PERMISSION_DIR .. "/pending'/*.json 2>/dev/null")
+    if handle then
+        local files = handle:read("*a")
+        handle:close()
+
+        for filename in files:gmatch("[^\r\n]+") do
+            local file = io.open(filename, "r")
+            if file then
+                local content = file:read("*all")
+                file:close()
+
+                local ok, permission = pcall(hs.json.decode, content)
+                if ok and permission and permission.session_id then
+                    if sessions[permission.session_id] then
+                        sessions[permission.session_id].permission_request = {
+                            request_id = permission.request_id,
+                            tool_name = permission.tool_name,
+                            description = permission.description
+                        }
+                    end
+                end
+            end
+        end
+    end
+
+    -- Calculate state hash to detect actual changes
+    local stateJson = hs.json.encode(sessions)
+    local newHash = hs.hash.SHA256(stateJson)
+
+    -- Only update if state actually changed
+    if newHash ~= state.lastStateHash then
+        log("State changed, updating UI")
+        state.sessions = sessions
+        state.lastStateHash = newHash
+        return true  -- State changed
+    end
+
+    return false  -- No change
+end
+
+-- Debounced state loader
+local function debouncedLoadState()
+    if state.debounceTimer then
+        state.debounceTimer:stop()
+    end
+
+    state.debounceTimer = hs.timer.doAfter(0.1, function()
+        local changed = M.loadStateFromFilesystem()
+        if changed then
+            M.refreshUI()
+        end
+    end)
+end
+
 -- Permission handling
 
 function M.approvePermission(requestId)
     log("Approving permission: " .. requestId)
 
-    local response = {
-        decision = "allow",
-        timestamp = os.time()
-    }
-
-    local filename = "/tmp/claude-perm-" .. requestId .. ".json"
-    local file = io.open(filename, "w")
-    if file then
-        file:write(hs.json.encode(response))
-        file:close()
-        log("Wrote approval to: " .. filename)
-    else
-        log("ERROR: Could not write approval file: " .. filename)
-    end
-
-    -- Clear permission request from UI
+    -- Clear permission request from UI immediately
     for _, session in pairs(state.sessions) do
         if session.permission_request and session.permission_request.request_id == requestId then
             session.permission_request = nil
             session.status = "processing"
-            session.status_text = "Processing..."
+            session.status_text = "Approved, processing..."
             session.color = "#FF8C00"
             break
         end
     end
-
     M.refreshUI()
+
+    -- Touch approval file (hook is polling for this)
+    local approvalFile = PERMISSION_DIR .. "/approved/" .. requestId
+    local file = io.open(approvalFile, "w")
+    if file then
+        file:write("")
+        file:close()
+        log("Wrote approval to: " .. approvalFile)
+    else
+        log("ERROR: Could not write approval file: " .. approvalFile)
+    end
+
+    -- Remove pending file immediately
+    local pendingFile = PERMISSION_DIR .. "/pending/" .. requestId .. ".json"
+    os.execute("rm -f '" .. pendingFile .. "'")
 end
 
 function M.denyPermission(requestId)
     log("Denying permission: " .. requestId)
 
-    local response = {
-        decision = "deny",
-        timestamp = os.time()
-    }
-
-    local filename = "/tmp/claude-perm-" .. requestId .. ".json"
-    local file = io.open(filename, "w")
-    if file then
-        file:write(hs.json.encode(response))
-        file:close()
-        log("Wrote denial to: " .. filename)
-    else
-        log("ERROR: Could not write denial file: " .. filename)
-    end
-
-    -- Clear permission request from UI
+    -- Clear permission request from UI immediately
     for _, session in pairs(state.sessions) do
         if session.permission_request and session.permission_request.request_id == requestId then
             session.permission_request = nil
-            session.status = "processing"
-            session.status_text = "Processing..."
-            session.color = "#FF8C00"
+            session.status = "idle"
+            session.status_text = "Denied"
+            session.color = "#E74C3C"
             break
         end
     end
-
     M.refreshUI()
+
+    -- Touch denial file (hook is polling for this)
+    local denialFile = PERMISSION_DIR .. "/denied/" .. requestId
+    local file = io.open(denialFile, "w")
+    if file then
+        file:write("")
+        file:close()
+        log("Wrote denial to: " .. denialFile)
+    else
+        log("ERROR: Could not write denial file: " .. denialFile)
+    end
+
+    -- Remove pending file immediately
+    local pendingFile = PERMISSION_DIR .. "/pending/" .. requestId .. ".json"
+    os.execute("rm -f '" .. pendingFile .. "'")
 end
 
 -- Cleanup
@@ -564,11 +650,27 @@ function M.init()
     -- Clean up any orphaned permission files from previous crashes
     os.execute("rm -f /tmp/claude-perm-*.json 2>/dev/null")
 
-    -- Initialize event handlers
+    -- Initialize event handlers (for URL callbacks)
     initializeEventHandlers()
+
+    -- Load initial state from filesystem
+    M.loadStateFromFilesystem()
 
     -- Create webview
     createWebview()
+
+    -- Start filesystem watchers with debouncing
+    state.sessionWatcher = hs.pathwatcher.new(SESSION_DIR, function(files)
+        debouncedLoadState()
+    end)
+    state.sessionWatcher:start()
+    log("Started session watcher")
+
+    state.permissionWatcher = hs.pathwatcher.new(PERMISSION_DIR .. "/pending", function(files)
+        debouncedLoadState()
+    end)
+    state.permissionWatcher:start()
+    log("Started permission watcher")
 
     -- Start cleanup timer
     state.cleanupTimer = hs.timer.doEvery(M.config.cleanupInterval, M.cleanupStale)
