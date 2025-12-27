@@ -2,7 +2,7 @@
 
 # tw_fzf - Interactive TiddlyWiki editor using fzf
 #
-# Usage: tw_fzf
+# Usage: tw_fzf <wiki_path>
 #
 # Features:
 # - Browse and search tiddlers with fzf
@@ -20,9 +20,10 @@ for cmd in fzf tw; do
     fi
 done
 
-# Check that TIDDLYWIKI_WIKI_PATH is set
-if [[ -z "$TIDDLYWIKI_WIKI_PATH" ]]; then
-    echo "Error: TIDDLYWIKI_WIKI_PATH environment variable is not set" >&2
+# Resolve wiki path from argument or environment variable
+wiki_path="${1:-}"
+if [[ -z "$wiki_path" ]]; then
+    echo "Error: wiki path must be provided as an argument" >&2
     exit 1
 fi
 
@@ -30,9 +31,9 @@ fi
 selected=$(
     {
         echo "[Create New Tiddler]"
-        tw ls
+        tw "$wiki_path" ls
     } | fzf \
-        --preview 'tw cat {} 2>/dev/null || echo "Enter a title to create a new tiddler"' \
+        --preview "tw \"$wiki_path\" cat {} 2>/dev/null || echo \"Enter a title to create a new tiddler\"" \
         --preview-window=right:60%:wrap \
         --prompt="Select tiddler: " \
         --header="Enter to edit, Ctrl-C to cancel"
@@ -54,12 +55,12 @@ if [[ "$selected" == "[Create New Tiddler]" ]]; then
     fi
 
     # Create the new tiddler (empty)
-    tw touch "$title"
+    tw "$wiki_path" touch "$title"
 else
     title="$selected"
 fi
 
 # Edit using tw edit command (uses $EDITOR or auto-detects)
-tw edit "$title"
+tw "$wiki_path" edit "$title"
 
 echo "Editing complete for: $title"

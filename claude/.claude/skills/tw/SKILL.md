@@ -14,8 +14,6 @@ description: Command-line tool for managing TiddlyWiki files. Use when working w
 **Basic syntax**:
 ```bash
 tw [<wiki_path>] <command> [args]
-# or set TIDDLYWIKI_WIKI_PATH environment variable
-TIDDLYWIKI_WIKI_PATH=~/wiki.html tw <command> [args]
 ```
 
 ## Common Commands
@@ -49,7 +47,7 @@ TIDDLYWIKI_WIKI_PATH=~/wiki.html tw <command> [args]
 
 ## Important Notes
 
-1. **Wiki path**: Always specify either via first argument or `TIDDLYWIKI_WIKI_PATH` environment variable
+1. **Wiki path**: Always specify the wiki path as the first argument
 2. **Cat format**: Output format is `title: X\ntags: Y\nfield: Z\n\ntext content`
 3. **Interactive commands**: `edit` opens $EDITOR - don't use in automated scripts, use `replace` instead
 4. **Filter expressions**: Supports TiddlyWiki filter syntax (see tw_filter_progress.md for coverage)
@@ -59,7 +57,7 @@ TIDDLYWIKI_WIKI_PATH=~/wiki.html tw <command> [args]
 
 ```bash
 # List all tiddlers in a wiki
-TIDDLYWIKI_WIKI_PATH=~/wiki.html tw ls
+tw ~/wiki.html ls
 
 # Create a new tiddler
 tw ~/wiki.html touch "MyTiddler" "This is the content"

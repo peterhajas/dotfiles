@@ -1716,6 +1716,54 @@ class TestAdditionalItemAndListOperators(unittest.TestCase):
             with self.subTest(expr=expr):
                 self.assertEqual(tw_filter.evaluate_filter(expr), expected)
 
+    def test_search_replace_flags(self):
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[Foo foo]]search-replace[foo,bar,i]'),
+            ['bar bar']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[abc123]]search-replace[\\d+,#,regex]'),
+            ['abc#']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[foo foo]]search-replace[foo,bar,1]'),
+            ['bar foo']
+        )
+
+    def test_trim_and_pad_directions(self):
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[  hello  ]]trim[,left]'),
+            ['hello  ']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[  hello  ]]trim[,right]'),
+            ['  hello']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[xxhelloxx]]trim[x,left]'),
+            ['helloxx']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[pad]]pad[6,.,left]'),
+            ['...pad']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[pad]]pad[7,.,center]'),
+            ['..pad..']
+        )
+
+    def test_compare_extended(self):
+        self.assertEqual(tw_filter.evaluate_filter('[[5]]compare[>=5]'), ['5'])
+        self.assertEqual(tw_filter.evaluate_filter('[[5]]compare[<=4]'), [])
+        self.assertEqual(tw_filter.evaluate_filter('[[foo]]compare[!=bar]'), ['foo'])
+        self.assertEqual(tw_filter.evaluate_filter('[[foo]]compare[!=foo]'), [])
+
+    def test_order_by_list(self):
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[b]] [[a]] [[c]]order[a,c]'),
+            ['a', 'c', 'b']
+        )
+
     def test_encoding_and_json_ops(self):
         encoded = tw_filter.evaluate_filter('[[hi]]encodebase64[]')
         self.assertEqual(encoded[0], 'aGk=')

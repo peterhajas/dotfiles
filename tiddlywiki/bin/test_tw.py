@@ -23,6 +23,7 @@ import shutil
 import subprocess
 import threading
 import functools
+import socket
 from http.server import HTTPServer, SimpleHTTPRequestHandler
 
 # Import the tw script
@@ -36,6 +37,22 @@ tw_path = os.path.join(script_dir, "tw")
 # Use SourceFileLoader directly since the file doesn't have .py extension
 loader = importlib.machinery.SourceFileLoader("tw", tw_path)
 tw_module = loader.load_module()
+
+def run_tw_command(args, **kwargs):
+    return subprocess.run([sys.executable, tw_path, *args], **kwargs)
+
+_CAN_BIND_LOCALHOST = True
+_BIND_ERROR = None
+try:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as _probe:
+        _probe.bind(("localhost", 0))
+except OSError as _err:
+    _CAN_BIND_LOCALHOST = False
+    _BIND_ERROR = _err
+
+def require_localhost_bind(testcase):
+    if not _CAN_BIND_LOCALHOST:
+        testcase.skipTest(f"Localhost binding not permitted: {_BIND_ERROR}")
 
 # Import filter test classes so they run when this test suite runs
 from test_tw_filter import (
@@ -215,6 +232,7 @@ class TestRemoteWikiSupport(unittest.TestCase):
     """Test reading from a remote (HTTP) wiki and rejecting writes"""
 
     def setUp(self):
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'remote_test_wiki.html')
 
@@ -2273,6 +2291,7 @@ class TestServeCommand(unittest.TestCase):
 
     def setUp(self):
         """Create a temporary test wiki before each test"""
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
 
@@ -2874,6 +2893,7 @@ class TestLiveReloadEndpoints(unittest.TestCase):
 
     def setUp(self):
         """Create a temporary test wiki before each test"""
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
 
@@ -3333,6 +3353,7 @@ class TestWebDAVSupport(unittest.TestCase):
 
     def setUp(self):
         """Create a temporary test wiki before each test"""
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
 
@@ -3794,6 +3815,7 @@ class TestWebDAVTiddlers(unittest.TestCase):
 
     def setUp(self):
         """Create a temporary test wiki before each test"""
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
 
@@ -4456,57 +4478,23 @@ class TestWikiPathArgument(unittest.TestCase):
         self.assertNotIn('TestTiddler2', titles)
         self.assertIn('TestTiddler1', titles)
 
-    def test_env_var_still_works_with_wiki_path_arg(self):
-        """Test that environment variable is overridden by command line argument"""
-        # Set env var to a different path (which doesn't exist, but that's ok for this test)
-        os.environ['TIDDLYWIKI_WIKI_PATH'] = '/nonexistent/wiki.html'
-
-        # Simulate: tw test_wiki.html ls
-        sys.argv = ['tw', self.test_wiki, 'ls']
-
-        import io
-        from contextlib import redirect_stdout
-
-        f = io.StringIO()
-        with redirect_stdout(f):
-            try:
-                tw_module.main()
-            except SystemExit:
-                pass
-
-        output = f.getvalue()
-        # Should use the command line argument, not the env var
-        self.assertIn('TestTiddler1', output)
-
-        # Clean up
-        if 'TIDDLYWIKI_WIKI_PATH' in os.environ:
-            del os.environ['TIDDLYWIKI_WIKI_PATH']
-
-    def test_env_var_fallback_when_no_wiki_path_arg(self):
-        """Test that environment variable is used when no wiki path argument given"""
-        # Set env var to our test wiki
-        os.environ['TIDDLYWIKI_WIKI_PATH'] = self.test_wiki
-
+    def test_no_wiki_path_arg_fails(self):
+        """Test that commands fail when no wiki path argument is given"""
         # Simulate: tw ls (no wiki path argument)
         sys.argv = ['tw', 'ls']
 
         import io
-        from contextlib import redirect_stdout
+        from contextlib import redirect_stderr
 
         f = io.StringIO()
-        with redirect_stdout(f):
+        with redirect_stderr(f):
             try:
                 tw_module.main()
             except SystemExit:
                 pass
 
         output = f.getvalue()
-        self.assertIn('TestTiddler1', output)
-
-        # Clean up
-        if 'TIDDLYWIKI_WIKI_PATH' in os.environ:
-            del os.environ['TIDDLYWIKI_WIKI_PATH']
-
+        self.assertIn('Wiki path not provided', output)
 
 class TestInitCommand(unittest.TestCase):
     """Test the init command for creating new wikis"""
@@ -6737,8 +6725,8 @@ class TestDetectCommand(unittest.TestCase):
 
     def test_detect_modern_format(self):
         """Test detecting modern format wiki"""
-        result = subprocess.run(
-            ['python3', 'tw', self.modern_wiki.name, 'detect'],
+        result = run_tw_command(
+            [self.modern_wiki.name, 'detect'],
             capture_output=True,
             text=True
         )
@@ -6747,8 +6735,8 @@ class TestDetectCommand(unittest.TestCase):
 
     def test_detect_legacy_format(self):
         """Test detecting legacy format wiki"""
-        result = subprocess.run(
-            ['python3', 'tw', self.legacy_wiki.name, 'detect'],
+        result = run_tw_command(
+            [self.legacy_wiki.name, 'detect'],
             capture_output=True,
             text=True
         )
@@ -6757,26 +6745,23 @@ class TestDetectCommand(unittest.TestCase):
 
     def test_detect_non_wiki_fails(self):
         """Test that detect fails on non-wiki HTML files"""
-        result = subprocess.run(
-            ['python3', 'tw', self.non_wiki.name, 'detect'],
+        result = run_tw_command(
+            [self.non_wiki.name, 'detect'],
             capture_output=True,
             text=True
         )
         self.assertNotEqual(result.returncode, 0)
         self.assertIn('Could not detect wiki format', result.stderr)
 
-    def test_detect_with_environment_variable(self):
-        """Test detect command using TIDDLYWIKI_WIKI_PATH environment variable"""
-        env = os.environ.copy()
-        env['TIDDLYWIKI_WIKI_PATH'] = self.modern_wiki.name
-        result = subprocess.run(
-            ['python3', 'tw', 'detect'],
+    def test_detect_without_wiki_path_fails(self):
+        """Test detect command requires a wiki path"""
+        result = run_tw_command(
+            ['detect'],
             capture_output=True,
-            text=True,
-            env=env
+            text=True
         )
-        self.assertEqual(result.returncode, 0)
-        self.assertEqual(result.stdout.strip(), 'modern')
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Wiki path not provided', result.stderr)
 
     def test_detect_with_large_wiki(self):
         """Test detect with a larger wiki to verify streaming works"""
@@ -6799,8 +6784,8 @@ class TestDetectCommand(unittest.TestCase):
         large_wiki.close()
 
         try:
-            result = subprocess.run(
-                ['python3', 'tw', large_wiki.name, 'detect'],
+            result = run_tw_command(
+                [large_wiki.name, 'detect'],
                 capture_output=True,
                 text=True
             )
@@ -6819,8 +6804,8 @@ class TestFiletypeMap(unittest.TestCase):
         import contextlib
 
         # Capture stdout from the main() function
-        result = subprocess.run(
-            ['python3', 'tw', 'filetype-map'],
+        result = run_tw_command(
+            ['filetype-map'],
             capture_output=True,
             text=True
         )
@@ -6833,8 +6818,8 @@ class TestFiletypeMap(unittest.TestCase):
 
     def test_filetype_map_contains_expected_mappings(self):
         """Test that filetype-map includes expected MIME type mappings"""
-        result = subprocess.run(
-            ['python3', 'tw', 'filetype-map'],
+        result = run_tw_command(
+            ['filetype-map'],
             capture_output=True,
             text=True
         )
@@ -6850,15 +6835,10 @@ class TestFiletypeMap(unittest.TestCase):
 
     def test_filetype_map_no_wiki_required(self):
         """Test that filetype-map works without a wiki path"""
-        # Should work without TIDDLYWIKI_WIKI_PATH env var
-        env = os.environ.copy()
-        env.pop('TIDDLYWIKI_WIKI_PATH', None)
-
-        result = subprocess.run(
-            ['python3', 'tw', 'filetype-map'],
+        result = run_tw_command(
+            ['filetype-map'],
             capture_output=True,
-            text=True,
-            env=env
+            text=True
         )
 
         self.assertEqual(result.returncode, 0)
@@ -6868,8 +6848,8 @@ class TestFiletypeMap(unittest.TestCase):
 
     def test_filetype_map_all_values_are_strings(self):
         """Test that all filetype mappings are strings"""
-        result = subprocess.run(
-            ['python3', 'tw', 'filetype-map'],
+        result = run_tw_command(
+            ['filetype-map'],
             capture_output=True,
             text=True
         )
@@ -6886,8 +6866,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_jpg(self):
         """Test that mimetype returns correct MIME type for JPG"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', 'test.jpg'],
+        result = run_tw_command(
+            ['mimetype', 'test.jpg'],
             capture_output=True,
             text=True
         )
@@ -6897,8 +6877,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_jpeg(self):
         """Test that mimetype returns correct MIME type for JPEG"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', 'test.jpeg'],
+        result = run_tw_command(
+            ['mimetype', 'test.jpeg'],
             capture_output=True,
             text=True
         )
@@ -6908,8 +6888,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_png(self):
         """Test that mimetype returns correct MIME type for PNG"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', 'image.png'],
+        result = run_tw_command(
+            ['mimetype', 'image.png'],
             capture_output=True,
             text=True
         )
@@ -6919,8 +6899,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_mp4(self):
         """Test that mimetype returns correct MIME type for MP4"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', 'video.mp4'],
+        result = run_tw_command(
+            ['mimetype', 'video.mp4'],
             capture_output=True,
             text=True
         )
@@ -6930,8 +6910,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_uppercase_extension(self):
         """Test that mimetype handles uppercase extensions"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', 'image.PNG'],
+        result = run_tw_command(
+            ['mimetype', 'image.PNG'],
             capture_output=True,
             text=True
         )
@@ -6941,8 +6921,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_with_path(self):
         """Test that mimetype works with full paths"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', '/path/to/file.mp4'],
+        result = run_tw_command(
+            ['mimetype', '/path/to/file.mp4'],
             capture_output=True,
             text=True
         )
@@ -6952,8 +6932,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_unknown_extension(self):
         """Test that mimetype returns default for unknown extensions"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', 'file.xyz123'],
+        result = run_tw_command(
+            ['mimetype', 'file.xyz123'],
             capture_output=True,
             text=True
         )
@@ -6963,8 +6943,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_no_extension(self):
         """Test that mimetype handles files without extensions"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', 'filename'],
+        result = run_tw_command(
+            ['mimetype', 'filename'],
             capture_output=True,
             text=True
         )
@@ -6974,15 +6954,10 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_no_wiki_required(self):
         """Test that mimetype works without a wiki path"""
-        # Should work without TIDDLYWIKI_WIKI_PATH env var
-        env = os.environ.copy()
-        env.pop('TIDDLYWIKI_WIKI_PATH', None)
-
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype', 'test.jpg'],
+        result = run_tw_command(
+            ['mimetype', 'test.jpg'],
             capture_output=True,
-            text=True,
-            env=env
+            text=True
         )
 
         self.assertEqual(result.returncode, 0)
@@ -6999,8 +6974,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
         for filename, expected_mime in test_cases:
             with self.subTest(filename=filename):
-                result = subprocess.run(
-                    ['python3', 'tw', 'mimetype', filename],
+                result = run_tw_command(
+                    ['mimetype', filename],
                     capture_output=True,
                     text=True
                 )
@@ -7018,8 +6993,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
         for filename, expected_mime in test_cases:
             with self.subTest(filename=filename):
-                result = subprocess.run(
-                    ['python3', 'tw', 'mimetype', filename],
+                result = run_tw_command(
+                    ['mimetype', filename],
                     capture_output=True,
                     text=True
                 )
@@ -7028,8 +7003,8 @@ class TestMimetypeCommand(unittest.TestCase):
 
     def test_mimetype_missing_filename(self):
         """Test that mimetype fails gracefully without filename"""
-        result = subprocess.run(
-            ['python3', 'tw', 'mimetype'],
+        result = run_tw_command(
+            ['mimetype'],
             capture_output=True,
             text=True
         )
@@ -7118,6 +7093,7 @@ class TestWebDAVFileUpdates(unittest.TestCase):
 
     def setUp(self):
         """Create a temporary test wiki before each test"""
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
 
@@ -7301,6 +7277,7 @@ class TestWebDAVNamingConsistency(unittest.TestCase):
 
     def setUp(self):
         """Create a temporary test wiki before each test"""
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
 
@@ -7417,6 +7394,7 @@ class TestWebDAVLockWithBody(unittest.TestCase):
 
     def setUp(self):
         """Create a temporary test wiki before each test"""
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
 
@@ -7611,6 +7589,7 @@ class TestWebDAVSystemTiddlers(unittest.TestCase):
 
     def setUp(self):
         """Create a temporary test wiki with system tiddlers"""
+        require_localhost_bind(self)
         self.test_dir = tempfile.mkdtemp()
         self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
 

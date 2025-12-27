@@ -1,3 +1,3 @@
 #!/bin/bash
 
-TIDDLYWIKI_WIKI_PATH=~/phajas-wiki/phajas-wiki.html tw get "$1" text
+tw ~/phajas-wiki/phajas-wiki.html get "$1" text

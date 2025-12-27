@@ -274,17 +274,17 @@ main() {
     mime_type=$(~/dotfiles/tiddlywiki/bin/tw mimetype "$dest_path")
 
     # Create tiddler in wiki
-    if ! TIDDLYWIKI_WIKI_PATH="$wiki_path" ~/dotfiles/tiddlywiki/bin/tw touch "$relative_path" ""; then
+    if ! ~/dotfiles/tiddlywiki/bin/tw "$wiki_path" touch "$relative_path" ""; then
         error "Failed to create tiddler"
     fi
 
     # Set _canonical_uri field
-    if ! TIDDLYWIKI_WIKI_PATH="$wiki_path" ~/dotfiles/tiddlywiki/bin/tw set "$relative_path" _canonical_uri "$relative_path"; then
+    if ! ~/dotfiles/tiddlywiki/bin/tw "$wiki_path" set "$relative_path" _canonical_uri "$relative_path"; then
         error "Failed to set _canonical_uri field"
     fi
 
     # Set type field
-    if ! TIDDLYWIKI_WIKI_PATH="$wiki_path" ~/dotfiles/tiddlywiki/bin/tw set "$relative_path" type "$mime_type"; then
+    if ! ~/dotfiles/tiddlywiki/bin/tw "$wiki_path" set "$relative_path" type "$mime_type"; then
         error "Failed to set type field"
     fi
 

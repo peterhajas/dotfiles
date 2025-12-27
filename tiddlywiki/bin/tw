@@ -223,19 +223,16 @@ def read_wiki_content(wiki_path):
         return f.read()
 
 def get_wiki_path(wiki_path=None):
-    """Get the wiki path from argument or environment variable.
+    """Get the wiki path from the argument.
 
     Args:
-        wiki_path: Optional wiki path. If not provided, uses TIDDLYWIKI_WIKI_PATH env var.
+        wiki_path: Optional wiki path argument.
 
     Returns:
         Absolute path to the wiki file or a remote URL.
     """
     if not wiki_path:
-        wiki_path = os.environ.get('TIDDLYWIKI_WIKI_PATH')
-
-    if not wiki_path:
-        print("Error: Wiki path not provided and TIDDLYWIKI_WIKI_PATH environment variable is not set", file=sys.stderr)
+        print("Error: Wiki path not provided", file=sys.stderr)
         sys.exit(1)
 
     # Expand ~ to home directory
@@ -1991,6 +1988,19 @@ def install_live_reload_plugin(wiki_path):
 
 def init_wiki(dest_path):
     """Download an empty TiddlyWiki and save it to the specified path"""
+    def builtin_empty_wiki():
+        return """<!DOCTYPE html>
+<html>
+<head><title>Empty TiddlyWiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">
+[
+{"title":"$:/SiteTitle","text":"TiddlyWiki"}
+]
+</script>
+</body>
+</html>"""
+
     # Expand ~ to home directory
     dest_path = os.path.expanduser(dest_path)
 
@@ -2006,17 +2016,13 @@ def init_wiki(dest_path):
         sys.exit(1)
 
     try:
-        print(f"Downloading empty wiki from tiddlywiki.com...")
-        # Download the empty wiki
+        print("Downloading empty wiki from tiddlywiki.com...")
         url = 'https://tiddlywiki.com/empty.html'
         with urllib.request.urlopen(url, timeout=10) as response:
             wiki_content = response.read().decode('utf-8')
-    except urllib.error.URLError as e:
-        print(f"Error: Failed to download wiki: {e}", file=sys.stderr)
-        sys.exit(1)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
-        sys.exit(1)
+        print(f"Warning: Failed to download wiki, using built-in template: {e}", file=sys.stderr)
+        wiki_content = builtin_empty_wiki()
 
     # Verify the downloaded content has tiddler stores
     stores = extract_tiddler_stores(wiki_content)

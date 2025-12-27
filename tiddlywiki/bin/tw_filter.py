@@ -54,6 +54,21 @@ def split_param_values(param, delimiters=(',', '|', ';')):
     return [part for part in text.split() if part]
 
 
+def split_param_values_preserve_empty(param, delimiters=(',', '|', ';'), maxsplit=None):
+    """Split a parameter string while preserving empty fields."""
+    if param is None:
+        return []
+    text = str(param)
+    for delim in delimiters:
+        if delim in text:
+            if maxsplit is None:
+                parts = text.split(delim)
+            else:
+                parts = text.split(delim, maxsplit)
+            return [part.strip() for part in parts]
+    return [text.strip()]
+
+
 def slugify_text(text):
     """Best-effort slugify to mimic TiddlyWiki's human-friendly slugs."""
     s = safe_str(text)
@@ -72,12 +87,62 @@ def css_escape(text):
 
 def parse_search_replace(param):
     """Parse search-replace parameters separated by comma or pipe."""
-    parts = split_param_values(param, delimiters=(',', '|'))
-    if len(parts) >= 2:
-        return parts[0], parts[1]
-    elif len(parts) == 1:
-        return parts[0], ''
-    return '', ''
+    search, repl, _flags = parse_search_replace_with_flags(param)
+    return search, repl
+
+
+def parse_search_replace_with_flags(param):
+    """Parse search-replace parameters with optional flags."""
+    if param is None:
+        return '', '', ''
+    text = str(param)
+    if ',' not in text and '|' not in text:
+        parts = text.split(None, 1)
+        search = parts[0] if len(parts) > 0 else ''
+        repl = parts[1] if len(parts) > 1 else ''
+        return search, repl, ''
+    parts = split_param_values_preserve_empty(text, delimiters=(',', '|'), maxsplit=2)
+    search = parts[0] if len(parts) > 0 else ''
+    repl = parts[1] if len(parts) > 1 else ''
+    flags = parts[2] if len(parts) > 2 else ''
+    return search, repl, flags
+
+
+def parse_search_replace_flags(flags):
+    """Parse search-replace flags into regex usage and options."""
+    use_regex = False
+    global_replace = True
+    re_flags = 0
+    flag_text = safe_str(flags).strip().lower()
+    if not flag_text:
+        return use_regex, global_replace, re_flags
+    tokens = re.split(r'[\s,;]+', flag_text)
+    for token in tokens:
+        if not token:
+            continue
+        if token in ('re', 'regex', 'regexp'):
+            use_regex = True
+            continue
+        if token in ('first', 'once', 'single', 'nog', 'noglobal'):
+            global_replace = False
+            continue
+        if token in ('g', 'global'):
+            global_replace = True
+            continue
+        for ch in token:
+            if ch == 'g':
+                global_replace = True
+            elif ch == 'i':
+                re_flags |= re.IGNORECASE
+            elif ch == 'm':
+                re_flags |= re.MULTILINE
+            elif ch == 's':
+                re_flags |= re.DOTALL
+            elif ch == 'r':
+                use_regex = True
+            elif ch == '1':
+                global_replace = False
+    return use_regex, global_replace, re_flags
 
 
 def parse_filter_expression(filter_expr):
@@ -217,6 +282,18 @@ def apply_operator(operator_name, param, value):
     if name == 'compare':
         target = param if param is not None else ''
         # Support numeric comparisons if target starts with < or >
+        if target.startswith('>='):
+            cmp_val = to_number(target[2:], None)
+            num_val = to_number(s, None)
+            return value if cmp_val is not None and num_val is not None and num_val >= cmp_val else None
+        if target.startswith('<='):
+            cmp_val = to_number(target[2:], None)
+            num_val = to_number(s, None)
+            return value if cmp_val is not None and num_val is not None and num_val <= cmp_val else None
+        if target.startswith('!='):
+            return value if s != target[2:] else None
+        if target.startswith('=='):
+            return value if s == target[2:] else None
         if target.startswith('>'):
             cmp_val = to_number(target[1:], None)
             return value if cmp_val is not None and to_number(s, None) is not None and to_number(s) > cmp_val else None
@@ -257,6 +334,22 @@ def apply_operator(operator_name, param, value):
     if name == 'trim':
         # If a parameter is supplied, strip that string from both ends; otherwise strip whitespace
         if param not in (None, ''):
+            parts = split_param_values_preserve_empty(param, maxsplit=2)
+            if len(parts) >= 2:
+                direction = parts[-1].lower()
+                if direction in ('left', 'right', 'both', 'start', 'end'):
+                    trim_chars = parts[0]
+                    if trim_chars == '':
+                        if direction in ('left', 'start'):
+                            return s.lstrip()
+                        if direction in ('right', 'end'):
+                            return s.rstrip()
+                        return s.strip()
+                    if direction in ('left', 'start'):
+                        return s.lstrip(trim_chars)
+                    if direction in ('right', 'end'):
+                        return s.rstrip(trim_chars)
+                    return s.strip(trim_chars)
             return s.strip(param)
         return s.strip()
     if name == 'length':
@@ -264,12 +357,31 @@ def apply_operator(operator_name, param, value):
     if name == 'slugify':
         return slugify_text(s)
     if name == 'pad':
-        # param can be "length" or "length,char"
-        parts = split_param_values(param)
-        if not parts:
+        # param can be "length", "length,char", or "length,char,direction"
+        text = '' if param is None else str(param)
+        if ',' not in text and '|' not in text and ';' not in text:
+            parts = split_param_values(param)
+        else:
+            parts = split_param_values_preserve_empty(param, maxsplit=2)
+        if not parts or parts[0] == '':
             return s
         target_len = int(parts[0]) if parts[0] else len(s)
-        fill_char = parts[1] if len(parts) > 1 and parts[1] else ' '
+        fill_char = ' '
+        direction = None
+        if len(parts) > 1:
+            candidate = parts[1].lower()
+            if len(parts) == 2 and candidate in ('left', 'right', 'center', 'centre', 'both', 'start', 'end'):
+                direction = candidate
+            else:
+                fill_char = parts[1] if parts[1] else ' '
+        if len(parts) > 2 and parts[2]:
+            direction = parts[2].lower()
+        if direction in ('left', 'start'):
+            return s.rjust(target_len, fill_char)
+        if direction in ('center', 'centre', 'both'):
+            return s.center(target_len, fill_char)
+        if direction in ('right', 'end'):
+            return s.ljust(target_len, fill_char)
         return s.ljust(target_len, fill_char)
     if name == 'split':
         if param is None or param == '':
@@ -290,10 +402,18 @@ def apply_operator(operator_name, param, value):
             return s
         return s[:idx]
     if name == 'search-replace':
-        search, repl = parse_search_replace(param)
-        if not search:
+        search, repl, flags = parse_search_replace_with_flags(param)
+        if search == '':
             return s
-        return s.replace(search, repl)
+        use_regex, global_replace, re_flags = parse_search_replace_flags(flags)
+        if not use_regex and re_flags == 0:
+            return s.replace(search, repl) if global_replace else s.replace(search, repl, 1)
+        pattern = search if use_regex else re.escape(search)
+        count = 0 if global_replace else 1
+        try:
+            return re.sub(pattern, repl, s, count=count, flags=re_flags)
+        except re.error:
+            return s
     if name == 'format':
         if param in (None, ''):
             return s
@@ -536,10 +656,20 @@ def apply_list_operator(operator_name, param, values):
     if name_lower == 'reverse':
         return list(reversed(values))
     if name_lower == 'order':
-        # Simple implementation: reverse when asked, otherwise pass through
-        if param and str(param).lower().startswith('rev'):
+        if not param:
+            return values
+        param_text = str(param)
+        if param_text.lower().startswith('rev'):
             return list(reversed(values))
-        return values
+        order_list = split_param_values(param)
+        if not order_list:
+            return values
+        order_map = {val: idx for idx, val in enumerate(order_list)}
+        ordered = [(order_map[v], idx, v) for idx, v in enumerate(values) if v in order_map]
+        ordered.sort(key=lambda item: (item[0], item[1]))
+        ordered_values = [v for _, _, v in ordered]
+        rest = [v for v in values if v not in order_map]
+        return ordered_values + rest
     if name_lower == 'unique':
         seen = set()
         unique_values = []

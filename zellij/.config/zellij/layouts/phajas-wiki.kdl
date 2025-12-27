@@ -10,7 +10,7 @@ layout {
         pane {
             cwd "~/phajas-wiki"
             command="bash"
-            args "-c" "TIDDLYWIKI_WIKI_PATH=~/phajas-wiki/phajas-wiki.html ~/bin/tw serve --port 9999"
+            args "-c" "~/bin/tw ~/phajas-wiki/phajas-wiki.html serve --port 9999"
             size "50%"
         }
     }
