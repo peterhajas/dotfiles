@@ -1,0 +1,222 @@
+{
+  "displays": [
+    {
+      "id": 1,
+      "uuid": "left-display-uuid",
+      "index": 1,
+      "frame": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 1920.0,
+        "h": 1080.0
+      },
+      "spaces": [1]
+    },
+    {
+      "id": 2,
+      "uuid": "center-display-uuid",
+      "index": 2,
+      "frame": {
+        "x": 1920.0,
+        "y": 0.0,
+        "w": 2560.0,
+        "h": 1440.0
+      },
+      "spaces": [2]
+    },
+    {
+      "id": 3,
+      "uuid": "right-display-uuid",
+      "index": 3,
+      "frame": {
+        "x": 4480.0,
+        "y": 0.0,
+        "w": 1920.0,
+        "h": 1080.0
+      },
+      "spaces": [3]
+    }
+  ],
+  "spaces": [
+    {
+      "id": 1,
+      "uuid": "space-uuid-1",
+      "index": 1,
+      "label": "",
+      "type": "bsp",
+      "display": 1,
+      "windows": [101, 102],
+      "first-window": 101,
+      "last-window": 102,
+      "has-focus": false,
+      "is-visible": true,
+      "is-native-fullscreen": false,
+      "layout": "float",
+      "top_padding": 0,
+      "bottom_padding": 0,
+      "left_padding": 0,
+      "right_padding": 0
+    },
+    {
+      "id": 2,
+      "uuid": "space-uuid-2",
+      "index": 2,
+      "label": "",
+      "type": "bsp",
+      "display": 2,
+      "windows": [201, 202, 203],
+      "first-window": 201,
+      "last-window": 203,
+      "has-focus": true,
+      "is-visible": true,
+      "is-native-fullscreen": false,
+      "layout": "float",
+      "top_padding": 0,
+      "bottom_padding": 0,
+      "left_padding": 0,
+      "right_padding": 0
+    },
+    {
+      "id": 3,
+      "uuid": "space-uuid-3",
+      "index": 3,
+      "label": "",
+      "type": "bsp",
+      "display": 3,
+      "windows": [301],
+      "first-window": 301,
+      "last-window": 301,
+      "has-focus": false,
+      "is-visible": true,
+      "is-native-fullscreen": false,
+      "layout": "float",
+      "top_padding": 0,
+      "bottom_padding": 0,
+      "left_padding": 0,
+      "right_padding": 0
+    }
+  ],
+  "windows": [
+    {
+      "id": 101,
+      "pid": 1001,
+      "app": "Ghostty",
+      "title": "far left terminal 1",
+      "frame": {
+        "x": 10.0,
+        "y": 0.0,
+        "w": 960.0,
+        "h": 540.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 102,
+      "pid": 1002,
+      "app": "Ghostty",
+      "title": "far left terminal 2",
+      "frame": {
+        "x": 10.0,
+        "y": 540.0,
+        "w": 960.0,
+        "h": 540.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 201,
+      "pid": 2001,
+      "app": "Safari",
+      "title": "center browser",
+      "frame": {
+        "x": 1920.0,
+        "y": 0.0,
+        "w": 1280.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 2,
+      "space": 2,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 202,
+      "pid": 2002,
+      "app": "Claude",
+      "title": "center AI",
+      "frame": {
+        "x": 3200.0,
+        "y": 0.0,
+        "w": 1280.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 2,
+      "space": 2,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 203,
+      "pid": 2003,
+      "app": "Ghostty",
+      "title": "center editor",
+      "frame": {
+        "x": 2500.0,
+        "y": 0.0,
+        "w": 1280.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 2,
+      "space": 2,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 301,
+      "pid": 3001,
+      "app": "Music",
+      "title": "far right music",
+      "frame": {
+        "x": 4480.0,
+        "y": 0.0,
+        "w": 1920.0,
+        "h": 1080.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 3,
+      "space": 3,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    }
+  ],
+  "rules": []
+}

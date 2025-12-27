@@ -48,6 +48,92 @@ SIDE_MAX_WIDTH_PX: Optional[int] = 1080  # Cap non-center widths in pixels (when
 GRID_COLUMNS = 100  # Grid resolution for column calculations (higher -> finer control)
 
 
+# Abstraction layers for testability
+class YabaiDataProvider:
+    """Base class for yabai data acquisition."""
+    def query_displays(self) -> Optional[List[Dict[str, Any]]]:
+        raise NotImplementedError
+
+    def query_spaces(self) -> Optional[List[Dict[str, Any]]]:
+        raise NotImplementedError
+
+    def query_windows(self) -> Optional[List[Dict[str, Any]]]:
+        raise NotImplementedError
+
+    def query_rules(self) -> Optional[List[Dict[str, Any]]]:
+        raise NotImplementedError
+
+    def query_window(self, win_id: int) -> Optional[Dict[str, Any]]:
+        raise NotImplementedError
+
+
+class RealYabaiProvider(YabaiDataProvider):
+    """Production provider - calls real yabai commands."""
+    def query_displays(self) -> Optional[List[Dict[str, Any]]]:
+        return run_json(["yabai", "-m", "query", "--displays"])
+
+    def query_spaces(self) -> Optional[List[Dict[str, Any]]]:
+        return run_json(["yabai", "-m", "query", "--spaces"])
+
+    def query_windows(self) -> Optional[List[Dict[str, Any]]]:
+        return run_json(["yabai", "-m", "query", "--windows"])
+
+    def query_rules(self) -> Optional[List[Dict[str, Any]]]:
+        return run_json(["yabai", "-m", "rule", "--list"])
+
+    def query_window(self, win_id: int) -> Optional[Dict[str, Any]]:
+        return run_json(["yabai", "-m", "query", "--windows", "--window", str(win_id)])
+
+
+class MockYabaiProvider(YabaiDataProvider):
+    """Test provider - loads data from JSON file."""
+    def __init__(self, test_data: Dict[str, Any]):
+        self.data = test_data
+        self.displays = test_data.get("displays", [])
+        self.spaces = test_data.get("spaces", [])
+        self.windows = test_data.get("windows", [])
+        self.rules = test_data.get("rules", [])
+
+    def query_displays(self) -> Optional[List[Dict[str, Any]]]:
+        log(f"MockProvider: returning {len(self.displays)} display(s)")
+        return self.displays if self.displays else None
+
+    def query_spaces(self) -> Optional[List[Dict[str, Any]]]:
+        log(f"MockProvider: returning {len(self.spaces)} space(s)")
+        return self.spaces if self.spaces else None
+
+    def query_windows(self) -> Optional[List[Dict[str, Any]]]:
+        log(f"MockProvider: returning {len(self.windows)} window(s)")
+        return self.windows
+
+    def query_rules(self) -> Optional[List[Dict[str, Any]]]:
+        log(f"MockProvider: returning {len(self.rules)} rule(s)")
+        return self.rules if self.rules else None
+
+    def query_window(self, win_id: int) -> Optional[Dict[str, Any]]:
+        log(f"MockProvider: looking up window {win_id}")
+        for win in self.windows:
+            if win.get("id") == win_id:
+                return win
+        return None
+
+
+class YabaiCommandExecutor:
+    """Abstraction for yabai command execution with dry-run support."""
+    def __init__(self, dry_run: bool = False):
+        self.dry_run = dry_run
+        self.executed_commands: List[List[str]] = []
+
+    def execute(self, cmd: List[str]) -> None:
+        """Execute or log command based on mode."""
+        if self.dry_run:
+            print(f"[DRY-RUN] {' '.join(cmd)}")
+            self.executed_commands.append(cmd)
+        else:
+            run_cmd(cmd)
+            self.executed_commands.append(cmd)
+
+
 def run_json(cmd: List[str]) -> Optional[Any]:
     log(f"run_json: {' '.join(cmd)}")
     try:
@@ -125,12 +211,14 @@ def explicit_display_override(displays: List[Dict[str, Any]], env_vars: List[str
 def move_window_to_display(
     win_id: int,
     target_display: int,
-    displays: Optional[List[Dict[str, Any]]] = None,
+    displays: Optional[List[Dict[str, Any]]],
+    provider: YabaiDataProvider,
+    executor: YabaiCommandExecutor,
 ) -> None:
     if target_display is None:
         return
     try:
-        win_json = run_json(["yabai", "-m", "query", "--windows", "--window", str(win_id)])
+        win_json = provider.query_window(win_id)
         if not win_json:
             return
         if win_json.get("display") == target_display:
@@ -139,10 +227,10 @@ def move_window_to_display(
     except Exception:
         return
     log(f"Moving window {win_id} to display {target_display}")
-    run_cmd(["yabai", "-m", "window", str(win_id), "--display", str(target_display)])
+    executor.execute(["yabai", "-m", "window", str(win_id), "--display", str(target_display)])
 
     # If move failed (common when scripting addition commands are blocked), fall back to a direct move
-    updated = run_json(["yabai", "-m", "query", "--windows", "--window", str(win_id)]) or {}
+    updated = provider.query_window(win_id) or {}
     if updated.get("display") == target_display:
         return
     if not displays:
@@ -165,24 +253,24 @@ def move_window_to_display(
     if win_h and frame.get("h", 0):
         dst_y = min(dst_y, max_y)
 
-    run_cmd(["yabai", "-m", "window", str(win_id), "--move", f"abs:{int(dst_x)}:{int(dst_y)}"])
+    executor.execute(["yabai", "-m", "window", str(win_id), "--move", f"abs:{int(dst_x)}:{int(dst_y)}"])
 
 
-def apply_grid(win_id: int, rows: int, col: int, row: int, span: int) -> None:
+def apply_grid(win_id: int, rows: int, col: int, row: int, span: int, executor: YabaiCommandExecutor) -> None:
     grid = f"{rows}:{GRID_COLUMNS}:{col}:{row}:{span}:1"
     log(f"Applying grid {grid} to window {win_id}")
-    run_cmd(["yabai", "-m", "window", str(win_id), "--grid", grid])
+    executor.execute(["yabai", "-m", "window", str(win_id), "--grid", grid])
 
 
-def apply_bucket(windows: List[int], col: int, span: int) -> None:
+def apply_bucket(windows: List[int], col: int, span: int, executor: YabaiCommandExecutor) -> None:
     rows = max(1, len(windows))
     for idx, win in enumerate(windows):
-        apply_grid(win, rows, col, idx, span)
+        apply_grid(win, rows, col, idx, span, executor)
 
 
-def overlap_region(windows: List[int], col: int, span: int) -> None:
+def overlap_region(windows: List[int], col: int, span: int, executor: YabaiCommandExecutor) -> None:
     for win in windows:
-        apply_grid(win, 1, col, 0, span)
+        apply_grid(win, 1, col, 0, span, executor)
 
 
 def compute_bucket_widths(buckets_present: List[str], display_width: float) -> Dict[str, float]:
@@ -409,13 +497,13 @@ def is_management_disabled(win: Optional[Dict[str, Any]]) -> bool:
     return False
 
 
-def ensure_managed(win_id: int) -> None:
-    info = run_json(["yabai", "-m", "query", "--windows", "--window", str(win_id)]) or {}
+def ensure_managed(win_id: int, provider: YabaiDataProvider, executor: YabaiCommandExecutor) -> None:
+    info = provider.query_window(win_id) or {}
     if is_management_disabled(info):
         return
     if info.get("floating") == 1:
         # toggle to managed so grid placement works
-        run_cmd(["yabai", "-m", "window", str(win_id), "--toggle", "float"])
+        executor.execute(["yabai", "-m", "window", str(win_id), "--toggle", "float"])
 
 
 def is_panel_or_dialog(win: Optional[Dict[str, Any]]) -> bool:
@@ -524,6 +612,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "-v", "--verbose", action="store_true", help="Enable verbose logging output"
     )
+    parser.add_argument(
+        "-n", "--dry-run", action="store_true",
+        help="Show commands that would be executed without executing them"
+    )
+    parser.add_argument(
+        "--test-data", type=str, metavar="FILE",
+        help="Load test data from JSON file instead of querying yabai"
+    )
+    parser.add_argument(
+        "--save-snapshot", type=str, metavar="FILE",
+        help="Save current yabai state to JSON file for later testing"
+    )
     return parser.parse_args()
 
 
@@ -532,13 +632,55 @@ def main() -> None:
     args = parse_args()
     VERBOSE = args.verbose
 
+    # Initialize provider and executor based on args
+    provider: YabaiDataProvider
+    if args.test_data:
+        # Load test data from JSON file
+        log(f"Loading test data from {args.test_data}")
+        try:
+            with open(args.test_data, "r") as f:
+                test_data = json.load(f)
+            provider = MockYabaiProvider(test_data)
+            log("Using MockYabaiProvider")
+        except Exception as e:
+            print(f"Error loading test data from {args.test_data}: {e}", file=sys.stderr)
+            sys.exit(1)
+    else:
+        provider = RealYabaiProvider()
+        log("Using RealYabaiProvider")
+
+    # Command executor with dry-run support
+    # Note: test-data implies dry-run to avoid executing commands with fake data
+    dry_run = args.dry_run or bool(args.test_data)
+    executor = YabaiCommandExecutor(dry_run=dry_run)
+    if dry_run:
+        log("Dry-run mode enabled - commands will be logged but not executed")
+
     event = (os.environ.get("YABAI_SIGNAL_EVENT") or "").strip().lower()
     log(f"Event: {event or '(none)'}")
+
+    # Handle --save-snapshot: capture current state and exit
+    if args.save_snapshot:
+        log(f"Saving snapshot to {args.save_snapshot}")
+        try:
+            snapshot = {
+                "displays": provider.query_displays() or [],
+                "spaces": provider.query_spaces() or [],
+                "windows": provider.query_windows() or [],
+                "rules": provider.query_rules() or [],
+            }
+            with open(args.save_snapshot, "w") as f:
+                json.dump(snapshot, f, indent=2)
+            print(f"Snapshot saved to {args.save_snapshot}")
+            sys.exit(0)
+        except Exception as e:
+            print(f"Error saving snapshot to {args.save_snapshot}: {e}", file=sys.stderr)
+            sys.exit(1)
 
     global MANAGE_OFF_RULES, MANAGE_OFF_APPS
     MANAGE_OFF_RULES = [
         rule
-        for rule in (run_json(["yabai", "-m", "rule", "--list"]) or [])
+        for rule in (provider.query_rules() or [])
         if manage_is_off(rule.get("manage"))
     ]
     log(f"Manage-off rules: {len(MANAGE_OFF_RULES)}")
@@ -561,9 +703,9 @@ def main() -> None:
         if MANAGE_OFF_APPS:
             log(f"  Defensive app exclusions: {sorted(MANAGE_OFF_APPS)}")
 
-    displays = run_json(["yabai", "-m", "query", "--displays"])
-    spaces = run_json(["yabai", "-m", "query", "--spaces"])
-    windows = run_json(["yabai", "-m", "query", "--windows"])
+    displays = provider.query_displays()
+    spaces = provider.query_spaces()
+    windows = provider.query_windows()
 
     if not displays or not spaces or windows is None:
         log("Missing displays/spaces/windows data, exiting")
@@ -574,7 +716,7 @@ def main() -> None:
 
     # Set geometry only when display geometry may have changed
     if should_update_config:
-        run_cmd(["yabai", "-m", "config", "window_gap", str(PADDING)])
+        executor.execute(["yabai", "-m", "config", "window_gap", str(PADDING)])
 
     total_workspace_width = workspace_width(displays)
     widest_display_width = max(d.get("frame", {}).get("w", 0) for d in displays) if displays else 0
@@ -633,7 +775,7 @@ def main() -> None:
             if not (needs_layout or needs_padding):
                 continue
 
-            run_cmd(
+            executor.execute(
                 [
                     "yabai",
                     "-m",
@@ -654,7 +796,7 @@ def main() -> None:
             )
 
         # apply all rules (expensive; only when displays change/wake)
-        run_cmd(["yabai", "-m", "rule", "--apply"])
+        executor.execute(["yabai", "-m", "rule", "--apply"])
 
     # Special windows
     explicit_far_left = explicit_display_override(
@@ -690,7 +832,7 @@ def main() -> None:
     # Position-based bucketing happens in the layout sections below
 
     # Refresh windows after special moves
-    windows = run_json(["yabai", "-m", "query", "--windows"]) or []
+    windows = provider.query_windows() or []
 
     # 5-bucket workspace layout
     if use_five_buckets and display_to_buckets:
@@ -714,7 +856,7 @@ def main() -> None:
                 if is_management_disabled(win):
                     continue
                 if win.get("floating") == 1:
-                    ensure_managed(win.get("id"))
+                    ensure_managed(win.get("id"), provider, executor)
                 if win.get("is-visible") is False or win.get("is-hidden") is True:
                     continue
 
@@ -740,6 +882,7 @@ def main() -> None:
                         [w.get("id") for w in wins],
                         layout[bucket_name]["col"],
                         layout[bucket_name]["span"],
+                        executor,
                     )
                 else:
                     # Side buckets: vertically stacked, sorted alphabetically
@@ -754,6 +897,7 @@ def main() -> None:
                         [w.get("id") for w in sorted_wins],
                         layout[bucket_name]["col"],
                         layout[bucket_name]["span"],
+                        executor,
                     )
 
     # 25/50/25 tiling for legacy ultrawide
@@ -778,7 +922,7 @@ def main() -> None:
                     continue
                 if win.get("floating") == 1:
                     # Make sure floating windows get managed so grid placement works
-                    ensure_managed(win.get("id"))
+                    ensure_managed(win.get("id"), provider, executor)
                 if win.get("is-visible") is False or win.get("is-hidden") is True:
                     # Ignore windows that are hidden/invisible so they don't reserve space
                     continue
@@ -826,18 +970,21 @@ def main() -> None:
                     [w.get("id") for w in left_sorted],
                     layout["left"]["col"],
                     layout["left"]["span"],
+                    executor,
                 )
             if center_bucket and "center" in layout:
                 overlap_region(
                     [w.get("id") for w in center_bucket],
                     layout["center"]["col"],
                     layout["center"]["span"],
+                    executor,
                 )
             if right_bucket and "right" in layout:
                 apply_bucket(
                     [w.get("id") for w in right_sorted],
                     layout["right"]["col"],
                     layout["right"]["span"],
+                    executor,
                 )
 
 

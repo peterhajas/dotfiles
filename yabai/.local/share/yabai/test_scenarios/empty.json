@@ -1,0 +1,39 @@
+{
+  "displays": [
+    {
+      "id": 1,
+      "uuid": "test-uuid-1",
+      "index": 1,
+      "frame": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 1920.0,
+        "h": 1080.0
+      },
+      "spaces": [1]
+    }
+  ],
+  "spaces": [
+    {
+      "id": 1,
+      "uuid": "space-uuid-1",
+      "index": 1,
+      "label": "",
+      "type": "bsp",
+      "display": 1,
+      "windows": [],
+      "first-window": 0,
+      "last-window": 0,
+      "has-focus": true,
+      "is-visible": true,
+      "is-native-fullscreen": false,
+      "layout": "bsp",
+      "top_padding": 0,
+      "bottom_padding": 0,
+      "left_padding": 0,
+      "right_padding": 0
+    }
+  ],
+  "windows": [],
+  "rules": []
+}

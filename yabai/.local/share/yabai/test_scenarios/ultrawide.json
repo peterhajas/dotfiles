@@ -1,0 +1,140 @@
+{
+  "displays": [
+    {
+      "id": 1,
+      "uuid": "ultrawide-uuid-1",
+      "index": 1,
+      "frame": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 3440.0,
+        "h": 1440.0
+      },
+      "spaces": [1]
+    }
+  ],
+  "spaces": [
+    {
+      "id": 1,
+      "uuid": "space-uuid-1",
+      "index": 1,
+      "label": "",
+      "type": "bsp",
+      "display": 1,
+      "windows": [101, 102, 103, 104, 105],
+      "first-window": 101,
+      "last-window": 105,
+      "has-focus": true,
+      "is-visible": true,
+      "is-native-fullscreen": false,
+      "layout": "float",
+      "top_padding": 0,
+      "bottom_padding": 0,
+      "left_padding": 0,
+      "right_padding": 0
+    }
+  ],
+  "windows": [
+    {
+      "id": 101,
+      "pid": 1001,
+      "app": "Ghostty",
+      "title": "left terminal",
+      "frame": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 860.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 102,
+      "pid": 1002,
+      "app": "Ghostty",
+      "title": "another left",
+      "frame": {
+        "x": 400.0,
+        "y": 0.0,
+        "w": 860.0,
+        "h": 720.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 103,
+      "pid": 1003,
+      "app": "Safari",
+      "title": "center browser",
+      "frame": {
+        "x": 1147.0,
+        "y": 0.0,
+        "w": 1146.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 104,
+      "pid": 1004,
+      "app": "Finder",
+      "title": "right finder",
+      "frame": {
+        "x": 2580.0,
+        "y": 0.0,
+        "w": 860.0,
+        "h": 720.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 105,
+      "pid": 1005,
+      "app": "Music",
+      "title": "right music",
+      "frame": {
+        "x": 2800.0,
+        "y": 720.0,
+        "w": 640.0,
+        "h": 720.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    }
+  ],
+  "rules": []
+}

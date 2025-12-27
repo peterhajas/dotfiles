@@ -1,0 +1,217 @@
+{
+  "displays": [
+    {
+      "id": 1,
+      "uuid": "test-uuid-1",
+      "index": 1,
+      "frame": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 2560.0,
+        "h": 1440.0
+      },
+      "spaces": [1]
+    }
+  ],
+  "spaces": [
+    {
+      "id": 1,
+      "uuid": "space-uuid-1",
+      "index": 1,
+      "label": "",
+      "type": "bsp",
+      "display": 1,
+      "windows": [101, 102, 103, 104, 105, 106, 107],
+      "first-window": 101,
+      "last-window": 107,
+      "has-focus": true,
+      "is-visible": true,
+      "is-native-fullscreen": false,
+      "layout": "bsp",
+      "top_padding": 0,
+      "bottom_padding": 0,
+      "left_padding": 0,
+      "right_padding": 0
+    }
+  ],
+  "windows": [
+    {
+      "id": 101,
+      "pid": 1001,
+      "app": "Ghostty",
+      "title": "sysmon - system monitor",
+      "frame": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 640.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 102,
+      "pid": 1002,
+      "app": "Ghostty",
+      "title": "claude code - nvim",
+      "frame": {
+        "x": 960.0,
+        "y": 0.0,
+        "w": 640.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 103,
+      "pid": 1003,
+      "app": "Claude",
+      "title": "Chat with Claude",
+      "frame": {
+        "x": 1600.0,
+        "y": 0.0,
+        "w": 960.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 104,
+      "pid": 1004,
+      "app": "ChatGPT",
+      "title": "ChatGPT",
+      "frame": {
+        "x": 1700.0,
+        "y": 0.0,
+        "w": 860.0,
+        "h": 1440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 105,
+      "pid": 1005,
+      "app": "System Settings",
+      "title": "General",
+      "frame": {
+        "x": 800.0,
+        "y": 400.0,
+        "w": 960.0,
+        "h": 640.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 1
+    },
+    {
+      "id": 106,
+      "pid": 1006,
+      "app": "Finder",
+      "title": "Open File",
+      "frame": {
+        "x": 900.0,
+        "y": 500.0,
+        "w": 760.0,
+        "h": 440.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXDialog",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 1
+    },
+    {
+      "id": 107,
+      "pid": 1007,
+      "app": "Safari",
+      "title": "Preferences",
+      "frame": {
+        "x": 1000.0,
+        "y": 600.0,
+        "w": 560.0,
+        "h": 340.0
+      },
+      "role": "AXSheet",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 1
+    }
+  ],
+  "rules": [
+    {
+      "label": "",
+      "app": "^System Settings$",
+      "title": "",
+      "role": "",
+      "subrole": "",
+      "display": "",
+      "space": "",
+      "follow_space": "",
+      "opacity": "",
+      "manage": "off",
+      "sticky": "",
+      "mouse_follows_focus": "",
+      "layer": "",
+      "border": "",
+      "native-fullscreen": "",
+      "grid": ""
+    },
+    {
+      "label": "",
+      "app": "^Steam$",
+      "title": "",
+      "role": "",
+      "subrole": "",
+      "display": "",
+      "space": "",
+      "follow_space": "",
+      "opacity": "",
+      "manage": "off",
+      "sticky": "",
+      "mouse_follows_focus": "",
+      "layer": "",
+      "border": "",
+      "native-fullscreen": "",
+      "grid": ""
+    }
+  ]
+}

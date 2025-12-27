@@ -1,0 +1,180 @@
+{
+  "displays": [
+    {
+      "id": 1,
+      "uuid": "super-wide-uuid-1",
+      "index": 1,
+      "frame": {
+        "x": 0.0,
+        "y": 0.0,
+        "w": 7680.0,
+        "h": 2160.0
+      },
+      "spaces": [1]
+    }
+  ],
+  "spaces": [
+    {
+      "id": 1,
+      "uuid": "space-uuid-1",
+      "index": 1,
+      "label": "",
+      "type": "bsp",
+      "display": 1,
+      "windows": [101, 102, 103, 104, 105, 106, 107],
+      "first-window": 101,
+      "last-window": 107,
+      "has-focus": true,
+      "is-visible": true,
+      "is-native-fullscreen": false,
+      "layout": "float",
+      "top_padding": 0,
+      "bottom_padding": 0,
+      "left_padding": 0,
+      "right_padding": 0
+    }
+  ],
+  "windows": [
+    {
+      "id": 101,
+      "pid": 1001,
+      "app": "Ghostty",
+      "title": "far left terminal",
+      "frame": {
+        "x": 100.0,
+        "y": 0.0,
+        "w": 1080.0,
+        "h": 2160.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 102,
+      "pid": 1002,
+      "app": "Ghostty",
+      "title": "left terminal",
+      "frame": {
+        "x": 1700.0,
+        "y": 0.0,
+        "w": 1080.0,
+        "h": 2160.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 103,
+      "pid": 1003,
+      "app": "Safari",
+      "title": "center browser 1",
+      "frame": {
+        "x": 3000.0,
+        "y": 0.0,
+        "w": 1536.0,
+        "h": 2160.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 104,
+      "pid": 1004,
+      "app": "Claude",
+      "title": "center AI chat",
+      "frame": {
+        "x": 3200.0,
+        "y": 0.0,
+        "w": 1536.0,
+        "h": 2160.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 105,
+      "pid": 1005,
+      "app": "Finder",
+      "title": "right finder",
+      "frame": {
+        "x": 5200.0,
+        "y": 0.0,
+        "w": 1080.0,
+        "h": 2160.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 106,
+      "pid": 1006,
+      "app": "Music",
+      "title": "far right music",
+      "frame": {
+        "x": 6500.0,
+        "y": 0.0,
+        "w": 1080.0,
+        "h": 1080.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    },
+    {
+      "id": 107,
+      "pid": 1007,
+      "app": "Messages",
+      "title": "far right messages",
+      "frame": {
+        "x": 6500.0,
+        "y": 1080.0,
+        "w": 1080.0,
+        "h": 1080.0
+      },
+      "role": "AXWindow",
+      "subrole": "AXStandardWindow",
+      "display": 1,
+      "space": 1,
+      "level": 0,
+      "is-visible": true,
+      "minimized": 0,
+      "floating": 0
+    }
+  ],
+  "rules": []
+}
