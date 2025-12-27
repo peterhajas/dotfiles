@@ -1,0 +1,9 @@
+auth.json
+history.jsonl
+log
+sessions
+skills/.system
+version.json
+
+# maybe?
+settings.json
