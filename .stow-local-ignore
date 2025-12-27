@@ -1,0 +1,9 @@
+# Ignore install.yml playbooks - these are run by setup.yml, not stowed
+^/install\.yml$
+
+# Common patterns to ignore
+\.git
+\.gitignore
+README.*
+LICENSE
+CLAUDE\.md
