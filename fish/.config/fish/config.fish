@@ -42,3 +42,7 @@ export GGML_METAL_PATH_RESOURCES=~/.models/
 
 # uv
 fish_add_path "/Users/phajas/.local/bin"
+
+# bun
+set --export BUN_INSTALL "$HOME/.bun"
+set --export PATH $BUN_INSTALL/bin $PATH
