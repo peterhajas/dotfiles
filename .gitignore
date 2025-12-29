@@ -77,3 +77,9 @@ mdi.json
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Claude
+.claude
+
+# Codex
+codex/.codex/rules
