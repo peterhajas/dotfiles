@@ -885,14 +885,8 @@ def main() -> None:
                         executor,
                     )
                 else:
-                    # Side buckets: vertically stacked, sorted alphabetically
-                    sorted_wins = sorted(
-                        wins,
-                        key=lambda w: (
-                            (w.get("title") or w.get("app") or "").lower(),
-                            w.get("id", 0),
-                        ),
-                    )
+                    # Side buckets: vertically stacked, sorted by window ID
+                    sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
                     apply_bucket(
                         [w.get("id") for w in sorted_wins],
                         layout[bucket_name]["col"],
@@ -942,21 +936,9 @@ def main() -> None:
                 else:
                     center_bucket.append(win)
 
-            # Sort side buckets alphabetically
-            left_sorted = sorted(
-                left_bucket,
-                key=lambda w: (
-                    (w.get("title") or w.get("app") or "").lower(),
-                    w.get("id", 0),
-                ),
-            )
-            right_sorted = sorted(
-                right_bucket,
-                key=lambda w: (
-                    (w.get("title") or w.get("app") or "").lower(),
-                    w.get("id", 0),
-                ),
-            )
+            # Sort side buckets by window ID
+            left_sorted = sorted(left_bucket, key=lambda w: w.get("id", 0))
+            right_sorted = sorted(right_bucket, key=lambda w: w.get("id", 0))
 
             # Always allocate space for all three buckets
             present_buckets = ["left", "center", "right"]

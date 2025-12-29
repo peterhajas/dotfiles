@@ -301,6 +301,78 @@ class TestLayoutModeSelection(unittest.TestCase):
         self.assertGreaterEqual(total_width, yut.WORKSPACE_WIDTH_THRESHOLD)
 
 
+class TestWindowSorting(unittest.TestCase):
+    """Unit tests for window sorting by ID."""
+
+    def test_windows_sorted_by_id(self):
+        """Windows should be sorted by ID, not by title."""
+        # Create windows with IDs that don't match alphabetical order of titles
+        windows = [
+            {"id": 300, "title": "Zebra", "app": "Terminal"},
+            {"id": 100, "title": "Apple", "app": "Safari"},
+            {"id": 200, "title": "Monkey", "app": "Finder"},
+        ]
+
+        # Sort using the new sorting key (ID only)
+        sorted_windows = sorted(windows, key=lambda w: w.get("id", 0))
+
+        # Should be sorted by ID: [100, 200, 300], not alphabetically by title
+        self.assertEqual(sorted_windows[0]["id"], 100)
+        self.assertEqual(sorted_windows[1]["id"], 200)
+        self.assertEqual(sorted_windows[2]["id"], 300)
+
+        # Verify it's NOT sorted alphabetically by title
+        # (alphabetical would be: Apple, Monkey, Zebra)
+        self.assertEqual(sorted_windows[0]["title"], "Apple")
+        self.assertEqual(sorted_windows[1]["title"], "Monkey")
+        self.assertEqual(sorted_windows[2]["title"], "Zebra")
+
+    def test_sort_stable_when_titles_change(self):
+        """Window order should remain stable when titles change."""
+        # Create windows with ascending IDs and alphabetical titles
+        windows = [
+            {"id": 100, "title": "A", "app": "App1"},
+            {"id": 200, "title": "B", "app": "App2"},
+            {"id": 300, "title": "C", "app": "App3"},
+        ]
+
+        # Sort once
+        first_sort = sorted(windows, key=lambda w: w.get("id", 0))
+        first_order = [w["id"] for w in first_sort]
+
+        # Change titles to reverse alphabetical order
+        windows[0]["title"] = "Z"
+        windows[1]["title"] = "Y"
+        windows[2]["title"] = "X"
+
+        # Sort again
+        second_sort = sorted(windows, key=lambda w: w.get("id", 0))
+        second_order = [w["id"] for w in second_sort]
+
+        # Order should be unchanged: [100, 200, 300]
+        self.assertEqual(first_order, second_order)
+        self.assertEqual(second_order, [100, 200, 300])
+
+    def test_windows_with_missing_ids(self):
+        """Windows with missing IDs should fallback to 0 and sort first."""
+        windows = [
+            {"id": 200, "title": "Has ID 200", "app": "App2"},
+            {"title": "No ID", "app": "App1"},  # No id key
+            {"id": 100, "title": "Has ID 100", "app": "App3"},
+        ]
+
+        # Sort using the ID-based key
+        sorted_windows = sorted(windows, key=lambda w: w.get("id", 0))
+
+        # Window without ID (fallback to 0) should be first
+        self.assertNotIn("id", sorted_windows[0])
+        self.assertEqual(sorted_windows[0]["title"], "No ID")
+
+        # Followed by ID 100 and 200
+        self.assertEqual(sorted_windows[1]["id"], 100)
+        self.assertEqual(sorted_windows[2]["id"], 200)
+
+
 class TestScenarioIntegration(unittest.TestCase):
     """Integration tests using test scenarios."""
 
@@ -424,10 +496,7 @@ class TestScenarioIntegration(unittest.TestCase):
                             executor,
                         )
                     else:
-                        sorted_wins = sorted(wins, key=lambda w: (
-                            (w.get("title") or w.get("app") or "").lower(),
-                            w.get("id", 0),
-                        ))
+                        sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
                         yut.apply_bucket(
                             [w.get("id") for w in sorted_wins],
                             layout[bucket_name]["col"],
