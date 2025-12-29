@@ -159,8 +159,9 @@ def parse_filter_expression(filter_expr):
             depth = max(0, depth - 1)
 
         is_prefix_char = ch in '+-~=' and (idx + 1 < len(filter_expr) and filter_expr[idx + 1] == '[')
-        # Check for named prefix: : followed by alphanumeric (and there's content before it)
-        named_prefix_split = (ch == ':' and buf.strip() and
+        # Check for named prefix :and, :or, etc. only when starting a new run
+        named_prefix_split = (ch == ':' and
+                            (not buf or buf[-1].isspace()) and
                             idx + 1 < len(filter_expr) and
                             (filter_expr[idx + 1].isalnum() or filter_expr[idx + 1] in '_-'))
 
@@ -229,23 +230,53 @@ def parse_filter_expression(filter_expr):
                 if not operator_name:
                     raise ValueError(f"Unexpected character '{run_text[pos]}' at position {pos}")
 
-                if pos < len(run_text) and run_text[pos] == '[':
-                    # Find matching ] bracket, accounting for nested brackets
-                    param_start = pos + 1
-                    bracket_depth = 1
-                    param_end = param_start
-                    while param_end < len(run_text) and bracket_depth > 0:
-                        if run_text[param_end] == '[':
-                            bracket_depth += 1
-                        elif run_text[param_end] == ']':
-                            bracket_depth -= 1
-                        if bracket_depth > 0:
-                            param_end += 1
-                    if bracket_depth != 0:
-                        raise ValueError(f"Unclosed operator parameter at position {pos}")
-                    param_value = run_text[param_start:param_end]
-                    operators.append((operator_name, param_value))
-                    pos = param_end + 1
+                if pos < len(run_text) and run_text[pos] in '[{<':
+                    param_exprs = []
+
+                    def parse_param_expression(start_pos):
+                        opening = run_text[start_pos]
+                        if opening == '[':
+                            param_start = start_pos + 1
+                            bracket_depth = 1
+                            param_end = param_start
+                            while param_end < len(run_text) and bracket_depth > 0:
+                                if run_text[param_end] == '[':
+                                    bracket_depth += 1
+                                elif run_text[param_end] == ']':
+                                    bracket_depth -= 1
+                                if bracket_depth > 0:
+                                    param_end += 1
+                            if bracket_depth != 0:
+                                raise ValueError(f"Unclosed operator parameter at position {start_pos}")
+                            param_value = run_text[param_start:param_end]
+                            return ('hard', param_value), param_end + 1
+                        if opening == '{':
+                            end = run_text.find('}', start_pos + 1)
+                            if end == -1:
+                                raise ValueError(f"Unclosed operator parameter at position {start_pos}")
+                            return ('soft', run_text[start_pos + 1:end]), end + 1
+                        if opening == '<':
+                            end = run_text.find('>', start_pos + 1)
+                            if end == -1:
+                                raise ValueError(f"Unclosed operator parameter at position {start_pos}")
+                            return ('variable', run_text[start_pos + 1:end]), end + 1
+                        raise ValueError(f"Unexpected character '{opening}' at position {start_pos}")
+
+                    while pos < len(run_text) and run_text[pos] in '[{<':
+                        expr, next_pos = parse_param_expression(pos)
+                        param_exprs.append(expr)
+                        pos = next_pos
+
+                        while pos < len(run_text) and run_text[pos].isspace():
+                            pos += 1
+                        if pos < len(run_text) and run_text[pos] == ',':
+                            pos += 1
+                            while pos < len(run_text) and run_text[pos].isspace():
+                                pos += 1
+                            continue
+                        break
+
+                    operators.append((operator_name, param_exprs))
                 else:
                     operators.append((operator_name, None))
 
@@ -261,25 +292,108 @@ def parse_filter_expression(filter_expr):
 def apply_operator(operator_name, param, value):
     """Apply a single operator to a single value."""
     name = operator_name
+    name_lower = name.lower()
+    base_name = name
+    flag_text = None
+    if ':' in name:
+        base_name, flag_text = name.split(':', 1)
+        name_lower = base_name.lower()
     s = safe_str(value)
+    case_sensitive = True
+    if flag_text is not None and name_lower in ('prefix', 'suffix', 'match', 'removeprefix', 'removesuffix'):
+        flags = [part.strip().lower() for part in flag_text.split(',') if part.strip()]
+        if 'caseinsensitive' in flags:
+            case_sensitive = False
+    if isinstance(param, list) and name_lower not in ('search-replace',):
+        param = param[0] if param else ''
 
     # Filtering / matching operators on strings
-    if name == 'prefix':
+    if name_lower == 'prefix':
         text = param if param is not None else ''
+        if not case_sensitive:
+            return value if s.lower().startswith(text.lower()) else None
         return value if s.startswith(text) else None
-    if name == 'suffix':
+    if name_lower == 'suffix':
         text = param if param is not None else ''
+        if not case_sensitive:
+            return value if s.lower().endswith(text.lower()) else None
         return value if s.endswith(text) else None
-    if name == 'match':
+    if name_lower == 'match':
         pattern = param if param is not None else ''
-        return value if pattern.lower() in s.lower() else None
-    if name == 'regexp':
+        if not case_sensitive:
+            return value if s.lower() == pattern.lower() else None
+        return value if s == pattern else None
+    if name_lower == 'regexp':
         pattern = param if param is not None else ''
         try:
             return value if re.search(pattern, s) else None
         except re.error:
             return None
-    if name == 'compare':
+    if name_lower == 'compare':
+        if flag_text:
+            parts = [part.strip() for part in flag_text.split(':')]
+            compare_type = parts[0].lower() if len(parts) > 0 and parts[0] else 'number'
+            compare_mode = parts[1].lower() if len(parts) > 1 and parts[1] else 'eq'
+
+            def normalize_version(text):
+                cleaned = safe_str(text).strip()
+                if cleaned.lower().startswith('v'):
+                    cleaned = cleaned[1:]
+                pieces = cleaned.split('.')
+                if not pieces:
+                    return [0, 0, 0]
+                nums = []
+                for part in pieces:
+                    match = re.match(r'(\d+)', part)
+                    nums.append(int(match.group(1)) if match else 0)
+                if not nums:
+                    nums = [0, 0, 0]
+                return nums
+
+            def normalize_date_or_default(text):
+                normalized = normalize_date(safe_str(text))
+                return normalized if normalized else '19700101000000000'
+
+            def convert_value(text):
+                if compare_type == 'number':
+                    return to_number(text, 0.0)
+                if compare_type == 'integer':
+                    try:
+                        return int(float(text))
+                    except (ValueError, TypeError):
+                        return 0
+                if compare_type == 'string':
+                    return safe_str(text)
+                if compare_type == 'date':
+                    return normalize_date_or_default(text)
+                if compare_type == 'version':
+                    return normalize_version(text)
+                return to_number(text, 0.0)
+
+            left = convert_value(s)
+            right = convert_value(param if param is not None else '')
+            if compare_type == 'version':
+                max_len = max(len(left), len(right))
+                left = left + [0] * (max_len - len(left))
+                right = right + [0] * (max_len - len(right))
+
+            def compare_values(a, b):
+                if compare_mode == 'eq':
+                    return a == b
+                if compare_mode == 'ne':
+                    return a != b
+                if compare_mode == 'gteq':
+                    return a >= b
+                if compare_mode == 'gt':
+                    return a > b
+                if compare_mode == 'lteq':
+                    return a <= b
+                if compare_mode == 'lt':
+                    return a < b
+                return a == b
+
+            return value if compare_values(left, right) else None
+
         target = param if param is not None else ''
         # Support numeric comparisons if target starts with < or >
         if target.startswith('>='):
@@ -301,37 +415,45 @@ def apply_operator(operator_name, param, value):
             cmp_val = to_number(target[1:], None)
             return value if cmp_val is not None and to_number(s, None) is not None and to_number(s) < cmp_val else None
         return value if s == target else None
-    if name == 'contains':
+    if name_lower == 'contains':
         pattern = param if param is not None else ''
         return value if pattern.lower() in s.lower() else None
-    if name == 'minlength':
+    if name_lower == 'minlength':
         min_len = int(param) if param not in (None, '') else 0
         return value if len(s) >= min_len else None
 
     # String manipulation operators
-    if name == 'removeprefix':
+    if name_lower == 'removeprefix':
         text = param if param is not None else ''
-        return s[len(text):] if text and s.startswith(text) else s
-    if name == 'removesuffix':
+        if not text:
+            return s
+        if not case_sensitive:
+            return s[len(text):] if s.lower().startswith(text.lower()) else None
+        return s[len(text):] if s.startswith(text) else None
+    if name_lower == 'removesuffix':
         text = param if param is not None else ''
-        return s[:-len(text)] if text and s.endswith(text) else s
-    if name == 'addprefix':
+        if not text:
+            return s
+        if not case_sensitive:
+            return s[:-len(text)] if s.lower().endswith(text.lower()) else None
+        return s[:-len(text)] if s.endswith(text) else None
+    if name_lower == 'addprefix':
         text = param if param is not None else ''
         return text + s
-    if name == 'addsuffix':
+    if name_lower == 'addsuffix':
         text = param if param is not None else ''
         return s + text
 
     # String formatting/transform
-    if name == 'uppercase':
+    if name_lower == 'uppercase':
         return s.upper()
-    if name == 'lowercase':
+    if name_lower == 'lowercase':
         return s.lower()
-    if name == 'titlecase':
+    if name_lower == 'titlecase':
         return s.title()
-    if name == 'sentencecase':
+    if name_lower == 'sentencecase':
         return s[0].upper() + s[1:].lower() if s else s
-    if name == 'trim':
+    if name_lower == 'trim':
         # If a parameter is supplied, strip that string from both ends; otherwise strip whitespace
         if param not in (None, ''):
             parts = split_param_values_preserve_empty(param, maxsplit=2)
@@ -352,11 +474,11 @@ def apply_operator(operator_name, param, value):
                     return s.strip(trim_chars)
             return s.strip(param)
         return s.strip()
-    if name == 'length':
+    if name_lower == 'length':
         return len(s)
-    if name == 'slugify':
+    if name_lower == 'slugify':
         return slugify_text(s)
-    if name == 'pad':
+    if name_lower == 'pad':
         # param can be "length", "length,char", or "length,char,direction"
         text = '' if param is None else str(param)
         if ',' not in text and '|' not in text and ';' not in text:
@@ -383,17 +505,17 @@ def apply_operator(operator_name, param, value):
         if direction in ('right', 'end'):
             return s.ljust(target_len, fill_char)
         return s.ljust(target_len, fill_char)
-    if name == 'split':
+    if name_lower == 'split':
         if param is None or param == '':
             return s.split()
         return s.split(param)
-    if name == 'splitregexp':
+    if name_lower == 'splitregexp':
         pattern = param if param is not None else '\\s+'
         try:
             return re.split(pattern, s)
         except re.error:
             return [s]
-    if name == 'splitbefore':
+    if name_lower == 'splitbefore':
         delim = param if param is not None else ''
         if not delim:
             return s
@@ -401,11 +523,49 @@ def apply_operator(operator_name, param, value):
         if idx == -1:
             return s
         return s[:idx]
-    if name == 'search-replace':
-        search, repl, flags = parse_search_replace_with_flags(param)
+    if name_lower == 'search-replace':
+        search = ''
+        repl = ''
+        flags_text = ''
+        regex_mode = ''
+        if flag_text:
+            parts = [part.strip().lower() for part in flag_text.split(':') if part.strip()]
+            if len(parts) == 1:
+                if parts[0] == 'regexp':
+                    regex_mode = 'regexp'
+                else:
+                    flags_text = parts[0]
+            elif len(parts) >= 2:
+                flags_text = parts[0]
+                regex_mode = parts[1]
+
+        if isinstance(param, list):
+            search = param[0] if len(param) > 0 else ''
+            repl = param[1] if len(param) > 1 else ''
+        else:
+            if flag_text:
+                search = param if param is not None else ''
+            else:
+                search, repl, flags = parse_search_replace_with_flags(param)
+                if flags:
+                    flags_text = flags.lower()
+
         if search == '':
             return s
-        use_regex, global_replace, re_flags = parse_search_replace_flags(flags)
+
+        use_regex = regex_mode == 'regexp'
+        re_flags = 0
+        if 'i' in flags_text:
+            re_flags |= re.IGNORECASE
+        if 'm' in flags_text:
+            re_flags |= re.MULTILINE
+
+        global_replace = 'g' in flags_text
+        if not flag_text and not isinstance(param, list):
+            # Legacy behavior defaults to global replace unless flags override
+            use_regex, global_replace, legacy_flags = parse_search_replace_flags(flags_text)
+            re_flags |= legacy_flags
+
         if not use_regex and re_flags == 0:
             return s.replace(search, repl) if global_replace else s.replace(search, repl, 1)
         pattern = search if use_regex else re.escape(search)
@@ -414,7 +574,7 @@ def apply_operator(operator_name, param, value):
             return re.sub(pattern, repl, s, count=count, flags=re_flags)
         except re.error:
             return s
-    if name == 'format':
+    if name_lower == 'format':
         if param in (None, ''):
             return s
         try:
@@ -428,45 +588,45 @@ def apply_operator(operator_name, param, value):
                 return s
 
     # Encoding/decoding and hashing
-    if name == 'encodebase64':
+    if name_lower == 'encodebase64':
         return base64.b64encode(s.encode('utf-8')).decode('utf-8')
-    if name == 'decodebase64':
+    if name_lower == 'decodebase64':
         try:
             return base64.b64decode(s.encode('utf-8')).decode('utf-8')
         except Exception:
             return ''
-    if name == 'encodeuri':
+    if name_lower == 'encodeuri':
         return urllib.parse.quote(s, safe='/:')
-    if name == 'encodeuricomponent':
+    if name_lower == 'encodeuricomponent':
         return urllib.parse.quote(s, safe='')
-    if name == 'decodeuri':
+    if name_lower == 'decodeuri':
         return urllib.parse.unquote(s)
-    if name == 'decodeuricomponent':
+    if name_lower == 'decodeuricomponent':
         return urllib.parse.unquote_plus(s)
-    if name == 'encodehtml':
+    if name_lower == 'encodehtml':
         import html
         return html.escape(s)
-    if name == 'decodehtml':
+    if name_lower == 'decodehtml':
         import html
         return html.unescape(s)
-    if name == 'escaperegexp':
+    if name_lower == 'escaperegexp':
         return re.escape(s)
-    if name == 'escapecss':
+    if name_lower == 'escapecss':
         return css_escape(s)
-    if name == 'stringify':
+    if name_lower == 'stringify':
         return json.dumps(s)
-    if name == 'jsonstringify':
+    if name_lower == 'jsonstringify':
         return json.dumps(s)
-    if name in ('jsonget', 'jsonextract', 'jsonindexes', 'jsontype', 'jsonset'):
+    if name_lower in ('jsonget', 'jsonextract', 'jsonindexes', 'jsontype', 'jsonset'):
         try:
             data = json.loads(s)
         except Exception:
             data = None
         if data is None:
             return ''
-        if name == 'jsonindexes':
+        if name_lower == 'jsonindexes':
             return list(data.keys()) if isinstance(data, dict) else []
-        if name == 'jsonset':
+        if name_lower == 'jsonset':
             key, val = parse_search_replace(param)
             if key:
                 if isinstance(data, dict):
@@ -475,15 +635,15 @@ def apply_operator(operator_name, param, value):
             return s
         if isinstance(data, dict) and param in data:
             value = data[param]
-            if name == 'jsontype':
+            if name_lower == 'jsontype':
                 return type(value).__name__
-            if name == 'jsonextract':
+            if name_lower == 'jsonextract':
                 return json.dumps(value)
             return str(value)
         return ''
-    if name == 'sha256':
+    if name_lower == 'sha256':
         return hashlib.sha256(s.encode('utf-8')).hexdigest()
-    if name == 'charcode':
+    if name_lower == 'charcode':
         # value is numeric code; if missing use param
         if s == '' and param:
             s = safe_str(param)
@@ -491,7 +651,7 @@ def apply_operator(operator_name, param, value):
             return chr(int(float(s)))
         except Exception:
             return ''
-    if name == 'levenshtein':
+    if name_lower == 'levenshtein':
         target = safe_str(param)
         a, b = s, target
         if a == b:
@@ -513,155 +673,174 @@ def apply_operator(operator_name, param, value):
 
     # Math operators (per item)
     num_value = to_number(value)
-    if name == 'add':
+    if name_lower == 'add':
         return num_value + to_number(param)
-    if name == 'subtract':
+    if name_lower == 'subtract':
         return num_value - to_number(param)
-    if name == 'multiply':
+    if name_lower == 'multiply':
         return num_value * to_number(param, 1.0)
-    if name == 'divide':
+    if name_lower == 'divide':
         denom = to_number(param, 1.0)
         if denom == 0:
             raise ValueError("Division by zero")
         return num_value / denom
-    if name == 'remainder':
+    if name_lower == 'remainder':
         denom = to_number(param, 1.0)
         if denom == 0:
             raise ValueError("Modulo by zero")
         return num_value % denom
-    if name == 'negate':
+    if name_lower == 'negate':
         return -num_value
-    if name == 'abs':
+    if name_lower == 'abs':
         return abs(num_value)
-    if name == 'power':
+    if name_lower == 'power':
         return math.pow(num_value, to_number(param, 1.0))
-    if name == 'log':
+    if name_lower == 'log':
         base = to_number(param, math.e)
         try:
             return math.log(num_value, base)
         except ValueError:
             return 0
-    if name == 'sin':
+    if name_lower == 'sin':
         return math.sin(num_value)
-    if name == 'cos':
+    if name_lower == 'cos':
         return math.cos(num_value)
-    if name == 'tan':
+    if name_lower == 'tan':
         return math.tan(num_value)
-    if name == 'asin':
+    if name_lower == 'asin':
         try:
             return math.asin(num_value)
         except ValueError:
             return 0
-    if name == 'acos':
+    if name_lower == 'acos':
         try:
             return math.acos(num_value)
         except ValueError:
             return 0
-    if name == 'atan':
+    if name_lower == 'atan':
         return math.atan(num_value)
-    if name == 'atan2':
+    if name_lower == 'atan2':
         x_val = to_number(param, 0.0)
         return math.atan2(num_value, x_val)
-    if name == 'round':
+    if name_lower == 'round':
         return round(num_value)
-    if name == 'ceil':
+    if name_lower == 'ceil':
         return math.ceil(num_value)
-    if name == 'floor':
+    if name_lower == 'floor':
         return math.floor(num_value)
-    if name == 'trunc':
+    if name_lower == 'trunc':
         return math.trunc(num_value)
-    if name == 'untrunc':
+    if name_lower == 'untrunc':
         # Round away from zero
         return math.ceil(num_value) if num_value > 0 else math.floor(num_value)
-    if name == 'sign':
+    if name_lower == 'sign':
         return -1 if num_value < 0 else (1 if num_value > 0 else 0)
-    if name == 'precision':
+    if name_lower == 'precision':
         digits = int(param) if param else 0
         return format(num_value, f'.{digits}g') if digits > 0 else str(num_value)
-    if name == 'fixed':
+    if name_lower == 'fixed':
         digits = int(param) if param else 0
         return format(num_value, f'.{digits}f')
-    if name == 'exponential':
+    if name_lower == 'exponential':
         digits = int(param) if param else 0
         return format(num_value, f'.{digits}e')
-    if name == 'max':
+    if name_lower == 'max':
         return max(num_value, to_number(param))
-    if name == 'min':
+    if name_lower == 'min':
         return min(num_value, to_number(param))
 
     raise ValueError(f"Unknown operator: {operator_name}")
 
 
-def apply_list_operator(operator_name, param, values):
+def apply_list_operator(operator_name, param, values, negated=False):
     """Apply a list-level operator to the entire list of values."""
     name = operator_name
     name_lower = name.lower()
+    base_name, suffix = (name_lower.split(':', 1) + [None])[:2]
+
+    def param_as_list(param_value):
+        if isinstance(param_value, list):
+            return [safe_str(p) for p in param_value if p is not None]
+        return split_param_values(param_value)
+
+    def parse_suffix_int(default, max_value=None):
+        if suffix in (None, ''):
+            return default
+        try:
+            num = int(suffix)
+        except ValueError:
+            return default
+        if max_value is not None:
+            num = max(0, min(max_value, num))
+        return num
 
     # Selection and slicing
-    if name_lower == 'first':
+    if base_name == 'first':
         n = int(param) if param not in (None, '') else 1
         return values[:n]
-    if name_lower == 'last':
+    if base_name == 'last':
         n = int(param) if param not in (None, '') else 1
         return values[-n:] if n != 0 else []
-    if name_lower in ('rest', 'butfirst', 'bf'):
+    if base_name in ('rest', 'butfirst', 'bf'):
         n = int(param) if param not in (None, '') else 1
         return values[n:] if len(values) > n else []
-    if name_lower == 'butlast':
+    if base_name == 'butlast':
         n = int(param) if param not in (None, '') else 1
         return values[:-n] if n <= len(values) else []
-    if name_lower == 'limit':
+    if base_name == 'limit':
         n = int(param) if param not in (None, '') else 1
         return values[:n] if n >= 0 else values[n:]
-    if name_lower == 'nth':
+    if base_name == 'nth':
         n = int(param) if param not in (None, '') else 1
         return [values[n - 1]] if 1 <= n <= len(values) else []
-    if name_lower == 'zth':
+    if base_name == 'zth':
         n = int(param) if param not in (None, '') else 0
         return [values[n]] if 0 <= n < len(values) else []
-    if name_lower == 'after':
+    if base_name == 'after':
         marker = param if param is not None else ''
         if marker in values:
             idx = values.index(marker)
             return values[idx + 1:idx + 2]
         return []
-    if name_lower == 'before':
+    if base_name == 'before':
         marker = param if param is not None else ''
         if marker in values:
             idx = values.index(marker)
             return values[idx - 1:idx] if idx > 0 else []
         return []
-    if name_lower == 'allafter':
+    if base_name == 'allafter':
         marker = param if param is not None else ''
+        include_marker = suffix == 'include'
         if marker in values:
             idx = values.index(marker)
-            return values[idx + 1:]
+            return values[idx:] if include_marker else values[idx + 1:]
         return []
-    if name_lower == 'allbefore':
+    if base_name == 'allbefore':
         marker = param if param is not None else ''
+        include_marker = suffix == 'include'
         if marker in values:
             idx = values.index(marker)
-            return values[:idx]
+            return values[:idx + 1] if include_marker else values[:idx]
         return []
-    if name_lower == 'next':
+    if base_name == 'next':
         if param:
             return apply_list_operator('after', param, values)
         return values[1:] if values else []
-    if name_lower == 'previous':
+    if base_name == 'previous':
         if param:
             return apply_list_operator('before', param, values)
         return values[:-1] if values else []
 
     # Ordering and uniqueness
-    if name_lower == 'reverse':
+    if base_name == 'reverse':
         return list(reversed(values))
-    if name_lower == 'order':
+    if base_name == 'order':
         if not param:
             return values
         param_text = str(param)
         if param_text.lower().startswith('rev'):
             return list(reversed(values))
-        order_list = split_param_values(param)
+        order_list = param_as_list(param)
         if not order_list:
             return values
         order_map = {val: idx for idx, val in enumerate(order_list)}
@@ -670,7 +849,7 @@ def apply_list_operator(operator_name, param, values):
         ordered_values = [v for _, _, v in ordered]
         rest = [v for v in values if v not in order_map]
         return ordered_values + rest
-    if name_lower == 'unique':
+    if base_name == 'unique':
         seen = set()
         unique_values = []
         for item in values:
@@ -678,18 +857,18 @@ def apply_list_operator(operator_name, param, values):
                 seen.add(item)
                 unique_values.append(item)
         return unique_values
-    if name_lower == 'join':
+    if base_name == 'join':
         sep = param if param is not None else ''
         return [sep.join(values)]
 
     # Sorting for raw values (field-aware sorts handled in wiki operators)
-    if name_lower in ('sort', 'sortcs'):
-        case_sensitive = name_lower == 'sortcs'
+    if base_name in ('sort', 'sortcs'):
+        case_sensitive = base_name == 'sortcs'
         if case_sensitive:
             return sorted(values)
         return sorted(values, key=lambda v: safe_str(v).lower())
-    if name_lower in ('nsort', 'nsortcs', 'sortan'):
-        case_sensitive = name_lower == 'nsortcs'
+    if base_name in ('nsort', 'nsortcs', 'sortan'):
+        case_sensitive = base_name == 'nsortcs'
         def natural_key(val):
             parts = re.split(r'(\\d+)', safe_str(val))
             processed = []
@@ -702,59 +881,60 @@ def apply_list_operator(operator_name, param, values):
         return sorted(values, key=natural_key)
 
     # Aggregations over the entire list
-    if name_lower == 'count':
+    if base_name == 'count':
         return [str(len(values))]
-    if name_lower == 'sum':
+    if base_name == 'sum':
         nums = [to_number(v, 0.0) for v in values]
         return [str(sum(nums))]
-    if name_lower == 'product':
+    if base_name == 'product':
         nums = [to_number(v, 0.0) for v in values]
         result = 1
         for n in nums:
             result *= n
         return [str(result)]
-    if name_lower == 'average':
+    if base_name == 'average':
         nums = [to_number(v, 0.0) for v in values]
         return [str(sum(nums) / len(nums))] if nums else ['0']
-    if name_lower == 'median':
+    if base_name == 'median':
         nums = [to_number(v, 0.0) for v in values]
         return [str(statistics.median(nums))] if nums else ['0']
-    if name_lower == 'minall':
+    if base_name == 'minall':
         nums = [to_number(v, 0.0) for v in values]
         return [str(min(nums))] if nums else []
-    if name_lower == 'maxall':
+    if base_name == 'maxall':
         nums = [to_number(v, 0.0) for v in values]
         return [str(max(nums))] if nums else []
-    if name_lower == 'variance':
+    if base_name == 'variance':
         nums = [to_number(v, 0.0) for v in values]
         return [str(statistics.pvariance(nums))] if len(nums) > 1 else ['0']
-    if name_lower in ('standard-deviation', 'standard_deviation'):
+    if base_name in ('standard-deviation', 'standard_deviation'):
         nums = [to_number(v, 0.0) for v in values]
         return [str(statistics.pstdev(nums))] if len(nums) > 1 else ['0']
 
     # List construction helpers
-    if name_lower == 'range':
-        parts = split_param_values(param)
+    if base_name == 'range':
+        parts = param_as_list(param)
         if not parts:
             return []
         # Determine begin, end, step according to docs
         if len(parts) == 1:
             end = float(parts[0])
             begin = 1 if end >= 1 else -1
-            step = 1 if end >= begin else -1
+            step = 1
         elif len(parts) == 2:
             begin, end = float(parts[0]), float(parts[1])
-            step = 1 if end >= begin else -1
+            step = 1
         else:
             begin, end, step = float(parts[0]), float(parts[1]), float(parts[2])
             if step == 0:
                 step = 1
+        step = abs(step) if step != 0 else 1
+        direction = 1 if end >= begin else -1
+        step = step * direction
         results = []
-        # Limit to avoid runaway loops
         limit = 10000
         count = 0
         current = begin
-        # Determine comparison direction
         if step > 0:
             while current <= end + 1e-9 and count < limit:
                 results.append(current)
@@ -774,118 +954,148 @@ def apply_list_operator(operator_name, param, values):
             else:
                 # Avoid .0 for integers
                 formatted.append(str(int(num)) if num == int(num) else str(num))
-        return formatted
+        return list(reversed(formatted)) if negated else formatted
 
     # Mutation/combination of list contents
-    if name_lower == 'append':
-        extras = split_param_values(param)
-        return values + extras
-    if name_lower == 'prepend':
-        extras = split_param_values(param)
-        return extras + values
-    if name_lower == 'remove':
-        targets = set(split_param_values(param))
+    if base_name == 'append':
+        extras = param_as_list(param)
+        count = parse_suffix_int(len(extras), max_value=len(extras))
+        if count == 0:
+            return values
+        chosen = extras[-count:] if negated else extras[:count]
+        return values + chosen
+    if base_name == 'prepend':
+        extras = param_as_list(param)
+        count = parse_suffix_int(len(extras), max_value=len(extras))
+        if count == 0:
+            return values
+        chosen = extras[-count:] if negated else extras[:count]
+        return chosen + values
+    if base_name == 'remove':
+        extras = param_as_list(param)
+        count = parse_suffix_int(len(extras), max_value=len(extras))
+        if count == 0:
+            return values
+        chosen = extras[-count:] if negated else extras[:count]
+        targets = set(chosen)
         if not targets:
             return values
         return [v for v in values if v not in targets]
-    if name_lower == 'replace':
-        old, new = parse_search_replace(param)
-        if not old:
+    if base_name == 'replace':
+        marker = param if not isinstance(param, list) else (param[0] if param else '')
+        if not marker:
             return values
-        return [new if v == old else v for v in values]
-    if name_lower == 'toggle':
-        target = param if param is not None else ''
-        if target in values:
-            return [v for v in values if v != target]
-        return values + [target]
-    if name_lower == 'cycle':
-        cycle_values = split_param_values(param)
+        count = parse_suffix_int(1, max_value=len(values))
+        if count <= 0:
+            return values
+        if len(values) <= count:
+            return values
+        trailing = values[-count:]
+        base = values[:-count]
+        if marker in base:
+            idx = base.index(marker)
+            return base[:idx] + trailing + base[idx + 1:]
+        return values
+    if base_name == 'toggle':
+        if isinstance(param, list):
+            toggle_values = [safe_str(p) for p in param if p is not None]
+        else:
+            toggle_values = split_param_values(param)
+        if not toggle_values:
+            return values
+        if len(toggle_values) == 1:
+            target = toggle_values[0]
+            if target in values:
+                return [v for v in values if v != target]
+            return values + [target]
+        toggled = []
+        for v in values:
+            if v in toggle_values:
+                idx = toggle_values.index(v)
+                toggled.append(toggle_values[(idx + 1) % len(toggle_values)])
+            else:
+                toggled.append(v)
+        if not toggled:
+            toggled.append(toggle_values[0])
+        return toggled
+    if base_name == 'cycle':
+        if isinstance(param, list):
+            cycle_values = [safe_str(p) for p in param if p is not None]
+        else:
+            cycle_values = split_param_values(param)
+        step_size = 1
+        if len(cycle_values) > 1:
+            last = cycle_values[-1]
+            try:
+                step_size = int(last)
+                cycle_values = cycle_values[:-1]
+            except ValueError:
+                step_size = 1
         if not cycle_values:
             return values
         cycled = []
         for v in values:
             if v in cycle_values:
                 idx = cycle_values.index(v)
-                cycled.append(cycle_values[(idx + 1) % len(cycle_values)])
+                cycled.append(cycle_values[(idx + step_size) % len(cycle_values)])
             else:
                 cycled.append(v)
         if not cycled:
             cycled.append(cycle_values[0])
         return cycled
-    if name_lower in ('insertafter', 'insertbefore'):
-        parts = split_param_values(param)
+    if base_name in ('insertafter', 'insertbefore'):
+        parts = param_as_list(param)
         if len(parts) >= 2:
             marker, new_item = parts[0], parts[1]
             result = values[:]
             if marker in result:
                 idx = result.index(marker)
-                insert_at = idx + 1 if name_lower == 'insertafter' else idx
+                insert_at = idx + 1 if base_name == 'insertafter' else idx
                 result.insert(insert_at, new_item)
                 return result
         return values
-    if name_lower == 'move':
-        parts = split_param_values(param)
-        if len(parts) == 2:
-            marker, offset_raw = parts
-            try:
-                offset = int(offset_raw)
-            except ValueError:
-                return values
-            if marker in values:
-                result = values[:]
-                idx = result.index(marker)
-                item = result.pop(idx)
-                new_index = max(0, min(len(result), idx + offset))
-                result.insert(new_index, item)
-                return result
-        elif param not in (None, ''):
-            try:
-                shift = int(param)
-            except ValueError:
-                shift = 0
-            if shift == 0 or not values:
-                return values
-            shift = shift % len(values)
-            return values[shift:] + values[:shift]
+    if base_name == 'move':
+        marker = param if not isinstance(param, list) else (param[0] if param else '')
+        if not marker or marker not in values:
+            return values
+        offset = parse_suffix_int(1)
+        if offset == 0:
+            return values
+        result = values[:]
+        idx = result.index(marker)
+        item = result.pop(idx)
+        new_index = max(0, min(len(result), idx + offset))
+        result.insert(new_index, item)
+        return result
+    if base_name in ('putafter', 'putbefore', 'putfirst', 'putlast'):
+        count = parse_suffix_int(1, max_value=len(values))
+        if count <= 0:
+            return values
+        if base_name == 'putlast':
+            leading = values[:count]
+            rest = values[count:]
+            return rest + leading
+        if base_name == 'putfirst':
+            trailing = values[-count:]
+            rest = values[:-count]
+            return trailing + rest
+        marker = param if not isinstance(param, list) else (param[0] if param else '')
+        trailing = values[-count:] if count > 0 else []
+        rest = values[:-count] if count > 0 else values[:]
+        if marker in rest:
+            idx = rest.index(marker)
+            if base_name == 'putafter':
+                return rest[:idx + 1] + trailing + rest[idx + 1:]
+            return rest[:idx] + trailing + rest[idx:]
         return values
-    if name_lower == 'putafter':
-        tokens = split_param_values(param)
-        if not tokens:
-            return values
-        result = [v for v in values if v not in tokens]
-        for token in tokens:
-            if token in values:
-                idx = values.index(token)
-                result.insert(idx + 1 if idx + 1 <= len(result) else len(result), token)
-        return result
-    if name_lower == 'putbefore':
-        tokens = split_param_values(param)
-        if not tokens:
-            return values
-        result = [v for v in values if v not in tokens]
-        for token in reversed(tokens):
-            result.insert(0, token)
-        return result
-    if name_lower == 'putfirst':
-        tokens = split_param_values(param)
-        if not tokens:
-            return values
-        rest = [v for v in values if v not in tokens]
-        return tokens + rest
-    if name_lower == 'putlast':
-        tokens = split_param_values(param)
-        if not tokens:
-            return values
-        rest = [v for v in values if v not in tokens]
-        return rest + tokens
 
     # Substitution helpers
-    if name_lower == 'then':
+    if base_name == 'then':
         replacement = param if param is not None else ''
         if not values:
             return [replacement]
         return [replacement for _ in values]
-    if name_lower == 'else':
+    if base_name == 'else':
         if values:
             return values
         return [param if param is not None else '']
@@ -1139,37 +1349,83 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
                     results.extend(list(data_field.keys()))
         return results
 
-    if name_lower == 'field':
-        field_name = param if param else ''
+    if name_lower == 'field' or name_lower.startswith('field:'):
+        field_name = None
+        if ':' in operator_name:
+            _, field_name = operator_name.split(':', 1)
+            target_value = param if param is not None else ''
+        else:
+            field_name = param if param else ''
+            target_value = ''
+        if not field_name:
+            return []
         for title in tiddler_titles:
-            if title in tiddlers_dict and field_name in tiddlers_dict[title]:
-                results.append(title)
+            if title not in tiddlers_dict:
+                continue
+            tiddler = tiddlers_dict[title]
+            field_value = tiddler.get(field_name, None)
+            if target_value == '':
+                if field_value is None or field_value == '':
+                    results.append(title)
+            else:
+                if field_value is not None:
+                    if isinstance(field_value, list):
+                        field_str = ' '.join(str(v) for v in field_value)
+                    else:
+                        field_str = str(field_value)
+                    if field_str == target_value:
+                        results.append(title)
         return results
 
     # List/listed
     if name_lower == 'list':
-        if param:
-            target_title = param
-            tiddler = tiddlers_dict.get(target_title)
-            if not tiddler:
-                return []
-            list_field = tiddler.get('list', '')
-            if isinstance(list_field, str):
-                return list_field.split() if list_field else []
-            return list_field or []
+        if isinstance(param, list):
+            refs = param
+        elif param is None or param == '':
+            refs = ['']
         else:
-            collected = []
-            for title in tiddler_titles:
-                tiddler = tiddlers_dict.get(title)
-                if not tiddler:
-                    continue
-                list_field = tiddler.get('list', '')
+            refs = [param]
+        collected = []
+        for ref in refs:
+            ref_text = safe_str(ref)
+            target_title = None
+            field_name = 'list'
+            index_name = None
+            if '!!' in ref_text:
+                target_title, field_name = ref_text.split('!!', 1)
+            elif '##' in ref_text:
+                target_title, index_name = ref_text.split('##', 1)
+            else:
+                target_title = ref_text if ref_text else None
+
+            if not target_title:
+                target_title = tiddler_titles[0] if tiddler_titles else None
+            if not target_title or target_title not in tiddlers_dict:
+                continue
+            tiddler = tiddlers_dict[target_title]
+            if index_name:
+                data_source = None
+                if isinstance(tiddler.get('data'), dict):
+                    data_source = tiddler.get('data')
+                else:
+                    try:
+                        data_source = json.loads(tiddler.get('text', ''))
+                    except Exception:
+                        data_source = None
+                if isinstance(data_source, dict) and index_name in data_source:
+                    value = data_source[index_name]
+                    if isinstance(value, list):
+                        collected.extend([str(v) for v in value])
+                    elif value not in (None, ''):
+                        collected.append(str(value))
+            else:
+                list_field = tiddler.get(field_name, '')
                 if isinstance(list_field, str):
                     items = list_field.split() if list_field else []
                 else:
                     items = list_field or []
                 collected.extend(items)
-            return collected
+        return collected
 
     if name_lower == 'listed':
         targets = tiddler_titles if tiddler_titles else ([param] if param else [])
@@ -1185,17 +1441,79 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
                     found.append(title)
         return found
 
-    if name_lower == 'contains':
-        target = param if param else ''
+    if name_lower.startswith('contains'):
+        field_name = 'list'
+        if ':' in operator_name:
+            _, field_name = operator_name.split(':', 1)
+        if isinstance(param, list):
+            target = param[0] if param else ''
+        else:
+            target = param if param else ''
         for title in tiddler_titles:
-            if title in tiddlers_dict:
-                tiddler = tiddlers_dict[title]
-                tag_list = tiddler.get('tags', '')
-                list_field = tiddler.get('list', '')
-                tag_values = tag_list.split() if isinstance(tag_list, str) else (tag_list or [])
-                list_values = list_field.split() if isinstance(list_field, str) else (list_field or [])
-                if target in tag_values or target in list_values:
+            if title not in tiddlers_dict:
+                continue
+            tiddler = tiddlers_dict[title]
+            field_value = tiddler.get(field_name, '')
+            if isinstance(field_value, list):
+                list_values = field_value
+            elif isinstance(field_value, str):
+                list_values = field_value.split() if field_value else []
+            else:
+                list_values = []
+            if target in list_values:
+                results.append(title)
+        return results
+
+    if name_lower.startswith('regexp'):
+        field_name = 'title'
+        if ':' in operator_name:
+            _, field_name = operator_name.split(':', 1)
+        if isinstance(param, list):
+            pattern = param[0] if param else ''
+        else:
+            pattern = param if param is not None else ''
+        if pattern == '':
+            return list(tiddler_titles)
+        re_flags = 0
+        if pattern.startswith('(?i)'):
+            re_flags |= re.IGNORECASE
+            pattern = pattern[4:]
+        if pattern.endswith('(?i)'):
+            re_flags |= re.IGNORECASE
+            pattern = pattern[:-4]
+        for title in tiddler_titles:
+            if title not in tiddlers_dict:
+                continue
+            tiddler = tiddlers_dict[title]
+            field_value = tiddler.get(field_name, '')
+            if isinstance(field_value, list):
+                field_text = ' '.join(str(v) for v in field_value)
+            else:
+                field_text = safe_str(field_value)
+            try:
+                if re.search(pattern, field_text, flags=re_flags):
                     results.append(title)
+            except re.error:
+                continue
+        return results
+
+    if name_lower.startswith('fields'):
+        mode = None
+        if ':' in operator_name:
+            _, mode = operator_name.split(':', 1)
+        if isinstance(param, list):
+            field_filter = set(param)
+        else:
+            field_filter = set(split_param_values(param)) if param else set()
+        for title in tiddler_titles:
+            if title not in tiddlers_dict:
+                continue
+            field_names = list(tiddlers_dict[title].keys())
+            if mode == 'include' and field_filter:
+                field_names = [f for f in field_names if f in field_filter]
+            elif mode == 'exclude' and field_filter:
+                field_names = [f for f in field_names if f not in field_filter]
+            results.extend(field_names)
         return results
 
     # Fundamental categories
@@ -1505,31 +1823,72 @@ def apply_wiki_operator(operator_name, param, tiddler_titles, tiddlers_dict):
             accumulator.extend(evaluate_filter(f"[[{title}]]{expr}", wiki_path=None))
         return accumulator
 
-    if name_lower == 'lookup':
-        prefix = param if param else ''
+    if name_lower.startswith('lookup'):
+        # lookup[:default][:index][prefix,target]
+        suffixes = name_lower.split(':')[1:]
+        default_value = ''
+        default_target = 'text'
+        if suffixes:
+            if suffixes[-1] == 'index':
+                default_target = 'index'
+                suffixes = suffixes[:-1]
+            if suffixes:
+                default_value = suffixes[0]
+
+        if isinstance(param, list):
+            prefix = param[0] if len(param) > 0 else ''
+            target = param[1] if len(param) > 1 else None
+        else:
+            params = split_param_values_preserve_empty(param, maxsplit=1) if param else ['']
+            prefix = params[0] if params else ''
+            target = params[1] if len(params) > 1 else None
+
         field_name = 'text'
         index_part = None
-        if '!!' in prefix:
+        if prefix and '!!' in prefix:
             prefix, field_name = prefix.split('!!', 1)
-        elif '##' in prefix:
+        elif prefix and '##' in prefix:
             prefix, index_part = prefix.split('##', 1)
+        elif target:
+            if target.startswith('!!'):
+                field_name = target[2:]
+            elif target.startswith('##'):
+                index_part = target[2:]
+            else:
+                if default_target == 'index':
+                    index_part = target
+                else:
+                    field_name = target
+        elif default_target == 'index':
+            index_part = default_value
+
         resolved = []
         for title in tiddler_titles:
             target_title = prefix + title
-            target = tiddlers_dict.get(target_title)
-            if not target:
+            target_tiddler = tiddlers_dict.get(target_title)
+            if not target_tiddler:
+                if default_value != '':
+                    resolved.append(default_value)
                 continue
             if index_part:
-                try:
-                    data = json.loads(target.get('text', ''))
-                    if isinstance(data, dict) and index_part in data:
-                        resolved.append(str(data[index_part]))
-                except Exception:
-                    continue
+                data_source = None
+                if isinstance(target_tiddler.get('data'), dict):
+                    data_source = target_tiddler.get('data')
+                else:
+                    try:
+                        data_source = json.loads(target_tiddler.get('text', ''))
+                    except Exception:
+                        data_source = None
+                if isinstance(data_source, dict) and index_part in data_source:
+                    resolved.append(str(data_source[index_part]))
+                elif default_value != '':
+                    resolved.append(default_value)
             else:
-                if field_name in target:
-                    val = target[field_name]
+                if field_name in target_tiddler:
+                    val = target_tiddler[field_name]
                     resolved.append(val if isinstance(val, str) else str(val))
+                elif default_value != '':
+                    resolved.append(default_value)
         return resolved
 
     if name_lower == 'title':
@@ -1586,7 +1945,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
         'tag', 'tagging', 'tags', 'untagged', 'has', 'get', 'getindex', 'indexes', 'field', 'list', 'listed', 'contains', 'is', 'haschanged',
         'sort', 'sortcs', 'nsort', 'nsortcs', 'sortan', 'sortby', 'sortsub', 'each', 'eachday', 'min',
         'max', 'all', 'days', 'sameday', 'backlinks', 'links', 'backtranscludes', 'transcludes',
-        'search', 'duplicateslugs', 'filter', 'subfilter', 'reduce', 'enlist', 'enlist-input', 'lookup',
+        'search', 'duplicateslugs', 'filter', 'subfilter', 'reduce', 'enlist', 'enlist-input', 'lookup', 'regexp', 'fields',
         'title', 'commands', 'deserialize', 'deserializers', 'editiondescription', 'editions',
         'getvariable', 'modulesproperty', 'modules', 'moduletypes', 'plugintiddlers', 'shadowsource',
         'storyviews', 'subtiddlerfields', 'variables'
@@ -1628,23 +1987,105 @@ def evaluate_filter(filter_expr, wiki_path=None):
         }
         return mapping.get(raw_prefix.lower(), 'or')
 
+    def resolve_variable(name, current_title):
+        if name == 'currentTiddler':
+            return current_title or ''
+        if name in variables:
+            value = variables[name]
+            if isinstance(value, list):
+                return ' '.join(str(v) for v in value)
+            return safe_str(value)
+        return ''
+
+    def resolve_text_ref(ref, current_title):
+        if not wiki_path:
+            return ''
+        text = safe_str(ref)
+        title = None
+        field = None
+        index = None
+        if '!!' in text:
+            title, field = text.split('!!', 1)
+        elif '##' in text:
+            title, index = text.split('##', 1)
+        else:
+            title = current_title
+            field = text
+        if title == '' or title is None:
+            title = current_title
+        if not title or title not in tiddlers_dict:
+            return ''
+        tiddler = tiddlers_dict[title]
+        if index:
+            data_source = None
+            if isinstance(tiddler.get('data'), dict):
+                data_source = tiddler.get('data')
+            else:
+                try:
+                    data_source = json.loads(tiddler.get('text', ''))
+                except Exception:
+                    data_source = None
+            if isinstance(data_source, dict) and index in data_source:
+                return str(data_source[index])
+            return ''
+        if field is None:
+            field = 'text'
+        if field in tiddler:
+            val = tiddler[field]
+            if isinstance(val, list):
+                return ' '.join(str(v) for v in val)
+            return safe_str(val)
+        return ''
+
+    def resolve_param_exprs(param_exprs, current_title):
+        if param_exprs is None:
+            return None
+        resolved = []
+        for kind, text in param_exprs:
+            if kind == 'hard':
+                resolved.append(text)
+            elif kind == 'soft':
+                resolved.append(resolve_text_ref(text, current_title))
+            elif kind == 'variable':
+                resolved.append(resolve_variable(text, current_title))
+        return resolved
+
+    def collapse_params(resolved):
+        if resolved is None:
+            return None
+        if len(resolved) == 0:
+            return ''
+        if len(resolved) == 1:
+            return resolved[0]
+        return resolved
+
     def apply_operators(values, operators):
         current = [str(v) for v in values]
         for operator_name, param in operators:
             negated = operator_name.startswith('!')
             op_clean = operator_name[1:] if negated else operator_name
             name_lower = op_clean.lower()
+            list_base = name_lower.split(':', 1)[0]
+            item_flag_ops = {'prefix', 'suffix', 'match', 'removeprefix', 'removesuffix', 'compare', 'search-replace'}
 
-            if (name_lower in wiki_ops or name_lower in ['created:after', 'created:before', 'modified:after', 'modified:before'] or ':' in op_clean):
+            resolved_param = collapse_params(resolve_param_exprs(param, current[0] if current else None))
+
+            if (name_lower in wiki_ops
+                    or name_lower in ['created:after', 'created:before', 'modified:after', 'modified:before']
+                    or (':' in op_clean and list_base not in list_ops and list_base not in item_flag_ops)):
                 if not wiki_path:
                     raise ValueError(f"Operator '{op_clean}' requires a wiki file")
-                step_output = apply_wiki_operator(op_clean, param, current, tiddlers_dict)
+                param_for_wiki = resolved_param
+                if isinstance(resolved_param, list) and list_base not in ('lookup', 'fields'):
+                    param_for_wiki = resolved_param[0] if resolved_param else ''
+                step_output = apply_wiki_operator(op_clean, param_for_wiki, current, tiddlers_dict)
             elif name_lower in flexible_wiki_ops:
                 # These operators can work with or without wiki
                 if wiki_path:
-                    step_output = apply_wiki_operator(op_clean, param, current, tiddlers_dict)
+                    step_output = apply_wiki_operator(op_clean, resolved_param, current, tiddlers_dict)
                 else:
                     # Apply to literal values as JSON strings
+                    param_value = resolved_param[0] if isinstance(resolved_param, list) and resolved_param else resolved_param
                     step_output = []
                     for v in current:
                         try:
@@ -1654,22 +2095,26 @@ def evaluate_filter(filter_expr, wiki_path=None):
                         if isinstance(data_source, dict):
                             if name_lower == 'jsonindexes':
                                 step_output.extend(list(data_source.keys()))
-                            elif param and param in data_source:
-                                value = data_source[param]
+                            elif param_value and param_value in data_source:
+                                value = data_source[param_value]
                                 if name_lower == 'jsontype':
                                     step_output.append(type(value).__name__)
                                 elif name_lower == 'jsonextract':
                                     step_output.append(json.dumps(value))
                                 else:  # jsonget
                                     step_output.append(str(value))
-            elif name_lower in list_ops:
-                step_output = apply_list_operator(op_clean, param, current)
+            elif list_base in list_ops:
+                use_negation = negated and list_base in ('append', 'prepend', 'range')
+                step_output = apply_list_operator(op_clean, resolved_param, current, negated=use_negation)
+                if use_negation:
+                    negated = False
             else:
                 # Try as value operator first, fall back to field operator if we have a wiki
                 step_output = []
                 try:
                     for v in current:
-                        result = apply_operator(op_clean, param, v)
+                        per_value_param = collapse_params(resolve_param_exprs(param, v))
+                        result = apply_operator(op_clean, per_value_param, v)
                         if isinstance(result, list):
                             step_output.extend([str(item) for item in result])
                         elif result is not None:
@@ -1677,7 +2122,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
                 except ValueError as e:
                     # Unknown operator - try as field operator if we have wiki
                     if wiki_path and 'Unknown operator' in str(e):
-                        step_output = apply_wiki_operator(op_clean, param, current, tiddlers_dict)
+                        step_output = apply_wiki_operator(op_clean, resolved_param, current, tiddlers_dict)
                     else:
                         raise
 

@@ -455,6 +455,11 @@ class TestStringManipulationOperators(unittest.TestCase):
         results = tw_filter.evaluate_filter('[[hello]] [[world]]+[suffix[ing]]')
         self.assertEqual(len(results), 0)
 
+    def test_suffix_caseinsensitive_flag(self):
+        """Test suffix with caseinsensitive flag"""
+        results = tw_filter.evaluate_filter('[[Value_End]] [[value_end]]+[suffix:caseinsensitive[_end]]')
+        self.assertEqual(results, ['Value_End', 'value_end'])
+
     def test_removeprefix_operator(self):
         """Test removeprefix operator removes leading text"""
         results = tw_filter.evaluate_filter('[[prefix_hello]] [[prefix_world]]+[removeprefix[prefix_]]')
@@ -463,10 +468,9 @@ class TestStringManipulationOperators(unittest.TestCase):
         self.assertEqual(results[1], 'world')
 
     def test_removeprefix_no_match(self):
-        """Test removeprefix with non-matching prefix leaves value unchanged"""
+        """Test removeprefix with non-matching prefix filters out value"""
         results = tw_filter.evaluate_filter('[[hello]]removeprefix[world]')
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], 'hello')
+        self.assertEqual(len(results), 0)
 
     def test_removeprefix_empty(self):
         """Test removeprefix with empty parameter"""
@@ -482,10 +486,9 @@ class TestStringManipulationOperators(unittest.TestCase):
         self.assertEqual(results[1], 'world')
 
     def test_removesuffix_no_match(self):
-        """Test removesuffix with non-matching suffix leaves value unchanged"""
+        """Test removesuffix with non-matching suffix filters out value"""
         results = tw_filter.evaluate_filter('[[hello]]removesuffix[world]')
-        self.assertEqual(len(results), 1)
-        self.assertEqual(results[0], 'hello')
+        self.assertEqual(len(results), 0)
 
     def test_removesuffix_empty(self):
         """Test removesuffix with empty parameter"""
@@ -506,6 +509,21 @@ class TestStringManipulationOperators(unittest.TestCase):
         self.assertEqual(len(results), 2)
         self.assertEqual(results[0], 'HELLO')
         self.assertEqual(results[1], 'HELP')
+
+    def test_prefix_caseinsensitive_flag(self):
+        """Test prefix with caseinsensitive flag"""
+        results = tw_filter.evaluate_filter('[[Hello]] [[help]]+[prefix:caseinsensitive[he]]')
+        self.assertEqual(results, ['Hello', 'help'])
+
+    def test_removeprefix_caseinsensitive_flag(self):
+        """Test removeprefix with caseinsensitive flag"""
+        results = tw_filter.evaluate_filter('[[Prefix_Value]]removeprefix:caseinsensitive[prefix_]')
+        self.assertEqual(results, ['Value'])
+
+    def test_removesuffix_caseinsensitive_flag(self):
+        """Test removesuffix with caseinsensitive flag"""
+        results = tw_filter.evaluate_filter('[[Value_SUFFIX]]removesuffix:caseinsensitive[_suffix]')
+        self.assertEqual(results, ['Value'])
 
 
 class TestListOperators(unittest.TestCase):
@@ -1146,6 +1164,13 @@ class TestFieldOperator(unittest.TestCase):
         self.assertIn('Task1', results)
         self.assertIn('Task3', results)
 
+    def test_field_operator_suffix(self):
+        """Test field operator with explicit suffix"""
+        results = tw_filter.evaluate_filter('[field:priority[high]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 2)
+        self.assertIn('Task1', results)
+        self.assertIn('Task3', results)
+
     def test_field_operator_single_match(self):
         """Test field operator with single match"""
         results = tw_filter.evaluate_filter('[tag[task]priority[low]]', wiki_path=self.test_wiki)
@@ -1633,6 +1658,18 @@ class TestPatternMatchingOperators(unittest.TestCase):
         # Should find "Meeting Notes 2024-01-15" (contains date pattern)
         self.assertIn('Meeting Notes 2024-01-15', results)
 
+    def test_regexp_operator_default_title(self):
+        """Test regexp operator defaults to title field"""
+        results = tw_filter.evaluate_filter('[regexp[Todo]]', wiki_path=self.test_wiki)
+        self.assertEqual(len(results), 2)
+        self.assertIn('Todo: Buy groceries', results)
+        self.assertIn('Todo: Call dentist', results)
+
+    def test_regexp_operator_field_suffix(self):
+        """Test regexp operator with field suffix"""
+        results = tw_filter.evaluate_filter('[regexp:status[progress]]', wiki_path=self.test_wiki)
+        self.assertIn('Project Plan', results)
+
     def test_status_contains(self):
         """Test custom field pattern matching"""
         results = tw_filter.evaluate_filter('[status:contains[progress]]', wiki_path=self.test_wiki)
@@ -1704,11 +1741,12 @@ class TestAdditionalItemAndListOperators(unittest.TestCase):
         cases = {
             '[[Hello World!]]slugify[]': ['hello-world'],
             '[[pad]]pad[6,.]': ['pad...'],
-            '[[foo bar foo]]search-replace[foo,baz]': ['baz bar baz'],
+            '[[foo bar foo]]search-replace:g[foo],[baz]': ['baz bar baz'],
             '[[start]]addprefix[pre_]': ['pre_start'],
             '[[finish]]addsuffix[_post]': ['finish_post'],
             '[[trimme ]]trim[]': ['trimme'],
-            '[[abc123]]match[ABC]': ['abc123'],
+            '[[abc123]]match[ABC]': [],
+            '[[AbC]]match:caseinsensitive[abc]': ['AbC'],
             '[[abc123]]compare[>100]': [],
             '[[abc123]]compare[abc123]': ['abc123'],
         }
@@ -1718,15 +1756,15 @@ class TestAdditionalItemAndListOperators(unittest.TestCase):
 
     def test_search_replace_flags(self):
         self.assertEqual(
-            tw_filter.evaluate_filter('[[Foo foo]]search-replace[foo,bar,i]'),
+            tw_filter.evaluate_filter('[[Foo foo]]search-replace:gi[foo],[bar]'),
             ['bar bar']
         )
         self.assertEqual(
-            tw_filter.evaluate_filter('[[abc123]]search-replace[\\d+,#,regex]'),
+            tw_filter.evaluate_filter('[[abc123]]search-replace:g:regexp[\\d+],[#]'),
             ['abc#']
         )
         self.assertEqual(
-            tw_filter.evaluate_filter('[[foo foo]]search-replace[foo,bar,1]'),
+            tw_filter.evaluate_filter('[[foo foo]]search-replace[foo],[bar]'),
             ['bar foo']
         )
 
@@ -1757,6 +1795,11 @@ class TestAdditionalItemAndListOperators(unittest.TestCase):
         self.assertEqual(tw_filter.evaluate_filter('[[5]]compare[<=4]'), [])
         self.assertEqual(tw_filter.evaluate_filter('[[foo]]compare[!=bar]'), ['foo'])
         self.assertEqual(tw_filter.evaluate_filter('[[foo]]compare[!=foo]'), [])
+        self.assertEqual(tw_filter.evaluate_filter('[[2]]compare:number:lt[3]'), ['2'])
+        self.assertEqual(tw_filter.evaluate_filter('[[2]]compare:integer:gteq[2]'), ['2'])
+        self.assertEqual(tw_filter.evaluate_filter('[[abc]]compare:string:eq[abc]'), ['abc'])
+        self.assertEqual(tw_filter.evaluate_filter('[[2024-01-02]]compare:date:gt[2024-01-01]'), ['2024-01-02'])
+        self.assertEqual(tw_filter.evaluate_filter('[[v1.2.0]]compare:version:gt[v1.1.9]'), ['v1.2.0'])
 
     def test_order_by_list(self):
         self.assertEqual(
@@ -1819,14 +1862,82 @@ class TestAdditionalItemAndListOperators(unittest.TestCase):
         self.assertEqual(tw_filter.evaluate_filter('[[a]] [[a]] [[b]]unique[]'), ['a', 'b'])
         self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]allafter[b]'), ['c'])
         self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]allbefore[c]'), ['a', 'b'])
-        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]move[1]'), ['b', 'c', 'a'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]move:1[a]'), ['b', 'a', 'c'])
         self.assertEqual(tw_filter.evaluate_filter('[[a]] [[c]]insertafter[a|b]'), ['a', 'b', 'c'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]allafter:include[b]'), ['b', 'c'])
+        self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]] [[c]]allbefore:include[b]'), ['a', 'b'])
+
+    def test_append_prepend_remove_replace_suffixes(self):
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]]append:2[c d e]'),
+            ['a', 'b', 'c', 'd']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]]!append:2[c d e]'),
+            ['a', 'b', 'd', 'e']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]]prepend:1[c d]'),
+            ['c', 'a', 'b']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]]!prepend:1[c d]'),
+            ['d', 'a', 'b']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]] [[c]]remove:2[a b c]'),
+            ['c']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]] [[c]]!remove:1[a b c]'),
+            ['a']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[marker]] [[x]] [[y]]replace:2[marker]'),
+            ['x', 'y']
+        )
+
+    def test_put_and_cycle_variants(self):
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]] [[c]] [[d]]putafter:2[b]'),
+            ['a', 'b', 'c', 'd']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]] [[c]] [[d]]putbefore:2[b]'),
+            ['a', 'c', 'd', 'b']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]] [[c]] [[d]]putfirst:2[]'),
+            ['c', 'd', 'a', 'b']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[a]] [[b]] [[c]] [[d]]putlast:2[]'),
+            ['c', 'd', 'a', 'b']
+        )
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[red]]cycle[red,amber,green,2]'),
+            ['green']
+        )
+
+    def test_negated_range_reverses(self):
+        self.assertEqual(
+            tw_filter.evaluate_filter('!range[1,3]'),
+            ['3', '2', '1']
+        )
 
     def test_toggle_and_cycle(self):
         self.assertEqual(tw_filter.evaluate_filter('[[a]] [[b]]toggle[a]'), ['b'])
+        self.assertEqual(tw_filter.evaluate_filter('[[red]]toggle[red],[green]'), ['green'])
+        self.assertEqual(tw_filter.evaluate_filter('[[red]] [[green]]toggle[red],[green]'), ['green', 'red'])
         self.assertEqual(tw_filter.evaluate_filter('[[red]]cycle[red,amber,green]'), ['amber'])
         self.assertEqual(tw_filter.evaluate_filter('else[empty]'), ['empty'])
         self.assertEqual(tw_filter.evaluate_filter('[[x]]then[y]'), ['y'])
+
+    def test_variable_parameter(self):
+        self.assertEqual(
+            tw_filter.evaluate_filter('[[Alpha]]addsuffix<currentTiddler>'),
+            ['AlphaAlpha']
+        )
 
 
 class TestAdditionalWikiOperators(unittest.TestCase):
@@ -1850,6 +1961,7 @@ class TestAdditionalWikiOperators(unittest.TestCase):
         touch('My Note', 'Slug duplicate one')
         touch('My-Note', 'Slug duplicate two')
         touch('LookupAlpha', 'Lookup result')
+        touch('LookupIndexAlpha', '{"key":"value"}')
         touch('DataJson', '{"key":"value","num":5}')
 
         # Set fields
@@ -1886,8 +1998,11 @@ class TestAdditionalWikiOperators(unittest.TestCase):
         self.assertIn('ListHolder', listed)
 
     def test_contains_and_is(self):
-        contains = tw_filter.evaluate_filter('[contains[one]]', wiki_path=self.test_wiki)
+        contains = tw_filter.evaluate_filter('[contains[Gamma]]', wiki_path=self.test_wiki)
         self.assertIn('Alpha', contains)
+        contains_tags = tw_filter.evaluate_filter('[contains:tags[two]]', wiki_path=self.test_wiki)
+        self.assertIn('Alpha', contains_tags)
+        self.assertIn('Beta', contains_tags)
         systems = tw_filter.evaluate_filter('[is[system]]', wiki_path=self.test_wiki)
         self.assertIn('$:/core/Test', systems)
         tiddlers = tw_filter.evaluate_filter('[is[tiddler]]', wiki_path=self.test_wiki)
@@ -1907,6 +2022,27 @@ class TestAdditionalWikiOperators(unittest.TestCase):
 
         lookup = tw_filter.evaluate_filter('[[Alpha]]lookup[Lookup]', wiki_path=self.test_wiki)
         self.assertEqual(lookup[0], 'Lookup result')
+
+        lookup_index = tw_filter.evaluate_filter('[[Alpha]]lookup:index[LookupIndex,key]', wiki_path=self.test_wiki)
+        self.assertEqual(lookup_index[0], 'value')
+
+        lookup_default = tw_filter.evaluate_filter('[[Alpha]]lookup:missing[LookupMissing]', wiki_path=self.test_wiki)
+        self.assertEqual(lookup_default[0], 'missing')
+
+    def test_fields_operator(self):
+        fields = tw_filter.evaluate_filter('[[Alpha]]fields[]', wiki_path=self.test_wiki)
+        self.assertIn('title', fields)
+        self.assertIn('text', fields)
+        fields_include = tw_filter.evaluate_filter('[[Alpha]]fields:include[tags list]', wiki_path=self.test_wiki)
+        self.assertIn('tags', fields_include)
+        self.assertIn('list', fields_include)
+        self.assertNotIn('text', fields_include)
+        fields_exclude = tw_filter.evaluate_filter('[[Alpha]]fields:exclude[text]', wiki_path=self.test_wiki)
+        self.assertNotIn('text', fields_exclude)
+
+    def test_soft_parameter_textref(self):
+        result = tw_filter.evaluate_filter('[[Alpha]]addprefix{Beta!!title}', wiki_path=self.test_wiki)
+        self.assertEqual(result, ['BetaAlpha'])
 
     def test_search_and_enlist(self):
         search_results = tw_filter.evaluate_filter('[search[Transclude]]', wiki_path=self.test_wiki)
