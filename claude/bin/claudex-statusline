@@ -1,0 +1,18 @@
+#!/bin/bash
+# Statusline for claudex (Claude Code with Codex backend)
+# Shows model and reasoning effort
+
+MODEL="${CODEX_MODEL:-gpt-5.2-codex}"
+REASONING="${CODEX_REASONING:-medium}"
+
+# Get usage from ccusage (if available)
+if command -v npx >/dev/null 2>&1; then
+  USAGE=$(npx -y ccusage statusline 2>/dev/null)
+  if [ -n "$USAGE" ]; then
+    echo "claudex:$MODEL:$REASONING | $USAGE"
+  else
+    echo "claudex:$MODEL:$REASONING"
+  fi
+else
+  echo "claudex:$MODEL:$REASONING"
+fi

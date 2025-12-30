@@ -1,0 +1,83 @@
+#!/bin/bash
+# claudex - Claude Code with Codex backend
+# This script makes Claude Code use Codex (OpenAI) as its backend
+
+set -e
+
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Interactive model selection (only if no arguments provided)
+if [ $# -eq 0 ]; then
+  echo "[Wrapper] Select Codex model..."
+  CODEX_MODEL=$(echo -e "gpt-5.2-codex (default)|o3|gpt-5.1-codex-max" | \
+    ~/dotfiles/hammerspoon/bin/choose | cut -d' ' -f1)
+
+  # Default if user cancelled
+  if [ -z "$CODEX_MODEL" ]; then
+    CODEX_MODEL="gpt-5.2-codex"
+  fi
+
+  echo "[Wrapper] Select reasoning effort..."
+  CODEX_REASONING=$(echo -e "medium (default)|low|high" | \
+    ~/dotfiles/hammerspoon/bin/choose | cut -d' ' -f1)
+
+  # Default if user cancelled
+  if [ -z "$CODEX_REASONING" ]; then
+    CODEX_REASONING="medium"
+  fi
+else
+  # Use defaults for non-interactive mode (or respect env vars)
+  CODEX_MODEL="${CODEX_MODEL:-gpt-5.2-codex}"
+  CODEX_REASONING="${CODEX_REASONING:-medium}"
+fi
+
+echo "[Wrapper] Using model: $CODEX_MODEL, reasoning: $CODEX_REASONING"
+
+# Export for proxy and statusline to use
+export CODEX_MODEL
+export CODEX_REASONING
+
+# Start Python proxy in background
+echo "[Wrapper] Starting Anthropic→Codex proxy..."
+python3 "$SCRIPT_DIR/anthropic-codex-proxy.py" > /tmp/anthropic-codex-proxy.log 2>&1 &
+PROXY_PID=$!
+
+# Wait for proxy to be ready
+echo "[Wrapper] Waiting for proxy to start..."
+for i in {1..10}; do
+  if curl -s http://localhost:3000/health > /dev/null 2>&1; then
+    echo "[Wrapper] Proxy ready!"
+    break
+  fi
+  sleep 0.5
+done
+
+# Create temporary settings with custom statusline
+TEMP_SETTINGS="/tmp/claude-codex-settings-$$.json"
+cat > "$TEMP_SETTINGS" << EOF
+{
+  "statusLine": {
+    "type": "command",
+    "command": "$SCRIPT_DIR/claudex-statusline",
+    "padding": 0
+  }
+}
+EOF
+
+# Ensure proxy and temp settings are cleaned up on exit
+trap "rm -f $TEMP_SETTINGS; kill $PROXY_PID 2>/dev/null; wait $PROXY_PID 2>/dev/null" EXIT INT TERM
+
+# Set environment to redirect Claude Code API calls to our proxy
+export ANTHROPIC_BASE_URL="http://localhost:3000"
+export ANTHROPIC_API_KEY="codex-backend-dummy-key"
+
+echo "[Wrapper] Launching Claude Code with Codex backend..."
+echo "[Wrapper] Check proxy logs: tail -f /tmp/anthropic-codex-proxy.log"
+
+# Try to use custom settings if supported, otherwise just launch
+if /opt/homebrew/bin/claude --help 2>&1 | grep -q -- "--settings"; then
+  /opt/homebrew/bin/claude --settings "$TEMP_SETTINGS" "$@"
+else
+  # No --settings flag, just launch (statusline won't be custom)
+  /opt/homebrew/bin/claude "$@"
+fi
