@@ -66,7 +66,17 @@ require('lualine').setup {
         lualine_a = {'mode'},
         lualine_b = {'branch', 'diff', 'diagnostics'},
         lualine_c = {{'filename', path = 1}},
-        lualine_x = {},
+        lualine_x = {
+            -- Word/character count for markdown and tiddlywiki files
+            function()
+                local ft = vim.bo.filetype
+                if ft == 'markdown' or ft == 'tiddlywiki' then
+                    local words = vim.fn.wordcount()
+                    return string.format('%dw %dc', words.words, words.chars)
+                end
+                return ''
+            end,
+        },
         lualine_y = {'progress'},
         lualine_z = {
             'location',
