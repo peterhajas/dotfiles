@@ -18,7 +18,9 @@ require "streamdeck.shelf"
 require "streamdeck.soundboard"
 require "streamdeck.owntone"
 
-initialButtonState = {
+local M = {}
+
+M.initialButtonState = {
     ['name'] = 'Root',
     ['buttons'] = {
         weatherButton(),
@@ -43,3 +45,5 @@ initialButtonState = {
         owntoneButton('http://192.168.1.2', '3689'),
     }
 }
+
+return M

@@ -29,7 +29,8 @@ local link_replace = require "link_replace"
 local youtubedl = require "youtubedl"
 local flux = require "flux"
 local iphone_mirroring = require "iphone_mirroring"
-require "streamdeck"
+local streamdeck = require("streamdeck")
+streamdeck:init()
 require "server"
 require "tiddlywiki"
 claudeStatus = require "claude_status"
@@ -146,10 +147,10 @@ function caffeinateCallback(eventType)
     elseif (eventType == hs.caffeinate.watcher.screensDidWake) then
         flux.significantTimeDidChange()
     elseif (eventType == hs.caffeinate.watcher.screensDidLock) then
-        streamdeck_sleep()
+        streamdeck:sleep()
         -- hs.execute("osascript -e 'tell application \"DisplayLink Manager\" to quit'")
     elseif (eventType == hs.caffeinate.watcher.screensDidUnlock) then
-        streamdeck_wake()
+        streamdeck:wake()
         -- hs.application.open("DisplayLink Manager")
 
     end

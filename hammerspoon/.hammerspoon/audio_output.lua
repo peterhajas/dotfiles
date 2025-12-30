@@ -3,7 +3,7 @@
 
 local audio_output = {}
 
-require 'streamdeck'
+local streamdeck = require('streamdeck')
 
 -- Private state
 local lastSeenName = ""
@@ -11,7 +11,7 @@ local lastSeenName = ""
 -- Initialize audio output watcher
 function audio_output.init()
     hs.audiodevice.watcher.setCallback(function(kind)
-        streamdeck_updateButton('audio')
+        streamdeck:updateButton('audio')
     end)
 
     hs.audiodevice.watcher.start()

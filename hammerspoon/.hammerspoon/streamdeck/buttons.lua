@@ -1,7 +1,9 @@
 require 'profile'
 
+local M = {}
+
 -- Updates `button`
-function updateButton(button, context)
+function M.updateButton(button, context)
     -- nil-checking
     if button == nil then return end
     local buttonName = button['name'] or "button"
@@ -32,10 +34,12 @@ function updateButton(button, context)
 end
 
 -- Returns an update timer for button, if appropriate, and start it
-function updateTimerForButton(button, updateFunction)
+function M.updateTimerForButton(button, updateFunction)
     local updateInterval = button['updateInterval']
     if updateInterval == nil then return nil end
     local timer = hs.timer.new(updateInterval, updateFunction)
     timer:start()
     return timer
 end
+
+return M

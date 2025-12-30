@@ -1,48 +1,64 @@
-require "streamdeck.button_images"
-require "streamdeck.initial_buttons"
-require "streamdeck.nonce"
-require "streamdeck.buttons"
+-- Import base sub-modules first (these don't depend on button modules)
+local button_images = require("streamdeck.button_images")
+local buttons_module = require("streamdeck.buttons")
 
 require "profile"
 require "util"
 
+-- Module table
+local M = {}
+
+-- Re-export utilities as module properties (dot notation - stateless)
+M.imageFromText = button_images.imageFromText
+M.imageWithCanvasContents = button_images.imageWithCanvasContents
+M.buttonWidth = button_images.buttonWidth
+M.buttonHeight = button_images.buttonHeight
+
+-- Backward compatibility shim for button modules
+-- IMPORTANT: Set this up BEFORE requiring button modules!
+_G.streamdeck_imageFromText = M.imageFromText
+_G.streamdeck_imageWithCanvasContents = M.imageWithCanvasContents
+_G.buttonWidth = M.buttonWidth
+_G.buttonHeight = M.buttonHeight
+
+-- Now import button modules (which need the globals above)
+local nonce_module = require("streamdeck.nonce")
+local initial_buttons = require("streamdeck.initial_buttons")
+
+-- Local aliases for internal use
+local imageFromText = M.imageFromText
+local imageWithCanvasContents = M.imageWithCanvasContents
+local updateButton = buttons_module.updateButton
+local updateTimerForButton = buttons_module.updateTimerForButton
+local nonceButton = nonce_module.nonceButton
+local initialButtonState = initial_buttons.initialButtonState
+
 local streamdeckLogger = hs.logger.new('streamdeck', 'debug')
 
--- Variables for tracking Streamdeck state
--- The current streamdeck (or `nil` if none is connected)
-local currentDeck = nil
--- Whether or not the machine is asleep
-local asleep = false
-
--- The currently visible button state
--- Keys:
--- - 'buttons' - the buttons
--- - 'name' - the name
--- - 'scrollOffset' - the scroll offset, which may wrap around, in rows
-local currentButtonState = { }
-
--- The stack of button states behind this one
--- This is an array
-local buttonStateStack = { }
-
--- Currently active update timers
-local currentUpdateTimers = { }
+-- Private state (closure-based encapsulation)
+local streamdeckState = {
+    currentDeck = nil,
+    asleep = false,
+    currentButtonState = {},
+    buttonStateStack = {},
+    currentUpdateTimers = {},
+}
 
 -- Returns all the button states managed by the system
-function allButtonStates()
-    local allStates = cloneTable(buttonStateStack)
-    table.insert(allStates, 1, currentButtonState)
+local function allButtonStates()
+    local allStates = cloneTable(streamdeckState.buttonStateStack)
+    table.insert(allStates, 1, streamdeckState.currentButtonState)
     return allStates
 end
 
 -- Returns the currently visible buttons
-function currentlyVisibleButtons()
+local function currentlyVisibleButtons()
     profileStart('streamDeckVisible')
-    local providedButtons = (currentButtonState['buttons'] or { })
+    local providedButtons = (streamdeckState.currentButtonState['buttons'] or { })
 
     local currentButtons = cloneTable(providedButtons)
-    local effectiveScrollAmount = currentButtonState['scrollOffset'] or 0
-    columns, rows = currentDeck:buttonLayout()
+    local effectiveScrollAmount = streamdeckState.currentButtonState['scrollOffset'] or 0
+    columns, rows = streamdeckState.currentDeck:buttonLayout()
     if effectiveScrollAmount > 0 then
         for i = 1,effectiveScrollAmount,1 do
             -- Drop columns-1 buttons
@@ -55,11 +71,11 @@ function currentlyVisibleButtons()
     local totalButtons = columns * rows
 
     -- If we have a pushed button state, then add a back button
-    if tableLength(buttonStateStack) > 1 then
+    if tableLength(streamdeckState.buttonStateStack) > 1 then
         local closeButton = {
-            ['image'] = streamdeck_imageFromText('􀯶'),
+            ['image'] = imageFromText('􀯶'),
             ['onClick'] = function()
-                popButtonState()
+                M:popButtonState()
             end
         }
         table.insert(currentButtons, 1, closeButton)
@@ -74,7 +90,7 @@ function currentlyVisibleButtons()
     -- This should be the far left, under the top left button
     if tableLength(providedButtons) > totalButtons then
         local scrollUp = {
-            ['image'] = streamdeck_imageFromText('􀃾'),
+            ['image'] = imageFromText('􀃾'),
             ['onClick'] = function()
                 scrollBy(-1)
             end,
@@ -83,7 +99,7 @@ function currentlyVisibleButtons()
             end
         }
         local scrollDown = {
-            ['image'] = streamdeck_imageFromText('􀄀'),
+            ['image'] = imageFromText('􀄀'),
             ['onClick'] = function()
                 scrollBy(1)
             end
@@ -105,7 +121,7 @@ function currentlyVisibleButtons()
 end
 
 local function contextForIndex(i)
-    columns, rows = currentDeck:buttonLayout()
+    columns, rows = streamdeckState.currentDeck:buttonLayout()
 
     local deckSize = {
         ['w'] = columns,
@@ -129,7 +145,7 @@ end
 -- Updates the button at the StreamDeck index `i`.
 local function updateStreamdeckButton(i, pressed)
     -- No StreamDeck? No update
-    if currentDeck == nil then return end
+    if streamdeckState.currentDeck == nil then return end
     local button = currentlyVisibleButtons()[i]
 
     local context = contextForIndex(i)
@@ -142,17 +158,17 @@ local function updateStreamdeckButton(i, pressed)
     if button ~= nil then
         local image = button['_lastImage']
         if image ~= nil then
-            currentDeck:setButtonImage(i, image)
+            streamdeckState.currentDeck:setButtonImage(i, image)
         end
     end
 end
 
 -- Disables all timers for all buttons
 local function disableTimers()
-    for i, timer in pairs(currentUpdateTimers) do
+    for i, timer in pairs(streamdeckState.currentUpdateTimers) do
         stopTimer(timer)
     end
-    currentUpdateTimers = { }
+    streamdeckState.currentUpdateTimers = { }
 
     for i, state in pairs(allButtonStates()) do
         for index, button in pairs(state['buttons'] or {}) do
@@ -165,7 +181,7 @@ end
 -- Updates button update timers for all buttons
 local function updateTimers()
     disableTimers()
-    if asleep or currentDeck == nil then
+    if streamdeckState.asleep or streamdeckState.currentDeck == nil then
         return
     end
 
@@ -175,7 +191,7 @@ local function updateTimers()
             local timer = updateTimerForButton(button, function()
                 updateStreamdeckButton(index)
             end)
-            table.insert(currentUpdateTimers, timer)
+            table.insert(streamdeckState.currentUpdateTimers, timer)
         end
     end
 end
@@ -183,88 +199,26 @@ end
 -- Updates all buttons
 local function updateStreamdeckButtons()
     -- No StreamDeck? No update
-    if currentDeck == nil then return end
+    if streamdeckState.currentDeck == nil then return end
 
     profileStart('streamdeckButtonUpdate_all')
-    columns, rows = currentDeck:buttonLayout()
+    columns, rows = streamdeckState.currentDeck:buttonLayout()
     for i=1,columns*rows+1,1 do
         updateStreamdeckButton(i)
     end
     profileStop('streamdeckButtonUpdate_all')
 end
 
-function streamdeck_sleep()
-    asleep = true
-    updateTimers()
-    if currentDeck == nil then return end
-    currentDeck:setBrightness(0)
-end
-
-function streamdeck_wake()
-    asleep = false
-    updateTimers()
-    if currentDeck == nil then return end
-    currentDeck:setBrightness(30)
-    updateStreamdeckButtons()
-end
-
-function streamdeck_updateButton(matching)
-    if currentDeck == nil then return end
-    for index, button in pairs(currentlyVisibleButtons()) do
-        title = button['name']
-        if title ~= nil then
-            if string.match(title, matching) then
-                updateStreamdeckButton(index)
-            end
-        end
-    end
-end
-
--- Pushes `newState` onto the stack of buttons
-function pushButtonState(newState)
-    -- Push current buttons back 
-    buttonStateStack[#buttonStateStack+1] = currentButtonState
-    -- Empty the buttons
-    currentButtonState = { }
-    -- Replace
-    currentButtonState = newState
-    -- Update
-    updateStreamdeckButtons()
-    updateTimers()
-end
-
--- Pops back to the last button state
-function popButtonState()
-    -- Don't pop back past the first state
-    if #buttonStateStack == 0 then
-        return
-    end
-
-    -- Grab new state
-    newState = buttonStateStack[#buttonStateStack]
-    -- Remove from stack
-    buttonStateStack[#buttonStateStack] = nil
-    -- Empty the buttons
-    currentButtonState = { }
-    -- Replace
-    currentButtonState = newState
-    -- Update
-    if currentDeck ~= nil then
-        updateStreamdeckButtons()
-        updateTimers()
-    end
-end
-
 function scrollToTop()
-    currentButtonState['scrollOffset'] = 0
+    streamdeckState.currentButtonState['scrollOffset'] = 0
     updateStreamdeckButtons()
 end
 
 function scrollBy(amount)
-    local currentScrollAmount = currentButtonState['scrollOffset'] or 0
+    local currentScrollAmount = streamdeckState.currentButtonState['scrollOffset'] or 0
     currentScrollAmount = currentScrollAmount + amount
     currentScrollAmount = math.max(0, currentScrollAmount)
-    currentButtonState['scrollOffset'] = currentScrollAmount
+    streamdeckState.currentButtonState['scrollOffset'] = currentScrollAmount
     updateStreamdeckButtons()
 end
 
@@ -273,7 +227,7 @@ local function buttonStateForPushedButton(pushedButton)
     local children = pushedButton['children']
     if children == nil then return nil end
 
-    columns, rows = currentDeck:buttonLayout()
+    columns, rows = streamdeckState.currentDeck:buttonLayout()
     local deckSize = {
         ['w'] = columns,
         ['h'] = rows,
@@ -295,7 +249,7 @@ end
 -- Button callback from hs.streamdeck
 local function streamdeck_button(deck, buttonID, pressed)
     -- Don't allow commands while the machine is asleep / locked
-    if asleep then
+    if streamdeckState.asleep then
         return
     end
 
@@ -330,7 +284,7 @@ local function streamdeck_button(deck, buttonID, pressed)
 
             local pushedState = buttonStateForPushedButton(buttonForID)
             if pushedState ~= nil then
-                pushButtonState(pushedState)
+                M:pushButtonState(pushedState)
             end
         end
 
@@ -342,25 +296,96 @@ end
 local function streamdeck_discovery(connected, deck)
     profileStart('streamdeckDiscovery')
     if connected then
-        currentDeck = deck
+        streamdeckState.currentDeck = deck
         deck:buttonCallback(streamdeck_button)
         deck:reset()
 
         updateStreamdeckButtons()
         updateTimers()
 
-        buttonStateStack = { }
-        pushButtonState(initialButtonState)
+        streamdeckState.buttonStateStack = { }
+        M:pushButtonState(initialButtonState)
     else
-        currentDeck = nil
+        streamdeckState.currentDeck = nil
         updateTimers()
     end
-    if asleep then
-        streamdeck_sleep()
+    if streamdeckState.asleep then
+        M:sleep()
     else
-        streamdeck_wake()
+        M:wake()
     end
     profileStop('streamdeckDiscovery')
 end
 
-hs.streamdeck.init(streamdeck_discovery)
+-- Public API methods
+function M:init()
+    hs.streamdeck.init(streamdeck_discovery)
+end
+
+function M:sleep()
+    streamdeckState.asleep = true
+    updateTimers()
+    if streamdeckState.currentDeck == nil then return end
+    streamdeckState.currentDeck:setBrightness(0)
+end
+
+function M:wake()
+    streamdeckState.asleep = false
+    updateTimers()
+    if streamdeckState.currentDeck == nil then return end
+    streamdeckState.currentDeck:setBrightness(30)
+    updateStreamdeckButtons()
+end
+
+function M:updateButton(matching)
+    if streamdeckState.currentDeck == nil then return end
+    for index, button in pairs(currentlyVisibleButtons()) do
+        local title = button['name']
+        if title ~= nil then
+            if string.match(title, matching) then
+                updateStreamdeckButton(index)
+            end
+        end
+    end
+end
+
+-- Pushes `newState` onto the stack of buttons
+function M:pushButtonState(newState)
+    -- Push current buttons back
+    streamdeckState.buttonStateStack[#streamdeckState.buttonStateStack+1] = streamdeckState.currentButtonState
+    -- Empty the buttons
+    streamdeckState.currentButtonState = { }
+    -- Replace
+    streamdeckState.currentButtonState = newState
+    -- Update
+    updateStreamdeckButtons()
+    updateTimers()
+end
+
+-- Pops back to the last button state
+function M:popButtonState()
+    -- Don't pop back past the first state
+    if #streamdeckState.buttonStateStack == 0 then
+        return
+    end
+
+    -- Grab new state
+    local newState = streamdeckState.buttonStateStack[#streamdeckState.buttonStateStack]
+    -- Remove from stack
+    streamdeckState.buttonStateStack[#streamdeckState.buttonStateStack] = nil
+    -- Empty the buttons
+    streamdeckState.currentButtonState = { }
+    -- Replace
+    streamdeckState.currentButtonState = newState
+    -- Update
+    if streamdeckState.currentDeck ~= nil then
+        updateStreamdeckButtons()
+        updateTimers()
+    end
+end
+
+-- Backward compatibility shim for runtime functions (used in button onClick handlers)
+_G.pushButtonState = function(...) return M:pushButtonState(...) end
+_G.popButtonState = function(...) return M:popButtonState(...) end
+
+return M

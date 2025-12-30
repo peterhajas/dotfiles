@@ -23,9 +23,10 @@ function homeAssistantRun(method, endpoint, parameters)
     commandString = commandString .. '\''
 
     output, status, exitType, rc = hs.execute(commandString)
-    -- Update buttons
+    -- Update buttons (lazy require to avoid circular dependency)
     if method == 'POST' then
-        streamdeck_updateButton('home')
+        local streamdeck = require('streamdeck')
+        streamdeck:updateButton('home')
     end
 
     -- Return output

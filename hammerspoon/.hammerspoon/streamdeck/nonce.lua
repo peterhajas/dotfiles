@@ -1,5 +1,9 @@
 -- A nonce button
-function nonceButton()
+local button_images = require("streamdeck.button_images")
+
+local M = {}
+
+function M.nonceButton()
     return {
         ['name'] = 'Nonce',
         ['imageProvider'] = function(context)
@@ -15,19 +19,21 @@ function nonceButton()
             local elements = { }
             table.insert(elements, {
                 action = "fill",
-                frame = { x = 0, y = 0, w = buttonWidth, h = buttonHeight },
+                frame = { x = 0, y = 0, w = button_images.buttonWidth, h = button_images.buttonHeight },
                 fillColor = background,
                 type = "rectangle",
             })
             table.insert(elements, {
                 action = "fill",
-                frame = { x = inset, y = inset, w = buttonWidth - 2 * inset, h = buttonHeight - 2 * inset },
+                frame = { x = inset, y = inset, w = button_images.buttonWidth - 2 * inset, h = button_images.buttonHeight - 2 * inset },
                 type = "rectangle",
                 fillColor = color,
                 roundedRectRadii = { ["xRadius"] = radius, ["yRadius"] = radius },
             })
-            return streamdeck_imageWithCanvasContents(elements)
+            return button_images.imageWithCanvasContents(elements)
         end,
         ['updateInterval'] = 5,
     }
 end
+
+return M
