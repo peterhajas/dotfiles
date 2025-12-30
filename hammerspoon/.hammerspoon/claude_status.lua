@@ -208,6 +208,10 @@ local function generateHTML()
     -- Replace placeholder and all demo content with generated mascots
     local mascotsContent = table.concat(mascotsHTML, "\n")
 
+    -- Escape % characters in replacement string (% has special meaning in gsub replacement)
+    -- Each % needs to become %% (so we replace % with %%)
+    mascotsContent = mascotsContent:gsub("%%", "%%%%")
+
     -- Replace from placeholder to end of body (removes demo content)
     local html = template:gsub("<!%-%- SESSIONS_PLACEHOLDER %-%->.-</script>", mascotsContent .. "\n\n    <script>")
 
