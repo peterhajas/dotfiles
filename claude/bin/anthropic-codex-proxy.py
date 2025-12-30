@@ -27,12 +27,16 @@ class MCPClient:
         self.pending = {}  # request_id -> Queue
         self.lock = threading.Lock()
         self.reader_thread = None
+        self.process_dead = False
 
     def start(self):
         """Start the Codex MCP server process and reader thread"""
         with self.lock:
-            if self.process:
+            if self.process and not self.process_dead:
                 return
+
+            # Reset state if restarting
+            self.process_dead = False
 
             print("[MCP] Starting codex mcp-server...", file=sys.stderr)
             self.process = subprocess.Popen(
@@ -54,6 +58,7 @@ class MCPClient:
             try:
                 line = self.process.stdout.readline()
                 if not line:
+                    print("[MCP] Process stdout closed, marking dead", file=sys.stderr)
                     break
 
                 response = json.loads(line)
@@ -82,9 +87,29 @@ class MCPClient:
             except Exception as e:
                 print(f"[MCP] Reader error: {e}", file=sys.stderr)
 
+        # Process died - notify all pending requests
+        self._notify_process_dead()
+
+    def _notify_process_dead(self):
+        """Notify all pending requests that the process died"""
+        with self.lock:
+            self.process_dead = True
+            pending_copy = dict(self.pending)
+
+        print(f"[MCP] Notifying {len(pending_copy)} pending requests of process death", file=sys.stderr)
+        for req_id, response_queue in pending_copy.items():
+            response_queue.put({'error': {'message': 'Codex process died unexpectedly'}})
+
     def call(self, tool_name, arguments):
         """Call a Codex MCP tool (thread-safe)"""
         self.start()
+
+        # Check if process is still alive
+        if self.process_dead or (self.process and self.process.poll() is not None):
+            print("[MCP] Process was dead, restarting...", file=sys.stderr)
+            self.process = None
+            self.process_dead = False
+            self.start()
 
         # Get unique request ID
         with self.lock:
@@ -108,8 +133,11 @@ class MCPClient:
 
             request_json = json.dumps(request) + '\n'
             print(f"[MCP] Sending request ID {req_id}", file=sys.stderr)
-            self.process.stdin.write(request_json)
-            self.process.stdin.flush()
+            try:
+                self.process.stdin.write(request_json)
+                self.process.stdin.flush()
+            except (BrokenPipeError, OSError) as e:
+                raise Exception(f"Failed to write to Codex process: {e}")
 
             # Wait for response on our queue (with timeout)
             print(f"[MCP] Waiting for response to request {req_id}...", file=sys.stderr)

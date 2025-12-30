@@ -1,10 +1,46 @@
 #!/bin/bash
 # claudex - Claude Code with Codex backend
 # This script makes Claude Code use Codex (OpenAI) as its backend
+# Supports multiple concurrent instances via dynamic port allocation
 
 set -e
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+INSTANCE_ID=$$
+
+# Function to find a free port
+find_free_port() {
+  # Start from 3000 and find the first available port
+  local port=3000
+  while [ $port -lt 3100 ]; do
+    if ! lsof -ti:$port > /dev/null 2>&1; then
+      echo $port
+      return
+    fi
+    port=$((port + 1))
+  done
+  echo "3000"  # Fallback
+}
+
+# Handle --kill-all flag to clean up stale proxies
+if [ "$1" = "--kill-all" ] || [ "$1" = "-K" ]; then
+  echo "[Wrapper] Killing all claudex proxies on ports 3000-3099..."
+  for port in $(seq 3000 3099); do
+    PID=$(lsof -ti:$port 2>/dev/null || true)
+    if [ -n "$PID" ]; then
+      echo "[Wrapper] Killing process on port $port (PID $PID)"
+      echo "$PID" | xargs kill 2>/dev/null || true
+    fi
+  done
+  echo "[Wrapper] Done."
+  exit 0
+fi
+
+# Find a free port for this instance
+PROXY_PORT=$(find_free_port)
+LOG_FILE="/tmp/anthropic-codex-proxy-${INSTANCE_ID}.log"
+
+echo "[Wrapper] Instance $INSTANCE_ID using port $PROXY_PORT"
 
 # Interactive model selection (only if no arguments provided)
 if [ $# -eq 0 ]; then
@@ -36,24 +72,39 @@ echo "[Wrapper] Using model: $CODEX_MODEL, reasoning: $CODEX_REASONING"
 # Export for proxy and statusline to use
 export CODEX_MODEL
 export CODEX_REASONING
+export PROXY_PORT
 
-# Start Python proxy in background
-echo "[Wrapper] Starting Anthropic→Codex proxy..."
-python3 "$SCRIPT_DIR/anthropic-codex-proxy.py" > /tmp/anthropic-codex-proxy.log 2>&1 &
+# Start Python proxy in background with the allocated port
+echo "[Wrapper] Starting Anthropic→Codex proxy on port $PROXY_PORT..."
+python3 "$SCRIPT_DIR/anthropic-codex-proxy.py" > "$LOG_FILE" 2>&1 &
 PROXY_PID=$!
 
-# Wait for proxy to be ready
+# Wait for proxy to be ready (check the specific port)
 echo "[Wrapper] Waiting for proxy to start..."
+PROXY_READY=false
 for i in {1..10}; do
-  if curl -s http://localhost:3000/health > /dev/null 2>&1; then
-    echo "[Wrapper] Proxy ready!"
+  if curl -s "http://localhost:$PROXY_PORT/health" > /dev/null 2>&1; then
+    echo "[Wrapper] Proxy ready on port $PROXY_PORT!"
+    PROXY_READY=true
     break
+  fi
+  # Also check if process died
+  if ! kill -0 $PROXY_PID 2>/dev/null; then
+    echo "[Wrapper] ERROR: Proxy process died. Check logs: $LOG_FILE"
+    cat "$LOG_FILE"
+    exit 1
   fi
   sleep 0.5
 done
 
+if [ "$PROXY_READY" = false ]; then
+  echo "[Wrapper] ERROR: Proxy failed to start. Check logs: $LOG_FILE"
+  kill $PROXY_PID 2>/dev/null || true
+  exit 1
+fi
+
 # Create temporary settings with custom statusline
-TEMP_SETTINGS="/tmp/claude-codex-settings-$$.json"
+TEMP_SETTINGS="/tmp/claude-codex-settings-${INSTANCE_ID}.json"
 cat > "$TEMP_SETTINGS" << EOF
 {
   "statusLine": {
@@ -64,15 +115,25 @@ cat > "$TEMP_SETTINGS" << EOF
 }
 EOF
 
+# Cleanup function
+cleanup() {
+  rm -f "$TEMP_SETTINGS"
+  rm -f "$LOG_FILE"
+  if [ -n "$PROXY_PID" ]; then
+    kill $PROXY_PID 2>/dev/null || true
+    wait $PROXY_PID 2>/dev/null || true
+  fi
+}
+
 # Ensure proxy and temp settings are cleaned up on exit
-trap "rm -f $TEMP_SETTINGS; kill $PROXY_PID 2>/dev/null; wait $PROXY_PID 2>/dev/null" EXIT INT TERM
+trap cleanup EXIT INT TERM
 
 # Set environment to redirect Claude Code API calls to our proxy
-export ANTHROPIC_BASE_URL="http://localhost:3000"
+export ANTHROPIC_BASE_URL="http://localhost:$PROXY_PORT"
 export ANTHROPIC_API_KEY="codex-backend-dummy-key"
 
 echo "[Wrapper] Launching Claude Code with Codex backend..."
-echo "[Wrapper] Check proxy logs: tail -f /tmp/anthropic-codex-proxy.log"
+echo "[Wrapper] Check proxy logs: tail -f $LOG_FILE"
 
 # Try to use custom settings if supported, otherwise just launch
 if /opt/homebrew/bin/claude --help 2>&1 | grep -q -- "--settings"; then
