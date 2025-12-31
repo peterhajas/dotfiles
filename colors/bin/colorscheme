@@ -7,6 +7,7 @@ Rebuilds theme files and reloads supporting applications.
 
 Commands:
   colorscheme              # Show current theme
+  colorscheme list         # List available families
   colorscheme modus        # Switch to Modus family
   colorscheme catppuccin   # Switch to Catppuccin family
 
@@ -235,6 +236,27 @@ class ColorschemeManager:
         print(f"  Variant:     {variant_name} (auto-selected)")
         print(f"  License:     {family_data.get('license', 'Unknown')}")
 
+    def list_families(self):
+        """List all available theme families."""
+        current_family = self.state["family"]
+        flavor = self.get_macos_appearance()
+
+        print("Available theme families:")
+        print()
+
+        for family_name, family_data in sorted(self.palette["families"].items()):
+            is_current = " (current)" if family_name == current_family else ""
+            print(f"  {family_name}{is_current}")
+            print(f"    Name:    {family_data.get('name', 'Unknown')}")
+            print(f"    License: {family_data.get('license', 'Unknown')}")
+
+            # Show which variants would be used
+            light_variant = family_data.get('light_variant')
+            dark_variant = family_data.get('dark_variant')
+            print(f"    Light:   {light_variant}")
+            print(f"    Dark:    {dark_variant}")
+            print()
+
 
 def main():
     if len(sys.argv) == 1:
@@ -246,12 +268,15 @@ def main():
     command = sys.argv[1]
     manager = ColorschemeManager()
 
-    if command in manager.palette["families"]:
+    if command == "list":
+        # List available families
+        manager.list_families()
+    elif command in manager.palette["families"]:
         # Switch to family (e.g., "modus" or "catppuccin")
         manager.switch_family(command)
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
-        print("Usage: colorscheme [<family>]", file=sys.stderr)
+        print("Usage: colorscheme [list|<family>]", file=sys.stderr)
         print(f"Available families: {', '.join(manager.palette['families'].keys())}", file=sys.stderr)
         sys.exit(1)
 
