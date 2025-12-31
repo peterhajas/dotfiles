@@ -1,0 +1,29 @@
+#!/bin/bash
+# Pull remote changes for TiddlyWiki without creating local commits
+# Designed to run periodically alongside event-driven sync
+
+GIT=$(which git)
+
+pushd ~/phajas-wiki > /dev/null
+
+# Check if there are uncommitted local changes
+if [[ -n $($GIT status --porcelain) ]]; then
+    # Local changes exist - the watcher will handle these
+    # Don't pull to avoid conflicts during active editing
+    popd > /dev/null
+    exit 0
+fi
+
+# Network check (reuse existing pattern)
+checkNetwork() {
+    ping -c 1 peterhajas.com > /dev/null 2>&1
+}
+
+if checkNetwork; then
+    # Only pull if we have network and no local changes
+    $GIT pull --rebase origin master
+else
+    echo "No network connectivity. Pull skipped."
+fi
+
+popd > /dev/null

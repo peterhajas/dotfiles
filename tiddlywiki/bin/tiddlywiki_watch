@@ -1,7 +1,24 @@
 #!/bin/bash
 # Watch wiki file and sync on changes using entr
+# Also periodically pull remote changes
 
 cd ~/phajas-wiki || exit 1
+
+# Start background job to periodically pull remote changes
+(
+    while true; do
+        sleep 300  # 5 minutes
+        ~/bin/tiddlywiki_pull
+    done
+) &
+PULL_PID=$!
+
+# Cleanup function to kill background job on exit
+cleanup() {
+    kill $PULL_PID 2>/dev/null
+    exit
+}
+trap cleanup SIGTERM SIGINT
 
 while true; do
     # entr -d: wait for file to stop changing before executing
