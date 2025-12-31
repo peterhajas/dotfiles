@@ -1,4 +1,5 @@
-require "colors"
+-- Colors loaded globally by color_support.lua
+-- No need to require here
 
 local M = {}
 

@@ -1,6 +1,14 @@
 require "darkmode"
 require "util"
 
+-- Module table for exports
+local colors = {}
+
+-- Private state for change detection
+local lastAppearance = nil
+local lastStateMtime = 0
+local stateFile = os.getenv("HOME") .. "/.config/colorscheme/current"
+
 -- System Colors
 alternateSelectedControlTextColor = nil
 alternatingContentBackgroundColor = nil
@@ -106,8 +114,65 @@ local function updateThemeColors()
 
     tintColor = systemOrangeColor
     systemBackgroundColor = windowBackgroundColor
-    systemTextColor = textColorlabelColor
+    systemTextColor = textColor or labelColor  -- Fixed typo
 end
 
-updateThemeColors()
+local function detectMacOSAppearance()
+    local handle = io.popen("defaults read -g AppleInterfaceStyle 2>/dev/null")
+    if handle then
+        local result = handle:read("*a")
+        handle:close()
+        if result:match("Dark") then
+            return "dark"
+        end
+    end
+    return "light"
+end
 
+local function hasStateFileChanged()
+    local stat = hs.fs.attributes(stateFile)
+    if stat then
+        local mtime = stat.modification
+        if mtime ~= lastStateMtime then
+            lastStateMtime = mtime
+            return true
+        end
+    end
+    return false
+end
+
+function checkAndUpdateColors()
+    local currentAppearance = detectMacOSAppearance()
+    local stateChanged = hasStateFileChanged()
+
+    if currentAppearance ~= lastAppearance or stateChanged then
+        lastAppearance = currentAppearance
+        updateThemeColors()
+
+        -- Notify StreamDeck that colors changed (for lazy button refresh)
+        if streamdeck and streamdeck.onColorsChanged then
+            streamdeck:onColorsChanged()
+        end
+
+        return true
+    end
+    return false
+end
+
+-- Initialize on module load
+updateThemeColors()
+lastAppearance = detectMacOSAppearance()
+local stat = hs.fs.attributes(stateFile)
+if stat then
+    lastStateMtime = stat.modification
+end
+
+-- Set up timer to poll for changes every 3 seconds (matches Neovim)
+local colorTimer = hs.timer.new(3, checkAndUpdateColors)
+colorTimer:start()
+
+-- Export functions for external use
+colors.updateThemeColors = updateThemeColors
+colors.checkAndUpdateColors = checkAndUpdateColors
+
+return colors

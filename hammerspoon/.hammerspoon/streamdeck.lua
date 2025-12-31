@@ -384,6 +384,17 @@ function M:popButtonState()
     end
 end
 
+-- Called when system colors change (without full hs.reload)
+function M:onColorsChanged()
+    -- Mark all buttons as needing refresh by triggering button update
+    -- Buttons will use new colors on next redraw
+    -- Using lazy approach - buttons update on next interaction
+    -- This prevents performance issues with forced synchronous redraws
+    if streamdeckState.currentDeck ~= nil then
+        updateStreamdeckButtons()
+    end
+end
+
 -- Backward compatibility shim for runtime functions (used in button onClick handlers)
 _G.pushButtonState = function(...) return M:pushButtonState(...) end
 _G.popButtonState = function(...) return M:popButtonState(...) end

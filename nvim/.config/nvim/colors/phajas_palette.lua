@@ -744,6 +744,15 @@ local palette = {
 }
 
 local function select_variant(flavor)
+  -- Check if a specific variant was requested via global variable
+  if vim.g.phajas_palette_variant then
+    local requested = vim.g.phajas_palette_variant
+    if palette.variants and palette.variants[requested] then
+      return requested, palette.variants[requested]
+    end
+  end
+  
+  -- Fall back to flavor-based selection
   for name, variant in pairs(palette.variants or {}) do
     if variant.flavor == flavor then
       return name, variant

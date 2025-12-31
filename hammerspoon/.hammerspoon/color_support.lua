@@ -1,4 +1,4 @@
-require "colors"
+colors = require "colors"
 
 -- Lerps between `a` and `b` by `fraction`
 function lerp(a, b, fraction)

@@ -14,4 +14,4 @@ window-theme = "system"
 resize-overlay = "never"
 shell-integration = "none"
 # theme = dark:catppuccin-mocha,light:catppuccin-latte
-theme = dark:phajas_dark,light:phajas_light
+theme = dark:modus_dark,light:modus_light

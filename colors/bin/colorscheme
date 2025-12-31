@@ -2,18 +2,16 @@
 """
 Unified colorscheme management CLI.
 
+Automatically picks light/dark variant based on macOS appearance.
 Rebuilds theme files and reloads supporting applications.
-Does NOT change macOS appearance or restart terminals.
 
 Commands:
   colorscheme              # Show current theme
-  colorscheme toggle       # Toggle light/dark within current family
-  colorscheme light        # Switch to light variant of current family
-  colorscheme dark         # Switch to dark variant of current family
-  colorscheme modus        # Switch to Modus family (preserves light/dark)
-  colorscheme catppuccin   # Switch to Catppuccin family (preserves light/dark)
-  colorscheme modus_operandi       # Switch to specific variant
-  colorscheme catppuccin_latte     # Switch to specific variant
+  colorscheme modus        # Switch to Modus family
+  colorscheme catppuccin   # Switch to Catppuccin family
+
+To toggle light/dark mode, use macOS System Settings → Appearance.
+Applications will auto-update within 3 seconds.
 """
 
 import sys
@@ -37,25 +35,51 @@ class ColorschemeManager:
         self.state = self.load_state()
 
     def load_state(self) -> Dict[str, Any]:
-        """Load current theme state from file."""
+        """Load current theme family from file."""
         if STATE_FILE.exists():
-            return json.loads(STATE_FILE.read_text())
+            data = json.loads(STATE_FILE.read_text())
+            # Backward compat: accept old format with 'variant', extract family
+            return {
+                "family": data.get("family", self.palette.get("default_family", "modus"))
+            }
 
-        # Default to palette defaults
+        # Default to palette default
         return {
-            "variant": self.palette["default_variant"],
-            "family": self.palette.get("default_family", "modus"),
+            "family": self.palette.get("default_family", "modus")
         }
 
     def save_state(self):
-        """Save current theme state."""
+        """Save current theme family."""
         STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
         STATE_FILE.write_text(json.dumps(self.state, indent=2))
 
+    def get_macos_appearance(self) -> str:
+        """Query macOS for current appearance (light/dark)."""
+        try:
+            result = subprocess.run(
+                ["defaults", "read", "-g", "AppleInterfaceStyle"],
+                capture_output=True,
+                text=True,
+                timeout=1
+            )
+            if "Dark" in result.stdout:
+                return "dark"
+        except:
+            pass
+        return "light"
+
     def get_current_variant(self) -> Dict[str, Any]:
-        """Get current variant config."""
-        variant_name = self.state["variant"]
-        return self.palette["variants"].get(variant_name, {})
+        """Get current variant based on family + macOS appearance."""
+        family = self.state["family"]
+        flavor = self.get_macos_appearance()
+        variant_name = self.find_variant_by_family_and_flavor(family, flavor)
+
+        if variant_name:
+            return self.palette["variants"].get(variant_name, {})
+
+        # Fallback to default variant
+        default_variant = self.palette["default_variant"]
+        return self.palette["variants"].get(default_variant, {})
 
     def find_variant_by_family_and_flavor(self, family: str, flavor: str) -> Optional[str]:
         """Find variant name for given family and flavor (light/dark)."""
@@ -69,56 +93,19 @@ class ColorschemeManager:
             return family_data.get("dark_variant")
         return None
 
-    def switch_variant(self, variant_name: str):
-        """Switch to a specific variant and reload all apps."""
-        if variant_name not in self.palette["variants"]:
-            print(f"Error: Unknown variant '{variant_name}'", file=sys.stderr)
-            print(f"Available: {', '.join(self.palette['variants'].keys())}", file=sys.stderr)
-            sys.exit(1)
-
-        variant = self.palette["variants"][variant_name]
-        self.state["variant"] = variant_name
-        self.state["family"] = variant.get("family", "modus")
-        self.save_state()
-
-        # Rebuild theme files
-        self.rebuild_themes()
-
-        # Reload all applications
-        self.reload_all()
-
-    def toggle(self):
-        """Toggle between light and dark within current family."""
-        current = self.get_current_variant()
-        current_flavor = current.get("flavor", "light")
-        new_flavor = "dark" if current_flavor == "light" else "light"
-
-        family = self.state["family"]
-        new_variant = self.find_variant_by_family_and_flavor(family, new_flavor)
-
-        if new_variant:
-            self.switch_variant(new_variant)
-        else:
-            print(f"Error: No {new_flavor} variant found for family {family}", file=sys.stderr)
-            sys.exit(1)
-
     def switch_family(self, family_name: str):
-        """Switch to a different theme family, preserving light/dark preference."""
+        """Switch to a different theme family."""
         if family_name not in self.palette["families"]:
             print(f"Error: Unknown family '{family_name}'", file=sys.stderr)
             print(f"Available: {', '.join(self.palette['families'].keys())}", file=sys.stderr)
             sys.exit(1)
 
-        current_flavor = self.get_current_variant().get("flavor", "light")
-        new_variant = self.find_variant_by_family_and_flavor(family_name, current_flavor)
+        self.state["family"] = family_name
+        self.save_state()
 
-        if new_variant:
-            self.switch_variant(new_variant)
-        else:
-            # Fallback to family's light variant
-            new_variant = self.palette["families"][family_name].get("light_variant")
-            if new_variant:
-                self.switch_variant(new_variant)
+        # Rebuild theme files and reload applications
+        self.rebuild_themes()
+        self.reload_all()
 
     def rebuild_themes(self):
         """Run build.py to regenerate theme files."""
@@ -137,8 +124,9 @@ class ColorschemeManager:
         """Reload all applications to apply new theme."""
         variant = self.get_current_variant()
         flavor = variant.get("flavor", "light")
+        variant_name = self.find_variant_by_family_and_flavor(self.state["family"], flavor)
 
-        print(f"\nApplying {self.state['variant']} ({flavor})...")
+        print(f"\nApplying {self.state['family']} family ({flavor} mode: {variant_name})...")
 
         # 1. Neovim
         self.reload_neovim()
@@ -146,8 +134,8 @@ class ColorschemeManager:
         # 2. Hammerspoon
         self.reload_hammerspoon()
 
-        # 3. Ghostty (will apply on next window/restart)
-        print("  ✓ Ghostty (will apply to new windows)")
+        # 3. Ghostty (reload via SIGUSR2)
+        self.reload_ghostty()
 
         # 4. Zellij (inherits from terminal)
         print("  ✓ Zellij (inherits from terminal)")
@@ -162,19 +150,63 @@ class ColorschemeManager:
 
     def reload_neovim(self):
         """Reload Neovim instances."""
-        # Send command to all nvim servers to reload colorscheme
-        # This requires nvim remote support or server configurations
-        # For now, note that users should manually :colorscheme phajas_palette
-        print("  ✓ Neovim (manual :colorscheme phajas_palette required)")
+        # Neovim watches the state file and auto-reloads via theme.lua
+        print("  ✓ Neovim (auto-reloading)")
+
+    def update_ghostty_config(self):
+        """Update Ghostty config to use the current theme family."""
+        ghostty_config = Path.home() / ".config" / "ghostty" / "config"
+        if not ghostty_config.exists():
+            return
+
+        family = self.state["family"]
+        # Read current config
+        lines = ghostty_config.read_text().splitlines()
+
+        # Update theme line
+        new_theme_line = f"theme = dark:{family}_dark,light:{family}_light"
+        updated = False
+
+        for i, line in enumerate(lines):
+            if line.strip().startswith("theme ="):
+                lines[i] = new_theme_line
+                updated = True
+                break
+
+        # If no theme line found, add it
+        if not updated:
+            lines.append(new_theme_line)
+
+        # Write back
+        ghostty_config.write_text("\n".join(lines) + "\n")
+
+    def reload_ghostty(self):
+        """Reload Ghostty config via SIGUSR2 signal."""
+        # Update the config file first
+        self.update_ghostty_config()
+
+        # SIGUSR2 triggers config reload in Ghostty without interrupting the terminal
+        result = subprocess.run(["killall", "-SIGUSR2", "ghostty"],
+                              stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL)
+        if result.returncode == 0:
+            print("  ✓ Ghostty")
+        else:
+            print("  ⊘ Ghostty (not running)")
 
     def reload_hammerspoon(self):
-        """Reload Hammerspoon configuration."""
+        """Reload Hammerspoon colors without full reload."""
         hs_path = "/usr/local/bin/hs"
         if not Path(hs_path).exists():
             hs_path = "/opt/homebrew/bin/hs"
         if Path(hs_path).exists():
-            subprocess.run([hs_path, "-c", "hs.reload()"], check=False, stderr=subprocess.DEVNULL)
-            print("  ✓ Hammerspoon")
+            # Trigger color update only, not full reload
+            subprocess.run(
+                [hs_path, "-c", "if colors and colors.checkAndUpdateColors then colors.checkAndUpdateColors() end"],
+                check=False,
+                stderr=subprocess.DEVNULL
+            )
+            print("  ✓ Hammerspoon (colors updated)")
         else:
             print("  ⊘ Hammerspoon (not found)")
 
@@ -190,15 +222,18 @@ class ColorschemeManager:
 
     def show_status(self):
         """Display current theme information."""
-        current = self.get_current_variant()
         family_name = self.state["family"]
         family_data = self.palette["families"].get(family_name, {})
+        flavor = self.get_macos_appearance()
+
+        variant_name = self.find_variant_by_family_and_flavor(family_name, flavor)
+        current = self.palette["variants"].get(variant_name, {})
 
         print(f"Current theme:")
-        print(f"  Variant: {self.state['variant']}")
-        print(f"  Family:  {family_name} ({family_data.get('name', 'Unknown')})")
-        print(f"  Flavor:  {current.get('flavor', 'unknown')}")
-        print(f"  License: {family_data.get('license', 'Unknown')}")
+        print(f"  Family:      {family_name} ({family_data.get('name', 'Unknown')})")
+        print(f"  macOS Mode:  {flavor}")
+        print(f"  Variant:     {variant_name} (auto-selected)")
+        print(f"  License:     {family_data.get('license', 'Unknown')}")
 
 
 def main():
@@ -211,26 +246,13 @@ def main():
     command = sys.argv[1]
     manager = ColorschemeManager()
 
-    if command == "toggle":
-        manager.toggle()
-    elif command in ("light", "dark"):
-        new_variant = manager.find_variant_by_family_and_flavor(
-            manager.state["family"], command
-        )
-        if new_variant:
-            manager.switch_variant(new_variant)
-        else:
-            print(f"Error: No {command} variant in family {manager.state['family']}", file=sys.stderr)
-            sys.exit(1)
-    elif command in manager.palette["families"]:
+    if command in manager.palette["families"]:
         # Switch to family (e.g., "modus" or "catppuccin")
         manager.switch_family(command)
-    elif command in manager.palette["variants"]:
-        # Switch to specific variant
-        manager.switch_variant(command)
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
-        print("Usage: colorscheme [toggle|light|dark|<family>|<variant>]", file=sys.stderr)
+        print("Usage: colorscheme [<family>]", file=sys.stderr)
+        print(f"Available families: {', '.join(manager.palette['families'].keys())}", file=sys.stderr)
         sys.exit(1)
 
 
