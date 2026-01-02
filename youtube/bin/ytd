@@ -4,4 +4,4 @@ OUTPATH=~/Movies/yt
 SUB_OPTS="--sub-langs en --write-subs --write-auto-subs --embed-subs --convert-subs srt"
 
 mkdir -p $OUTPATH 2>>/dev/null
-yt-dlp -t mp4 $SUB_OPTS --sponsorblock-remove sponsor,selfpromo,interaction --mark-watched --embed-metadata --output "$OUTPATH/%(uploader)s/%(upload_date)s_%(title)s-%(id)s.%(ext)s" --download-archive "~/.vimwiki/logged/youtube_watched.txt" --exec 'mpv {} &' "$@"
+yt-dlp -t mp4 $SUB_OPTS --sponsorblock-remove sponsor,selfpromo,interaction --mark-watched --embed-metadata --output "$OUTPATH/%(uploader)s/%(upload_date)s_%(title)s-%(id)s.%(ext)s" --download-archive "~/.vimwiki/logged/youtube_watched.txt" --exec 'mpv --pause {} &' "$@"
