@@ -1,0 +1,226 @@
+#!/bin/bash
+# ntfy notification hook for Claude Code
+# Sends push notifications via ntfy.sh for Stop and Notification events
+
+LOG_FILE="/tmp/ntfy-hook.log"
+
+# Logging function
+log() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] $*" >> "$LOG_FILE"
+}
+
+# URL encode a string for use in URLs
+url_encode() {
+    local string="$1"
+    local length="${#string}"
+    local encoded=""
+    local pos=0
+    local c
+
+    while [ $pos -lt $length ]; do
+        c="${string:$pos:1}"
+        case "$c" in
+            [a-zA-Z0-9.~_-])
+                encoded="$encoded$c"
+                ;;
+            ' ')
+                encoded="$encoded%20"
+                ;;
+            *)
+                encoded="$encoded$(printf '%%%02X' "'$c")"
+                ;;
+        esac
+        pos=$((pos + 1))
+    done
+
+    echo "$encoded"
+}
+
+# Find the tab index containing a specific pane ID
+find_tab_index_for_pane() {
+    local layout="$1"
+    local target_pane_id="$2"
+
+    local tab_count=0
+
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^[[:space:]]*tab[[:space:]] ]]; then
+            if [[ "$line" =~ focus=true ]]; then
+                echo "$tab_count"
+                return 0
+            fi
+            tab_count=$((tab_count + 1))
+        fi
+    done <<< "$layout"
+
+    log "Could not find focused tab, will attach to session only"
+    echo ""
+}
+
+# Build a Blink SSH URL to attach to a Zellij session/tab
+build_blink_url() {
+    local session_name="$1"
+    local tab_index="$2"
+
+    # Just attach to the session - tab navigation would require complex command chaining
+    # since zellij attach is blocking and we'd need to send actions after attaching
+    local zellij_cmd="zellij attach \"$session_name\""
+
+    local ssh_cmd="ssh $BLINK_HOST -t $zellij_cmd"
+    local encoded_cmd=$(url_encode "$ssh_cmd")
+
+    echo "blinkshell://run?key=$BLINK_KEY&cmd=$encoded_cmd"
+}
+
+# Send ntfy notification
+send_ntfy_notification() {
+    local event_type="$1"
+    local agent="$2"
+    local message="$3"
+
+    local title=""
+    local tags="speech_balloon"
+
+    case "$event_type" in
+        Notification)
+            title="$agent Waiting"
+            tags="bell"
+            ;;
+        Stop)
+            title="$agent Done"
+            tags="white_check_mark"
+            ;;
+        *)
+            title="$agent Notification"
+            tags="speech_balloon"
+            ;;
+    esac
+
+    # Prepend hostname
+    local hostname=$(hostname -s 2>/dev/null || echo "unknown-host")
+    local full_message="$agent on $hostname: $message"
+
+    if [ -z "$message" ]; then
+        local timestamp=$(date -Iseconds 2>/dev/null || date)
+        full_message="$agent on $hostname: Turn done at $timestamp"
+    fi
+
+    log "Sending ntfy: $title - $full_message"
+
+    # Build Blink URL if we have Zellij context AND Blink configuration
+    local blink_url=""
+    if [ -n "$ZELLIJ_SESSION_NAME" ] && [ -n "$BLINK_KEY" ] && [ -n "$BLINK_HOST" ]; then
+        log "Zellij session detected: $ZELLIJ_SESSION_NAME"
+        log "Blink configuration: key=$BLINK_KEY, host=$BLINK_HOST"
+
+        local tab_index=""
+        if [ -n "$ZELLIJ_PANE_ID" ]; then
+            local layout=$(zellij action dump-layout 2>/dev/null)
+            if [ $? -eq 0 ] && [ -n "$layout" ]; then
+                tab_index=$(find_tab_index_for_pane "$layout" "$ZELLIJ_PANE_ID")
+                if [ -n "$tab_index" ]; then
+                    log "Found tab index: $tab_index"
+                fi
+            else
+                log "Could not dump zellij layout"
+            fi
+        fi
+
+        blink_url=$(build_blink_url "$ZELLIJ_SESSION_NAME" "$tab_index")
+        log "Blink URL: $blink_url"
+    elif [ -n "$ZELLIJ_SESSION_NAME" ]; then
+        log "Zellij session detected but Blink configuration missing - skipping action button"
+    fi
+
+    # Send notification with or without action
+    if [ -n "$blink_url" ]; then
+        curl -s \
+            -H "Title: $title" \
+            -H "Tags: $tags" \
+            -H "Actions: view, Open Session, $blink_url" \
+            -d "$full_message" \
+            "$NTFY_SERVER/$NTFY_TOPIC" \
+            > /dev/null 2>&1
+    else
+        curl -s \
+            -H "Title: $title" \
+            -H "Tags: $tags" \
+            -d "$full_message" \
+            "$NTFY_SERVER/$NTFY_TOPIC" \
+            > /dev/null 2>&1
+    fi
+}
+
+# Main
+main() {
+    log "========== Hook invoked =========="
+
+    # Read JSON from stdin
+    input=$(cat)
+
+    if [ -z "$input" ]; then
+        log "No input data received"
+        exit 0
+    fi
+
+    log "Raw input (first 200 chars): ${input:0:200}"
+
+    # Parse event and determine agent
+    hook_event=$(echo "$input" | jq -r '.hook_event_name // ""' 2>/dev/null)
+
+    # Detect agent: Claude has hook_event_name, Codex doesn't
+    if [ -n "$hook_event" ]; then
+        agent="Claude"
+    else
+        agent="Codex"
+    fi
+
+    log "Agent: $agent, Event: $hook_event"
+
+    # Get ntfy configuration from TiddlyWiki
+    NTFY_SERVER="${NTFY_SERVER:-https://ntfy.peterhajas.com}"
+    ntfy_prefix=""
+    if command -v tw >/dev/null 2>&1; then
+        ntfy_prefix=$(tw ~/phajas-wiki/phajas-wiki.html get "ntfy_prefix" "text" 2>/dev/null | tr -d '\n')
+    fi
+    NTFY_TOPIC="${ntfy_prefix}claude_notify"
+    if [ -z "$NTFY_TOPIC" ]; then
+        NTFY_TOPIC="claude_notify"
+    fi
+
+    # Get Blink SSH Configuration from TiddlyWiki
+    BLINK_KEY=""
+    BLINK_HOST=""
+    if command -v tw >/dev/null 2>&1; then
+        BLINK_KEY=$(tw ~/phajas-wiki/phajas-wiki.html get "Blink Key" "text" 2>/dev/null | tr -d '\n')
+        BLINK_HOST=$(tw ~/phajas-wiki/phajas-wiki.html get "Blink Host" "text" 2>/dev/null | tr -d '\n')
+    fi
+
+    # Only handle Stop and Notification events
+    case "$hook_event" in
+        Stop)
+            send_ntfy_notification "Stop" "$agent" "Turn done"
+            ;;
+        Notification)
+            local notification_type=$(echo "$input" | jq -r '.notification_type // ""')
+            if [ "$notification_type" = "idle_prompt" ]; then
+                local message=$(echo "$input" | jq -r '.message // .notification_message // ""')
+                send_ntfy_notification "Notification" "$agent" "$message"
+            fi
+            ;;
+        "")
+            # Codex notification - just send ntfy
+            local message=$(echo "$input" | jq -r '.message // .notification_message // ""')
+            send_ntfy_notification "Notification" "$agent" "$message"
+            ;;
+        *)
+            log "Event does not require ntfy notification: $hook_event"
+            ;;
+    esac
+
+    log "========== Hook completed =========="
+    exit 0
+}
+
+main

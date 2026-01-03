@@ -38,7 +38,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/claude_hook",
+            "command": "~/.claude/hooks/hammerspoon_hook",
             "timeout": 5000
           },
           {
@@ -55,7 +55,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/claude_hook",
+            "command": "~/.claude/hooks/hammerspoon_hook",
             "timeout": 5000
           },
           {
@@ -72,7 +72,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/claude_hook",
+            "command": "~/.claude/hooks/hammerspoon_hook",
             "timeout": 5000
           },
           {
@@ -89,7 +89,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/claude_hook",
+            "command": "~/.claude/hooks/hammerspoon_hook",
             "timeout": 300000
           },
           {
@@ -106,7 +106,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/claude_hook",
+            "command": "~/.claude/hooks/hammerspoon_hook",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/ntfy_hook",
             "timeout": 5000
           },
           {
@@ -123,7 +128,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/claude_hook",
+            "command": "~/.claude/hooks/hammerspoon_hook",
             "timeout": 5000
           },
           {
@@ -140,7 +145,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/claude_hook",
+            "command": "~/.claude/hooks/hammerspoon_hook",
             "timeout": 5000
           },
           {
@@ -157,7 +162,12 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/claude_hook",
+            "command": "~/.claude/hooks/hammerspoon_hook",
+            "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/ntfy_hook",
             "timeout": 5000
           },
           {
