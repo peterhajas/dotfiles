@@ -19,6 +19,10 @@ yabai -m rule --add app="^iPhone Mirroring$" manage=off
 yabai -m rule --add app="^mpv$" manage=off
 
 # Notifications
+yabai -m signal --add event="application_deactivated" action="~/bin/yabai_update_tiling"
+yabai -m signal --add event="application_front_switched" action="~/bin/yabai_update_tiling"
+yabai -m signal --add event="application_launched" action="~/bin/yabai_update_tiling"
+yabai -m signal --add event="application_terminated" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="display_added" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="display_changed" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="display_removed" action="~/bin/yabai_update_tiling"
@@ -26,8 +30,7 @@ yabai -m signal --add event="display_resized" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="system_woke" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="window_created" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="window_destroyed" action="~/bin/yabai_update_tiling"
-yabai -m signal --add event="window_title_changed" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="window_resized" action="~/bin/yabai_update_tiling"
-yabai -m signal --add event="application_front_switched" action="~/bin/yabai_update_tiling"
+yabai -m signal --add event="window_title_changed" action="~/bin/yabai_update_tiling"
 
 yabai_update_tiling
