@@ -1,0 +1,150 @@
+#!/bin/bash
+# Zellij tab renaming hook for Claude Code
+# Automatically renames the Zellij tab to show what Claude is doing
+
+LOG_FILE="/tmp/zellij-rename.log"
+
+# Logging function
+log() {
+    local timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+    echo "[$timestamp] $*" >> "$LOG_FILE"
+}
+
+# Update Zellij tab name (only if in a Zellij session)
+update_zellij_tab() {
+    local tab_name="$1"
+
+    log "update_zellij_tab called with: '$tab_name'"
+    log "ZELLIJ_SESSION_NAME: '$ZELLIJ_SESSION_NAME'"
+
+    # Only update if in a Zellij session
+    if [ -n "$ZELLIJ_SESSION_NAME" ]; then
+        log "Running: zellij action rename-tab '$tab_name'"
+        zellij action rename-tab "$tab_name" 2>>"$LOG_FILE" || true
+    else
+        log "Not in Zellij session, skipping rename"
+    fi
+}
+
+# Generate tab name with emoji based on event and tool
+get_tab_name() {
+    local event_name="$1"
+    local tool_name="$2"
+    local tool_input="$3"
+
+    case "$event_name" in
+        SessionStart)
+            echo "🚀"
+            ;;
+        SessionEnd)
+            echo "👋"
+            ;;
+        UserPromptSubmit)
+            echo "⚡"
+            ;;
+        PreToolUse)
+            case "$tool_name" in
+                Bash)
+                    local cmd=$(echo "$tool_input" | jq -r '.command // ""' 2>/dev/null)
+                    # Truncate to ~30 chars for tab space
+                    if [ ${#cmd} -gt 30 ]; then
+                        cmd="${cmd:0:27}..."
+                    fi
+                    echo "⚙️ $cmd"
+                    ;;
+                Write|Edit)
+                    local path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
+                    local basename=$(basename "$path" 2>/dev/null || echo "file")
+                    echo "✏️ $basename"
+                    ;;
+                Read)
+                    local path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
+                    local basename=$(basename "$path" 2>/dev/null || echo "file")
+                    echo "📖 $basename"
+                    ;;
+                Glob)
+                    local pattern=$(echo "$tool_input" | jq -r '.pattern // ""' 2>/dev/null)
+                    if [ ${#pattern} -gt 25 ]; then
+                        pattern="${pattern:0:22}..."
+                    fi
+                    echo "🔍 $pattern"
+                    ;;
+                Grep)
+                    local pattern=$(echo "$tool_input" | jq -r '.pattern // ""' 2>/dev/null)
+                    if [ ${#pattern} -gt 25 ]; then
+                        pattern="${pattern:0:22}..."
+                    fi
+                    echo "🔍 $pattern"
+                    ;;
+                Task)
+                    echo "🤖"
+                    ;;
+                *)
+                    echo "⚙️"
+                    ;;
+            esac
+            ;;
+        PostToolUse)
+            echo "⚡"
+            ;;
+        PermissionRequest)
+            echo "🔔"
+            ;;
+        Stop)
+            echo "😴"
+            ;;
+        Notification)
+            echo "😴"
+            ;;
+        *)
+            # Unknown event - just use generic working emoji
+            echo "⚙️"
+            ;;
+    esac
+}
+
+# Main
+main() {
+    log "========== Hook invoked =========="
+
+    # Read JSON from stdin
+    input=$(cat)
+
+    if [ -z "$input" ]; then
+        log "No input received"
+        exit 0
+    fi
+
+    log "Input (first 200 chars): ${input:0:200}"
+
+    # Parse event
+    hook_event=$(echo "$input" | jq -r '.hook_event_name // ""' 2>/dev/null)
+    tool_name=$(echo "$input" | jq -r '.tool_name // ""' 2>/dev/null)
+    tool_input=$(echo "$input" | jq -c '.tool_input // {}' 2>/dev/null)
+    notification_type=$(echo "$input" | jq -r '.notification_type // ""' 2>/dev/null)
+
+    log "Parsed - hook_event: '$hook_event', tool_name: '$tool_name', notification_type: '$notification_type'"
+
+    # Special handling for idle_prompt notification
+    if [ "$notification_type" = "idle_prompt" ]; then
+        hook_event="Notification"
+    fi
+
+    # Skip if no event (e.g., Codex notifications without hook_event_name)
+    if [ -z "$hook_event" ]; then
+        log "No hook_event, skipping"
+        exit 0
+    fi
+
+    # Generate tab name
+    tab_name=$(get_tab_name "$hook_event" "$tool_name" "$tool_input")
+    log "Generated tab name: '$tab_name'"
+
+    # Update Zellij tab
+    update_zellij_tab "$tab_name"
+
+    log "========== Hook completed =========="
+    exit 0
+}
+
+main
