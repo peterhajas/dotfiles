@@ -79,7 +79,7 @@ __pycache__/
 *$py.class
 
 # Claude
-.claude
+/.claude
 
 # Codex
 codex/.codex/rules
