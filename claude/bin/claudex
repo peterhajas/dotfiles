@@ -42,30 +42,9 @@ LOG_FILE="/tmp/anthropic-codex-proxy-${INSTANCE_ID}.log"
 
 echo "[Wrapper] Instance $INSTANCE_ID using port $PROXY_PORT"
 
-# Interactive model selection (only if no arguments provided)
-if [ $# -eq 0 ]; then
-  echo "[Wrapper] Select Codex model..."
-  CODEX_MODEL=$(echo -e "gpt-5.2-codex (default)|o3|gpt-5.1-codex-max" | \
-    ~/dotfiles/hammerspoon/bin/choose | cut -d' ' -f1)
-
-  # Default if user cancelled
-  if [ -z "$CODEX_MODEL" ]; then
-    CODEX_MODEL="gpt-5.2-codex"
-  fi
-
-  echo "[Wrapper] Select reasoning effort..."
-  CODEX_REASONING=$(echo -e "medium (default)|low|high" | \
-    ~/dotfiles/hammerspoon/bin/choose | cut -d' ' -f1)
-
-  # Default if user cancelled
-  if [ -z "$CODEX_REASONING" ]; then
-    CODEX_REASONING="medium"
-  fi
-else
-  # Use defaults for non-interactive mode (or respect env vars)
-  CODEX_MODEL="${CODEX_MODEL:-gpt-5.2-codex}"
-  CODEX_REASONING="${CODEX_REASONING:-medium}"
-fi
+# Use defaults (can be overridden via environment variables)
+CODEX_MODEL="${CODEX_MODEL:-gpt-5.2-codex}"
+CODEX_REASONING="${CODEX_REASONING:-medium}"
 
 echo "[Wrapper] Using model: $CODEX_MODEL, reasoning: $CODEX_REASONING"
 
@@ -135,10 +114,38 @@ export ANTHROPIC_API_KEY="codex-backend-dummy-key"
 echo "[Wrapper] Launching Claude Code with Codex backend..."
 echo "[Wrapper] Check proxy logs: tail -f $LOG_FILE"
 
+# Check if user passed arguments that don't include -p/--print
+# If they did, auto-add -p for non-interactive mode
+NEEDS_PRINT_FLAG=false
+if [ $# -gt 0 ] && [[ ! "$*" =~ (^| )(-p|--print)( |$) ]]; then
+  # User passed arguments but no -p flag
+  # Check if any arg starts with - (meaning it's a flag, so maybe they're using --help or other command)
+  HAS_FLAGS=false
+  for arg in "$@"; do
+    if [[ "$arg" =~ ^- ]]; then
+      HAS_FLAGS=true
+      break
+    fi
+  done
+
+  # If no flags at all, it's just a plain prompt, so add -p
+  if [ "$HAS_FLAGS" = false ]; then
+    NEEDS_PRINT_FLAG=true
+  fi
+fi
+
+# Build the command
+if [ "$NEEDS_PRINT_FLAG" = true ]; then
+  echo "[Wrapper] Auto-adding -p flag for non-interactive mode"
+  CLAUDE_ARGS=(-p "$@")
+else
+  CLAUDE_ARGS=("$@")
+fi
+
 # Try to use custom settings if supported, otherwise just launch
-if /opt/homebrew/bin/claude --help 2>&1 | grep -q -- "--settings"; then
-  /opt/homebrew/bin/claude --settings "$TEMP_SETTINGS" "$@"
+if timeout 5 /opt/homebrew/bin/claude --help 2>&1 | grep -q -- "--settings"; then
+  /opt/homebrew/bin/claude --settings "$TEMP_SETTINGS" "${CLAUDE_ARGS[@]}"
 else
   # No --settings flag, just launch (statusline won't be custom)
-  /opt/homebrew/bin/claude "$@"
+  /opt/homebrew/bin/claude "${CLAUDE_ARGS[@]}"
 fi

@@ -43,7 +43,7 @@ class MCPClient:
                 ['codex', 'mcp-server'],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
+                stderr=subprocess.PIPE,  # Keep stderr separate
                 text=True,
                 bufsize=1
             )
@@ -51,9 +51,11 @@ class MCPClient:
             # Start reader thread
             self.reader_thread = threading.Thread(target=self._read_responses, daemon=True)
             self.reader_thread.start()
+            print("[MCP] Reader thread started", file=sys.stderr)
 
     def _read_responses(self):
         """Reader thread: routes responses to correct waiting request"""
+        print("[MCP] Reader thread running", file=sys.stderr)
         while self.process and self.process.stdout:
             try:
                 line = self.process.stdout.readline()
@@ -61,6 +63,7 @@ class MCPClient:
                     print("[MCP] Process stdout closed, marking dead", file=sys.stderr)
                     break
 
+                print(f"[MCP] Got line ({len(line)} chars)", file=sys.stderr)
                 response = json.loads(line)
 
                 # Skip event notifications
@@ -71,6 +74,7 @@ class MCPClient:
 
                 # Route to waiting request
                 req_id = response.get('id')
+                print(f"[MCP] Got response with id: {req_id}", file=sys.stderr)
                 if req_id:
                     with self.lock:
                         response_queue = self.pending.get(req_id)
@@ -86,6 +90,8 @@ class MCPClient:
                 continue
             except Exception as e:
                 print(f"[MCP] Reader error: {e}", file=sys.stderr)
+                import traceback
+                traceback.print_exc(file=sys.stderr)
 
         # Process died - notify all pending requests
         self._notify_process_dead()
@@ -236,10 +242,89 @@ def translate_response(codex_resp, original_req):
         }
     }
 
+@app.before_request
+def log_request():
+    """Log all incoming requests"""
+    print(f"[Proxy] {request.method} {request.path}", file=sys.stderr)
+
+    # Log important headers
+    version = request.headers.get('anthropic-version')
+    beta = request.headers.get('anthropic-beta')
+    if version:
+        print(f"[Proxy]   anthropic-version: {version}", file=sys.stderr)
+    if beta:
+        print(f"[Proxy]   anthropic-beta: {beta}", file=sys.stderr)
+
+@app.before_request
+def handle_options():
+    """Handle OPTIONS for CORS preflight"""
+    if request.method == 'OPTIONS':
+        response = app.make_default_options_response()
+        response.headers['Access-Control-Allow-Origin'] = '*'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, OPTIONS'
+        response.headers['Access-Control-Allow-Headers'] = '*'
+        return response
+
 @app.route('/health', methods=['GET'])
 def health():
     """Health check endpoint"""
     return jsonify({'status': 'ok', 'service': 'anthropic-codex-proxy'})
+
+@app.route('/v1/models', methods=['GET'])
+def list_models():
+    """Return available models"""
+    # Map Codex model to Claude model ID
+    model_mapping = {
+        'gpt-5.2-codex': 'claude-sonnet-4-5-20250929',
+        'o3': 'claude-opus-4-5-20251101',
+        'gpt-5.1-codex-max': 'claude-sonnet-4-20250514'
+    }
+
+    codex_model = os.environ.get('CODEX_MODEL', 'gpt-5.2-codex')
+    claude_model_id = model_mapping.get(codex_model, 'claude-sonnet-4-5-20250929')
+
+    print(f"[Proxy] Returning model: {claude_model_id} (Codex: {codex_model})", file=sys.stderr)
+
+    return jsonify({
+        'data': [{
+            'type': 'model',
+            'id': claude_model_id,
+            'display_name': f'Codex ({codex_model})',
+            'created_at': '2025-01-01T00:00:00Z'
+        }],
+        'has_more': False,
+        'first_id': claude_model_id,
+        'last_id': claude_model_id
+    })
+
+@app.route('/v1/messages/count_tokens', methods=['POST'])
+def count_tokens():
+    """Estimate token count"""
+    data = request.json
+    messages = data.get('messages', [])
+
+    # Simple estimation: ~4 chars per token
+    total_chars = 0
+    for msg in messages:
+        content = msg.get('content', '')
+        if isinstance(content, str):
+            total_chars += len(content)
+        elif isinstance(content, list):
+            for block in content:
+                if block.get('type') == 'text':
+                    total_chars += len(block.get('text', ''))
+
+    estimated_tokens = max(1, total_chars // 4)
+
+    print(f"[Proxy] Estimated {estimated_tokens} tokens", file=sys.stderr)
+
+    return jsonify({'input_tokens': estimated_tokens})
+
+@app.route('/api/event_logging/batch', methods=['POST'])
+def event_logging():
+    """Dummy analytics endpoint - just return success"""
+    print(f"[Proxy] Ignoring analytics event", file=sys.stderr)
+    return jsonify({'success': True}), 200
 
 @app.route('/v1/messages', methods=['POST'])
 def messages():
@@ -267,6 +352,18 @@ def messages():
         import traceback
         traceback.print_exc()
         return jsonify({'error': str(e)}), 500
+
+@app.errorhandler(404)
+def not_found(error):
+    """Handle unknown endpoints"""
+    print(f"[Proxy] 404 Not Found: {request.method} {request.path}", file=sys.stderr)
+    return jsonify({
+        'type': 'error',
+        'error': {
+            'type': 'not_found',
+            'message': f'Endpoint {request.path} not implemented in proxy'
+        }
+    }), 404
 
 if __name__ == '__main__':
     port = int(os.environ.get('PROXY_PORT', 3000))
