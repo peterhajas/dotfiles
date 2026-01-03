@@ -228,8 +228,8 @@ main() {
     local wiki_dir
     wiki_dir=$(dirname "$wiki_path")
 
-    # Default destination path
-    local default_dest="${wiki_dir}/assets/${final_filename}"
+    # Default destination path (relative to wiki root)
+    local default_dest="assets/${final_filename}"
 
     # Ask user for destination path with prefilled value
     echo ""
@@ -238,6 +238,11 @@ main() {
 
     # Expand tilde in destination path
     dest_path="${dest_path/#\~/$HOME}"
+
+    # Resolve relative paths against the wiki root
+    if [[ "$dest_path" != /* ]]; then
+        dest_path="${wiki_dir}/${dest_path}"
+    fi
 
     # Create destination directory if it doesn't exist
     local dest_dir
