@@ -13,13 +13,32 @@ find_free_port() {
   # Start from 3000 and find the first available port
   local port=3000
   while [ $port -lt 3100 ]; do
-    if ! lsof -ti:$port > /dev/null 2>&1; then
+    if port_is_free "$port"; then
       echo $port
       return
     fi
     port=$((port + 1))
   done
   echo "3000"  # Fallback
+}
+
+# Check port availability without lsof (avoids hangs/warnings from unrelated sockets)
+port_is_free() {
+  python3 - "$1" << 'PY'
+import socket
+import sys
+
+port = int(sys.argv[1])
+sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+try:
+    sock.bind(("127.0.0.1", port))
+    sys.exit(0)
+except OSError:
+    sys.exit(1)
+finally:
+    sock.close()
+PY
 }
 
 # Handle --kill-all flag to clean up stale proxies
@@ -110,6 +129,8 @@ trap cleanup EXIT INT TERM
 # Set environment to redirect Claude Code API calls to our proxy
 export ANTHROPIC_BASE_URL="http://localhost:$PROXY_PORT"
 export ANTHROPIC_API_KEY="codex-backend-dummy-key"
+# Avoid fs.watch() failures on special files in /private/tmp (sockets/pipes)
+export CHOKIDAR_USEPOLLING="${CHOKIDAR_USEPOLLING:-1}"
 
 echo "[Wrapper] Launching Claude Code with Codex backend..."
 echo "[Wrapper] Check proxy logs: tail -f $LOG_FILE"
