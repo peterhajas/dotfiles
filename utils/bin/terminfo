@@ -1,0 +1,66 @@
+#!/bin/bash
+
+# terminfo - Display terminal dimensions and capabilities
+
+# Get terminal dimensions - try multiple methods
+if [[ -t 0 ]] && SIZE=$(stty size 2>/dev/null); then
+    # stty size returns "rows cols"
+    ROWS=$(echo "$SIZE" | cut -d' ' -f1)
+    COLS=$(echo "$SIZE" | cut -d' ' -f2)
+elif [[ -t 1 ]] && SIZE=$(stty size </dev/tty 2>/dev/null); then
+    ROWS=$(echo "$SIZE" | cut -d' ' -f1)
+    COLS=$(echo "$SIZE" | cut -d' ' -f2)
+elif [[ -n "$COLUMNS" ]] && [[ -n "$LINES" ]]; then
+    COLS="$COLUMNS"
+    ROWS="$LINES"
+else
+    COLS=$(tput cols 2>/dev/null || echo "unknown")
+    ROWS=$(tput lines 2>/dev/null || echo "unknown")
+fi
+
+# Get terminal type
+TERM_TYPE="${TERM:-unknown}"
+
+# Get color support
+COLORS=$(tput colors 2>/dev/null || echo "unknown")
+
+# Check for true color support
+TRUECOLOR="no"
+if [[ "$COLORTERM" == "truecolor" ]] || [[ "$COLORTERM" == "24bit" ]]; then
+    TRUECOLOR="yes"
+fi
+
+# Try to detect terminal emulator
+TERMINAL_EMULATOR="${TERM_PROGRAM:-unknown}"
+if [[ "$TERMINAL_EMULATOR" == "unknown" ]] && [[ -n "$GHOSTTY_RESOURCES_DIR" ]]; then
+    TERMINAL_EMULATOR="Ghostty"
+elif [[ "$TERMINAL_EMULATOR" == "unknown" ]] && [[ -n "$ALACRITTY_SOCKET" ]]; then
+    TERMINAL_EMULATOR="Alacritty"
+elif [[ "$TERMINAL_EMULATOR" == "unknown" ]] && [[ -n "$KITTY_PID" ]]; then
+    TERMINAL_EMULATOR="kitty"
+elif [[ "$TERMINAL_EMULATOR" == "unknown" ]] && [[ -n "$WEZTERM_EXECUTABLE" ]]; then
+    TERMINAL_EMULATOR="WezTerm"
+fi
+
+# Current shell
+CURRENT_SHELL=$(basename "$SHELL")
+
+# Display info
+echo "Terminal Information"
+echo "===================="
+echo "Dimensions:  ${COLS}x${ROWS} (cols x rows)"
+echo "Type:        $TERM_TYPE"
+echo "Colors:      $COLORS"
+echo "True Color:  $TRUECOLOR"
+echo "Emulator:    $TERMINAL_EMULATOR"
+echo "Shell:       $CURRENT_SHELL"
+
+# Additional environment info if available
+if [[ -n "$ZELLIJ_SESSION_NAME" ]]; then
+    echo "Zellij:      $ZELLIJ_SESSION_NAME"
+fi
+
+if [[ -n "$TMUX" ]]; then
+    TMUX_SESSION=$(tmux display-message -p '#S' 2>/dev/null || echo "unknown")
+    echo "tmux:        $TMUX_SESSION"
+fi
