@@ -9,8 +9,12 @@ $HOME/src
 # Function to kill any existing "zellij attach SESSION_NAME" processes
 kill_existing_attach_processes() {
     session_name="$1"
-    # Find and kill any processes matching "zellij attach SESSION_NAME"
-    pkill -f "zellij attach $session_name" 2>/dev/null || true
+    # Kill any zellij clients already attached to this session (tmux-style "attach -d").
+    # Match common argv forms like "zellij attach NAME" or "zellij a NAME".
+    pids=$(pgrep -f "zellij(\\s+attach|\\s+a)(\\s+[^ ]+)*\\s+$session_name(\\s|$)" 2>/dev/null || true)
+    if [ -n "$pids" ]; then
+        echo "$pids" | xargs kill 2>/dev/null || true
+    fi
 }
 
 if [ -n "$ZELLIJ" ]; then
