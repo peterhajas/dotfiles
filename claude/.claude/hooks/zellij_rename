@@ -10,20 +10,143 @@ log() {
     echo "[$timestamp] $*" >> "$LOG_FILE"
 }
 
+# Get the tab tracking file path for this session
+get_tab_tracking_file() {
+    local session_id="$1"
+    echo "/tmp/zellij-claude-tab-${session_id}"
+}
+
 # Update Zellij tab name (only if in a Zellij session)
 update_zellij_tab() {
     local tab_name="$1"
+    local session_id="$2"
+    local is_session_start="$3"
 
     log "update_zellij_tab called with: '$tab_name'"
     log "ZELLIJ_SESSION_NAME: '$ZELLIJ_SESSION_NAME'"
+    log "ZELLIJ_PANE_ID: '$ZELLIJ_PANE_ID'"
+    log "session_id: '$session_id', is_session_start: '$is_session_start'"
 
     # Only update if in a Zellij session
     if [ -n "$ZELLIJ_SESSION_NAME" ]; then
-        log "Running: zellij action rename-tab '$tab_name'"
-        zellij action rename-tab "$tab_name" 2>>"$LOG_FILE" || true
+        local layout=""
+        local target_tab=""
+        local focused_tab=""
+        local tracking_file=$(get_tab_tracking_file "$session_id")
+
+        # Get current layout
+        layout=$(zellij action dump-layout 2>&1)
+        local layout_exit=$?
+        log "dump-layout exit code: $layout_exit"
+        log "dump-layout output length: ${#layout}"
+
+        if [ -n "$layout" ]; then
+            focused_tab=$(find_focused_tab_index "$layout")
+            log "Currently focused tab: '$focused_tab'"
+
+            # On SessionStart, store the current tab as the Claude tab
+            if [ "$is_session_start" = "true" ]; then
+                echo "$focused_tab" > "$tracking_file"
+                log "Stored Claude tab index: $focused_tab"
+                target_tab="$focused_tab"
+            else
+                # Read the stored Claude tab index
+                if [ -f "$tracking_file" ]; then
+                    target_tab=$(cat "$tracking_file")
+                    log "Retrieved stored Claude tab index: $target_tab"
+                else
+                    # Fallback: use current tab if no tracking file
+                    target_tab="$focused_tab"
+                    log "No tracking file, using current tab: $target_tab"
+                fi
+            fi
+        else
+            log "Layout is empty, cannot determine tab indexes"
+            target_tab=""
+        fi
+
+        # Rename the appropriate tab
+        if [ -n "$target_tab" ] && [ -n "$focused_tab" ]; then
+            if [ "$target_tab" != "$focused_tab" ]; then
+                log "Switching to tab $target_tab for rename, then back to $focused_tab"
+                zellij action go-to-tab "$target_tab" 2>>"$LOG_FILE" || true
+                zellij action rename-tab "$tab_name" 2>>"$LOG_FILE" || true
+                zellij action go-to-tab "$focused_tab" 2>>"$LOG_FILE" || true
+            else
+                log "Target tab is focused, renaming directly: '$tab_name'"
+                zellij action rename-tab "$tab_name" 2>>"$LOG_FILE" || true
+            fi
+        else
+            log "Cannot determine tabs, renaming current tab: '$tab_name'"
+            zellij action rename-tab "$tab_name" 2>>"$LOG_FILE" || true
+        fi
     else
         log "Not in Zellij session, skipping rename"
     fi
+}
+
+# Find the tab index containing a specific pane ID (1-based index).
+find_tab_index_for_pane() {
+    local layout="$1"
+    local target_pane_id="$2"
+
+    awk -v target="$target_pane_id" '
+        BEGIN { tab_index=0; current_index="" }
+        /^[[:space:]]*tab[[:space:]]/ {
+            current_index=""
+            # Try to extract index= value
+            if ($0 ~ /index=[0-9]+/) {
+                # Extract the number after index=
+                idx_part = $0
+                sub(/.*index=/, "", idx_part)
+                sub(/[^0-9].*/, "", idx_part)
+                current_index = idx_part
+            } else {
+                tab_index++
+                current_index=tab_index
+            }
+        }
+        /id=/ {
+            # Extract id value (with or without quotes)
+            id_val = $0
+            sub(/.*id=/, "", id_val)
+            sub(/[[:space:]].*/, "", id_val)
+            gsub(/^"/, "", id_val)
+            gsub(/"$/, "", id_val)
+
+            if ((id_val == target || (target ~ /^[0-9]+$/ && id_val == "terminal_" target)) && current_index != "") {
+                print current_index
+                exit 0
+            }
+        }
+    ' <<< "$layout"
+}
+
+# Find the currently focused tab index (1-based index).
+find_focused_tab_index() {
+    local layout="$1"
+
+    awk '
+        BEGIN { tab_index=0; current_index="" }
+        /^[[:space:]]*tab[[:space:]]/ {
+            current_index=""
+            # Try to extract index= value
+            if ($0 ~ /index=[0-9]+/) {
+                # Extract the number after index=
+                idx_part = $0
+                sub(/.*index=/, "", idx_part)
+                sub(/[^0-9].*/, "", idx_part)
+                current_index = idx_part
+            } else {
+                tab_index++
+                current_index=tab_index
+            }
+            if ($0 ~ /focus=true/ && current_index != "") {
+                print current_index
+                exit 0
+            }
+        }
+    ' <<< "$layout"
 }
 
 # Generate tab name with emoji based on event and tool
@@ -122,8 +245,9 @@ main() {
     tool_name=$(echo "$input" | jq -r '.tool_name // ""' 2>/dev/null)
     tool_input=$(echo "$input" | jq -c '.tool_input // {}' 2>/dev/null)
     notification_type=$(echo "$input" | jq -r '.notification_type // ""' 2>/dev/null)
+    session_id=$(echo "$input" | jq -r '.session_id // ""' 2>/dev/null)
 
-    log "Parsed - hook_event: '$hook_event', tool_name: '$tool_name', notification_type: '$notification_type'"
+    log "Parsed - hook_event: '$hook_event', tool_name: '$tool_name', notification_type: '$notification_type', session_id: '$session_id'"
 
     # Special handling for idle_prompt notification
     if [ "$notification_type" = "idle_prompt" ]; then
@@ -136,12 +260,18 @@ main() {
         exit 0
     fi
 
+    # Check if this is SessionStart
+    is_session_start="false"
+    if [ "$hook_event" = "SessionStart" ]; then
+        is_session_start="true"
+    fi
+
     # Generate tab name
     tab_name=$(get_tab_name "$hook_event" "$tool_name" "$tool_input")
     log "Generated tab name: '$tab_name'"
 
     # Update Zellij tab
-    update_zellij_tab "$tab_name"
+    update_zellij_tab "$tab_name" "$session_id" "$is_session_start"
 
     log "========== Hook completed =========="
     exit 0
