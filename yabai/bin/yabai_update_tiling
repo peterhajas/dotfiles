@@ -18,12 +18,29 @@ def log(message: str) -> None:
         print(f"[yabai_update_tiling] {message}")
 
 # Constants
-EDGE_PADDING = 14
-PADDING = 20
-WIDGET_PADDING = 194 + EDGE_PADDING
+SUBPROCESS_TIMEOUT = 5.0
 ULTRAWIDE_THRESHOLD = 2000  # plh-evil
 WORKSPACE_WIDTH_THRESHOLD = 5000  # Switch to 5-bucket layout when total width exceeds this
-SUBPROCESS_TIMEOUT = 5.0
+
+
+def query_yabai_config(key: str, default: int) -> int:
+    """Query a yabai config value."""
+    try:
+        result = subprocess.run(
+            ["yabai", "-m", "config", key],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=True
+        )
+        return int(result.stdout.strip())
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError):
+        return default
+
+# Padding configuration - query from yabai and environment
+EDGE_PADDING = int(os.environ.get('YABAI_EDGE_PADDING', '14'))
+PADDING = query_yabai_config('window_gap', 20)
+WIDGET_PADDING = int(os.environ.get('YABAI_WIDGET_PADDING', '208'))
 CONFIG_EVENTS = {
     "display_added",
     "display_changed",
@@ -713,10 +730,6 @@ def main() -> None:
 
     log(f"Found {len(displays)} display(s), {len(spaces)} space(s), {len(windows)} window(s)")
     should_update_config = not event or event in CONFIG_EVENTS
-
-    # Set geometry only when display geometry may have changed
-    if should_update_config:
-        executor.execute(["yabai", "-m", "config", "window_gap", str(PADDING)])
 
     total_workspace_width = workspace_width(displays)
     widest_display_width = max(d.get("frame", {}).get("w", 0) for d in displays) if displays else 0
