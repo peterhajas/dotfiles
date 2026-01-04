@@ -24,6 +24,7 @@ keybinds clear-defaults=true {
         bind "s" { NewPane "stacked"; SwitchToMode "normal"; }
         bind "w" { ToggleFloatingPanes; SwitchToMode "normal"; }
         bind "z" { TogglePaneFrames; SwitchToMode "normal"; }
+        bind "=" { NextSwapLayout; SwitchToMode "normal"; }
     }
     tab {
         bind "left" { GoToPreviousTab; }
