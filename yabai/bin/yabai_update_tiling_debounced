@@ -1,0 +1,28 @@
+#!/bin/bash
+
+# Debounced wrapper for yabai_update_tiling
+# Only runs the actual update after movement stops for DELAY seconds
+
+DELAY=0.3  # seconds to wait after last event
+LOCKFILE="/tmp/yabai_update_tiling.lock"
+
+# Update timestamp
+date +%s.%N > "$LOCKFILE"
+
+# Spawn background process to check if we should run
+(
+    sleep "$DELAY"
+
+    # Check if lockfile still exists and hasn't been updated
+    if [ -f "$LOCKFILE" ]; then
+        last_update=$(cat "$LOCKFILE" 2>/dev/null || echo 0)
+        now=$(date +%s.%N)
+        elapsed=$(echo "$now - $last_update" | bc)
+
+        # If enough time has passed, run the update
+        if (( $(echo "$elapsed >= $DELAY" | bc -l) )); then
+            ~/bin/yabai_update_tiling
+            rm -f "$LOCKFILE"
+        fi
+    fi
+) &
