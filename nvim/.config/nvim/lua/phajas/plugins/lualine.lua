@@ -1,7 +1,23 @@
-local palette = require("phajas.colors.palette")
+local palette_path = vim.fn.stdpath("config") .. "/lua/phajas/colors/palette.lua"
+
+local function loadPalette()
+    local ok, palette = pcall(dofile, palette_path)
+    if not ok or type(palette) ~= "table" then
+        return { variants = {}, default_variant = nil }
+    end
+    return {
+        variants = palette.variants or {},
+        default_variant = palette.default_variant,
+    }
+end
 
 local function select_variant()
-    for name, variant in pairs(palette.variants or {}) do
+    local palette = loadPalette()
+    local requested = vim.g.phajas_palette_variant
+    if requested and palette.variants[requested] then
+        return palette.variants[requested]
+    end
+    for _, variant in pairs(palette.variants or {}) do
         if variant.flavor == vim.o.background then
             return variant
         end
@@ -57,7 +73,7 @@ local function build_theme()
     }
 end
 
-require('lualine').setup {
+local config = {
     options = {
         icons_enabled = true,
         theme = build_theme(),
@@ -107,3 +123,18 @@ require('lualine').setup {
         'oil',
     }
 }
+
+local function apply_lualine_theme()
+    config.options.theme = build_theme()
+    require('lualine').setup(config)
+    pcall(require('lualine').refresh)
+end
+
+apply_lualine_theme()
+
+vim.api.nvim_create_autocmd("ColorScheme", {
+    pattern = "*",
+    callback = function()
+        apply_lualine_theme()
+    end,
+})

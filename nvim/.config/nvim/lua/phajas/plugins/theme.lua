@@ -3,6 +3,23 @@
 local state_file = vim.fn.expand("~/.config/colorscheme/current")
 local last_state_mtime = 0
 local last_variant_name = nil
+local palette_path = vim.fn.stdpath("config") .. "/lua/phajas/colors/palette.lua"
+
+local function loadPalette()
+    local ok, palette = pcall(dofile, palette_path)
+    if not ok or type(palette) ~= "table" then
+        return {
+            families = {},
+            default_family = "modus",
+            default_variant = nil,
+        }
+    end
+    return {
+        families = palette.families or {},
+        default_family = palette.default_family or "modus",
+        default_variant = palette.default_variant,
+    }
+end
 
 local function detectMacOSAppearance()
     -- Query macOS for the current appearance (light or dark mode)
@@ -35,21 +52,15 @@ end
 
 local function getVariantForFamily(family, flavor)
     -- Map family + flavor to specific variant name
-    -- These mappings come from palette.toml families section
-    local families = {
-        modus = {
-            light = "modus_operandi",
-            dark = "modus_vivendi"
-        },
-        catppuccin = {
-            light = "catppuccin_latte",
-            dark = "catppuccin_frappe"
-        }
-    }
-
-    local f = families[family]
+    local palette = loadPalette()
+    local f = palette.families[family]
     if f then
-        return f[flavor]
+        if flavor == "light" then
+            return f.light_variant
+        end
+        if flavor == "dark" then
+            return f.dark_variant
+        end
     end
 
     return nil
@@ -81,10 +92,17 @@ local function applyTheme()
     local flavor = detectMacOSAppearance()
 
     -- Get family from state file (or default to modus)
-    local family = readColorschemeFamily() or "modus"
+    local palette = loadPalette()
+    local family = readColorschemeFamily() or palette.default_family
 
     -- Combine family + flavor to get specific variant
     local variant = getVariantForFamily(family, flavor)
+    if not variant and palette.families[palette.default_family] then
+        variant = getVariantForFamily(palette.default_family, flavor)
+    end
+    if not variant and palette.default_variant then
+        variant = palette.default_variant
+    end
 
     if variant then
         vim.g.phajas_palette_variant = variant
