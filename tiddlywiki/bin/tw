@@ -3107,30 +3107,39 @@ def serve_webdav(wiki_path, host='localhost', port=8081, readonly=False):
             print(f"Error starting server: {e}", file=sys.stderr)
         sys.exit(1)
 
+def show_help():
+    """Display usage information"""
+    print("Usage: tw [<wiki_path>] <command> [args]", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Commands:", file=sys.stderr)
+    print("  init <dest_path>            - Create a new empty wiki", file=sys.stderr)
+    print("  ls                          - List all tiddlers", file=sys.stderr)
+    print("  cat <tiddler>               - Display tiddler contents", file=sys.stderr)
+    print("  edit <tiddler>              - Edit tiddler in $EDITOR", file=sys.stderr)
+    print("  json <tiddler> [...]        - Output tiddler(s) as JSON (--all for all tiddlers)", file=sys.stderr)
+    print("  get <tiddler> <field>       - Get a specific field value", file=sys.stderr)
+    print("  set <tiddler> <field> <val> - Set a field value", file=sys.stderr)
+    print("  rm <tiddler>                - Remove a tiddler", file=sys.stderr)
+    print("  touch <tiddler> [text]      - Create or update a tiddler", file=sys.stderr)
+    print("  insert <json>               - Insert/replace tiddler(s) from JSON", file=sys.stderr)
+    print("  replace <content>           - Insert/replace from cat format", file=sys.stderr)
+    print("  append <tiddler> [text]     - Append text to tiddler", file=sys.stderr)
+    print("  detect                      - Detect wiki format (modern or legacy)", file=sys.stderr)
+    print("  filetype-map                - Output MIME type to filetype mapping as JSON", file=sys.stderr)
+    print("  mimetype <filename>         - Get MIME type for a file extension", file=sys.stderr)
+    print("  install_plugin              - Install live reload plugin", file=sys.stderr)
+    print("  serve [options]             - Serve wiki locally (--host, --port, --readonly)", file=sys.stderr)
+    print("  webdav [options]            - Serve tiddlers via WebDAV (--host, --port, --readonly)", file=sys.stderr)
+    print("  filter <expression>         - Evaluate a TiddlyWiki filter expression", file=sys.stderr)
+
 def main():
+    # Check for help flag
+    if len(sys.argv) > 1 and sys.argv[1] in ('--help', '-h', 'help'):
+        show_help()
+        sys.exit(0)
+
     if len(sys.argv) < 2:
-        print("Usage: tw [<wiki_path>] <command> [args]", file=sys.stderr)
-        print("", file=sys.stderr)
-        print("Commands:", file=sys.stderr)
-        print("  init <dest_path>            - Create a new empty wiki", file=sys.stderr)
-        print("  ls                          - List all tiddlers", file=sys.stderr)
-        print("  cat <tiddler>               - Display tiddler contents", file=sys.stderr)
-        print("  edit <tiddler>              - Edit tiddler in $EDITOR", file=sys.stderr)
-        print("  json <tiddler> [...]        - Output tiddler(s) as JSON (--all for all tiddlers)", file=sys.stderr)
-        print("  get <tiddler> <field>       - Get a specific field value", file=sys.stderr)
-        print("  set <tiddler> <field> <val> - Set a field value", file=sys.stderr)
-        print("  rm <tiddler>                - Remove a tiddler", file=sys.stderr)
-        print("  touch <tiddler> [text]      - Create or update a tiddler", file=sys.stderr)
-        print("  insert <json>               - Insert/replace tiddler(s) from JSON", file=sys.stderr)
-        print("  replace <content>           - Insert/replace from cat format", file=sys.stderr)
-        print("  append <tiddler> [text]     - Append text to tiddler", file=sys.stderr)
-        print("  detect                      - Detect wiki format (modern or legacy)", file=sys.stderr)
-        print("  filetype-map                - Output MIME type to filetype mapping as JSON", file=sys.stderr)
-        print("  mimetype <filename>         - Get MIME type for a file extension", file=sys.stderr)
-        print("  install_plugin              - Install live reload plugin", file=sys.stderr)
-        print("  serve [options]             - Serve wiki locally (--host, --port, --readonly)", file=sys.stderr)
-        print("  webdav [options]            - Serve tiddlers via WebDAV (--host, --port, --readonly)", file=sys.stderr)
-        print("  filter <expression>         - Evaluate a TiddlyWiki filter expression", file=sys.stderr)
+        show_help()
         sys.exit(1)
 
     # Parse arguments: check if first arg is a wiki path or a command
