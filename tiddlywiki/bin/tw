@@ -3159,6 +3159,11 @@ def main():
         print("Error: No command provided", file=sys.stderr)
         sys.exit(1)
 
+    # Check for help flag as command (e.g., tw wiki.html --help)
+    if command in ('--help', '-h', 'help'):
+        show_help()
+        sys.exit(0)
+
     # Handle commands that don't need a wiki path
     if command == "init":
         if arg_idx + 1 >= len(sys.argv):
