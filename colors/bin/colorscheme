@@ -11,6 +11,7 @@ Commands:
   colorscheme modus        # Switch to Modus family
   colorscheme ef_melissa   # Switch to Ef Melissa family
   colorscheme catppuccin   # Switch to Catppuccin family
+  colorscheme switch       # Interactive picker for theme families
 
 To toggle light/dark mode, use macOS System Settings → Appearance.
 Applications will auto-update within 3 seconds.
@@ -22,6 +23,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Optional, Dict, Any
+import time
 
 # Load the build.py module for palette parsing
 DOTFILES = Path(__file__).resolve().parent.parent.parent
@@ -218,6 +220,14 @@ class ColorschemeManager:
         else:
             print("  ⊘ Hammerspoon (not found)")
 
+    def hs_path(self) -> Optional[str]:
+        """Return Hammerspoon CLI path if available."""
+        hs_path = "/usr/local/bin/hs"
+        if not Path(hs_path).exists():
+            hs_path = "/opt/homebrew/bin/hs"
+        if Path(hs_path).exists():
+            return hs_path
+        return None
 
     def reload_sketchybar(self):
         """Reload Sketchybar."""
@@ -264,6 +274,103 @@ class ColorschemeManager:
             print(f"    Dark:    {dark_variant}")
             print()
 
+    def switch_interactive(self):
+        """Interactively pick a theme family using the chooser."""
+        hs_path = self.hs_path()
+        if not hs_path:
+            print("Error: Hammerspoon CLI not found (hs).", file=sys.stderr)
+            sys.exit(1)
+
+        items = []
+        current_family = self.state.get("family")
+        flavor = self.get_macos_appearance()
+
+        for family_name, family_data in sorted(self.palette["families"].items()):
+            label = family_data.get("name", "Unknown")
+            license_name = family_data.get("license", "Unknown")
+            light_variant = family_data.get("light_variant", "unknown")
+            dark_variant = family_data.get("dark_variant", "unknown")
+            variant_name = self.find_variant_by_family_and_flavor(family_name, flavor)
+            variant = self.palette["variants"].get(variant_name, {})
+            extended = variant.get("extended", {})
+
+            color = extended.get("blue") or variant.get("foreground") or "#000000"
+            subcolor = extended.get("fg_dim") or extended.get("fg_alt") or variant.get("foreground") or "#666666"
+
+            text = f"{family_name} — {label}"
+            subtext = f"{license_name} • light={light_variant} • dark={dark_variant}"
+            items.append(
+                {
+                    "family": family_name,
+                    "text": text,
+                    "subtext": subtext,
+                    "color": color,
+                    "subcolor": subcolor,
+                }
+            )
+
+        if not items:
+            print("No theme families found.", file=sys.stderr)
+            sys.exit(1)
+
+        selected_index = None
+        if current_family:
+            for idx, item in enumerate(items, start=1):
+                if item["family"] == current_family:
+                    selected_index = idx
+                    break
+
+        payload = {
+            "items": items,
+            "selected_index": selected_index,
+        }
+        payload_json = json.dumps(payload).replace("\\", "\\\\").replace("'", "\\'")
+
+        lua = (
+            "local hs = hs\n"
+            "local data = hs.json.decode('" + payload_json + "')\n"
+            "local choices = {}\n"
+            "for i, item in ipairs(data.items) do\n"
+            "  local text = hs.styledtext.new(item.text, { color = { hex = item.color }, font = { name = 'Menlo', size = 16 } })\n"
+            "  local sub = hs.styledtext.new(item.subtext, { color = { hex = item.subcolor }, font = { name = 'Menlo', size = 12 } })\n"
+            "  table.insert(choices, { text = text, subText = sub, family = item.family })\n"
+            "end\n"
+            "if _G.colorschemeChooser == nil then\n"
+            "  _G.colorschemeChooser = hs.chooser.new(function(choice)\n"
+            "    if choice and choice.family then\n"
+            "      _G.colorschemeChooserChoice = choice.family\n"
+            "    else\n"
+            "      _G.colorschemeChooserChoice = 'NOTHING_PICKED_IN_CHOOSER'\n"
+            "    end\n"
+            "  end)\n"
+            "  _G.colorschemeChooser:searchSubText(true)\n"
+            "end\n"
+            "_G.colorschemeChooserChoice = nil\n"
+            "_G.colorschemeChooser:choices(choices)\n"
+            "if data.selected_index then _G.colorschemeChooser:selectedRow(data.selected_index) end\n"
+            "_G.colorschemeChooser:show()\n"
+        )
+
+        subprocess.run([hs_path, "-c", lua], check=False, stderr=subprocess.DEVNULL)
+
+        choice = None
+        for _ in range(400):  # ~20s
+            out = subprocess.run(
+                [hs_path, "-c", "if _G.colorschemeChooserChoice then return _G.colorschemeChooserChoice else return nil end"],
+                capture_output=True,
+                text=True,
+                check=False,
+            ).stdout.strip()
+            if out and out != "nil":
+                choice = out
+                break
+            time.sleep(0.05)
+
+        if not choice or choice == "NOTHING_PICKED_IN_CHOOSER":
+            return
+
+        self.switch_family(choice)
+
 
 def main():
     if len(sys.argv) == 1:
@@ -278,6 +385,8 @@ def main():
     if command == "list":
         # List available families
         manager.list_families()
+    elif command == "switch":
+        manager.switch_interactive()
     elif command in manager.palette["families"]:
         # Switch to family (e.g., "modus" or "catppuccin")
         manager.switch_family(command)

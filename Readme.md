@@ -52,6 +52,10 @@ This repository includes the following GPL-licensed components:
   - Palette data: `colors/.config/colors/palettes/ef_*.toml` contains Ef-derived values; all generated artifacts from it inherit GPL v3 obligations.
   - License: GPL v3 (see `colors/.config/colors/LICENSE`)
   - Source: https://github.com/protesilaos/ef-themes
+- **Catppuccin** by Catppuccin Org
+  - Palette data: `colors/.config/colors/palettes/catppuccin.toml` contains Catppuccin-derived values; generated artifacts that include those palettes follow MIT terms.
+  - License: MIT (see `colors/.config/colors/LICENSE-catppuccin`)
+  - Source: https://github.com/catppuccin/catppuccin
 
 ## License
 
