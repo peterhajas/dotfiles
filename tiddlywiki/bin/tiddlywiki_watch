@@ -1,32 +1,31 @@
 #!/bin/bash
-# Watch wiki file and sync on changes using entr
-# Also periodically pull remote changes
+# One-shot TiddlyWiki sync - runs on 3-minute interval via LaunchD
+# Combines pull and push logic in a single execution
 
 cd ~/phajas-wiki || exit 1
 
-# Start background job to periodically pull remote changes
-(
-    while true; do
-        sleep 300  # 5 minutes
-        ~/bin/tiddlywiki_pull
-    done
-) &
-PULL_PID=$!
+GIT=$(which git)
 
-# Cleanup function to kill background job on exit
-cleanup() {
-    kill $PULL_PID 2>/dev/null
-    exit
+# Network check function
+checkNetwork() {
+    ping -c 1 peterhajas.com > /dev/null 2>&1
 }
-trap cleanup SIGTERM SIGINT
 
-while true; do
-    # entr -d: wait for file to stop changing before executing
-    # entr -p: postpone first execution until file changes
-    # entr -n: run non-interactively (for LaunchD/background use)
-    echo "$HOME/phajas-wiki/phajas-wiki.html" | \
-        /opt/homebrew/bin/entr -d -p -n ~/bin/tiddlywiki_sync
+# Exit early if no network
+if ! checkNetwork; then
+    echo "No network connectivity. Sync skipped."
+    exit 0
+fi
 
-    # entr exits when file is deleted/renamed, loop restarts it
-    sleep 1
-done
+# Check if there are uncommitted local changes
+if [[ -n $($GIT status --porcelain) ]]; then
+    # We have local changes - commit and push
+    echo "Local changes detected, committing and pushing..."
+    $GIT add *
+    $GIT commit -a -m "auto commit from macOS"
+    $GIT pull --rebase origin master && $GIT push origin master
+else
+    # No local changes - just pull remote changes
+    echo "No local changes, pulling remote updates..."
+    $GIT pull --rebase origin master
+fi
