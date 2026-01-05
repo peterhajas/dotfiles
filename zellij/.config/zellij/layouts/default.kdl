@@ -44,7 +44,85 @@ layout {
             pane
             pane
         }
+        tab max_panes=8 split_direction="vertical" {
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+        }
         tab max_panes=7 split_direction="vertical" {
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+        }
+        tab max_panes=9 split_direction="vertical" {
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+        }
+    }
+    swap_tiled_layout name="even-horizontal" {
+        tab max_panes=1 {
+            pane
+        }
+        tab max_panes=2 split_direction="horizontal" {
+            pane
+            pane
+        }
+        tab max_panes=3 split_direction="horizontal" {
+            pane
+            pane
+            pane
+        }
+        tab max_panes=4 split_direction="horizontal" {
+            pane
+            pane
+            pane
+            pane
+        }
+        tab max_panes=5 split_direction="horizontal" {
+            pane
+            pane
+            pane
+            pane
+            pane
+        }
+        tab max_panes=6 split_direction="horizontal" {
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+        }
+        tab max_panes=8 split_direction="horizontal" {
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+        }
+        tab max_panes=7 split_direction="horizontal" {
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+            pane
+        }
+        tab max_panes=9 split_direction="horizontal" {
             pane
             pane
             pane
