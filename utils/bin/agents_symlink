@@ -62,6 +62,12 @@ if [ -L "AGENTS.md" ] && [ "$(readlink "AGENTS.md")" = "CLAUDE.md" ]; then
     exit 0
 fi
 
+# If neither file exists, create an empty AGENTS.md.
+if [ ! -e "AGENTS.md" ] && [ ! -e "CLAUDE.md" ]; then
+    printf "" > "AGENTS.md"
+    echo "✓ Created empty AGENTS.md in $FULL_PATH"
+fi
+
 # Check if AGENTS.md exists
 if [ ! -f "AGENTS.md" ]; then
     echo "Error: AGENTS.md not found in $FULL_PATH"
