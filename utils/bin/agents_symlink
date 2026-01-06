@@ -13,6 +13,55 @@ DIR="${1:-.}"
 cd "$DIR"
 FULL_PATH=$(pwd)
 
+# If AGENTS.md is missing but CLAUDE.md exists, offer to flip it.
+if [ ! -e "AGENTS.md" ] && [ -e "CLAUDE.md" ]; then
+    echo "Warning: AGENTS.md not found, but CLAUDE.md exists in $FULL_PATH"
+    read -p "Create AGENTS.md from CLAUDE.md and link CLAUDE.md → AGENTS.md? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted"
+        exit 1
+    fi
+    if [ -L "CLAUDE.md" ] && [ "$(readlink "CLAUDE.md")" = "AGENTS.md" ]; then
+        echo "Error: CLAUDE.md points to missing AGENTS.md in $FULL_PATH"
+        exit 1
+    fi
+    if [ -L "CLAUDE.md" ]; then
+        cp -p "CLAUDE.md" "AGENTS.md"
+        rm "CLAUDE.md"
+    else
+        mv "CLAUDE.md" "AGENTS.md"
+    fi
+    ln -s AGENTS.md CLAUDE.md
+    echo "✓ Fixed: AGENTS.md is now the real file in $FULL_PATH"
+    exit 0
+fi
+
+# If AGENTS.md is a symlink back to CLAUDE.md, fix the direction.
+if [ -L "AGENTS.md" ] && [ "$(readlink "AGENTS.md")" = "CLAUDE.md" ]; then
+    echo "Warning: AGENTS.md is a symlink to CLAUDE.md in $FULL_PATH"
+    read -p "Fix by making AGENTS.md the real file and linking CLAUDE.md → AGENTS.md? (y/N) " -n 1 -r
+    echo
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        echo "Aborted"
+        exit 1
+    fi
+    if [ -L "CLAUDE.md" ] && [ "$(readlink "CLAUDE.md")" = "AGENTS.md" ]; then
+        echo "Error: CLAUDE.md is also a symlink to AGENTS.md in $FULL_PATH"
+        exit 1
+    fi
+    rm "AGENTS.md"
+    if [ -L "CLAUDE.md" ]; then
+        cp -p "CLAUDE.md" "AGENTS.md"
+        rm "CLAUDE.md"
+    else
+        mv "CLAUDE.md" "AGENTS.md"
+    fi
+    ln -s AGENTS.md CLAUDE.md
+    echo "✓ Fixed: AGENTS.md is now the real file in $FULL_PATH"
+    exit 0
+fi
+
 # Check if AGENTS.md exists
 if [ ! -f "AGENTS.md" ]; then
     echo "Error: AGENTS.md not found in $FULL_PATH"
