@@ -1,0 +1,45 @@
+#!/bin/sh
+
+# zellij_kick: Kill "zellij attach <session>" processes for a session.
+# Usage: zellij_kick [session]
+
+set -e
+
+escape_ere() {
+    printf '%s' "$1" | sed 's/[][(){}.^$*+?|\\/]/\\&/g'
+}
+
+pick_session() {
+    if ! command -v fzf >/dev/null 2>&1; then
+        echo "Error: fzf not found and no session provided" >&2
+        exit 1
+    fi
+    if ! zellij list-sessions >/dev/null 2>&1; then
+        echo "Error: no zellij sessions found" >&2
+        exit 1
+    fi
+    zellij list-sessions --no-formatting --short 2>/dev/null \
+        | awk '{print $1}' \
+        | grep -v '^$' \
+        | fzf --prompt="Kick session: "
+}
+
+SESSION_NAME="$1"
+if [ -z "$SESSION_NAME" ]; then
+    SESSION_NAME=$(pick_session)
+fi
+
+if [ -z "$SESSION_NAME" ]; then
+    exit 0
+fi
+
+SESSION_RE=$(escape_ere "$SESSION_NAME")
+pids=$(pgrep -f "zellij(\\s+attach|\\s+a)(\\s+[^ ]+)*\\s+$SESSION_RE(\\s|$)" 2>/dev/null || true)
+
+if [ -z "$pids" ]; then
+    echo "No attachers found for session '$SESSION_NAME'"
+    exit 0
+fi
+
+echo "$pids" | xargs kill 2>/dev/null || true
+echo "✓ Killed attachers for session '$SESSION_NAME'"
