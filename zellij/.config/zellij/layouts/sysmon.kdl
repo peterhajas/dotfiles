@@ -1,3 +1,5 @@
+pane_frames false
+
 layout {
     pane split_direction="horizontal" {
         // Section 1: CPU / Memory / Network graphs
