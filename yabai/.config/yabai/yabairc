@@ -1,7 +1,7 @@
 # vim: ft=bash
 
 # Padding configuration
-yabai -m config window_gap 20
+yabai -m config window_gap 0
 yabai -m config top_padding 0
 yabai -m config bottom_padding 0
 yabai -m config left_padding 0
@@ -11,7 +11,7 @@ yabai -m config right_padding 0
 yabai -m config --space 1 right_padding 208
 
 # Padding values for yabai_update_tiling script
-export YABAI_EDGE_PADDING=14
+export YABAI_EDGE_PADDING=0
 export YABAI_WIDGET_PADDING=208
 
 yabai -m config \
