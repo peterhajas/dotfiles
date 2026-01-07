@@ -260,6 +260,18 @@ class TestIsManagementDisabled(unittest.TestCase):
         }
         self.assertFalse(yut.is_management_disabled(window))
 
+    def test_non_regular_window_disabled(self):
+        """Non-regular windows (e.g., tooltips) should be disabled."""
+        window = {
+            "id": 2,
+            "app": "Xcode",
+            "title": "Quick Open",
+            "role": "AXWindow",
+            "subrole": "AXUnknown",
+            "level": 0
+        }
+        self.assertTrue(yut.is_management_disabled(window))
+
 
 class TestLayoutModeSelection(unittest.TestCase):
     """Tests for layout mode selection logic."""

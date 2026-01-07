@@ -479,6 +479,11 @@ def is_management_disabled(win: Optional[Dict[str, Any]]) -> bool:
     win_id = win.get("id")
     app = win.get("app", "")
 
+    # Only apply tiling to regular windows
+    if not is_regular_window(win):
+        log(f"Window {win_id} ({app}) is not a regular window, management disabled")
+        return True
+
     # Defensive check: explicitly exclude apps that should never be managed
     # This prevents race conditions where yabai rules haven't been applied yet (e.g., window_created events)
     # Apps are extracted from yabai manage=off rules at startup
@@ -567,6 +572,27 @@ def is_panel_or_dialog(win: Optional[Dict[str, Any]]) -> bool:
     level = win.get("level")
     if level is not None and level != 0:
         log(f"Window {win_id} has non-normal level {level}, keeping floating")
+        return True
+
+    return False
+
+
+def is_regular_window(win: Optional[Dict[str, Any]]) -> bool:
+    """
+    Check if a window is a regular, tilable window.
+
+    Regular windows are standard application windows (AXWindow/AXStandardWindow).
+    Tooltips, quick-open panels, and other transient UI should be excluded.
+    """
+    if not win:
+        return False
+
+    role = win.get("role", "")
+    subrole = win.get("subrole", "")
+    level = win.get("level")
+
+    # Regular windows are standard AXWindow/AXStandardWindow at normal level
+    if role == "AXWindow" and subrole == "AXStandardWindow" and (level is None or level == 0):
         return True
 
     return False
