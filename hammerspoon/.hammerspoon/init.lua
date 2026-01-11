@@ -142,16 +142,25 @@ profileStop('screenChanges')
 profileStart('caffeinate')
 -- {{{ Caffeinate
 
+local function scheduleFluxRefresh()
+    flux.significantTimeDidChange()
+    hs.timer.doAfter(2, function() flux.significantTimeDidChange() end)
+    hs.timer.doAfter(8, function() flux.significantTimeDidChange() end)
+end
+
 function caffeinateCallback(eventType)
     if (eventType == hs.caffeinate.watcher.screensDidSleep) then
     elseif (eventType == hs.caffeinate.watcher.screensDidWake) then
-        flux.significantTimeDidChange()
+        scheduleFluxRefresh()
+    elseif (eventType == hs.caffeinate.watcher.systemDidWake) then
+        scheduleFluxRefresh()
     elseif (eventType == hs.caffeinate.watcher.screensDidLock) then
         streamdeck:sleep()
         -- hs.execute("osascript -e 'tell application \"DisplayLink Manager\" to quit'")
     elseif (eventType == hs.caffeinate.watcher.screensDidUnlock) then
         streamdeck:wake()
         -- hs.application.open("DisplayLink Manager")
+        scheduleFluxRefresh()
 
     end
 end
@@ -228,4 +237,3 @@ end
 hs.alert.show("hs ready!")
 
 profileStop('configTotal')
-
