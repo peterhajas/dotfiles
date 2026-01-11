@@ -7,7 +7,7 @@ STATE_DIR="$HOME/.claude-state"
 SESSION_DIR="$STATE_DIR/sessions"
 PERMISSION_DIR="$STATE_DIR/permissions"
 LOG_FILE="/tmp/claude-hook.log"
-PERMISSION_TIMEOUT=300  # 5 minutes
+PERMISSION_TIMEOUT=1800  # 30 minutes
 POLL_INTERVAL=0.5
 
 # ntfy Configuration

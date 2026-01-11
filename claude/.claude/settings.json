@@ -83,23 +83,6 @@
         ]
       }
     ],
-    "PermissionRequest": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/hammerspoon_hook",
-            "timeout": 300000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_rename",
-            "timeout": 1000
-          }
-        ]
-      }
-    ],
     "Stop": [
       {
         "matcher": "*",
