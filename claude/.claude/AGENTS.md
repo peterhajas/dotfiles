@@ -24,12 +24,14 @@
 - **Quality gates**: Run lint/typecheck/tests before handoff
 - **No `rm`**: Use `trash` for safer deletions (when available)
 - **Regression tests**: Add when fixing bugs
+- Unless prompted, **do not** write a "Demo" or "fake" implementation if you can't figure something out.
 
 ## Git Safety
 - Status/diff/log: Freely available, read-only ops
 - Push: Only when explicitly requested
 - Destructive operations: Require explicit user consent
 - No force-push without clear authorization
+- **Commits**: Only commit the changes you made - other agents/users may be modifying files
 
 ## Custom Tools
 
