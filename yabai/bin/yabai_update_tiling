@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import atexit
 import json
 import os
 import subprocess
 import sys
+import time
 from typing import Any, Dict, List, Optional
 import re
 
@@ -21,6 +23,9 @@ def log(message: str) -> None:
 SUBPROCESS_TIMEOUT = 5.0
 ULTRAWIDE_THRESHOLD = 2000  # plh-evil
 WORKSPACE_WIDTH_THRESHOLD = 5000  # Switch to 5-bucket layout when total width exceeds this
+LOCK_PATH = "/tmp/yabai_update_tiling.active"
+LOCK_STALE_SECONDS = 6.0
+LOCK_ENV_SKIP = "YABAI_UPDATE_TILING_SKIP_LOCK"
 
 
 def query_yabai_config(key: str, default: int) -> int:
@@ -176,6 +181,34 @@ def run_cmd(cmd: List[str]) -> None:
         )
     except subprocess.TimeoutExpired:
         log(f"  -> timeout after {SUBPROCESS_TIMEOUT}s")
+
+
+def acquire_lock(path: str, stale_seconds: float) -> bool:
+    """Acquire a single-instance lock; return False if another run is active."""
+    now = time.time()
+    try:
+        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        with os.fdopen(fd, "w") as f:
+            f.write(f"{os.getpid()}\n{now}\n")
+        return True
+    except FileExistsError:
+        try:
+            with open(path, "r") as f:
+                lines = f.read().splitlines()
+            ts = float(lines[1]) if len(lines) > 1 else 0.0
+            if now - ts > stale_seconds:
+                os.unlink(path)
+                return acquire_lock(path, stale_seconds)
+        except Exception:
+            pass
+        return False
+
+
+def release_lock(path: str) -> None:
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
 
 
 def get_display_by_index(displays: List[Dict[str, Any]], idx: int) -> Optional[Dict[str, Any]]:
@@ -674,6 +707,15 @@ def main() -> None:
     global VERBOSE
     args = parse_args()
     VERBOSE = args.verbose
+
+    # Prevent re-entrant updates triggered by our own window moves/resizes
+    lock_acquired = False
+    if not args.test_data and os.environ.get(LOCK_ENV_SKIP) != "1":
+        lock_acquired = acquire_lock(LOCK_PATH, LOCK_STALE_SECONDS)
+        if not lock_acquired:
+            log("Another update in progress; skipping")
+            sys.exit(0)
+        atexit.register(release_lock, LOCK_PATH)
 
     # Initialize provider and executor based on args
     provider: YabaiDataProvider
