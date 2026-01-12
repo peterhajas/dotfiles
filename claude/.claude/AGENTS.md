@@ -21,7 +21,8 @@
 - **File size**: Keep files under ~500 LOC where practical
 - **Quality gates**: Run lint/typecheck/tests before handoff
 - **Regression tests**: Add when fixing bugs
-- Unless prompted, **do not** write a "Demo" or "fake" implementation if you can't figure something out.
+- Unless prompted, **do not** write a "Demo" or "fake" implementation if you can't figure something out
+- **Finding files**: When looking for files, make sure to also search in hidden files. Avoid tools that default to not showing these, like `rg`
 
 ## Git Safety
 - Status/diff/log: Freely available, read-only ops
