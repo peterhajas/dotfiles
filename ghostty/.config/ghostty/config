@@ -3,7 +3,7 @@
 cursor-style = "block"
 cursor-style-blink = "false"
 font-family = "Menlo"
-font-size = 14
+font-size = 15
 macos-icon = "custom-style"
 macos-icon-ghost-color = "white"
 macos-icon-screen-color = "black"
