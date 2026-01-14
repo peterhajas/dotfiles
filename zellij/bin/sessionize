@@ -102,7 +102,28 @@ ALL_OPTIONS="$SESSIONS
 $PREDEFINED_SESSIONS
 $DIRS"
 
-RESULT=$(echo "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="Session: " --print-query --expect=ctrl-n)
+PREVIEW_CMD='sh -c '"'"'
+selection="$1"
+if printf "%s" "$selection" | grep -q " \\[active session\\]$"; then
+    session_name=$(printf "%s" "$selection" | sed "s/ \\[active session\\]$//")
+    tmp_dir="${TMPDIR:-/tmp}"
+    tmp_file=$(mktemp "${tmp_dir}/zellij_sessionize_${session_name}.XXXXXX" 2>/dev/null || printf "%s/zellij_sessionize_%s.txt" "$tmp_dir" "$session_name")
+    preview_lines="${FZF_PREVIEW_LINES:-200}"
+    if zellij --session "$session_name" action dump-screen "$tmp_file" 2>/dev/null; then
+        printf "\033[1;34m%s\033[0m\n" "Session: $session_name"
+        if [ -s "$tmp_file" ]; then
+            sed -n "1,${preview_lines}p" "$tmp_file" 2>/dev/null
+        else
+            printf "\033[2m%s\033[0m\n" "(empty pane output)"
+        fi
+    else
+        printf "\033[31m%s\033[0m\n" "Unable to capture screen for session: $session_name"
+    fi
+    rm -f "$tmp_file" 2>/dev/null
+fi
+'"'"' sh {}'
+
+RESULT=$(echo "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="Session: " --print-query --expect=ctrl-n --preview="$PREVIEW_CMD" --preview-window=right:70%:wrap --ansi)
 
 if [ -z "$RESULT" ]; then
     exit 0
