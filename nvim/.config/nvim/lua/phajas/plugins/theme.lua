@@ -133,12 +133,10 @@ local bundleID = os.getenv("__CFBundleIdentifier")
        local new_appearance = detectMacOSAppearance()
        local state_changed = hasColorschemeStateChanged()
 
-       if current_bg ~= new_appearance or state_changed then
+        if current_bg ~= new_appearance or state_changed then
            applyTheme()
-           if state_changed then
-               vim.notify("Colorscheme family changed", vim.log.levels.INFO)
-           end
-       end
+        end
+
    end))
 
    -- Set up autocommand to reapply indent scope highlight after any colorscheme change
