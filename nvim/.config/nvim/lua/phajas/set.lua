@@ -44,8 +44,10 @@ vim.opt.signcolumn = "yes"
 -- Undo, Swap, Backup
 vim.opt.swapfile = false
 vim.opt.backup = false
-vim.opt.undodir = os.getenv("HOME") .. "/.vim/undodir"
+local undodir = vim.fn.stdpath("state") .. "/undodir"
+vim.opt.undodir = undodir
 vim.opt.undofile = true
+vim.fn.mkdir(undodir, "p")
 
 -- Diagnostics
 
