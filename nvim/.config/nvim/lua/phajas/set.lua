@@ -2,7 +2,7 @@
 -- effort to sort them
 --
 -- Set our clipboard to map to the system one
-vim.opt.clipboard = "unnamed"
+vim.opt.clipboard = "unnamedplus"
 
 -- Turn off gui stuff
 vim.opt.guicursor = ""
