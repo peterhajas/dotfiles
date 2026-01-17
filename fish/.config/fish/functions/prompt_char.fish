@@ -6,10 +6,6 @@ function prompt_char
     echo -n "6699CC" | read PROMPT_BLUE
     # If we're in a VCS, print some info
     if test $REPO_TYPE != (echo -n 'none')
-        # Current branch
-        echo -n (prompt_vcs_info)
-        echo -n ' '
-
         # Find the status of the current VCS
         echo -n (prompt_vcs_status) | read VCS_STATUS
         echo $VCS_STATUS | wc -c | read VCS_STATUS_LENGTH
@@ -28,9 +24,9 @@ function prompt_char
                 end
         end
 
-        # Now that we (might) have a custom color, set it and print the prompt character
+        # Now that we (might) have a custom color, set it and print the branch name
         set_color $PROMPT_COLOR --bold
-        echo -n (prompt_vcs_char)
+        echo -n (prompt_vcs_info)
     else
         # Print the regular prompt character
         set_color $PROMPT_COLOR --bold
