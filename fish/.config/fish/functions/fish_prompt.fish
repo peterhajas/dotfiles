@@ -27,4 +27,7 @@ function fish_prompt
 
     # Reset status for next prompt (will be overwritten by fish_postexec if command runs)
     set -g __fish_prompt_last_status 0
+
+    # Force block cursor
+    printf '\e[2 q'
 end

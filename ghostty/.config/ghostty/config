@@ -1,8 +1,8 @@
 # reload with ctrl+shift+, (Linux) or cmd+shift+, (macOS)
 
 # cursor
-cursor-style = "block"
-cursor-style-blink = "false"
+cursor-style = block
+cursor-style-blink = false
 
 # font
 font-family = "Menlo"
