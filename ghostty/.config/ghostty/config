@@ -10,6 +10,7 @@ macos-icon-screen-color = "black"
 # Use the native titlebar to avoid the macOS light/dark mismatch bug in Ghostty 1.2.x
 # macos-titlebar-style = "transparent"
 macos-titlebar-style = "native"
+macos-window-shadow = false
 window-theme = "system"
 resize-overlay = "never"
 shell-integration = "none"
