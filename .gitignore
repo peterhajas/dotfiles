@@ -85,6 +85,7 @@ uv.lock
 
 # Codex
 codex/.codex/rules
+codex/.codex/tmp
 
 # Colors
 colors/.config/colors/palettes/from_wallpaper*.toml
