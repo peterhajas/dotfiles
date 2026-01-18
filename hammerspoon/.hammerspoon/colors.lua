@@ -8,6 +8,7 @@ local colors = {}
 local lastAppearance = nil
 local lastStateMtime = 0
 local stateFile = os.getenv("HOME") .. "/.config/colorscheme/current"
+local colorsChangeListeners = {}
 
 -- System Colors
 alternateSelectedControlTextColor = nil
@@ -141,6 +142,15 @@ local function hasStateFileChanged()
     return false
 end
 
+local function notifyColorsChanged()
+    for _, listener in ipairs(colorsChangeListeners) do
+        local ok, err = pcall(listener)
+        if not ok then
+            print("colors: change listener failed: " .. tostring(err))
+        end
+    end
+end
+
 function checkAndUpdateColors()
     local currentAppearance = detectMacOSAppearance()
     local stateChanged = hasStateFileChanged()
@@ -153,6 +163,8 @@ function checkAndUpdateColors()
         if streamdeck and streamdeck.onColorsChanged then
             streamdeck:onColorsChanged()
         end
+
+        notifyColorsChanged()
 
         return true
     end
@@ -174,5 +186,10 @@ colorTimer:start()
 -- Export functions for external use
 colors.updateThemeColors = updateThemeColors
 colors.checkAndUpdateColors = checkAndUpdateColors
+colors.onColorsChanged = function(listener)
+    if type(listener) == "function" then
+        table.insert(colorsChangeListeners, listener)
+    end
+end
 
 return colors

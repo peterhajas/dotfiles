@@ -11,8 +11,20 @@ local yOffset = 0
 
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
+local hudStylesheetPath = os.getenv("HOME") .. "/dotfiles/userscripts/colorscheme.css"
 local cachedWikiContents = ""
+local cachedHudStylesheet = ""
 local wikiStates = {}
+
+local function readFile(path)
+    local handle = io.open(path, "r")
+    if handle == nil then
+        return nil
+    end
+    local contents = handle:read("*a")
+    handle:close()
+    return contents
+end
 
 local function createWikiState(name, tiddler, displayName)
     local rect = hs.geometry.rect(0,0,0,0)
@@ -41,10 +53,23 @@ end
 local function updateWikiState(wikiState)
     local contents = cachedWikiContents
     local tiddler = wikiState['tiddler']
-    local tiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">[
-{"title":"$:/plugins/phajas/hud/CurrentHUD","text":"]] .. tiddler .. [["}
-]</script>
-]]
+    local tiddlers = {
+        {
+            title = "$:/plugins/phajas/hud/CurrentHUD",
+            text = tiddler,
+        },
+    }
+    if cachedHudStylesheet ~= "" then
+        table.insert(tiddlers, {
+            title = "$:/plugins/phajas/hud/ColorschemeStylesheet",
+            type = "text/css",
+            tags = "$:/tags/Stylesheet",
+            text = cachedHudStylesheet,
+        })
+    end
+    local tiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">]]
+        .. hs.json.encode(tiddlers)
+        .. [[</script>]]
 
     local webViewContents = tiddlerStore .. contents
     local webView = wikiState['webView']
@@ -61,13 +86,15 @@ local function updateAllIfNeeded()
 end
 
 local function update()
-    local wikiFile = io.open(WikiPath, "r")
-    if wikiFile ~= nil then
-        local wikiContents = wikiFile:read("*a")
-        if wikiContents ~= cachedWikiContents then
-            cachedWikiContents = wikiContents
-            setNeedsUpdate()
-        end
+    local wikiContents = readFile(WikiPath)
+    if wikiContents ~= nil and wikiContents ~= cachedWikiContents then
+        cachedWikiContents = wikiContents
+        setNeedsUpdate()
+    end
+    local stylesheetContents = readFile(hudStylesheetPath) or ""
+    if stylesheetContents ~= cachedHudStylesheet then
+        cachedHudStylesheet = stylesheetContents
+        setNeedsUpdate()
     end
     updateAllIfNeeded()
 end
@@ -141,6 +168,15 @@ function UPDATEWIKI()
     layout()
 end
 
+local function registerColorsWatcher()
+    local ok, colors = pcall(require, "colors")
+    if ok and colors and colors.onColorsChanged then
+        colors.onColorsChanged(function()
+            update()
+        end)
+    end
+end
+
 local function setupWebView()
     createWikiState("main", "Heads Up Display Desktop", "Primary")
     -- createWikiState("right", "Heads Up Display Right", "FP222W (2)")
@@ -179,4 +215,5 @@ local function startWikiServer()
 end
 
 startWikiServer()
+registerColorsWatcher()
 setupWebView()
