@@ -1,16 +1,23 @@
 # reload with ctrl+shift+, (Linux) or cmd+shift+, (macOS)
 
+# cursor
 cursor-style = "block"
 cursor-style-blink = "false"
+
+# font
 font-family = "Menlo"
 font-size = 15
+
+# icon
+
 macos-icon = "custom-style"
 macos-icon-ghost-color = "white"
 macos-icon-screen-color = "black"
-# Use the native titlebar to avoid the macOS light/dark mismatch bug in Ghostty 1.2.x
+
+# theme
 macos-titlebar-style = "transparent"
-window-theme = "system"
 resize-overlay = "never"
-shell-integration = "none"
-# theme = dark:catppuccin-mocha,light:catppuccin-latte
+window-theme = "system"
+
+# theme
 theme = dark:modus_dark,light:modus_light
