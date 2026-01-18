@@ -1,0 +1,106 @@
+#!/usr/bin/awk -f
+# Cleans up URLs for sharing.
+# Usage: printf %s "https://twitter.com/..." | link_transform
+BEGIN {
+    RS = "\0"
+    ORS = ""
+    domains["imgur.com"] = 1
+    domains["instagram.com"] = 1
+    domains["medium.com"] = 1
+    domains["tiktok.com"] = 1
+
+    stripParams["dclid"] = 1
+    stripParams["fbclid"] = 1
+    stripParams["feature"] = 1
+    stripParams["gclid"] = 1
+    stripParams["igshid"] = 1
+    stripParams["mc_cid"] = 1
+    stripParams["mc_eid"] = 1
+    stripParams["pp"] = 1
+    stripParams["ref"] = 1
+    stripParams["ref_src"] = 1
+    stripParams["si"] = 1
+    stripParams["spm"] = 1
+    stripParams["utm_campaign"] = 1
+    stripParams["utm_content"] = 1
+    stripParams["utm_medium"] = 1
+    stripParams["utm_source"] = 1
+    stripParams["utm_term"] = 1
+}
+
+{
+    contents = $0
+    if (contents == "") {
+        exit 0
+    }
+
+    if (contents !~ /^https?:\/\//) {
+        exit 0
+    }
+
+    clean = contents
+    fragment = ""
+    split(clean, fragParts, "#")
+    if (length(fragParts) > 1) {
+        fragment = fragParts[2]
+    }
+
+    split(clean, queryParts, "?")
+    base = queryParts[1]
+    query = ""
+    if (length(queryParts) > 1) {
+        query = queryParts[2]
+    }
+
+    if (base ~ /^https?:\/\/(www\.)?x\.com(\/|$)/) {
+        sub(/^https?:\/\/(www\.)?x\.com/, "https://x.peterhajas.com", base)
+    } else if (base ~ /^https?:\/\/(www\.)?twitter\.com(\/|$)/) {
+        sub(/^https?:\/\/(www\.)?twitter\.com/, "https://x.peterhajas.com", base)
+    } else if (base ~ /^https?:\/\/mobile\.twitter\.com(\/|$)/) {
+        sub(/^https?:\/\/mobile\.twitter\.com/, "https://x.peterhajas.com", base)
+    } else if (base ~ /^https?:\/\/(www\.)?reddit\.com(\/|$)/) {
+        sub(/^https?:\/\/(www\.)?reddit\.com/, "https://reddit.peterhajas.com", base)
+    } else if (base ~ /^https?:\/\/old\.reddit\.com(\/|$)/) {
+        sub(/^https?:\/\/old\.reddit\.com/, "https://reddit.peterhajas.com", base)
+    }
+
+    clean = base
+    if (query != "") {
+        cleanedQuery = ""
+        num = split(query, params, "&")
+        for (i = 1; i <= num; i++) {
+            split(params[i], kv, "=")
+            key = kv[1]
+            if (key ~ /^utm_/) {
+                continue
+            }
+            if (key in stripParams) {
+                continue
+            }
+            if (cleanedQuery != "") {
+                cleanedQuery = cleanedQuery "&"
+            }
+            cleanedQuery = cleanedQuery params[i]
+        }
+        if (cleanedQuery != "") {
+            clean = base "?" cleanedQuery
+        }
+    }
+
+    if (fragment != "") {
+        clean = clean "#" fragment
+    }
+
+    for (domain in domains) {
+        https = "https://" domain
+        www = "https://www." domain
+        if (substr(clean, 1, length(https)) == https || substr(clean, 1, length(www)) == www) {
+            clean = "https://farside.link/" clean
+            break
+        }
+    }
+
+    if (clean != contents) {
+        print clean
+    }
+}

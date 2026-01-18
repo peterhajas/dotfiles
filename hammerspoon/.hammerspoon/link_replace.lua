@@ -3,22 +3,15 @@
 
 local link_replace = {}
 
--- URLs that should be replaced with farside.link alternatives
-local urlsToReplace = {
-    'imgur.com',
-    'instagram.com',
-    'medium.com',
-    'mobile.twitter.com',
-    'old.reddit.com',
-    'reddit.com',
-    'tiktok.com',
-    'twitter.com',
-    'x.com',
-}
+local scriptPath = os.getenv("HOME") .. "/bin/link_transform"
+local pasteboardWatcher = nil
 
--- Private helper function
-local function startsWith(str, start)
-    return string.sub(str, 1, string.len(start)) == start
+local function shellEscape(value)
+    if value == nil then
+        return "''"
+    end
+
+    return "'" .. value:gsub("'", "'\\''") .. "'"
 end
 
 -- Replace pasteboard link with farside.link if it matches one of the configured URLs
@@ -27,16 +20,23 @@ function link_replace.replacePasteboardLinkIfNecessary(contents)
         return
     end
 
-    for _, rep in ipairs(urlsToReplace) do
-        local https = "https://" .. rep
-        local www = "https://www." .. rep
-        if startsWith(contents, https) or startsWith(contents, www) then
-            local newContents = "https://farside.link/" .. contents
-            hs.pasteboard.setContents(newContents)
-            hs.alert("Replaced")
-            return
-        end
+    local command = "printf %s " .. shellEscape(contents) .. " | " .. scriptPath
+    local output = hs.execute(command, true)
+    if output ~= nil and output ~= "" and output ~= contents then
+        hs.pasteboard.setContents(output)
+        hs.alert("Replaced")
     end
+end
+
+function link_replace.init()
+    if pasteboardWatcher ~= nil then
+        return
+    end
+
+    pasteboardWatcher = hs.pasteboard.watcher.new(function(contents)
+        link_replace.replacePasteboardLinkIfNecessary(contents)
+    end)
+    pasteboardWatcher:start()
 end
 
 return link_replace

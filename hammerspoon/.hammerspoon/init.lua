@@ -52,7 +52,6 @@ end
 -- Global variables
 hs.window.animationDuration = 0.0
 caffeinateWatcher = nil
-pasteboardWatcher = nil
 
 profileStop('globals')
 
@@ -169,14 +168,6 @@ caffeinateWatcher = hs.caffeinate.watcher.new(caffeinateCallback)
 caffeinateWatcher:start()
 -- }}}
 profileStop('caffeinate')
-profileStart('pasteboard')
-
--- Pasteboard
-pasteboardWatcher = hs.pasteboard.watcher.new(function(contents)
-    link_replace.replacePasteboardLinkIfNecessary(contents)
-end)
-
-profileStop('pasteboard')
 profileStart('reloading')
 
 -- Reloading
@@ -210,6 +201,7 @@ vim_movement.init()
 footpedals.init()
 darkmode.init()
 audio_output.init()
+link_replace.init()
 youtubedl.init()
 iphone_mirroring.init()
 claudeStatus.init()
