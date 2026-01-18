@@ -6176,32 +6176,32 @@ local function set_hl(group, opts)
   vim.api.nvim_set_hl(0, group, opts)
 end
 
-local function colors_for(variant)
-  local c = {}
-  if variant.extended then
-    c = vim.deepcopy(variant.extended)
-    -- Derived fields to complete the extended palette
-    c.bg_sidebar = c.bg_dim
-    c.fg_sidebar = c.fg_main
-    c.cursor = c.fg_main
-    c.comment = c.fg_dim
-    c.error = c.red_cooler
-    c.warning = c.yellow_cooler
-    c.info = c.blue_cooler
-    c.hint = c.cyan_faint
-    c.ok = c.green_cooler
-    c.success = c.fg_added
-    c.visual = c.bg_magenta_intense
-    c.accent_light = c.blue_faint
-    c.accent = c.blue_warmer
-    c.accent_darker = c.blue
-    c.accent_dark = c.blue_intense
-    -- Default (non-tinted/non-accessibility variants) only for now
-    return c
+local function hex_to_rgb(hex)
+  if type(hex) ~= "string" then return end
+  hex = hex:gsub("#", "")
+  if #hex ~= 6 then return end
+  local r = tonumber(hex:sub(1, 2), 16)
+  local g = tonumber(hex:sub(3, 4), 16)
+  local b = tonumber(hex:sub(5, 6), 16)
+  if not r or not g or not b then return end
+  return r, g, b
+end
+
+local function blend(fg, bg, alpha)
+  local fr, fg2, fb = hex_to_rgb(fg)
+  local br, bg2, bb = hex_to_rgb(bg)
+  if not fr or not br then
+    return fg or bg
   end
-  -- Fallback to ANSI-derived minimal palette.
+  local function mix(a, b)
+    return math.floor((alpha * a) + ((1 - alpha) * b) + 0.5)
+  end
+  return string.format("#%02x%02x%02x", mix(fr, br), mix(fg2, bg2), mix(fb, bb))
+end
+
+local function colors_for(variant)
   local a = variant.ansi or {}
-  return {
+  local base = {
     bg_main = variant.background,
     fg_main = variant.foreground,
     fg_dim = a[9] or a[8],
@@ -6239,10 +6239,84 @@ local function colors_for(variant)
     hint = a[15] or a[7],
     ok = a[11] or a[3],
   }
+  local c = {}
+  if variant.extended then
+    c = vim.deepcopy(variant.extended)
+  end
+  for key, value in pairs(base) do
+    if c[key] == nil then
+      c[key] = value
+    end
+  end
+  c.blue = c.blue or base.blue
+  c.magenta = c.magenta or base.magenta
+  c.red = c.red or base.red
+  c.yellow = c.yellow or base.yellow
+  c.green = c.green or base.green
+  c.cyan = c.cyan or base.cyan
+  c.red_intense = c.red_intense or a[10] or c.red
+  c.green_intense = c.green_intense or a[11] or c.green
+  c.yellow_intense = c.yellow_intense or a[12] or c.yellow
+  c.blue_intense = c.blue_intense or a[13] or c.blue
+  c.magenta_intense = c.magenta_intense or a[14] or c.magenta
+  c.cyan_intense = c.cyan_intense or a[15] or c.cyan
+  c.blue_warmer = c.blue_warmer or c.blue
+  c.blue_cooler = c.blue_cooler or c.blue
+  c.blue_faint = c.blue_faint or c.blue
+  c.magenta_cooler = c.magenta_cooler or c.magenta
+  c.red_cooler = c.red_cooler or c.red
+  c.yellow_cooler = c.yellow_cooler or c.yellow
+  c.cyan_cooler = c.cyan_cooler or c.cyan
+  c.cyan_warmer = c.cyan_warmer or c.cyan
+  c.cyan_faint = c.cyan_faint or c.cyan
+  c.green_cooler = c.green_cooler or c.green
+  c.green_faint = c.green_faint or c.green
+  c.bg_magenta_intense = c.bg_magenta_intense or c.magenta
+  c.bg_green_intense = c.bg_green_intense or c.green
+  c.bg_yellow_intense = c.bg_yellow_intense or c.yellow
+  c.bg_red_intense = c.bg_red_intense or c.red
+  -- Derived fields to complete the extended palette
+  c.bg_sidebar = c.bg_sidebar or c.bg_dim
+  c.fg_sidebar = c.fg_sidebar or c.fg_main
+  c.cursor = c.cursor or c.fg_main
+  c.comment = c.comment or c.fg_dim
+  c.error = c.error or c.red_cooler or c.red or base.error
+  c.warning = c.warning or c.yellow_cooler or c.yellow or base.warning
+  c.info = c.info or c.blue_cooler or c.blue or base.info
+  c.hint = c.hint or c.cyan_faint or c.cyan or base.hint
+  c.ok = c.ok or c.green_cooler or c.green or base.ok
+  c.success = c.success or c.fg_added
+  c.visual = c.visual or c.bg_magenta_intense or c.magenta
+  c.accent_light = c.accent_light or c.blue_faint or c.blue
+  c.accent = c.accent or c.blue_warmer or c.blue
+  c.accent_darker = c.accent_darker or c.blue or c.accent
+  c.accent_dark = c.accent_dark or c.blue_intense or c.blue
+  -- Default (non-tinted/non-accessibility variants) only for now
+  return c
 end
 
 local function apply_highlights(variant)
   local c = colors_for(variant)
+  local diag_base_error = c.red_intense or c.error or c.red or c.fg_main
+  local diag_base_warn = c.yellow_intense or c.warning or c.yellow or c.fg_main
+  local diag_base_info = c.blue_intense or c.info or c.blue or c.fg_main
+  local diag_base_hint = c.cyan_intense or c.hint or c.cyan or c.fg_main
+  local diag_base_ok = c.green_intense or c.ok or c.green or c.fg_main
+  local diag_error = blend(diag_base_error, c.fg_main, 0.7)
+  local diag_warn = blend(diag_base_warn, c.fg_main, 0.7)
+  local diag_info = blend(diag_base_info, c.fg_main, 0.7)
+  local diag_hint = blend(diag_base_hint, c.fg_main, 0.7)
+  local diag_ok = blend(diag_base_ok, c.fg_main, 0.7)
+  local diag_bg_error = blend(diag_base_error, c.bg_main, 0.28)
+  local diag_bg_warn = blend(diag_base_warn, c.bg_main, 0.28)
+  local diag_bg_info = blend(diag_base_info, c.bg_main, 0.28)
+  local diag_bg_hint = blend(diag_base_hint, c.bg_main, 0.28)
+  local diag_bg_ok = blend(diag_base_ok, c.bg_main, 0.28)
+  local diag_line_error = blend(diag_base_error, c.bg_main, 0.14)
+  local diag_line_warn = blend(diag_base_warn, c.bg_main, 0.14)
+  local diag_line_info = blend(diag_base_info, c.bg_main, 0.14)
+  local diag_line_hint = blend(diag_base_hint, c.bg_main, 0.14)
+  local diag_line_ok = blend(diag_base_ok, c.bg_main, 0.14)
   local hls = {
     -- UI
     Normal = { fg = c.fg_main, bg = c.bg_main },
@@ -6336,22 +6410,37 @@ local function apply_highlights(variant)
     Error = { fg = c.fg_main, bg = c.bg_red_intense or c.red },
 
     -- Diagnostics
-    DiagnosticError = { fg = c.error or c.red_intense, bold = true },
-    DiagnosticWarn = { fg = c.warning or c.yellow_intense, bold = true },
-    DiagnosticInfo = { fg = c.info or c.blue_intense, bold = true },
-    DiagnosticHint = { fg = c.hint or c.cyan_intense, bold = true },
-    DiagnosticOk = { fg = c.ok or c.green_intense, bold = true },
+    DiagnosticError = { fg = diag_error, bold = true },
+    DiagnosticWarn = { fg = diag_warn, bold = true },
+    DiagnosticInfo = { fg = diag_info, bold = true },
+    DiagnosticHint = { fg = diag_hint, bold = true },
+    DiagnosticOk = { fg = diag_ok, bold = true },
     DiagnosticUnnecessary = { fg = c.fg_dim },
-    DiagnosticVirtualTextError = { fg = c.error or c.red_intense, bold = true },
-    DiagnosticVirtualTextWarn = { fg = c.warning or c.yellow_intense, bold = true },
-    DiagnosticVirtualTextInfo = { fg = c.info or c.blue_intense, bold = true },
-    DiagnosticVirtualTextHint = { fg = c.hint or c.cyan_intense, bold = true },
-    DiagnosticVirtualTextOk = { fg = c.ok or c.green_intense, bold = true },
-    DiagnosticUnderlineError = { undercurl = true, sp = c.error or c.red_intense },
-    DiagnosticUnderlineWarn = { undercurl = true, sp = c.warning or c.yellow_intense },
-    DiagnosticUnderlineInfo = { undercurl = true, sp = c.info or c.blue_intense },
-    DiagnosticUnderlineHint = { undercurl = true, sp = c.hint or c.cyan_intense },
-    DiagnosticUnderlineOk = { undercurl = true, sp = c.ok or c.green_intense },
+    DiagnosticVirtualTextError = { fg = diag_error, bg = diag_bg_error, bold = true },
+    DiagnosticVirtualTextWarn = { fg = diag_warn, bg = diag_bg_warn, bold = true },
+    DiagnosticVirtualTextInfo = { fg = diag_info, bg = diag_bg_info, bold = true },
+    DiagnosticVirtualTextHint = { fg = diag_hint, bg = diag_bg_hint, bold = true },
+    DiagnosticVirtualTextOk = { fg = diag_ok, bg = diag_bg_ok, bold = true },
+    DiagnosticUnderlineError = { undercurl = true, sp = diag_error },
+    DiagnosticUnderlineWarn = { undercurl = true, sp = diag_warn },
+    DiagnosticUnderlineInfo = { undercurl = true, sp = diag_info },
+    DiagnosticUnderlineHint = { undercurl = true, sp = diag_hint },
+    DiagnosticUnderlineOk = { undercurl = true, sp = diag_ok },
+    DiagnosticSignError = { fg = diag_error, bg = c.bg_dim or c.bg_main },
+    DiagnosticSignWarn = { fg = diag_warn, bg = c.bg_dim or c.bg_main },
+    DiagnosticSignInfo = { fg = diag_info, bg = c.bg_dim or c.bg_main },
+    DiagnosticSignHint = { fg = diag_hint, bg = c.bg_dim or c.bg_main },
+    DiagnosticSignOk = { fg = diag_ok, bg = c.bg_dim or c.bg_main },
+    DiagnosticFloatingError = { fg = diag_error, bg = diag_bg_error },
+    DiagnosticFloatingWarn = { fg = diag_warn, bg = diag_bg_warn },
+    DiagnosticFloatingInfo = { fg = diag_info, bg = diag_bg_info },
+    DiagnosticFloatingHint = { fg = diag_hint, bg = diag_bg_hint },
+    DiagnosticFloatingOk = { fg = diag_ok, bg = diag_bg_ok },
+    DiagnosticLineError = { bg = diag_line_error },
+    DiagnosticLineWarn = { bg = diag_line_warn },
+    DiagnosticLineInfo = { bg = diag_line_info },
+    DiagnosticLineHint = { bg = diag_line_hint },
+    DiagnosticLineOk = { bg = diag_line_ok },
 
     -- Diff/Git
     GitSignsAdd = { fg = c.fg_added_intense or c.fg_added, bg = c.bg_added or c.bg_main },
@@ -6367,7 +6456,10 @@ local function apply_highlights(variant)
     TelescopeNormal = { link = 'Normal' },
     TelescopeBorder = { fg = c.border or c.fg_dim, bg = c.bg_main },
     TelescopeTitle = { fg = c.fg_dim, bg = c.bg_main },
-    TelescopeSelection = { link = 'CursorLine' },
+    TelescopeSelection = { fg = c.selection_foreground or c.fg_main, bg = c.selection_background or c.visual or c.bg_hl_line, bold = true },
+    TelescopeSelectionCaret = { fg = c.selection_foreground or c.fg_main, bg = c.selection_background or c.visual or c.bg_hl_line, bold = true },
+    TelescopeMultiSelection = { fg = c.accent or c.blue, bg = c.bg_dim or c.bg_main },
+    TelescopeMultiIcon = { fg = c.accent or c.blue, bg = c.bg_dim or c.bg_main },
     TelescopePromptBorder = { fg = c.border_highlight or c.border, bg = c.bg_main },
     TelescopePromptTitle = { fg = c.border_highlight or c.border, bg = c.bg_main },
     TelescopeResultsComment = { fg = c.fg_dim },
