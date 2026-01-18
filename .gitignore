@@ -87,7 +87,6 @@ uv.lock
 codex/.codex/rules
 
 # Colors
-colors/wallpapers/generated/from_wallpaper_*.png
-from_wallpaper.toml
-from_wallpaper_dark
-from_wallpaper_light
+colors/.config/colors/palettes/from_wallpaper*.toml
+ghostty/.config/ghostty/themes/from_wallpaper_*
+colors/wallpapers
