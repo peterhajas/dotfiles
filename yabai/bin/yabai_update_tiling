@@ -26,6 +26,7 @@ WORKSPACE_WIDTH_THRESHOLD = 5000  # Switch to 5-bucket layout when total width e
 LOCK_PATH = "/tmp/yabai_update_tiling.active"
 LOCK_STALE_SECONDS = 6.0
 LOCK_ENV_SKIP = "YABAI_UPDATE_TILING_SKIP_LOCK"
+DEBOUNCE_PATH = "/tmp/yabai_update_tiling.debounce"
 
 
 def query_yabai_config(key: str, default: int) -> int:
@@ -810,6 +811,10 @@ def parse_args() -> argparse.Namespace:
         "--save-snapshot", type=str, metavar="FILE",
         help="Save current yabai state to JSON file for later testing"
     )
+    parser.add_argument(
+        "--debounce", type=int, metavar="MS", default=0,
+        help="Debounce delay in milliseconds; only the last call within the period runs"
+    )
     return parser.parse_args()
 
 
@@ -817,6 +822,26 @@ def main() -> None:
     global VERBOSE
     args = parse_args()
     VERBOSE = args.verbose
+
+    # Debounce: wait for activity to settle before proceeding
+    if args.debounce > 0:
+        my_timestamp = f"{time.time():.6f}"
+        try:
+            with open(DEBOUNCE_PATH, "w") as f:
+                f.write(my_timestamp)
+        except OSError:
+            pass  # Best effort
+
+        time.sleep(args.debounce / 1000.0)
+
+        try:
+            with open(DEBOUNCE_PATH, "r") as f:
+                current = f.read().strip()
+            if current != my_timestamp:
+                # A newer invocation superseded us
+                sys.exit(0)
+        except OSError:
+            pass  # File gone or unreadable; proceed anyway
 
     # Prevent re-entrant updates triggered by our own window moves/resizes
     lock_acquired = False
