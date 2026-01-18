@@ -7,7 +7,7 @@ function TiddlyWikiRender(name)
 end
 
 -- Metrics
-local yOffset = 0
+local yOffset = -1
 
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
