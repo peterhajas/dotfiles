@@ -77,9 +77,17 @@ mdi.json
 __pycache__/
 *.py[cod]
 *$py.class
+.venv/
+uv.lock
 
 # Claude
 /.claude
 
 # Codex
 codex/.codex/rules
+
+# Colors
+colors/wallpapers/generated/from_wallpaper_*.png
+from_wallpaper.toml
+from_wallpaper_dark
+from_wallpaper_light

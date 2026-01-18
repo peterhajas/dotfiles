@@ -1,0 +1,12 @@
+[project]
+name = "colorscheme"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "opencv-python>=4.9.0",
+    "colorgram.py>=1.2.0",
+    "Pillow>=10.0.0",
+]
+
+[project.scripts]
+colorscheme = "bin.colorscheme:main"

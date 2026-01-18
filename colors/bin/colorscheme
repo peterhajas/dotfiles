@@ -6,12 +6,13 @@ Automatically picks light/dark variant based on macOS appearance.
 Rebuilds theme files and reloads supporting applications.
 
 Commands:
-  colorscheme              # Show current theme
-  colorscheme list         # List available families
-  colorscheme modus        # Switch to Modus family
-  colorscheme ef_melissa   # Switch to Ef Melissa family
-  colorscheme catppuccin   # Switch to Catppuccin family
-  colorscheme switch       # Interactive picker for theme families
+  colorscheme                    # Show current theme
+  colorscheme list               # List available families
+  colorscheme modus              # Switch to Modus family
+  colorscheme ef_melissa         # Switch to Ef Melissa family
+  colorscheme catppuccin         # Switch to Catppuccin family
+  colorscheme switch             # Interactive picker for theme families
+  colorscheme wallpaper <image>  # Extract colors from image and set as wallpaper
 
 To toggle light/dark mode, use macOS System Settings → Appearance.
 Applications will auto-update within 3 seconds.
@@ -25,10 +26,31 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 import time
 
+# Auto-detect if we need to run via uv for wallpaper dependencies
+# This allows the script to work both with and without uv
+if len(sys.argv) > 1 and sys.argv[1] == "wallpaper":
+    # Check if we're already running via uv (by checking if imports work)
+    if "UV_RUN" not in os.environ:
+        try:
+            import cv2
+            import colorgram
+        except ImportError:
+            # Need to re-exec via uv
+            script_path = Path(__file__).resolve()
+            config_dir = script_path.parent.parent / ".config" / "colors"
+            os.chdir(str(config_dir))
+            os.environ["UV_RUN"] = "1"
+            os.execvp("uv", ["uv", "run", "python", str(script_path)] + sys.argv[1:])
+
 # Load the build.py module for palette parsing
 DOTFILES = Path(__file__).resolve().parent.parent.parent
-sys.path.insert(0, str(DOTFILES / "colors" / ".config" / "colors"))
+CONFIG_DIR = DOTFILES / "colors" / ".config" / "colors"
+sys.path.insert(0, str(CONFIG_DIR))
+
 from build import load_palette, apply_host_override
+
+# Note: wallpaper functions are imported lazily in methods that use them
+# to avoid requiring dependencies for basic colorscheme operations
 
 STATE_FILE = Path.home() / ".config" / "colorscheme" / "current"
 PALETTE_FILE = DOTFILES / "colors" / ".config" / "colors" / "palette.toml"
@@ -187,6 +209,10 @@ class ColorschemeManager:
 
     def reload_ghostty(self):
         """Reload Ghostty config via SIGUSR2 signal."""
+        # Note: Ghostty does not currently support per-window colorschemes.
+        # Theme changes apply globally to all windows.
+        # Monitor https://github.com/ghostty-org/ghostty for future support.
+
         # Update the config file first
         self.update_ghostty_config()
 
@@ -237,6 +263,111 @@ class ColorschemeManager:
             print("  ✓ Sketchybar")
         else:
             print("  ⊘ Sketchybar (not installed)")
+
+    def wallpaper_from_image(self, image_path: str):
+        """Extract colorscheme from image and set as wallpaper."""
+        from datetime import datetime
+
+        # Lazy import wallpaper functions
+        try:
+            from wallpaper import extract_color_palette, set_wallpaper, should_tile, upscale_to_4k
+        except ImportError as e:
+            print(f"Error: Wallpaper features require dependencies.", file=sys.stderr)
+            print(f"Run: cd {CONFIG_DIR} && uv sync", file=sys.stderr)
+            print(f"Then run via: cd {CONFIG_DIR} && uv run python {Path(__file__).resolve()} wallpaper {image_path}", file=sys.stderr)
+            sys.exit(1)
+
+        img_path = Path(image_path).expanduser().resolve()
+        if not img_path.exists():
+            print(f"Error: Image not found: {image_path}", file=sys.stderr)
+            sys.exit(1)
+
+        print(f"Extracting colors from {img_path.name}...")
+
+        # Generate family and variant names
+        generated_at = datetime.now().isoformat()
+        family_name = "from_wallpaper"
+        variant_light = f"{family_name}_light"
+        variant_dark = f"{family_name}_dark"
+
+        # Extract color palette
+        try:
+            palette_data = extract_color_palette(img_path, variant_light, variant_dark)
+        except Exception as e:
+            print(f"Error extracting colors: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        # Clean up old from_wallpaper palettes
+        palettes_dir = DOTFILES / "colors" / ".config" / "colors" / "palettes"
+        for old_palette in palettes_dir.glob("from_wallpaper_*.toml"):
+            old_palette.unlink()
+            print(f"Removed old palette: {old_palette.name}")
+
+        ghostty_themes_dir = DOTFILES / "ghostty" / ".config" / "ghostty" / "themes"
+        if ghostty_themes_dir.exists():
+            for old_theme in ghostty_themes_dir.glob("from_wallpaper_*"):
+                if old_theme.name in {"from_wallpaper_dark", "from_wallpaper_light"}:
+                    continue
+                old_theme.unlink()
+                print(f"Removed old Ghostty theme: {old_theme.name}")
+
+        # Create TOML file
+        toml_file = palettes_dir / f"{family_name}.toml"
+
+        toml_content = f"""# Generated from {img_path.name} on {generated_at}
+
+[families.{family_name}]
+name = 'From Wallpaper'
+license = 'Custom'
+light_variant = '{variant_light}'
+dark_variant = '{variant_dark}'
+
+[variants.{variant_light}]
+family = '{family_name}'
+flavor = 'light'
+{palette_data['light_toml']}
+{palette_data['light_extended']}
+[variants.{variant_dark}]
+family = '{family_name}'
+flavor = 'dark'
+{palette_data['dark_toml']}
+{palette_data['dark_extended']}
+"""
+
+        toml_file.write_text(toml_content)
+        print(f"Created palette: {toml_file.name}")
+
+        # Reload palette
+        self.palette = apply_host_override(load_palette())
+
+        # Switch to new family
+        self.state["family"] = family_name
+        self.save_state()
+
+        # Rebuild themes
+        self.rebuild_themes()
+
+        # Handle wallpaper: tile if small, otherwise upscale to 4K
+        tile = should_tile(img_path)
+        wallpapers_dir = DOTFILES / "colors" / "wallpapers" / "generated"
+        wallpapers_dir.mkdir(parents=True, exist_ok=True)
+
+        if tile:
+            # Small pattern - just set it to tile
+            set_wallpaper(img_path, tile=True)
+            print(f"  ✓ Wallpaper (tiled pattern)")
+        else:
+            # Large image - upscale to 4K if needed
+            for old_wallpaper in wallpapers_dir.glob("from_wallpaper_*.png"):
+                old_wallpaper.unlink()
+                print(f"Removed old wallpaper: {old_wallpaper.name}")
+            upscaled_path = wallpapers_dir / "from_wallpaper_4k.png"
+            upscale_to_4k(img_path, upscaled_path)
+            set_wallpaper(upscaled_path, tile=False)
+            print(f"  ✓ Wallpaper (upscaled to 4K)")
+
+        # Reload apps
+        self.reload_all()
 
     def show_status(self):
         """Display current theme information."""
@@ -387,12 +518,17 @@ def main():
         manager.list_families()
     elif command == "switch":
         manager.switch_interactive()
+    elif command == "wallpaper":
+        if len(sys.argv) < 3:
+            print("Usage: colorscheme wallpaper <image_path>", file=sys.stderr)
+            sys.exit(1)
+        manager.wallpaper_from_image(sys.argv[2])
     elif command in manager.palette["families"]:
         # Switch to family (e.g., "modus" or "catppuccin")
         manager.switch_family(command)
     else:
         print(f"Unknown command: {command}", file=sys.stderr)
-        print("Usage: colorscheme [list|<family>]", file=sys.stderr)
+        print("Usage: colorscheme [list|switch|wallpaper <image>|<family>]", file=sys.stderr)
         print(f"Available families: {', '.join(manager.palette['families'].keys())}", file=sys.stderr)
         sys.exit(1)
 
