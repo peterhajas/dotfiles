@@ -2,10 +2,9 @@ model = "gpt-5.2-codex"
 "hide_gpt-5.1-codex-max_migration_prompt" = true
 model_reasoning_effort = "medium"
 
-[features]
 web_search_request = true
 
-[notice.model_migrations]
-"gpt-5.1-codex-max" = "gpt-5.2-codex"
-
 notify = ["sh", "~/.codex/hooks/notify_bridge"]
+
+[projects."/Users/phajas/dotfiles"]
+trust_level = "trusted"
