@@ -155,6 +155,8 @@ class ColorschemeManager:
 
         print(f"\nApplying {self.state['family']} family ({flavor} mode: {variant_name})...")
 
+        self.write_web_stylesheet()
+
         # 1. Neovim
         self.reload_neovim()
 
@@ -174,6 +176,194 @@ class ColorschemeManager:
         self.reload_sketchybar()
 
         print("\n✨ Theme files updated!")
+
+    def write_web_stylesheet(self):
+        """Write a web stylesheet derived from the current palette."""
+        css_dir = DOTFILES / "userscripts"
+        css_dir.mkdir(parents=True, exist_ok=True)
+        css_file = css_dir / "colorscheme.css"
+
+        family = self.state.get("family", self.palette.get("default_family", "modus"))
+        variants = self.palette.get("variants", {})
+        families = self.palette.get("families", {})
+
+        def resolve_variant(flavor: str):
+            name = self.find_variant_by_family_and_flavor(family, flavor)
+            if name and name in variants:
+                return name, variants[name]
+            family_data = families.get(family, {})
+            fallback_name = family_data.get(f"{flavor}_variant")
+            if fallback_name and fallback_name in variants:
+                return fallback_name, variants[fallback_name]
+            for candidate_name, candidate in variants.items():
+                if candidate.get("flavor") == flavor:
+                    return candidate_name, candidate
+            default_name = self.palette.get("default_variant")
+            if default_name and default_name in variants:
+                return default_name, variants[default_name]
+            return "", {}
+
+        def pick_hex(*values: str, fallback: str):
+            for value in values:
+                if isinstance(value, str) and value.startswith("#"):
+                    return value
+            return fallback
+
+        def ansi_at(variant: dict, index: int):
+            ansi = variant.get("ansi") if isinstance(variant, dict) else None
+            if isinstance(ansi, list) and 0 <= index < len(ansi):
+                value = ansi[index]
+                if isinstance(value, str) and value.startswith("#"):
+                    return value
+            return None
+
+        def build_colors(variant: dict, fallback_bg: str, fallback_fg: str):
+            extended = variant.get("extended", {}) if isinstance(variant, dict) else {}
+            bg = pick_hex(extended.get("bg_main"), variant.get("background"), ansi_at(variant, 0), fallback=fallback_bg)
+            fg = pick_hex(extended.get("fg_main"), variant.get("foreground"), ansi_at(variant, 7), fallback=fallback_fg)
+            bg_alt = pick_hex(
+                extended.get("bg_dim"),
+                variant.get("selection_background"),
+                variant.get("background"),
+                ansi_at(variant, 0),
+                fallback=bg,
+            )
+            fg_dim = pick_hex(
+                extended.get("fg_dim"),
+                variant.get("selection_foreground"),
+                variant.get("foreground"),
+                ansi_at(variant, 7),
+                fallback=fg,
+            )
+            accent = pick_hex(
+                extended.get("accent"),
+                extended.get("blue"),
+                ansi_at(variant, 4),
+                ansi_at(variant, 12),
+                fallback=fg,
+            )
+            accent_alt = pick_hex(
+                extended.get("magenta"),
+                ansi_at(variant, 5),
+                ansi_at(variant, 13),
+                fallback=accent,
+            )
+            highlight = pick_hex(
+                extended.get("yellow"),
+                ansi_at(variant, 3),
+                ansi_at(variant, 11),
+                fallback=accent,
+            )
+            selection_bg = pick_hex(variant.get("selection_background"), accent, fallback=accent)
+            selection_fg = pick_hex(variant.get("selection_foreground"), fg, fallback=fg)
+            border = pick_hex(extended.get("border"), selection_bg, bg_alt, fallback=bg_alt)
+
+            return {
+                "bg": bg,
+                "fg": fg,
+                "bg_alt": bg_alt,
+                "fg_dim": fg_dim,
+                "accent": accent,
+                "accent_alt": accent_alt,
+                "highlight": highlight,
+                "selection_bg": selection_bg,
+                "selection_fg": selection_fg,
+                "border": border,
+            }
+
+        light_name, light_variant = resolve_variant("light")
+        dark_name, dark_variant = resolve_variant("dark")
+
+        light_colors = build_colors(light_variant, "#f8f5f0", "#1f1d1a")
+        dark_colors = build_colors(dark_variant, "#161411", "#efeae4")
+
+        def render_block(colors: dict):
+            return "\n".join(
+                [
+                    f"    --cs-bg: {colors['bg']};",
+                    f"    --cs-fg: {colors['fg']};",
+                    f"    --cs-bg-alt: {colors['bg_alt']};",
+                    f"    --cs-fg-dim: {colors['fg_dim']};",
+                    f"    --cs-accent: {colors['accent']};",
+                    f"    --cs-accent-alt: {colors['accent_alt']};",
+                    f"    --cs-highlight: {colors['highlight']};",
+                    f"    --cs-selection-bg: {colors['selection_bg']};",
+                    f"    --cs-selection-fg: {colors['selection_fg']};",
+                    f"    --cs-border: {colors['border']};",
+                ]
+            )
+
+        version = time.strftime("%Y.%m.%d.%H%M%S")
+        css = "\n".join(
+            [
+                "/* ==UserStyle==",
+                "@name           colorscheme",
+                "@namespace      phajas-dotfiles",
+                f"@version        {version}",
+                "@description   Generated from colorscheme palette",
+                "@author         phajas",
+                "@include        *",
+                "@preprocessor   default",
+                "==/UserStyle== */",
+                "",
+                "/* Generated by colorscheme. Do not edit by hand. */",
+                f"/* Family: {family} */",
+                f"/* Light: {light_name or 'unknown'} | Dark: {dark_name or 'unknown'} */",
+                "",
+                ":root {",
+                "  color-scheme: light dark;",
+                "}",
+                "",
+                "@media (prefers-color-scheme: light) {",
+                "  :root {",
+                render_block(light_colors),
+                "  }",
+                "}",
+                "",
+                "@media (prefers-color-scheme: dark) {",
+                "  :root {",
+                render_block(dark_colors),
+                "  }",
+                "}",
+                "",
+                "html, body {",
+                "  background: var(--cs-bg) !important;",
+                "  color: var(--cs-fg) !important;",
+                "}",
+                "",
+                "a {",
+                "  color: var(--cs-accent) !important;",
+                "}",
+                "",
+                "a:visited {",
+                "  color: var(--cs-accent-alt) !important;",
+                "}",
+                "",
+                "::selection {",
+                "  background: var(--cs-selection-bg) !important;",
+                "  color: var(--cs-selection-fg) !important;",
+                "}",
+                "",
+                "code, pre, kbd, samp {",
+                "  background: var(--cs-bg-alt) !important;",
+                "  color: var(--cs-fg) !important;",
+                "  border: 1px solid var(--cs-border) !important;",
+                "}",
+                "",
+                "hr {",
+                "  border-color: var(--cs-border) !important;",
+                "}",
+                "",
+                "mark {",
+                "  background: var(--cs-highlight) !important;",
+                "  color: var(--cs-fg) !important;",
+                "}",
+                "",
+            ]
+        )
+
+        css_file.write_text(css)
+        print("  ✓ Web stylesheet")
 
     def reload_neovim(self):
         """Reload Neovim instances."""

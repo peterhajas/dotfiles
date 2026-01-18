@@ -48,6 +48,7 @@
     exclude:
       - stow      # Stow's own config
       - infra     # Infrastructure, not dotfiles
+      - userscripts  # Local-only browser scripts
       - .git
       - .claude
       # Build/temporary directories

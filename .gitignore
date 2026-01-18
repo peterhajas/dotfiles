@@ -91,3 +91,6 @@ colors/.config/colors/palettes/from_wallpaper*.toml
 ghostty/.config/ghostty/themes/from_wallpaper_*
 colors/wallpapers
 nvim/.config/nvim/lua/phajas/colors/palette_wallpaper.lua
+
+# Userscripts
+userscripts/colorscheme.css
