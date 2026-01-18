@@ -340,11 +340,7 @@ flavor = 'dark'
         # Reload palette
         self.palette = apply_host_override(load_palette())
 
-        # Switch to new family
-        self.state["family"] = family_name
-        self.save_state()
-
-        # Rebuild themes
+        # Rebuild themes before updating state so live reloads see fresh palettes.
         self.rebuild_themes()
 
         # Handle wallpaper: tile if small, otherwise upscale to 4K
@@ -365,6 +361,10 @@ flavor = 'dark'
             upscale_to_4k(img_path, upscaled_path)
             set_wallpaper(upscaled_path, tile=False)
             print(f"  ✓ Wallpaper (upscaled to 4K)")
+
+        # Switch to new family
+        self.state["family"] = family_name
+        self.save_state()
 
         # Reload apps
         self.reload_all()

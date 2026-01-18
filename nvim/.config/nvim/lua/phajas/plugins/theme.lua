@@ -73,11 +73,8 @@ local function hasColorschemeStateChanged()
         local mtime = stat.mtime.sec
         if mtime ~= last_state_mtime then
             last_state_mtime = mtime
-            local new_family = readColorschemeFamily()
-            if new_family ~= last_variant_name then  -- Reuse variable for family
-                last_variant_name = new_family
-                return true
-            end
+            last_variant_name = readColorschemeFamily()
+            return true
         end
     end
     return false

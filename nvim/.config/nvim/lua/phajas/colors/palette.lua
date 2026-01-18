@@ -4,7 +4,7 @@
 --   Ef themes: GPL v3 (see colors/LICENSE)
 --   Catppuccin themes: MIT (see https://github.com/catppuccin/catppuccin/blob/main/LICENSE)
 -- Palette data for Lua consumers (generated)
-return {
+local palette = {
   ["default_variant"] = "modus_operandi",
   ["default_family"] = "modus",
   ["variants"] = {
@@ -6104,3 +6104,36 @@ return {
   ["hosts"] = {
   },
 }
+
+local function merge_palette(target, extra)
+  if type(extra) ~= "table" then
+    return
+  end
+  if extra.families then
+    target.families = target.families or {}
+    for name, payload in pairs(extra.families) do
+      target.families[name] = payload
+    end
+  end
+  if extra.variants then
+    target.variants = target.variants or {}
+    for name, payload in pairs(extra.variants) do
+      target.variants[name] = payload
+    end
+  end
+end
+
+local function merge_wallpaper_palette(palette)
+  if type(vim) ~= "table" or not vim.fn or not vim.fn.stdpath then
+    return
+  end
+  local path = vim.fn.stdpath("config") .. "/lua/phajas/colors/palette_wallpaper.lua"
+  local ok, extra = pcall(dofile, path)
+  if ok then
+    merge_palette(palette, extra)
+  end
+end
+
+merge_wallpaper_palette(palette)
+
+return palette
