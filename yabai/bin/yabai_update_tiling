@@ -478,11 +478,50 @@ def workspace_width(displays: List[Dict[str, Any]]) -> float:
     return float(sum(d.get("frame", {}).get("w", 0) for d in displays))
 
 
+def get_main_horizontal_row(displays: List[Dict[str, Any]], y_tolerance: float = 200.0) -> List[Dict[str, Any]]:
+    """
+    Filter displays to get only those in the main horizontal row.
+
+    Displays are grouped by Y position. The main row is the one with the
+    largest total horizontal width (most likely the primary work area).
+
+    Args:
+        displays: List of display dictionaries
+        y_tolerance: Max Y difference to consider displays in the same row
+
+    Returns:
+        List of displays in the main horizontal row
+    """
+    if not displays:
+        return []
+
+    if len(displays) == 1:
+        return displays
+
+    # Group displays by Y position (using tolerance for alignment variations)
+    rows: Dict[int, List[Dict[str, Any]]] = {}
+    for d in displays:
+        y = d.get("frame", {}).get("y", 0)
+        # Round Y to nearest tolerance bucket
+        y_bucket = int(y / y_tolerance)
+        rows.setdefault(y_bucket, []).append(d)
+
+    # Find the row with the largest total width
+    best_row = max(rows.values(), key=lambda row: sum(
+        d.get("frame", {}).get("w", 0) for d in row
+    ))
+
+    return best_row
+
+
 def bucket_display_map(displays: List[Dict[str, Any]]) -> Dict[str, Optional[int]]:
     if not displays:
         return {}
 
-    sorted_displays = sorted(displays, key=lambda d: d.get("frame", {}).get("x", 0))
+    # Filter to only include displays in the main horizontal row
+    main_row_displays = get_main_horizontal_row(displays)
+
+    sorted_displays = sorted(main_row_displays, key=lambda d: d.get("frame", {}).get("x", 0))
     leftmost = sorted_displays[0].get("index")
     rightmost = sorted_displays[-1].get("index")
     middle_displays = sorted_displays[1:-1]

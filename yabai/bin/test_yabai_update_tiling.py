@@ -511,6 +511,103 @@ class TestWindowSorting(unittest.TestCase):
         self.assertEqual(sorted_windows[2]["id"], 200)
 
 
+class TestGetMainHorizontalRow(unittest.TestCase):
+    """Unit tests for get_main_horizontal_row() function."""
+
+    def test_single_display(self):
+        """Single display returns itself."""
+        displays = [{"index": 1, "frame": {"x": 0, "y": 0, "w": 2560, "h": 1440}}]
+        result = yut.get_main_horizontal_row(displays)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["index"], 1)
+
+    def test_horizontal_row_only(self):
+        """Three horizontal displays all returned."""
+        displays = [
+            {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},
+            {"index": 2, "frame": {"x": 1920, "y": 0, "w": 2560, "h": 1440}},
+            {"index": 3, "frame": {"x": 4480, "y": 0, "w": 1920, "h": 1080}},
+        ]
+        result = yut.get_main_horizontal_row(displays)
+        self.assertEqual(len(result), 3)
+
+    def test_ipad_below_excluded(self):
+        """iPad below center display should be excluded from main row."""
+        displays = [
+            {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},      # Left
+            {"index": 2, "frame": {"x": 1920, "y": 0, "w": 2560, "h": 1440}},   # Center
+            {"index": 3, "frame": {"x": 4480, "y": 0, "w": 1920, "h": 1080}},   # Right
+            {"index": 4, "frame": {"x": 2200, "y": 1440, "w": 1024, "h": 768}}, # iPad below
+        ]
+        result = yut.get_main_horizontal_row(displays)
+        self.assertEqual(len(result), 3)
+        indices = [d["index"] for d in result]
+        self.assertNotIn(4, indices)  # iPad excluded
+
+    def test_ipad_above_excluded(self):
+        """Display above main row should be excluded."""
+        displays = [
+            {"index": 1, "frame": {"x": 0, "y": 500, "w": 2560, "h": 1440}},    # Main
+            {"index": 2, "frame": {"x": 500, "y": -768, "w": 1024, "h": 768}},  # Above
+        ]
+        result = yut.get_main_horizontal_row(displays)
+        self.assertEqual(len(result), 1)
+        self.assertEqual(result[0]["index"], 1)
+
+    def test_widest_row_selected(self):
+        """When multiple rows exist, the widest total is selected."""
+        displays = [
+            # Row 1 (y=0): total width 1024
+            {"index": 1, "frame": {"x": 0, "y": 0, "w": 1024, "h": 768}},
+            # Row 2 (y=1000): total width 5120
+            {"index": 2, "frame": {"x": 0, "y": 1000, "w": 2560, "h": 1440}},
+            {"index": 3, "frame": {"x": 2560, "y": 1000, "w": 2560, "h": 1440}},
+        ]
+        result = yut.get_main_horizontal_row(displays)
+        self.assertEqual(len(result), 2)
+        indices = [d["index"] for d in result]
+        self.assertIn(2, indices)
+        self.assertIn(3, indices)
+        self.assertNotIn(1, indices)
+
+    def test_empty_displays(self):
+        """Empty display list returns empty list."""
+        result = yut.get_main_horizontal_row([])
+        self.assertEqual(result, [])
+
+
+class TestBucketDisplayMap(unittest.TestCase):
+    """Unit tests for bucket_display_map() function."""
+
+    def test_three_horizontal_displays(self):
+        """Three horizontal displays map correctly."""
+        displays = [
+            {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},
+            {"index": 2, "frame": {"x": 1920, "y": 0, "w": 2560, "h": 1440}},
+            {"index": 3, "frame": {"x": 4480, "y": 0, "w": 1920, "h": 1080}},
+        ]
+        mapping = yut.bucket_display_map(displays)
+        self.assertEqual(mapping["far_left"], 1)
+        self.assertEqual(mapping["far_right"], 3)
+        self.assertEqual(mapping["center"], 2)
+
+    def test_ipad_below_ignored_in_mapping(self):
+        """iPad below should not affect bucket mapping."""
+        displays = [
+            {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},
+            {"index": 2, "frame": {"x": 1920, "y": 0, "w": 2560, "h": 1440}},
+            {"index": 3, "frame": {"x": 4480, "y": 0, "w": 1920, "h": 1080}},
+            {"index": 4, "frame": {"x": 2200, "y": 1440, "w": 1024, "h": 768}},  # iPad
+        ]
+        mapping = yut.bucket_display_map(displays)
+        # iPad should NOT be assigned any bucket
+        self.assertEqual(mapping["far_left"], 1)
+        self.assertEqual(mapping["center"], 2)
+        self.assertEqual(mapping["far_right"], 3)
+        # No bucket points to display 4
+        self.assertNotIn(4, mapping.values())
+
+
 class TestScenarioIntegration(unittest.TestCase):
     """Integration tests using test scenarios."""
 
@@ -866,6 +963,9 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestDetermineBucketByPosition))
     suite.addTests(loader.loadTestsFromTestCase(TestIsManagementDisabled))
     suite.addTests(loader.loadTestsFromTestCase(TestLayoutModeSelection))
+    suite.addTests(loader.loadTestsFromTestCase(TestWindowSorting))
+    suite.addTests(loader.loadTestsFromTestCase(TestGetMainHorizontalRow))
+    suite.addTests(loader.loadTestsFromTestCase(TestBucketDisplayMap))
     suite.addTests(loader.loadTestsFromTestCase(TestPaddingConfiguration))
     suite.addTests(loader.loadTestsFromTestCase(TestScenarioIntegration))
 
