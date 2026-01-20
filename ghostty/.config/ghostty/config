@@ -7,6 +7,9 @@ cursor-style-blink = false
 # font
 font-family = "Menlo"
 font-size = 15
+window-padding-x = 0
+window-padding-y = 0
+window-padding-balance = true
 
 # icon
 macos-icon = "custom-style"
