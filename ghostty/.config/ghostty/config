@@ -9,12 +9,11 @@ font-family = "Menlo"
 font-size = 15
 
 # icon
-
 macos-icon = "custom-style"
 macos-icon-ghost-color = "white"
 macos-icon-screen-color = "black"
 
-# theme
+# gui
 macos-titlebar-style = "transparent"
 resize-overlay = "never"
 window-theme = "system"
