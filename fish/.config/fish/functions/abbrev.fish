@@ -75,4 +75,5 @@ function abbrev -d "Install fish abbreviations"
     abbr w "cd ~/phajas-wiki"
     abbr ww "tw ~/phajas-wiki/phajas-wiki.html "
     abbr we "nvim ~/phajas-wiki/phajas-wiki.html"
+    abbr wj journal_today
 end
