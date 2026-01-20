@@ -957,6 +957,79 @@ class TestSetCommand(unittest.TestCase):
         self.assertEqual(new_tiddler2['text'], 'content2')
         self.assertEqual(new_tiddler3['text'], 'content3')
 
+class TestVerbosityFlags(unittest.TestCase):
+    """Test verbose flag controls for stdout output"""
+
+    def setUp(self):
+        """Create a temporary test wiki before each test"""
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'test_wiki.html')
+
+        self.test_tiddlers = [
+            {
+                "title": "TestTiddler",
+                "text": "Original content",
+                "created": "20230101000000000",
+                "modified": "20230101000000000",
+            },
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        """Clean up temporary files after each test"""
+        shutil.rmtree(self.test_dir)
+
+    def test_set_quiet_by_default(self):
+        result = run_tw_command(
+            [self.test_wiki, "set", "TestTiddler", "text", "New content"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), "")
+        self.assertEqual(result.stderr.strip(), "")
+
+    def test_set_verbose_prints(self):
+        result = run_tw_command(
+            ["--verbose", self.test_wiki, "set", "TestTiddler", "text", "New content"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Set text = New content", result.stdout)
+
+    def test_rm_quiet_by_default(self):
+        result = run_tw_command(
+            [self.test_wiki, "rm", "TestTiddler"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), "")
+
+    def test_get_outputs_by_default(self):
+        result = run_tw_command(
+            [self.test_wiki, "get", "TestTiddler", "text"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), "Original content")
+
 class TestJsonCommand(unittest.TestCase):
     """Test the json command for outputting tiddlers as JSON"""
 

@@ -136,6 +136,12 @@ MIME_TO_VIM_FILETYPE = {
     'text/x-sql': 'sql',
 }
 
+VERBOSE = False
+
+def verbose_print(*args, **kwargs):
+    if VERBOSE:
+        print(*args, **kwargs)
+
 def record_field_order(wiki_path, tiddler_title, field_order):
     """Record the original field order for a tiddler"""
     key = (wiki_path, tiddler_title)
@@ -839,6 +845,15 @@ def edit_tiddler(wiki_path, tiddler_title):
             # Add vim command to set filetype
             editor_parts = editor_parts + ['-c', f'set filetype={vim_filetype}']
 
+            # Check if this is a journal tiddler (YYYY-MM-DD format)
+            import re
+            if re.match(r'^\d{4}-\d{2}-\d{2}$', tiddler_title):
+                # Journal-specific settings: hide line numbers, minimal statusline
+                editor_parts = editor_parts + [
+                    '-c', 'set nonumber norelativenumber',
+                    '-c', 'set laststatus=0'  # Hide statusline entirely
+                ]
+
         result = subprocess.run(editor_parts + [temp_path], check=False)
 
         # Stop the watcher
@@ -1059,7 +1074,7 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
             is_new_tiddler = True
             # Add to the first store
             stores[0]['tiddlers'].append(found_tiddler)
-            print(f"Created tiddler: {tiddler_title}")
+            verbose_print(f"Created tiddler: {tiddler_title}")
 
         # Check if the field value actually changed
         old_value = found_tiddler.get(field_name)
@@ -1113,7 +1128,7 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
             }
             is_new_tiddler = True
             all_tiddlers.append(found_tiddler)
-            print(f"Created tiddler: {tiddler_title}")
+            verbose_print(f"Created tiddler: {tiddler_title}")
 
         # Check if the field value actually changed
         old_value = found_tiddler.get(field_name)
@@ -1130,7 +1145,7 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
 
         write_legacy_wiki(wiki_path, all_tiddlers)
 
-    print(f"Set {field_name} = {field_value}")
+    verbose_print(f"Set {field_name} = {field_value}")
 
 def touch_tiddler(wiki_path, tiddler_title, text=""):
     """Create a new tiddler or update an existing one. Works with both modern and legacy formats."""
@@ -1164,7 +1179,7 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
             ensure_timestamps(existing_tiddler, is_modification=True)
             if text:
                 existing_tiddler['text'] = text
-            print(f"Updated tiddler: {tiddler_title}")
+            verbose_print(f"Updated tiddler: {tiddler_title}")
         else:
             # Create new tiddler
             new_tiddler = {
@@ -1175,7 +1190,7 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
 
             # Add to the first store
             stores[0]['tiddlers'].append(new_tiddler)
-            print(f"Created tiddler: {tiddler_title}")
+            verbose_print(f"Created tiddler: {tiddler_title}")
 
         # Build replacements for all stores
         replacements = []
@@ -1210,7 +1225,7 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
             ensure_timestamps(existing_tiddler, is_modification=True)
             if text:
                 existing_tiddler['text'] = text
-            print(f"Updated tiddler: {tiddler_title}")
+            verbose_print(f"Updated tiddler: {tiddler_title}")
         else:
             # Create new tiddler
             new_tiddler = {
@@ -1219,7 +1234,7 @@ def touch_tiddler(wiki_path, tiddler_title, text=""):
             }
             ensure_timestamps(new_tiddler, is_modification=True)
             all_tiddlers.append(new_tiddler)
-            print(f"Created tiddler: {tiddler_title}")
+            verbose_print(f"Created tiddler: {tiddler_title}")
 
         write_legacy_wiki(wiki_path, all_tiddlers)
 
@@ -1289,7 +1304,7 @@ def remove_tiddler(wiki_path, tiddler_title):
 
         write_legacy_wiki(wiki_path, filtered_tiddlers)
 
-    print(f"Removed tiddler: {tiddler_title}")
+    verbose_print(f"Removed tiddler: {tiddler_title}")
 
 def replace_tiddler(wiki_path, markdown_content, update_modified=True):
     """Replace a tiddler from cat-style format (YAML frontmatter + text)
@@ -1403,7 +1418,7 @@ def append_tiddler(wiki_path, tiddler_title, text_to_append=None):
         }
         # This is a new tiddler, so use is_modification=False to set both created and modified
         ensure_timestamps(tiddler, is_modification=True)
-        print(f"Created tiddler: {tiddler_title}")
+        verbose_print(f"Created tiddler: {tiddler_title}")
     else:
         # Append to existing text
         existing_text = tiddler.get('text', '')
@@ -1675,9 +1690,9 @@ def insert_tiddler(wiki_path, tiddler_json):
 
     # Print summary
     for title in replaced_titles:
-        print(f"Replaced tiddler: {title}")
+        verbose_print(f"Replaced tiddler: {title}")
     for title in inserted_titles:
-        print(f"Inserted tiddler: {title}")
+        verbose_print(f"Inserted tiddler: {title}")
 
 def install_live_reload_plugin(wiki_path):
     """Install the live reload plugin into the wiki"""
@@ -1983,8 +1998,8 @@ def install_live_reload_plugin(wiki_path):
     plugin_json = json.dumps(plugin_tiddler)
     insert_tiddler(wiki_path, plugin_json)
 
-    print("Live reload plugin installed successfully")
-    print("Start the server with: tw serve")
+    verbose_print("Live reload plugin installed successfully")
+    verbose_print("Start the server with: tw serve")
 
 def init_wiki(dest_path):
     """Download an empty TiddlyWiki and save it to the specified path"""
@@ -2016,7 +2031,7 @@ def init_wiki(dest_path):
         sys.exit(1)
 
     try:
-        print("Downloading empty wiki from tiddlywiki.com...")
+        verbose_print("Downloading empty wiki from tiddlywiki.com...")
         url = 'https://tiddlywiki.com/empty.html'
         with urllib.request.urlopen(url, timeout=10) as response:
             wiki_content = response.read().decode('utf-8')
@@ -2046,7 +2061,7 @@ def init_wiki(dest_path):
         print(f"Error: Failed to write wiki file: {e}", file=sys.stderr)
         sys.exit(1)
 
-    print(f"Created wiki: {dest_path}")
+    verbose_print(f"Created wiki: {dest_path}")
 
 def serve_wiki(wiki_path, host='localhost', port=8080, readonly=False):
     """Serve the TiddlyWiki file locally using Python's built-in HTTP server
@@ -2080,9 +2095,9 @@ def serve_wiki(wiki_path, host='localhost', port=8080, readonly=False):
                     if mtime != self.current_mtime:
                         with self.lock:
                             self.current_mtime = mtime
-                        print(f"[File changed] {self.wiki_path} (mtime: {mtime})")
+                        verbose_print(f"[File changed] {self.wiki_path} (mtime: {mtime})")
                 except OSError as e:
-                    print(f"[Warning] Could not check file: {e}")
+                    print(f"[Warning] Could not check file: {e}", file=sys.stderr)
 
         def get_version(self):
             """Get the current file modification time"""
@@ -2149,7 +2164,7 @@ def serve_wiki(wiki_path, host='localhost', port=8080, readonly=False):
                 # Atomic replace
                 os.replace(temp_path, wiki_path)
 
-                print(f"[WebDAV PUT] Saved wiki file ({len(wiki_html)} bytes)")
+                verbose_print(f"[WebDAV PUT] Saved wiki file ({len(wiki_html)} bytes)")
 
                 # Return success (204 No Content is standard for WebDAV PUT)
                 self.send_response(204)
@@ -2256,13 +2271,13 @@ def serve_wiki(wiki_path, host='localhost', port=8080, readonly=False):
                 self.wfile.write(content_bytes)
             except (ConnectionResetError, BrokenPipeError) as e:
                 # Client closed connection - this is normal, just log it
-                print(f"[Client disconnected] {e.__class__.__name__}")
+                verbose_print(f"[Client disconnected] {e.__class__.__name__}")
             except Exception as e:
                 try:
                     self.send_error(500, f'Error reading wiki file: {e}')
                 except (ConnectionResetError, BrokenPipeError):
                     # Can't send error if connection is already broken
-                    print(f"[Client disconnected during error handling]")
+                    verbose_print(f"[Client disconnected during error handling]")
 
         def send_file(self):
             """Serve a file from the filesystem (for _canonical_uri support)"""
@@ -2316,35 +2331,35 @@ def serve_wiki(wiki_path, host='localhost', port=8080, readonly=False):
                 self.end_headers()
                 self.wfile.write(content)
 
-                print(f"[File served] {file_path} ({mime_type}, {len(content)} bytes)")
+                verbose_print(f"[File served] {file_path} ({mime_type}, {len(content)} bytes)")
 
             except (ConnectionResetError, BrokenPipeError) as e:
                 # Client closed connection - this is normal
-                print(f"[Client disconnected] {e.__class__.__name__}")
+                verbose_print(f"[Client disconnected] {e.__class__.__name__}")
             except Exception as e:
                 print(f"[Error serving file] {e}", file=sys.stderr)
                 try:
                     self.send_error(500, f'Error serving file: {e}')
                 except (ConnectionResetError, BrokenPipeError):
-                    print(f"[Client disconnected during error handling]")
+                    verbose_print(f"[Client disconnected during error handling]")
 
         def log_message(self, format, *args):
             """Override to provide cleaner log messages"""
-            print(f"[{self.log_date_time_string()}] {format % args}")
+            verbose_print(f"[{self.log_date_time_string()}] {format % args}")
 
     try:
         server = HTTPServer((host, port), WikiHandler)
         if readonly:
-            print(f"Serving TiddlyWiki at http://{host}:{port} (READONLY MODE)")
+            verbose_print(f"Serving TiddlyWiki at http://{host}:{port} (READONLY MODE)")
         else:
-            print(f"Serving TiddlyWiki at http://{host}:{port}")
-        print(f"Wiki file: {wiki_path}")
+            verbose_print(f"Serving TiddlyWiki at http://{host}:{port}")
+        verbose_print(f"Wiki file: {wiki_path}")
         if readonly:
-            print("Mode: READONLY - save attempts will be rejected")
-        print("Press Ctrl+C to stop the server")
+            verbose_print("Mode: READONLY - save attempts will be rejected")
+        verbose_print("Press Ctrl+C to stop the server")
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nServer stopped")
+        verbose_print("\nServer stopped")
         sys.exit(0)
     except OSError as e:
         if e.errno == 48 or e.errno == 98:  # Address already in use
@@ -2444,7 +2459,7 @@ def serve_webdav(wiki_path, host='localhost', port=8081, readonly=False):
 
     class WebDavHandler(BaseHTTPRequestHandler):
         def log_message(self, format, *args):
-            print(f"[{self.log_date_time_string()}] {format % args}")
+            verbose_print(f"[{self.log_date_time_string()}] {format % args}")
 
         def send_webdav_headers(self):
             self.send_header('DAV', '1,2')
@@ -2920,7 +2935,7 @@ def serve_webdav(wiki_path, host='localhost', port=8081, readonly=False):
                     insert_tiddler(wiki_path, tiddler_json)
                 status = 204 if existing else 201
                 action = "Updated" if existing else "Created"
-                print(f"[WebDAV PUT] {action} tiddler: {resolved_title}")
+                verbose_print(f"[WebDAV PUT] {action} tiddler: {resolved_title}")
                 self.send_response(status)
                 self.send_webdav_headers()
                 self.end_headers()
@@ -2991,7 +3006,7 @@ def serve_webdav(wiki_path, host='localhost', port=8081, readonly=False):
 
                 with contextlib.redirect_stdout(io.StringIO()):
                     remove_tiddler(wiki_path, resolved_title)
-                print(f"[WebDAV DELETE] Removed tiddler: {resolved_title}")
+                verbose_print(f"[WebDAV DELETE] Removed tiddler: {resolved_title}")
                 self.send_response(204)
                 self.send_webdav_headers()
                 self.end_headers()
@@ -3089,16 +3104,16 @@ def serve_webdav(wiki_path, host='localhost', port=8081, readonly=False):
     try:
         server = HTTPServer((host, port), WebDavHandler)
         if readonly:
-            print(f"Serving WebDAV at http://{host}:{port} (READONLY MODE)")
+            verbose_print(f"Serving WebDAV at http://{host}:{port} (READONLY MODE)")
         else:
-            print(f"Serving WebDAV at http://{host}:{port}")
-        print(f"Wiki file: {wiki_path}")
+            verbose_print(f"Serving WebDAV at http://{host}:{port}")
+        verbose_print(f"Wiki file: {wiki_path}")
         if readonly:
-            print("Mode: READONLY - write attempts will be rejected")
-        print("Press Ctrl+C to stop the server")
+            verbose_print("Mode: READONLY - write attempts will be rejected")
+        verbose_print("Press Ctrl+C to stop the server")
         server.serve_forever()
     except KeyboardInterrupt:
-        print("\nServer stopped")
+        verbose_print("\nServer stopped")
         sys.exit(0)
     except OSError as e:
         if e.errno == 48 or e.errno == 98:  # Address already in use
@@ -3109,7 +3124,10 @@ def serve_webdav(wiki_path, host='localhost', port=8081, readonly=False):
 
 def show_help():
     """Display usage information"""
-    print("Usage: tw [<wiki_path>] <command> [args]", file=sys.stderr)
+    print("Usage: tw [--verbose] [<wiki_path>] <command> [args]", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Global options:", file=sys.stderr)
+    print("  -v, --verbose               - Enable verbose output", file=sys.stderr)
     print("", file=sys.stderr)
     print("Commands:", file=sys.stderr)
     print("  init <dest_path>            - Create a new empty wiki", file=sys.stderr)
@@ -3132,28 +3150,46 @@ def show_help():
     print("  webdav [options]            - Serve tiddlers via WebDAV (--host, --port, --readonly)", file=sys.stderr)
     print("  filter <expression>         - Evaluate a TiddlyWiki filter expression", file=sys.stderr)
 
+def parse_global_flags(argv):
+    verbose = False
+    args = []
+    parsing_flags = True
+    for arg in argv:
+        if parsing_flags and arg == "--":
+            parsing_flags = False
+            continue
+        if parsing_flags and arg in ("-v", "--verbose"):
+            verbose = True
+            continue
+        args.append(arg)
+    return verbose, args
+
 def main():
+    global VERBOSE
+    verbose, args = parse_global_flags(sys.argv[1:])
+    VERBOSE = verbose
+
     # Check for help flag
-    if len(sys.argv) > 1 and sys.argv[1] in ('--help', '-h', 'help'):
+    if len(args) > 0 and args[0] in ('--help', '-h', 'help'):
         show_help()
         sys.exit(0)
 
-    if len(sys.argv) < 2:
+    if len(args) < 1:
         show_help()
         sys.exit(1)
 
     # Parse arguments: check if first arg is a wiki path or a command
-    arg_idx = 1
+    arg_idx = 0
     wiki_path_arg = None
 
     # If first arg looks like a file path (ends with .html or exists as a file), treat it as wiki path
-    if len(sys.argv) > 2:
-        potential_path = sys.argv[1]
+    if len(args) > 1:
+        potential_path = args[0]
         if potential_path.endswith('.html') or os.path.exists(potential_path) or is_remote_wiki(potential_path):
             wiki_path_arg = potential_path
-            arg_idx = 2
+            arg_idx = 1
 
-    command = sys.argv[arg_idx] if arg_idx < len(sys.argv) else None
+    command = args[arg_idx] if arg_idx < len(args) else None
 
     if not command:
         print("Error: No command provided", file=sys.stderr)
@@ -3166,11 +3202,11 @@ def main():
 
     # Handle commands that don't need a wiki path
     if command == "init":
-        if arg_idx + 1 >= len(sys.argv):
+        if arg_idx + 1 >= len(args):
             print("Error: init command requires a destination path", file=sys.stderr)
             sys.exit(1)
         # init doesn't use wiki_path_arg - it creates a new wiki
-        dest_path = sys.argv[arg_idx + 1]
+        dest_path = args[arg_idx + 1]
         init_wiki(dest_path)
         return
     elif command == "filetype-map":
@@ -3180,10 +3216,10 @@ def main():
         return
     elif command == "mimetype":
         # Get MIME type for a file extension (doesn't need wiki path)
-        if arg_idx + 1 >= len(sys.argv):
+        if arg_idx + 1 >= len(args):
             print("Error: mimetype command requires a filename", file=sys.stderr)
             sys.exit(1)
-        filename = sys.argv[arg_idx + 1]
+        filename = args[arg_idx + 1]
         # Get extension (including the dot)
         _, ext = os.path.splitext(filename)
         ext = ext.lower()
@@ -3196,60 +3232,60 @@ def main():
     if command == "ls":
         list_tiddlers(wiki_path)
     elif command == "cat":
-        if arg_idx + 1 >= len(sys.argv):
+        if arg_idx + 1 >= len(args):
             print("Error: cat command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[arg_idx + 1]
+        tiddler_title = args[arg_idx + 1]
         cat_tiddler(wiki_path, tiddler_title)
     elif command == "edit":
-        if arg_idx + 1 >= len(sys.argv):
+        if arg_idx + 1 >= len(args):
             print("Error: edit command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[arg_idx + 1]
+        tiddler_title = args[arg_idx + 1]
         edit_tiddler(wiki_path, tiddler_title)
     elif command == "json":
         # Check for --all flag
-        if arg_idx + 1 < len(sys.argv) and sys.argv[arg_idx + 1] == "--all":
+        if arg_idx + 1 < len(args) and args[arg_idx + 1] == "--all":
             json_tiddler(wiki_path, export_all=True)
-        elif arg_idx + 1 >= len(sys.argv):
+        elif arg_idx + 1 >= len(args):
             print("Error: json command requires at least one tiddler name or --all flag", file=sys.stderr)
             sys.exit(1)
         else:
             # Collect all remaining arguments as tiddler titles
-            tiddler_titles = sys.argv[arg_idx + 1:]
+            tiddler_titles = args[arg_idx + 1:]
             json_tiddler(wiki_path, *tiddler_titles)
     elif command == "get":
-        if arg_idx + 2 >= len(sys.argv):
+        if arg_idx + 2 >= len(args):
             print("Error: get command requires a tiddler name and field name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[arg_idx + 1]
-        field_name = sys.argv[arg_idx + 2]
+        tiddler_title = args[arg_idx + 1]
+        field_name = args[arg_idx + 2]
         get_tiddler_field(wiki_path, tiddler_title, field_name)
     elif command == "set":
-        if arg_idx + 3 >= len(sys.argv):
+        if arg_idx + 3 >= len(args):
             print("Error: set command requires a tiddler name, field name, and value", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[arg_idx + 1]
-        field_name = sys.argv[arg_idx + 2]
-        field_value = sys.argv[arg_idx + 3]
+        tiddler_title = args[arg_idx + 1]
+        field_name = args[arg_idx + 2]
+        field_value = args[arg_idx + 3]
         set_tiddler_field(wiki_path, tiddler_title, field_name, field_value)
     elif command == "rm":
-        if arg_idx + 1 >= len(sys.argv):
+        if arg_idx + 1 >= len(args):
             print("Error: rm command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[arg_idx + 1]
+        tiddler_title = args[arg_idx + 1]
         remove_tiddler(wiki_path, tiddler_title)
     elif command == "touch":
-        if arg_idx + 1 >= len(sys.argv):
+        if arg_idx + 1 >= len(args):
             print("Error: touch command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[arg_idx + 1]
-        text = sys.argv[arg_idx + 2] if arg_idx + 2 < len(sys.argv) else ""
+        tiddler_title = args[arg_idx + 1]
+        text = args[arg_idx + 2] if arg_idx + 2 < len(args) else ""
         touch_tiddler(wiki_path, tiddler_title, text)
     elif command == "insert":
         # Accept JSON from either command line argument or stdin
-        if arg_idx + 1 < len(sys.argv):
-            tiddler_json = sys.argv[arg_idx + 1]
+        if arg_idx + 1 < len(args):
+            tiddler_json = args[arg_idx + 1]
         else:
             # Read from stdin
             tiddler_json = sys.stdin.read()
@@ -3259,8 +3295,8 @@ def main():
         insert_tiddler(wiki_path, tiddler_json)
     elif command == "replace":
         # Accept content from either command line argument or stdin
-        if arg_idx + 1 < len(sys.argv):
-            content = sys.argv[arg_idx + 1]
+        if arg_idx + 1 < len(args):
+            content = args[arg_idx + 1]
         else:
             # Read from stdin
             content = sys.stdin.read()
@@ -3269,14 +3305,14 @@ def main():
                 sys.exit(1)
         replace_tiddler(wiki_path, content)
     elif command == "append":
-        if arg_idx + 1 >= len(sys.argv):
+        if arg_idx + 1 >= len(args):
             print("Error: append command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = sys.argv[arg_idx + 1]
+        tiddler_title = args[arg_idx + 1]
         # Check if there are additional arguments for text to append
-        if arg_idx + 2 < len(sys.argv):
+        if arg_idx + 2 < len(args):
             # Join all remaining arguments as the text
-            text_to_append = ' '.join(sys.argv[arg_idx + 2:])
+            text_to_append = ' '.join(args[arg_idx + 2:])
             append_tiddler(wiki_path, tiddler_title, text_to_append)
         else:
             # No text argument, will read from stdin
@@ -3298,22 +3334,22 @@ def main():
         readonly = False
 
         i = arg_idx + 1
-        while i < len(sys.argv):
-            if sys.argv[i] == '--host' and i + 1 < len(sys.argv):
-                host = sys.argv[i + 1]
+        while i < len(args):
+            if args[i] == '--host' and i + 1 < len(args):
+                host = args[i + 1]
                 i += 2
-            elif sys.argv[i] == '--port' and i + 1 < len(sys.argv):
+            elif args[i] == '--port' and i + 1 < len(args):
                 try:
-                    port = int(sys.argv[i + 1])
+                    port = int(args[i + 1])
                 except ValueError:
-                    print(f"Error: Invalid port number '{sys.argv[i + 1]}'", file=sys.stderr)
+                    print(f"Error: Invalid port number '{args[i + 1]}'", file=sys.stderr)
                     sys.exit(1)
                 i += 2
-            elif sys.argv[i] == '--readonly':
+            elif args[i] == '--readonly':
                 readonly = True
                 i += 1
             else:
-                print(f"Error: Unknown argument '{sys.argv[i]}'", file=sys.stderr)
+                print(f"Error: Unknown argument '{args[i]}'", file=sys.stderr)
                 print("Usage: tw [<wiki_path>] serve [--host HOST] [--port PORT] [--readonly]", file=sys.stderr)
                 sys.exit(1)
 
@@ -3325,31 +3361,31 @@ def main():
         readonly = False
 
         i = arg_idx + 1
-        while i < len(sys.argv):
-            if sys.argv[i] == '--host' and i + 1 < len(sys.argv):
-                host = sys.argv[i + 1]
+        while i < len(args):
+            if args[i] == '--host' and i + 1 < len(args):
+                host = args[i + 1]
                 i += 2
-            elif sys.argv[i] == '--port' and i + 1 < len(sys.argv):
+            elif args[i] == '--port' and i + 1 < len(args):
                 try:
-                    port = int(sys.argv[i + 1])
+                    port = int(args[i + 1])
                 except ValueError:
-                    print(f"Error: Invalid port number '{sys.argv[i + 1]}'", file=sys.stderr)
+                    print(f"Error: Invalid port number '{args[i + 1]}'", file=sys.stderr)
                     sys.exit(1)
                 i += 2
-            elif sys.argv[i] == '--readonly':
+            elif args[i] == '--readonly':
                 readonly = True
                 i += 1
             else:
-                print(f"Error: Unknown argument '{sys.argv[i]}'", file=sys.stderr)
+                print(f"Error: Unknown argument '{args[i]}'", file=sys.stderr)
                 print("Usage: tw [<wiki_path>] webdav [--host HOST] [--port PORT] [--readonly]", file=sys.stderr)
                 sys.exit(1)
 
         serve_webdav(wiki_path, host, port, readonly)
     elif command == "filter":
-        if arg_idx + 1 >= len(sys.argv):
+        if arg_idx + 1 >= len(args):
             print("Error: filter command requires an expression", file=sys.stderr)
             sys.exit(1)
-        filter_expr = sys.argv[arg_idx + 1]
+        filter_expr = args[arg_idx + 1]
         tw_filter.filter_command(filter_expr, wiki_path=wiki_path)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
