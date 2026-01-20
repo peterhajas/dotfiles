@@ -1,12 +1,12 @@
 local gitsigns = require("gitsigns")
 gitsigns.setup {
     signs = {
-        add          = { text = '|' },
-        change       = { text = '|' },
-        delete       = { text = '|' },
-        topdelete    = { text = '|' },
-        changedelete = { text = '|' },
-        untracked    = { text = '|' },
+        add          = { text = 'A' },
+        change       = { text = 'M' },
+        delete       = { text = 'D' },
+        topdelete    = { text = 'D' },
+        changedelete = { text = 'D' },
+        untracked    = { text = '?' },
     },
     current_line_blame = false,
     current_line_blame_opts = {
