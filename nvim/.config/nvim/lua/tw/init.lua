@@ -7,6 +7,7 @@ local tw_wrapper = require("tw.tw_wrapper")
 local buffer_manager = require("tw.buffer")
 local telescope_picker = require("tw.telescope")
 local sidebar = require("tw.sidebar")
+local journal = require("tw.journal")
 
 -- Setup function
 function M.setup(opts)
@@ -18,6 +19,11 @@ function M.setup(opts)
 
   -- Setup buffer management
   buffer_manager.setup()
+
+  -- Setup journal auto-switch if enabled
+  if opts.journal_auto_switch then
+    journal.setup_auto_switch()
+  end
 
   -- Setup sidebar
   if opts.sidebar then
@@ -162,6 +168,21 @@ function M.setup(opts)
     sidebar.refresh()
   end, { desc = "Refresh TiddlyWiki sidebar" })
 
+  -- Journal commands
+  vim.api.nvim_create_user_command("TiddlerJournalToday", function()
+    journal.open_today()
+  end, { desc = "Open today's journal" })
+
+  vim.api.nvim_create_user_command("TiddlerJournalAutoSwitchStart", function()
+    journal.setup_auto_switch()
+    vim.notify("Journal auto-switch enabled", vim.log.levels.INFO)
+  end, { desc = "Start journal auto-switch timer" })
+
+  vim.api.nvim_create_user_command("TiddlerJournalAutoSwitchStop", function()
+    journal.stop_auto_switch()
+    vim.notify("Journal auto-switch disabled", vim.log.levels.INFO)
+  end, { desc = "Stop journal auto-switch timer" })
+
   -- Optional: setup keybindings if provided
   if opts.keybindings then
     if opts.keybindings.edit then
@@ -186,5 +207,6 @@ M.buffer = buffer_manager
 M.telescope = telescope_picker
 M.tw = tw_wrapper
 M.sidebar = sidebar
+M.journal = journal
 
 return M

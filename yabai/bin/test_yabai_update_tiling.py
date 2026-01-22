@@ -830,6 +830,112 @@ class TestScenarioIntegration(unittest.TestCase):
                           "Dialog windows should be management-disabled")
 
 
+class TestJournalWindows(unittest.TestCase):
+    """Tests for journal window detection and handling."""
+
+    def test_is_special_journal_detects_journal_window(self):
+        """Journal windows should be detected by title."""
+        journal_window = {
+            "id": 123,
+            "app": "Ghostty",
+            "title": "nvim wiki_journal_today 2026-01-19"
+        }
+        self.assertTrue(yut.is_special_journal(journal_window))
+
+    def test_is_special_journal_case_insensitive(self):
+        """Journal detection should be case insensitive."""
+        journal_window = {
+            "id": 123,
+            "app": "Ghostty",
+            "title": "Wiki_Journal_Today"
+        }
+        self.assertTrue(yut.is_special_journal(journal_window))
+
+    def test_is_special_journal_rejects_non_journal(self):
+        """Non-journal windows should not be detected."""
+        normal_window = {
+            "id": 123,
+            "app": "Ghostty",
+            "title": "bash"
+        }
+        self.assertFalse(yut.is_special_journal(normal_window))
+
+    def test_journal_windows_excluded_from_bucket_layout(self):
+        """Journal windows should be excluded from bucket processing."""
+        test_data = {
+            "displays": [
+                {"index": 1, "frame": {"x": 0, "y": 0, "w": 2560, "h": 1440}}
+            ],
+            "spaces": [
+                {"index": 1, "display": 1, "layout": "float"}
+            ],
+            "windows": [
+                {
+                    "id": 100,
+                    "app": "Ghostty",
+                    "title": "wiki_journal_today 2026-01-19",
+                    "display": 1,
+                    "space": 1,
+                    "frame": {"x": 2340, "y": 12, "w": 208, "h": 400},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                },
+                {
+                    "id": 101,
+                    "app": "Safari",
+                    "title": "Web Page",
+                    "display": 1,
+                    "space": 1,
+                    "frame": {"x": 100, "y": 100, "w": 800, "h": 600},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                }
+            ],
+            "rules": []
+        }
+
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+
+        # Set up minimal state
+        yut.MANAGE_OFF_RULES = []
+        yut.MANAGE_OFF_APPS = set()
+
+        windows = provider.query_windows()
+        displays = provider.query_displays()
+        spaces = provider.query_spaces()
+
+        # Check that journal window is detected
+        journal_windows = [w for w in windows if yut.is_special_journal(w)]
+        self.assertEqual(len(journal_windows), 1)
+
+        # Run simplified bucket logic
+        display_obj = displays[0]
+        display_w = display_obj["frame"]["w"]
+        buckets_for_display = ["left", "center", "right"]
+        buckets = {name: [] for name in buckets_for_display}
+
+        for win in windows:
+            if yut.is_management_disabled(win):
+                continue
+            if yut.is_special_journal(win):
+                continue
+            bucket = yut.determine_bucket_by_position(win, display_obj, buckets_for_display)
+            buckets[bucket].append(win)
+
+        # Journal window should not be in any bucket
+        all_bucketed_windows = []
+        for bucket_wins in buckets.values():
+            all_bucketed_windows.extend(bucket_wins)
+
+        self.assertEqual(len(all_bucketed_windows), 1)  # Only Safari
+        self.assertEqual(all_bucketed_windows[0]["id"], 101)  # Not the journal window
+
+
 class TestPaddingConfiguration(unittest.TestCase):
     """Tests for padding configuration from yabai and environment."""
 
@@ -967,6 +1073,7 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestWindowSorting))
     suite.addTests(loader.loadTestsFromTestCase(TestGetMainHorizontalRow))
     suite.addTests(loader.loadTestsFromTestCase(TestBucketDisplayMap))
+    suite.addTests(loader.loadTestsFromTestCase(TestJournalWindows))
     suite.addTests(loader.loadTestsFromTestCase(TestPaddingConfiguration))
     suite.addTests(loader.loadTestsFromTestCase(TestScenarioIntegration))
 

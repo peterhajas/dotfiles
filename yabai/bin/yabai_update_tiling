@@ -313,6 +313,30 @@ def apply_grid(win_id: int, rows: int, col: int, row: int, span: int, executor: 
     executor.execute(["yabai", "-m", "window", str(win_id), "--grid", grid])
 
 
+def position_journal_window(win_id: int, display: Dict[str, Any], provider: YabaiDataProvider, executor: YabaiCommandExecutor) -> None:
+    """Position journal window in upper-right corner with fixed dimensions."""
+    frame = display.get("frame", {})
+    disp_x = float(frame.get("x", 0) or 0)
+    disp_y = float(frame.get("y", 0) or 0)
+    disp_w = float(frame.get("w", 0) or 0)
+
+    # Journal window dimensions (192px to avoid overlapping main content area)
+    width = 192
+    height = 400
+    margin = 12
+
+    # Account for window decorations - Ghostty may have borders/padding
+    # Position flush against right edge (no margin) and just below menu bar
+    x = int(disp_x + disp_w - width)
+    y = int(disp_y + margin)  # Keep top margin for menu bar clearance
+
+    log(f"Positioning journal window {win_id} at ({x}, {y}) with size ({width}x{height})")
+
+    # Resize first, then move (resize can change position, so move last to ensure right-alignment)
+    executor.execute(["yabai", "-m", "window", str(win_id), "--resize", f"abs:{width}:{height}"])
+    executor.execute(["yabai", "-m", "window", str(win_id), "--move", f"abs:{x}:{y}"])
+
+
 def apply_bucket(windows: List[int], col: int, span: int, executor: YabaiCommandExecutor) -> None:
     rows = max(1, len(windows))
     for idx, win in enumerate(windows):
@@ -572,6 +596,11 @@ def is_special_ai(win: Dict[str, Any]) -> bool:
         return True
 
     return False
+
+
+def is_special_journal(win: Dict[str, Any]) -> bool:
+    title = win.get("title", "")
+    return "wiki_journal_today" in title.lower()
 
 
 def rule_matches_window(rule: Dict[str, Any], win: Dict[str, Any]) -> bool:
@@ -1032,13 +1061,31 @@ def main() -> None:
 
     sysmon_windows = [w for w in windows if is_special_sysmon(w)]
     ai_windows = [w for w in windows if is_special_ai(w)]
+    journal_windows = [w for w in windows if is_special_journal(w)]
     sysmon_windows = [w for w in sysmon_windows if not is_management_disabled(w)]
     ai_windows = [w for w in ai_windows if not is_management_disabled(w)]
+    journal_windows = [w for w in journal_windows if not is_management_disabled(w)]
 
     if sysmon_windows:
         log(f"Sysmon windows ({len(sysmon_windows)}): {[w.get('id') for w in sysmon_windows]}")
     if ai_windows:
         log(f"AI windows ({len(ai_windows)}): {[w.get('id') for w in ai_windows]}")
+    if journal_windows:
+        log(f"Journal windows ({len(journal_windows)}): {[w.get('id') for w in journal_windows]}")
+
+    # Position journal windows in upper-right of primary display
+    primary_display = None
+    for d in displays:
+        if d.get("index") == 1:  # Primary display is typically index 1
+            primary_display = d
+            break
+    if not primary_display and displays:
+        primary_display = displays[0]
+
+    if journal_windows and primary_display:
+        for win in journal_windows:
+            win_id = win.get("id")
+            position_journal_window(win_id, primary_display, provider, executor)
 
     # Auto-bucketing removed: windows stay where user places them
     # Position-based bucketing happens in the layout sections below
@@ -1066,6 +1113,9 @@ def main() -> None:
                 if win.get("minimized") == 1:
                     continue
                 if is_management_disabled(win):
+                    continue
+                # Skip journal windows - they're positioned separately
+                if is_special_journal(win):
                     continue
                 if win.get("floating") == 1:
                     ensure_managed(win.get("id"), provider, executor)
@@ -1131,6 +1181,9 @@ def main() -> None:
                 if win.get("minimized") == 1:
                     continue
                 if is_management_disabled(win):
+                    continue
+                # Skip journal windows - they're positioned separately
+                if is_special_journal(win):
                     continue
                 if win.get("floating") == 1:
                     # Make sure floating windows get managed so grid placement works

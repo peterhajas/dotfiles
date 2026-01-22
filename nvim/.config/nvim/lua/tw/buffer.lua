@@ -60,7 +60,11 @@ function M.open(tiddler_name)
   -- Switch to the buffer
   vim.api.nvim_set_current_buf(bufnr)
 
-  vim.notify("Opened: " .. tiddler_name, vim.log.levels.INFO)
+  -- Disable line numbers and gutters
+  vim.opt_local.number = false
+  vim.opt_local.relativenumber = false
+  vim.opt_local.signcolumn = "no"
+  vim.opt_local.foldcolumn = "0"
 end
 
 -- Save a tiddler buffer

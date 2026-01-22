@@ -8,6 +8,12 @@ end
 
 -- Metrics
 local yOffset = -1
+-- Journal offset calculation (ZERO gap between journal and HUD):
+-- - Journal window: y=31 (menu bar accounts for offset), height=400
+-- - Journal bottom: 31 + 400 = 431
+-- - HUD should start at: 431 (zero gap)
+-- - Since HUD y = yOffset + journalOffset = -1 + journalOffset, we need journalOffset = 432
+local journalOffset = 432  -- Reserve space for journal window (zero gap)
 
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
@@ -116,10 +122,10 @@ local function layoutWikiState(wikiState)
     local webView = wikiState['webView']
     if display ~= nil then
         local screenFrame = display:frame()
-        local topPadding = yOffset
+        local topPadding = yOffset + journalOffset
         -- This lets us just match the right sidebar's frame (for now)
         -- to use less memory for the webview
-        local hudWidth = 196  -- Match yabai right padding
+        local hudWidth = 192  -- Match journal window width
         local hudFrame = {
             x = screenFrame.x + screenFrame.w - hudWidth,
             y = screenFrame.y + topPadding,

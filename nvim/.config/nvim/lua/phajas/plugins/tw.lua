@@ -3,7 +3,7 @@
 local tw = require("tw")
 
 tw.setup({
-  wiki_path = vim.env.HOME .. "/dotfiles/tiddlywiki/wiki.html",
+  wiki_path = vim.env.HOME .. "/phajas-wiki/phajas-wiki.html",
   tw_binary = vim.env.HOME .. "/dotfiles/tiddlywiki/bin/tw",
   auto_open_wiki_files = true,  -- Open TiddlyWiki picker when opening .html wiki files
   keybindings = {
