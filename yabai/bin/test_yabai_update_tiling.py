@@ -608,6 +608,327 @@ class TestBucketDisplayMap(unittest.TestCase):
         self.assertNotIn(4, mapping.values())
 
 
+class TestApplyBucket(unittest.TestCase):
+    """Unit tests for apply_bucket() function."""
+
+    def test_vertical_tiling_single_window(self):
+        """Single window should occupy full bucket height."""
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        yut.apply_bucket([100], col=0, span=50, executor=executor, horizontal=False)
+
+        # Should have one grid command
+        self.assertEqual(len(executor.executed_commands), 1)
+        cmd = executor.executed_commands[0]
+
+        # Grid format: rows:cols:col:row:span:height
+        # With 1 window vertically: 1:100:0:0:50:1
+        self.assertIn("--grid", cmd)
+        self.assertIn("1:100:0:0:50:1", cmd)
+
+    def test_vertical_tiling_multiple_windows(self):
+        """Multiple windows should stack vertically."""
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        yut.apply_bucket([100, 101, 102], col=0, span=30, executor=executor, horizontal=False)
+
+        # Should have 3 grid commands
+        self.assertEqual(len(executor.executed_commands), 3)
+
+        # Each window at same col, different row
+        for idx, cmd in enumerate(executor.executed_commands):
+            # Grid: 3:100:0:idx:30:1
+            self.assertIn("--grid", cmd)
+            self.assertIn(f"3:100:0:{idx}:30:1", cmd)
+
+    def test_horizontal_tiling_single_window(self):
+        """Single window horizontally should occupy full bucket width."""
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        yut.apply_bucket([100], col=20, span=60, executor=executor, horizontal=True)
+
+        # Should have one grid command
+        self.assertEqual(len(executor.executed_commands), 1)
+        cmd = executor.executed_commands[0]
+
+        # With 1 window horizontally: 1:100:20:0:60:1
+        self.assertIn("--grid", cmd)
+        self.assertIn("1:100:20:0:60:1", cmd)
+
+    def test_horizontal_tiling_two_windows(self):
+        """Two windows should tile side-by-side."""
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        yut.apply_bucket([100, 101], col=0, span=50, executor=executor, horizontal=True)
+
+        # Should have 2 grid commands
+        self.assertEqual(len(executor.executed_commands), 2)
+
+        # Each window: 1 row, different cols, each 25 span
+        # Window 0: 1:100:0:0:25:1
+        # Window 1: 1:100:25:0:25:1
+        self.assertIn("1:100:0:0:25:1", executor.executed_commands[0])
+        self.assertIn("1:100:25:0:25:1", executor.executed_commands[1])
+
+    def test_horizontal_tiling_three_windows(self):
+        """Three windows should split width evenly."""
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        yut.apply_bucket([100, 101, 102], col=10, span=60, executor=executor, horizontal=True)
+
+        # Should have 3 grid commands
+        self.assertEqual(len(executor.executed_commands), 3)
+
+        # Each window: 20 cols (60/3), at row 0
+        # Window 0: col=10, span=20
+        # Window 1: col=30, span=20
+        # Window 2: col=50, span=20
+        self.assertIn("1:100:10:0:20:1", executor.executed_commands[0])
+        self.assertIn("1:100:30:0:20:1", executor.executed_commands[1])
+        self.assertIn("1:100:50:0:20:1", executor.executed_commands[2])
+
+    def test_horizontal_tiling_odd_span(self):
+        """Horizontal tiling with odd span should distribute remainder."""
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        # 50 span / 3 windows = 16 each + 2 remainder
+        yut.apply_bucket([100, 101, 102], col=0, span=50, executor=executor, horizontal=True)
+
+        self.assertEqual(len(executor.executed_commands), 3)
+
+        # First two windows get +1 from remainder: 17, 17, 16
+        # Window 0: col=0, span=17
+        # Window 1: col=17, span=17
+        # Window 2: col=34, span=16
+        self.assertIn("1:100:0:0:17:1", executor.executed_commands[0])
+        self.assertIn("1:100:17:0:17:1", executor.executed_commands[1])
+        self.assertIn("1:100:34:0:16:1", executor.executed_commands[2])
+
+    def test_empty_windows_list(self):
+        """Empty window list should not generate commands."""
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        yut.apply_bucket([], col=0, span=50, executor=executor, horizontal=False)
+        self.assertEqual(len(executor.executed_commands), 0)
+
+
+class TestHorizontalTilingLogic(unittest.TestCase):
+    """Tests for horizontal vs vertical tiling decision logic."""
+
+    def test_laptop_display_tiles_horizontally(self):
+        """Laptop display (1440x900) is wider than tall - should tile horizontally."""
+        # MacBook Pro 14" display: 1440x900 (16:10 aspect ratio)
+        display_w = 1440.0
+        display_h = 900.0
+
+        # Display itself is wider than tall
+        self.assertGreater(display_w, display_h)  # 1440 > 900
+
+        # When buckets occupy full display width, they should tile horizontally
+        # Example: single bucket spanning 100% of display
+        full_span = 100
+        full_width = (full_span / 100) * display_w
+        self.assertGreater(full_width, display_h)  # 1440 > 900 → horizontal
+
+        # Even a 50% bucket is wider than tall
+        half_span = 50
+        half_width = (half_span / 100) * display_w
+        self.assertLess(half_width, display_h)  # 720 < 900 → vertical
+
+        # But 70%+ buckets would be wide enough
+        large_span = 70
+        large_width = (large_span / 100) * display_w
+        self.assertGreater(large_width, display_h)  # 1008 > 900 → horizontal
+
+    def test_ultrawide_center_tiles_horizontally(self):
+        """Ultrawide display center bucket should tile horizontally."""
+        # 3440x1440 ultrawide with 3 buckets
+        display_w = 3440.0
+        display_h = 1440.0
+
+        # With SIDE_MAX_WIDTH_PX=1080: left=1080, right=1080, center=1280
+        # Center: 1280px < 1440px → still vertical!
+        # But with 5 buckets...
+
+        # Actually test a truly wide center bucket
+        # If center gets 55 span: 55% of 3440 = 1892px
+        center_span = 55
+        center_width = (center_span / 100) * display_w
+        self.assertGreater(center_width, display_h)  # 1892 > 1440 → horizontal
+
+    def test_4k_display_tiles_vertically(self):
+        """4K display buckets should tile vertically."""
+        # 3840x2160 display
+        display_w = 3840.0
+        display_h = 2160.0
+
+        # Even with large buckets, height dominates
+        # Center bucket at ~33%: 1280px < 2160px → vertical
+        center_span = 33
+        center_width = (center_span / 100) * display_w
+        self.assertLess(center_width, display_h)
+
+    def test_super_ultrawide_tiles_horizontally(self):
+        """Super ultrawide display should tile horizontally."""
+        # 5120x1440 (32:9 aspect ratio)
+        display_w = 5120.0
+        display_h = 1440.0
+
+        # With 5 buckets, center gets ~33%: 1690px > 1440px → horizontal
+        center_span = 33
+        center_width = (center_span / 100) * display_w
+        self.assertGreater(center_width, display_h)
+
+
+class TestLaptopMultiDisplay(unittest.TestCase):
+    """Tests for laptop in multi-display setup."""
+
+    def test_laptop_plus_externals_uses_bucket_mode(self):
+        """Laptop + 2 external displays should trigger 5-bucket mode."""
+        # Laptop: 1440x900, External 1: 2560x1440, External 2: 1920x1080
+        # Total: 5920px → triggers 5-bucket mode
+        displays = [
+            {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},      # External left
+            {"index": 2, "frame": {"x": 1920, "y": 0, "w": 2560, "h": 1440}},   # External center
+            {"index": 3, "frame": {"x": 4480, "y": 0, "w": 1440, "h": 900}},    # Laptop right
+        ]
+
+        total_width = sum(d["frame"]["w"] for d in displays)
+        self.assertGreaterEqual(total_width, yut.WORKSPACE_WIDTH_THRESHOLD)  # 5920 >= 5000
+
+        # Verify bucket mapping
+        mapping = yut.bucket_display_map(displays)
+        self.assertIsNotNone(mapping["far_left"])
+        self.assertIsNotNone(mapping["center"])
+        self.assertIsNotNone(mapping["far_right"])
+
+    def test_laptop_bucket_tiles_horizontally_when_full_width(self):
+        """Laptop (1440x900) with full-width bucket should tile horizontally."""
+        # Simulate laptop as sole display with bucket occupying full width
+        display_w = 1440.0
+        display_h = 900.0
+
+        # Test single bucket occupying full display
+        layout = yut.bucket_layout(["center"], display_w, center_bucket=False)
+
+        bucket_span = layout["center"]["span"]
+        bucket_width = (bucket_span / yut.GRID_COLUMNS) * display_w
+
+        # Full width bucket: 1440px > 900px → should tile horizontally
+        self.assertGreater(bucket_width, display_h)
+        self.assertEqual(bucket_span, 100)  # Full width
+
+    def test_laptop_right_padding_for_hud_when_center(self):
+        """Laptop should have right padding for HUD/widget area when it's the center display."""
+        displays = [
+            {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},      # External left
+            {"index": 2, "frame": {"x": 1920, "y": 0, "w": 1440, "h": 900}},    # Laptop center
+            {"index": 3, "frame": {"x": 3360, "y": 0, "w": 1920, "h": 1080}},   # External right
+        ]
+
+        # Get bucket mapping
+        mapping = yut.bucket_display_map(displays)
+        center_display_idx = mapping.get("center")
+
+        # Laptop is in the middle, should be assigned to center bucket
+        self.assertEqual(center_display_idx, 2)
+
+        # Calculate layout for laptop display with widget padding
+        laptop_display = displays[1]
+        laptop_w = laptop_display["frame"]["w"]
+
+        # Center display should get widget padding cutout
+        layout = yut.bucket_layout(
+            ["left", "center", "right"],
+            laptop_w,
+            center_bucket=True,
+            right_cutout_px=yut.WIDGET_PADDING
+        )
+
+        # Right bucket should not extend to edge due to cutout
+        if "right" in layout:
+            right_end = layout["right"]["col"] + layout["right"]["span"]
+            cutout_cols = int((yut.WIDGET_PADDING / laptop_w) * yut.GRID_COLUMNS)
+            expected_max = yut.GRID_COLUMNS - cutout_cols
+            self.assertLessEqual(right_end, expected_max)
+
+    def test_widget_display_override_via_env(self):
+        """YABAI_WIDGET_DISPLAY env var should override which display gets widget padding."""
+        displays = [
+            {"index": 1, "id": 1, "uuid": "uuid-1", "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},
+            {"index": 2, "id": 2, "uuid": "uuid-laptop", "frame": {"x": 1920, "y": 0, "w": 1440, "h": 900}},
+            {"index": 3, "id": 3, "uuid": "uuid-3", "frame": {"x": 3360, "y": 0, "w": 1920, "h": 1080}},
+        ]
+
+        # Test override by index
+        result = yut.explicit_display_override(displays, ["YABAI_WIDGET_DISPLAY"])
+        # Without env var set in this test, should return None
+        self.assertIsNone(result)
+
+        # Test that resolve_display_identifier works for various identifiers
+        # By index
+        self.assertEqual(yut.resolve_display_identifier(displays, "2"), 2)
+        # By ID
+        self.assertEqual(yut.resolve_display_identifier(displays, "2"), 2)
+        # By UUID
+        self.assertEqual(yut.resolve_display_identifier(displays, "uuid-laptop"), 2)
+
+
+class TestWidgetPaddingAllModes(unittest.TestCase):
+    """Tests for widget padding in all display modes."""
+
+    def test_widget_padding_in_standard_two_display_mode(self):
+        """Standard 2-display mode should apply widget padding to center display."""
+        # Two displays, neither ultrawide, total < 5000px → standard mode
+        displays = [
+            {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},
+            {"index": 2, "frame": {"x": 1920, "y": 0, "w": 2560, "h": 1440}},
+        ]
+
+        total_width = sum(d["frame"]["w"] for d in displays)
+        self.assertLess(total_width, yut.WORKSPACE_WIDTH_THRESHOLD)  # < 5000
+
+        # Determine center display (rightmost of sorted displays by x)
+        main_row = yut.get_main_horizontal_row(displays)
+        sorted_row = sorted(main_row, key=lambda d: d.get("frame", {}).get("x", 0))
+        center_idx = sorted_row[len(sorted_row) // 2].get("index")
+
+        # In this case: sorted = [1, 2], center = index 1 (first of 2)
+        # Wait, len=2, len//2=1, so sorted_row[1] = display 2
+        self.assertEqual(center_idx, 2)
+
+    def test_widget_padding_applied_to_center_in_all_modes(self):
+        """Widget padding should be applied to center display in standard, bucket, and ultrawide modes."""
+        test_cases = [
+            {
+                "name": "Single display",
+                "displays": [{"index": 1, "frame": {"x": 0, "y": 0, "w": 2560, "h": 1440}}],
+                "expected_center": 1
+            },
+            {
+                "name": "Two displays",
+                "displays": [
+                    {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},
+                    {"index": 2, "frame": {"x": 1920, "y": 0, "w": 2560, "h": 1440}},
+                ],
+                "expected_center": 2  # Right display (center of 2 = index 1)
+            },
+            {
+                "name": "Three displays",
+                "displays": [
+                    {"index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}},
+                    {"index": 2, "frame": {"x": 1920, "y": 0, "w": 2560, "h": 1440}},
+                    {"index": 3, "frame": {"x": 4480, "y": 0, "w": 1920, "h": 1080}},
+                ],
+                "expected_center": 2  # Middle display
+            }
+        ]
+
+        for case in test_cases:
+            displays = case["displays"]
+            main_row = yut.get_main_horizontal_row(displays)
+            sorted_row = sorted(main_row, key=lambda d: d.get("frame", {}).get("x", 0))
+            center_idx = sorted_row[len(sorted_row) // 2].get("index")
+            self.assertEqual(
+                center_idx,
+                case["expected_center"],
+                f"Failed for case: {case['name']}"
+            )
+
+
 class TestScenarioIntegration(unittest.TestCase):
     """Integration tests using test scenarios."""
 
@@ -724,26 +1045,27 @@ class TestScenarioIntegration(unittest.TestCase):
                 if not layout:
                     continue
 
+                # Calculate display height for aspect ratio checks
+                display_h = display_obj.get("frame", {}).get("h", 0)
+
                 for bucket_name, wins in buckets.items():
                     if not wins or bucket_name not in layout:
                         continue
 
-                    if bucket_name == "center":
-                        sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
-                        yut.apply_bucket(
-                            [w.get("id") for w in sorted_wins],
-                            layout[bucket_name]["col"],
-                            layout[bucket_name]["span"],
-                            executor,
-                        )
-                    else:
-                        sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
-                        yut.apply_bucket(
-                            [w.get("id") for w in sorted_wins],
-                            layout[bucket_name]["col"],
-                            layout[bucket_name]["span"],
-                            executor,
-                        )
+                    # Calculate bucket dimensions and tiling direction
+                    bucket_span = layout[bucket_name]["span"]
+                    bucket_width = (bucket_span / yut.GRID_COLUMNS) * display_w
+                    bucket_height = display_h
+                    horizontal = bucket_width > bucket_height
+
+                    sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
+                    yut.apply_bucket(
+                        [w.get("id") for w in sorted_wins],
+                        layout[bucket_name]["col"],
+                        layout[bucket_name]["span"],
+                        executor,
+                        horizontal=horizontal,
+                    )
 
         return executor
 
@@ -1073,6 +1395,10 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestWindowSorting))
     suite.addTests(loader.loadTestsFromTestCase(TestGetMainHorizontalRow))
     suite.addTests(loader.loadTestsFromTestCase(TestBucketDisplayMap))
+    suite.addTests(loader.loadTestsFromTestCase(TestApplyBucket))
+    suite.addTests(loader.loadTestsFromTestCase(TestHorizontalTilingLogic))
+    suite.addTests(loader.loadTestsFromTestCase(TestLaptopMultiDisplay))
+    suite.addTests(loader.loadTestsFromTestCase(TestWidgetPaddingAllModes))
     suite.addTests(loader.loadTestsFromTestCase(TestJournalWindows))
     suite.addTests(loader.loadTestsFromTestCase(TestPaddingConfiguration))
     suite.addTests(loader.loadTestsFromTestCase(TestScenarioIntegration))

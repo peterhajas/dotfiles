@@ -337,10 +337,42 @@ def position_journal_window(win_id: int, display: Dict[str, Any], provider: Yaba
     executor.execute(["yabai", "-m", "window", str(win_id), "--move", f"abs:{x}:{y}"])
 
 
-def apply_bucket(windows: List[int], col: int, span: int, executor: YabaiCommandExecutor) -> None:
-    rows = max(1, len(windows))
-    for idx, win in enumerate(windows):
-        apply_grid(win, rows, col, idx, span, executor)
+def apply_bucket(windows: List[int], col: int, span: int, executor: YabaiCommandExecutor, horizontal: bool = False) -> None:
+    """
+    Apply grid layout to windows in a bucket.
+
+    Args:
+        windows: List of window IDs to tile
+        col: Starting column in grid
+        span: Column span for the bucket
+        executor: Command executor
+        horizontal: If True, tile side-by-side; if False, tile vertically (stacked)
+    """
+    if not windows:
+        return
+
+    num_windows = len(windows)
+
+    if horizontal:
+        # Horizontal tiling: windows side-by-side
+        # Each window gets a portion of the bucket's column span
+        window_span = max(1, span // num_windows)
+        remainder = span - (window_span * num_windows)
+
+        for idx, win in enumerate(windows):
+            # Distribute remainder pixels to first windows
+            current_span = window_span + (1 if idx < remainder else 0)
+            window_col = col + sum(
+                window_span + (1 if i < remainder else 0)
+                for i in range(idx)
+            )
+            # Use 1 row, place all windows at row 0, each spans full height
+            apply_grid(win, 1, window_col, 0, current_span, executor)
+    else:
+        # Vertical tiling: windows stacked
+        rows = max(1, num_windows)
+        for idx, win in enumerate(windows):
+            apply_grid(win, rows, col, idx, span, executor)
 
 
 def compute_bucket_widths(buckets_present: List[str], display_width: float) -> Dict[str, float]:
@@ -993,13 +1025,47 @@ def main() -> None:
     for disp, buckets in display_to_buckets.items():
         display_to_buckets[disp] = [b for b in BUCKET_ORDER if b in buckets]
 
+    # Determine center-most display for widget padding
+    # Priority: YABAI_WIDGET_DISPLAY env var > center bucket > center of main row
+    widget_display_override = explicit_display_override(
+        displays, ["YABAI_WIDGET_DISPLAY"]
+    )
+    if widget_display_override is not None:
+        center_display_for_widgets = widget_display_override
+    elif use_five_buckets and bucket_to_display:
+        center_display_for_widgets = bucket_to_display.get("center")
+    else:
+        # Find center display in main horizontal row
+        main_row = get_main_horizontal_row(displays)
+        if main_row:
+            sorted_row = sorted(main_row, key=lambda d: d.get("frame", {}).get("x", 0))
+            center_display_for_widgets = sorted_row[len(sorted_row) // 2].get("index")
+        else:
+            center_display_for_widgets = None
+
+    log(f"Widget padding will be applied to display {center_display_for_widgets}")
+
     # Space layouts/padding
     if should_update_config:
         for space in spaces:
             space_index = space.get("index")
             space_display = space.get("display")
-            # Do not reserve right padding so the center/right buckets can reach the display edge.
-            pad_right = 0
+
+            # Apply widget padding on center-most display
+            # In bucket modes, padding is handled by bucket_layout (right_cutout_px)
+            # In non-bucket modes, use space-level right_padding
+            if use_five_buckets and space_display in display_to_buckets:
+                # Bucket mode: no space padding, bucket layout handles widget area
+                pad_right = 0
+            elif not use_five_buckets and ultra_index is not None and space_display == ultra_index:
+                # Ultrawide mode: no space padding, bucket layout handles widget area
+                pad_right = 0
+            elif space_display == center_display_for_widgets:
+                # Standard mode: apply widget padding at space level
+                pad_right = WIDGET_PADDING
+            else:
+                pad_right = 0
+
             layout = "stack" if space_index == 1 else "bsp"
             # For tiled spaces, float layout so manual grids are not retiled by bsp/stack
             if use_five_buckets and space_display in display_to_buckets:
@@ -1131,36 +1197,47 @@ def main() -> None:
             # Always allocate space for all buckets, even if empty
             present_buckets = buckets_for_display
 
-            # Apply widget padding cutout only on the center display
-            center_display_idx = bucket_to_display.get("center")
-            right_cutout = WIDGET_PADDING if space_display == center_display_idx else 0
+            # Apply widget padding cutout
+            # Priority: YABAI_WIDGET_DISPLAY env var > center display
+            widget_display_override = explicit_display_override(
+                displays, ["YABAI_WIDGET_DISPLAY"]
+            )
+            if widget_display_override is not None:
+                widget_display_idx = widget_display_override
+            else:
+                widget_display_idx = bucket_to_display.get("center")
+
+            right_cutout = WIDGET_PADDING if space_display == widget_display_idx else 0
 
             layout = bucket_layout(present_buckets, display_w, center_bucket=True, right_cutout_px=right_cutout)
             if not layout:
                 continue
 
+            # Calculate display height for aspect ratio checks
+            display_h = display_obj.get("frame", {}).get("h", 0)
+
             for bucket_name, wins in buckets.items():
                 if not wins or bucket_name not in layout:
                     continue
 
-                if bucket_name == "center":
-                    # Center bucket: vertically stacked, sorted by window ID
-                    sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
-                    apply_bucket(
-                        [w.get("id") for w in sorted_wins],
-                        layout[bucket_name]["col"],
-                        layout[bucket_name]["span"],
-                        executor,
-                    )
-                else:
-                    # Side buckets: vertically stacked, sorted by window ID
-                    sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
-                    apply_bucket(
-                        [w.get("id") for w in sorted_wins],
-                        layout[bucket_name]["col"],
-                        layout[bucket_name]["span"],
-                        executor,
-                    )
+                # Calculate bucket dimensions
+                bucket_span = layout[bucket_name]["span"]
+                bucket_width = (bucket_span / GRID_COLUMNS) * display_w
+                bucket_height = display_h
+
+                # Tile horizontally if bucket is wider than tall
+                horizontal = bucket_width > bucket_height
+                log(f"Bucket '{bucket_name}': {bucket_width:.0f}x{bucket_height:.0f}px, "
+                    f"tiling {'horizontally' if horizontal else 'vertically'}")
+
+                sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
+                apply_bucket(
+                    [w.get("id") for w in sorted_wins],
+                    layout[bucket_name]["col"],
+                    layout[bucket_name]["span"],
+                    executor,
+                    horizontal=horizontal,
+                )
 
     # 25/50/25 tiling for legacy ultrawide
     if not use_five_buckets and ultra_index is not None:
@@ -1215,31 +1292,64 @@ def main() -> None:
             present_buckets = ["left", "center", "right"]
 
             # Apply widget padding cutout on the ultrawide display
-            layout = bucket_layout(present_buckets, ultra_w, center_bucket=True, right_cutout_px=WIDGET_PADDING)
+            # Check if there's an override for widget display
+            widget_display_override = explicit_display_override(
+                displays, ["YABAI_WIDGET_DISPLAY"]
+            )
+            # Apply padding to ultrawide display (or override if set and matches)
+            if widget_display_override is not None and widget_display_override == ultra_index:
+                right_cutout = WIDGET_PADDING
+            elif widget_display_override is None:
+                right_cutout = WIDGET_PADDING
+            else:
+                right_cutout = 0
+
+            layout = bucket_layout(present_buckets, ultra_w, center_bucket=True, right_cutout_px=right_cutout)
             if not layout:
                 continue
 
+            # Calculate display height for aspect ratio checks
+            ultra_h = ultra_frame.get("h", 0)
+
             if left_bucket and "left" in layout:
+                bucket_span = layout["left"]["span"]
+                bucket_width = (bucket_span / GRID_COLUMNS) * ultra_w
+                horizontal = bucket_width > ultra_h
+                log(f"Ultrawide bucket 'left': {bucket_width:.0f}x{ultra_h:.0f}px, "
+                    f"tiling {'horizontally' if horizontal else 'vertically'}")
                 apply_bucket(
                     [w.get("id") for w in left_sorted],
                     layout["left"]["col"],
                     layout["left"]["span"],
                     executor,
+                    horizontal=horizontal,
                 )
             if center_bucket and "center" in layout:
                 center_sorted = sorted(center_bucket, key=lambda w: w.get("id", 0))
+                bucket_span = layout["center"]["span"]
+                bucket_width = (bucket_span / GRID_COLUMNS) * ultra_w
+                horizontal = bucket_width > ultra_h
+                log(f"Ultrawide bucket 'center': {bucket_width:.0f}x{ultra_h:.0f}px, "
+                    f"tiling {'horizontally' if horizontal else 'vertically'}")
                 apply_bucket(
                     [w.get("id") for w in center_sorted],
                     layout["center"]["col"],
                     layout["center"]["span"],
                     executor,
+                    horizontal=horizontal,
                 )
             if right_bucket and "right" in layout:
+                bucket_span = layout["right"]["span"]
+                bucket_width = (bucket_span / GRID_COLUMNS) * ultra_w
+                horizontal = bucket_width > ultra_h
+                log(f"Ultrawide bucket 'right': {bucket_width:.0f}x{ultra_h:.0f}px, "
+                    f"tiling {'horizontally' if horizontal else 'vertically'}")
                 apply_bucket(
                     [w.get("id") for w in right_sorted],
                     layout["right"]["col"],
                     layout["right"]["span"],
                     executor,
+                    horizontal=horizontal,
                 )
 
 
