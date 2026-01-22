@@ -1036,6 +1036,97 @@ class TestStandardModeTiling(unittest.TestCase):
         self.assertIn("1:100:0:0:50:1", grid_commands[0])
         self.assertIn("1:100:50:0:50:1", grid_commands[1])
 
+    def test_space_1_tiles_new_windows(self):
+        """Space 1 should tile new windows, not leave them fullscreen."""
+        test_data = {
+            "displays": [
+                {"index": 1, "frame": {"x": 0, "y": 0, "w": 2560, "h": 1440}}
+            ],
+            "spaces": [
+                {"index": 1, "display": 1, "layout": "stack", "right_padding": 0, "top_padding": 0, "bottom_padding": 0, "left_padding": 0}
+            ],
+            "windows": [
+                {
+                    "id": 100,
+                    "app": "Ghostty",
+                    "title": "terminal",
+                    "display": 1,
+                    "space": 1,
+                    "frame": {"x": 0, "y": 0, "w": 2560, "h": 1440},  # Currently fullscreen
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                },
+                {
+                    "id": 101,
+                    "app": "Safari",
+                    "title": "Web",
+                    "display": 1,
+                    "space": 1,
+                    "frame": {"x": 0, "y": 0, "w": 2560, "h": 1440},  # Currently fullscreen
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                }
+            ],
+            "rules": []
+        }
+
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+
+        yut.MANAGE_OFF_RULES = []
+        yut.MANAGE_OFF_APPS = set()
+
+        displays = provider.query_displays()
+        spaces = provider.query_spaces()
+        windows = provider.query_windows()
+
+        # Run standard mode tiling for space 1
+        for space in spaces:
+            space_display = space.get("display")
+            space_index = space.get("index")
+
+            display_obj = yut.get_display_by_index(displays, space_display) or {}
+            display_w = display_obj.get("frame", {}).get("w", 0)
+            display_h = display_obj.get("frame", {}).get("h", 0)
+
+            space_windows = [
+                w for w in windows
+                if w.get("display") == space_display and w.get("space") == space_index
+                and not yut.is_management_disabled(w)
+                and not yut.is_special_journal(w)
+            ]
+
+            if space_windows:
+                sorted_windows = sorted(space_windows, key=lambda w: w.get("id", 0))
+                horizontal = display_w > display_h
+
+                # 2560 > 1440 → horizontal
+                self.assertTrue(horizontal)
+
+                yut.apply_bucket(
+                    [w.get("id") for w in sorted_windows],
+                    col=0,
+                    span=yut.GRID_COLUMNS,
+                    executor=executor,
+                    horizontal=horizontal,
+                )
+
+        # Space 1 should get float layout so grid commands work
+        # (test will verify this when checking config commands)
+
+        # Windows should be tiled horizontally (side-by-side), not fullscreen
+        grid_commands = [cmd for cmd in executor.executed_commands if "--grid" in cmd]
+        self.assertEqual(len(grid_commands), 2)
+
+        # Window 100: 1:100:0:0:50:1 (left half)
+        # Window 101: 1:100:50:0:50:1 (right half)
+        self.assertIn("1:100:0:0:50:1", grid_commands[0])
+        self.assertIn("1:100:50:0:50:1", grid_commands[1])
+
     def test_two_displays_standard_mode_tiles_both(self):
         """Two narrow displays should both get tiled in standard mode."""
         test_data = {

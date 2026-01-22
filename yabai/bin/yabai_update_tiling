@@ -1067,16 +1067,8 @@ def main() -> None:
                 pad_right = 0
 
             # Use float layout for all managed spaces so grid commands aren't overridden
-            # Space 1 uses stack as fallback for unmanaged windows
-            if space_index == 1:
-                layout = "stack"
-            elif use_five_buckets and space_display in display_to_buckets:
-                layout = "float"
-            elif not use_five_buckets and ultra_index is not None and space_display == ultra_index:
-                layout = "float"
-            else:
-                # Standard mode: also use float so grid tiling works
-                layout = "float"
+            # This includes space 1, since we now tile it
+            layout = "float"
 
             current_layout = space.get("layout")
             current_pad_right = space.get("right_padding")

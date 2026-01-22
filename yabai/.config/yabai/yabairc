@@ -7,10 +7,7 @@ yabai -m config bottom_padding 0
 yabai -m config left_padding 0
 yabai -m config right_padding 0
 
-# Widget padding for main space (space 1)
-yabai -m config --space 1 right_padding 208
-
-# Padding values for yabai_update_tiling script
+# Padding values for yabai_update_tiling script (manages all padding)
 export YABAI_EDGE_PADDING=0
 export YABAI_WIDGET_PADDING=208
 
@@ -43,7 +40,7 @@ yabai -m signal --add event="display_moved" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="display_removed" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="display_resized" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="system_woke" action="~/bin/yabai_update_tiling"
-yabai -m signal --add event="window_created" action="~/bin/yabai_update_tiling"
+yabai -m signal --add event="window_created" action="~/bin/yabai_update_tiling --debounce 100"
 yabai -m signal --add event="window_deminimized" action="~/bin/yabai_update_tiling --debounce 300"
 yabai -m signal --add event="window_destroyed" action="~/bin/yabai_update_tiling"
 yabai -m signal --add event="window_minimized" action="~/bin/yabai_update_tiling --debounce 300"
