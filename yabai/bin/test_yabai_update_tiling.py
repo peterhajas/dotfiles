@@ -929,6 +929,198 @@ class TestWidgetPaddingAllModes(unittest.TestCase):
             )
 
 
+class TestStandardModeTiling(unittest.TestCase):
+    """Tests for standard mode tiling (non-bucket, non-ultrawide)."""
+
+    def test_single_laptop_display_tiles_horizontally(self):
+        """Single laptop display (1440x900) should tile horizontally."""
+        test_data = {
+            "displays": [
+                {"index": 1, "frame": {"x": 0, "y": 0, "w": 1440, "h": 900}}
+            ],
+            "spaces": [
+                {"index": 1, "display": 1, "layout": "stack", "right_padding": 0, "top_padding": 0, "bottom_padding": 0, "left_padding": 0},
+                {"index": 2, "display": 1, "layout": "bsp", "right_padding": 0, "top_padding": 0, "bottom_padding": 0, "left_padding": 0}
+            ],
+            "windows": [
+                {
+                    "id": 100,
+                    "app": "Ghostty",
+                    "title": "terminal",
+                    "display": 1,
+                    "space": 2,
+                    "frame": {"x": 100, "y": 100, "w": 600, "h": 400},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                },
+                {
+                    "id": 101,
+                    "app": "Safari",
+                    "title": "Web",
+                    "display": 1,
+                    "space": 2,
+                    "frame": {"x": 700, "y": 100, "w": 600, "h": 400},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                }
+            ],
+            "rules": []
+        }
+
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+
+        yut.MANAGE_OFF_RULES = []
+        yut.MANAGE_OFF_APPS = set()
+
+        displays = provider.query_displays()
+        spaces = provider.query_spaces()
+        windows = provider.query_windows()
+
+        # Verify it's not bucket/ultrawide mode
+        total_width = yut.workspace_width(displays)
+        widest = max(d.get("frame", {}).get("w", 0) for d in displays)
+        use_five_buckets = total_width >= yut.WORKSPACE_WIDTH_THRESHOLD or widest >= yut.WORKSPACE_WIDTH_THRESHOLD
+        ultra_display = None
+        if widest >= yut.ULTRAWIDE_THRESHOLD:
+            ultra_display = max(displays, key=lambda d: d.get("frame", {}).get("w", 0))
+
+        self.assertFalse(use_five_buckets)
+        self.assertIsNone(ultra_display)
+
+        # Run standard mode tiling
+        for space in spaces:
+            if space.get("index") == 1:
+                continue  # Skip space 1
+
+            space_display = space.get("display")
+            space_index = space.get("index")
+
+            display_obj = yut.get_display_by_index(displays, space_display) or {}
+            display_w = display_obj.get("frame", {}).get("w", 0)
+            display_h = display_obj.get("frame", {}).get("h", 0)
+
+            space_windows = [
+                w for w in windows
+                if w.get("display") == space_display and w.get("space") == space_index
+                and not yut.is_management_disabled(w)
+                and not yut.is_special_journal(w)
+            ]
+
+            if space_windows:
+                sorted_windows = sorted(space_windows, key=lambda w: w.get("id", 0))
+                horizontal = display_w > display_h
+
+                # Should tile horizontally (1440 > 900)
+                self.assertTrue(horizontal)
+
+                yut.apply_bucket(
+                    [w.get("id") for w in sorted_windows],
+                    col=0,
+                    span=yut.GRID_COLUMNS,
+                    executor=executor,
+                    horizontal=horizontal,
+                )
+
+        # Check that grid commands were issued
+        grid_commands = [cmd for cmd in executor.executed_commands if "--grid" in cmd]
+        self.assertEqual(len(grid_commands), 2)
+
+        # Both windows should be tiled horizontally (side-by-side)
+        # Window 100: 1:100:0:0:50:1
+        # Window 101: 1:100:50:0:50:1
+        self.assertIn("1:100:0:0:50:1", grid_commands[0])
+        self.assertIn("1:100:50:0:50:1", grid_commands[1])
+
+    def test_two_displays_standard_mode_tiles_both(self):
+        """Two narrow displays should both get tiled in standard mode."""
+        test_data = {
+            "displays": [
+                {"index": 1, "frame": {"x": 0, "y": 0, "w": 1680, "h": 1050}},
+                {"index": 2, "frame": {"x": 1680, "y": 0, "w": 1920, "h": 1200}}
+            ],
+            "spaces": [
+                {"index": 1, "display": 1, "layout": "bsp", "right_padding": 0, "top_padding": 0, "bottom_padding": 0, "left_padding": 0},
+                {"index": 2, "display": 2, "layout": "bsp", "right_padding": 0, "top_padding": 0, "bottom_padding": 0, "left_padding": 0}
+            ],
+            "windows": [
+                {
+                    "id": 100,
+                    "app": "Terminal",
+                    "display": 1,
+                    "space": 1,
+                    "frame": {"x": 100, "y": 100, "w": 600, "h": 400},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                },
+                {
+                    "id": 101,
+                    "app": "Safari",
+                    "display": 2,
+                    "space": 2,
+                    "frame": {"x": 1700, "y": 100, "w": 600, "h": 400},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                }
+            ],
+            "rules": []
+        }
+
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+
+        yut.MANAGE_OFF_RULES = []
+        yut.MANAGE_OFF_APPS = set()
+
+        displays = provider.query_displays()
+        spaces = provider.query_spaces()
+        windows = provider.query_windows()
+
+        # Verify standard mode
+        total_width = yut.workspace_width(displays)
+        self.assertLess(total_width, yut.WORKSPACE_WIDTH_THRESHOLD)
+
+        # Run standard mode tiling for all spaces
+        for space in spaces:
+            space_display = space.get("display")
+            space_index = space.get("index")
+
+            display_obj = yut.get_display_by_index(displays, space_display) or {}
+            display_w = display_obj.get("frame", {}).get("w", 0)
+            display_h = display_obj.get("frame", {}).get("h", 0)
+
+            space_windows = [
+                w for w in windows
+                if w.get("display") == space_display and w.get("space") == space_index
+                and not yut.is_management_disabled(w)
+                and not yut.is_special_journal(w)
+            ]
+
+            if space_windows:
+                sorted_windows = sorted(space_windows, key=lambda w: w.get("id", 0))
+                horizontal = display_w > display_h
+
+                yut.apply_bucket(
+                    [w.get("id") for w in sorted_windows],
+                    col=0,
+                    span=yut.GRID_COLUMNS,
+                    executor=executor,
+                    horizontal=horizontal,
+                )
+
+        # Both windows should be tiled
+        grid_commands = [cmd for cmd in executor.executed_commands if "--grid" in cmd]
+        self.assertEqual(len(grid_commands), 2)
+
+
 class TestScenarioIntegration(unittest.TestCase):
     """Integration tests using test scenarios."""
 
@@ -1399,6 +1591,7 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestHorizontalTilingLogic))
     suite.addTests(loader.loadTestsFromTestCase(TestLaptopMultiDisplay))
     suite.addTests(loader.loadTestsFromTestCase(TestWidgetPaddingAllModes))
+    suite.addTests(loader.loadTestsFromTestCase(TestStandardModeTiling))
     suite.addTests(loader.loadTestsFromTestCase(TestJournalWindows))
     suite.addTests(loader.loadTestsFromTestCase(TestPaddingConfiguration))
     suite.addTests(loader.loadTestsFromTestCase(TestScenarioIntegration))

@@ -1066,11 +1066,16 @@ def main() -> None:
             else:
                 pad_right = 0
 
-            layout = "stack" if space_index == 1 else "bsp"
-            # For tiled spaces, float layout so manual grids are not retiled by bsp/stack
-            if use_five_buckets and space_display in display_to_buckets:
+            # Use float layout for all managed spaces so grid commands aren't overridden
+            # Space 1 uses stack as fallback for unmanaged windows
+            if space_index == 1:
+                layout = "stack"
+            elif use_five_buckets and space_display in display_to_buckets:
                 layout = "float"
             elif not use_five_buckets and ultra_index is not None and space_display == ultra_index:
+                layout = "float"
+            else:
+                # Standard mode: also use float so grid tiling works
                 layout = "float"
 
             current_layout = space.get("layout")
@@ -1351,6 +1356,63 @@ def main() -> None:
                     executor,
                     horizontal=horizontal,
                 )
+
+    # Standard display mode: apply tiling to all displays not handled by bucket/ultrawide modes
+    if not use_five_buckets and ultra_index is None:
+        log("Standard mode: applying tiling to all displays")
+        for space in spaces:
+            space_display = space.get("display")
+            space_index = space.get("index")
+
+            display_obj = get_display_by_index(displays, space_display) or {}
+            display_w = display_obj.get("frame", {}).get("w", 0)
+            display_h = display_obj.get("frame", {}).get("h", 0)
+
+            if not display_w or not display_h:
+                continue
+
+            # Collect manageable windows on this space
+            space_windows = []
+            for win in windows:
+                if win.get("display") != space_display or win.get("space") != space_index:
+                    continue
+                if win.get("minimized") == 1:
+                    continue
+                if is_management_disabled(win):
+                    continue
+                if is_special_journal(win):
+                    continue
+                if win.get("floating") == 1:
+                    ensure_managed(win.get("id"), provider, executor)
+                if win.get("is-visible") is False or win.get("is-hidden") is True:
+                    continue
+                space_windows.append(win)
+
+            if not space_windows:
+                continue
+
+            # Sort by window ID for stable ordering
+            sorted_windows = sorted(space_windows, key=lambda w: w.get("id", 0))
+
+            # Apply to full display width (minus widget padding on center display)
+            # Widget padding is handled at space level, so use full width for grid
+            bucket_width = display_w
+            bucket_height = display_h
+
+            # Determine tiling direction based on display aspect ratio
+            horizontal = bucket_width > bucket_height
+
+            log(f"Display {space_display} space {space_index}: {len(sorted_windows)} windows, "
+                f"{bucket_width:.0f}x{bucket_height:.0f}px, "
+                f"tiling {'horizontally' if horizontal else 'vertically'}")
+
+            apply_bucket(
+                [w.get("id") for w in sorted_windows],
+                col=0,
+                span=GRID_COLUMNS,
+                executor=executor,
+                horizontal=horizontal,
+            )
 
 
 if __name__ == "__main__":
