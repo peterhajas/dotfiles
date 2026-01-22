@@ -729,8 +729,9 @@ class TestScenarioIntegration(unittest.TestCase):
                         continue
 
                     if bucket_name == "center":
-                        yut.overlap_region(
-                            [w.get("id") for w in wins],
+                        sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
+                        yut.apply_bucket(
+                            [w.get("id") for w in sorted_wins],
                             layout[bucket_name]["col"],
                             layout[bucket_name]["span"],
                             executor,

@@ -319,11 +319,6 @@ def apply_bucket(windows: List[int], col: int, span: int, executor: YabaiCommand
         apply_grid(win, rows, col, idx, span, executor)
 
 
-def overlap_region(windows: List[int], col: int, span: int, executor: YabaiCommandExecutor) -> None:
-    for win in windows:
-        apply_grid(win, 1, col, 0, span, executor)
-
-
 def compute_bucket_widths(buckets_present: List[str], display_width: float) -> Dict[str, float]:
     if not buckets_present or display_width <= 0:
         return {}
@@ -1099,9 +1094,10 @@ def main() -> None:
                     continue
 
                 if bucket_name == "center":
-                    # Center bucket: overlapping windows
-                    overlap_region(
-                        [w.get("id") for w in wins],
+                    # Center bucket: vertically stacked, sorted by window ID
+                    sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
+                    apply_bucket(
+                        [w.get("id") for w in sorted_wins],
                         layout[bucket_name]["col"],
                         layout[bucket_name]["span"],
                         executor,
@@ -1178,8 +1174,9 @@ def main() -> None:
                     executor,
                 )
             if center_bucket and "center" in layout:
-                overlap_region(
-                    [w.get("id") for w in center_bucket],
+                center_sorted = sorted(center_bucket, key=lambda w: w.get("id", 0))
+                apply_bucket(
+                    [w.get("id") for w in center_sorted],
                     layout["center"]["col"],
                     layout["center"]["span"],
                     executor,
