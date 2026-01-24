@@ -11,7 +11,7 @@ function abbrev -d "Install fish abbreviations"
     abbr bu 'yabai --stop-service && yabai --uninstall-service && brew update && brew upgrade && yabai --start-service'
 
     # git
-    abbr g git status
+    abbr g 'nvim -c "G" -c "only"'
     abbr gm git commit
     abbr ga 'git add -p'
     abbr gb 'git branch | fzf -i | xargs git checkout'
