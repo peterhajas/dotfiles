@@ -75,6 +75,17 @@ end
 
 -- Ensure journal tiddler has "Journal" tag
 function M.ensure_journal_exists(title)
+  -- Check if tiddler exists
+  local tiddler = tw_wrapper.get_tiddler_object(title)
+
+  if not tiddler then
+    -- Create new journal tiddler with Journal tag
+    tw_wrapper.create(title, "")
+    tw_wrapper.set_field(title, "tags", "Journal")
+    return
+  end
+
+  -- Tiddler exists, ensure it has Journal tag
   local tags = tw_wrapper.get_field(title, "tags")
 
   if not tags or tags == "" or vim.trim(tags) == "" then
@@ -86,6 +97,9 @@ function M.ensure_journal_exists(title)
     if not tags:match("(^| )Journal( |$)") and not tags:match("%[%[Journal%]%]") then
       -- Append Journal tag
       tags = tags .. " Journal"
+    else
+      -- Tag already exists, nothing to do
+      return
     end
   end
 
