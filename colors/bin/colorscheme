@@ -439,6 +439,12 @@ class ColorschemeManager:
                 "  border-color: var(--cs-border) !important;",
                 "}",
                 "",
+                ".post {",
+                "  background: var(--cs-bg-alt) !important;",
+                "  color: var(--cs-fg) !important;",
+                "  border: none !important;",
+                "}",
+                "",
             ]
         )
 
