@@ -40,12 +40,21 @@ BEGIN {
 
     clean = contents
     fragment = ""
+    # Split by # first to separate fragment from base
     split(clean, fragParts, "#")
+    base_with_query = fragParts[1]
+    # Collect all fragments (everything after first #)
     if (length(fragParts) > 1) {
-        fragment = fragParts[2]
+        for (i = 2; i <= length(fragParts); i++) {
+            if (fragment != "") {
+                fragment = fragment "#"
+            }
+            fragment = fragment fragParts[i]
+        }
     }
 
-    split(clean, queryParts, "?")
+    # Now split the fragment-free base by ?
+    split(base_with_query, queryParts, "?")
     base = queryParts[1]
     query = ""
     if (length(queryParts) > 1) {
