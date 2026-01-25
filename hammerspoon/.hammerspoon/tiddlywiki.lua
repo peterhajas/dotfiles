@@ -98,6 +98,8 @@ local function update()
         setNeedsUpdate()
     end
     local stylesheetContents = readFile(hudStylesheetPath) or ""
+    -- Remove background override for HUD to preserve transparent/custom backgrounds
+    stylesheetContents = stylesheetContents:gsub("background: var%(%-%-cs%-bg%) !important;", "")
     if stylesheetContents ~= cachedHudStylesheet then
         cachedHudStylesheet = stylesheetContents
         setNeedsUpdate()
