@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+# macOS xdg-open wrapper with special file handling
+# On Linux, delegates to real xdg-open
+
+set -euo pipefail
+
+# On Linux, delegate to real xdg-open
+if [[ "$(uname)" != "Darwin" ]]; then
+    exec /usr/bin/xdg-open "$@"
+fi
+
+# Parse flags
+background=""
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        -g|--background)
+            background="-g"
+            shift
+            ;;
+        -*)
+            echo "Unknown option: $1" >&2
+            exit 1
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [[ $# -lt 1 ]]; then
+    echo "Usage: xdg-open [-g] <file>" >&2
+    exit 1
+fi
+
+file="$1"
+
+# Get extension (lowercase)
+ext="${file##*.}"
+ext="$(echo "$ext" | tr '[:upper:]' '[:lower:]')"
+
+# Temp file base: deterministic if background mode (for reuse), random otherwise
+if [[ -n "$background" ]]; then
+    # Deterministic path based on file's realpath
+    realpath="$(cd "$(dirname "$file")" && pwd)/$(basename "$file")"
+    hash="$(echo -n "$realpath" | md5)"
+    tmpbase="/tmp/xdg-preview-${hash}"
+else
+    tmpbase="/tmp/xdg-open-$(date +%s)-$$"
+fi
+
+case "$ext" in
+    md)
+        # Markdown → HTML → open in browser
+        tmp="${tmpbase}.html"
+        tmp_url="file://${tmp}"
+
+        # Close existing browser tab for this file (Safari)
+        if [[ -n "$background" ]]; then
+            osascript -e "
+                try
+                    tell application \"Safari\"
+                        set windowList to every window
+                        repeat with w in windowList
+                            set tabList to every tab of w
+                            repeat with t in tabList
+                                if URL of t starts with \"$tmp_url\" then
+                                    close t
+                                end if
+                            end repeat
+                        end repeat
+                    end tell
+                end try
+            " 2>/dev/null || true
+        fi
+
+        # Convert markdown to HTML with proper encoding
+        {
+            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:system-ui;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.6}pre{background:#f4f4f4;padding:10px;overflow-x:auto}code{background:#f4f4f4;padding:2px 5px}</style></head><body>'
+            if command -v multimarkdown &>/dev/null; then
+                multimarkdown "$file"
+            elif command -v pandoc &>/dev/null; then
+                pandoc "$file"
+            else
+                cat "$file"
+            fi
+            echo '</body></html>'
+        } > "$tmp"
+
+        open $background "$tmp"
+        ;;
+
+    scad)
+        # OpenSCAD → USDZ (with color support) → Preview.app
+        usdz="${tmpbase}.usdz"
+        usdz_name="$(basename "$usdz")"
+
+        # Close existing Preview window for this file (if any) to force refresh
+        osascript -e "
+            tell application \"Preview\"
+                set windowList to every window
+                repeat with w in windowList
+                    if name of w contains \"$usdz_name\" then
+                        close w
+                    end if
+                end repeat
+            end tell
+        " 2>/dev/null || true
+
+        scad2usdz "$file" "$usdz"
+        open $background -a Preview "$usdz"
+        ;;
+
+    *)
+        # Default: use macOS open
+        open $background "$file"
+        ;;
+esac

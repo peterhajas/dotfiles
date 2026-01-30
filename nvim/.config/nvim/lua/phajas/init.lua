@@ -26,4 +26,5 @@ require("phajas.plugins.undotree")
 require("phajas.plugins.zen-mode")
 
 -- my plugins
+require("phajas.plugins.preview")
 require("phajas.plugins.tw")
