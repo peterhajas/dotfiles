@@ -198,6 +198,56 @@ class TestBucketLayout(unittest.TestCase):
 
         self.assertLessEqual(right_end, expected_max_right)
 
+
+class TestTilingDirection(unittest.TestCase):
+    """Tests for tiling direction decisions."""
+
+    def test_center_bucket_forces_horizontal(self):
+        result = yut.should_tile_horizontal(
+            "center",
+            bucket_width=800.0,
+            bucket_height=1200.0,
+            display_width=3000.0,
+        )
+        self.assertTrue(result)
+
+    def test_non_center_bucket_forces_vertical(self):
+        result = yut.should_tile_horizontal(
+            "left",
+            bucket_width=1600.0,
+            bucket_height=1200.0,
+            display_width=3000.0,
+        )
+        self.assertFalse(result)
+
+    def test_standard_mode_uses_aspect_ratio(self):
+        result = yut.should_tile_horizontal(
+            None,
+            bucket_width=800.0,
+            bucket_height=1200.0,
+            display_width=yut.ULTRAWIDE_THRESHOLD + 100,
+        )
+        self.assertFalse(result)
+        result = yut.should_tile_horizontal(
+            None,
+            bucket_width=1400.0,
+            bucket_height=900.0,
+            display_width=1400.0,
+        )
+        self.assertTrue(result)
+
+
+class TestApplyBucket(unittest.TestCase):
+    """Tests for apply_bucket behavior."""
+
+    def test_single_window_horizontal_spans_full_width(self):
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        yut.apply_bucket([42], col=0, span=100, executor=executor, horizontal=True)
+        self.assertEqual(len(executor.executed_commands), 1)
+        cmd = executor.executed_commands[0]
+        self.assertIn("--grid", cmd)
+        self.assertIn("1:100:0:0:100:1", cmd)
+
     def test_right_bucket_starts_at_center_right_edge(self):
         """With center_bucket=True, right bucket should start at center's right edge."""
         display_width = 5120.0
@@ -709,7 +759,7 @@ class TestHorizontalTilingLogic(unittest.TestCase):
     """Tests for horizontal vs vertical tiling decision logic."""
 
     def test_laptop_display_tiles_horizontally(self):
-        """Laptop display (1440x900) is wider than tall - should tile horizontally."""
+        """Laptop display (1440x900) tiles horizontally in standard mode."""
         # MacBook Pro 14" display: 1440x900 (16:10 aspect ratio)
         display_w = 1440.0
         display_h = 900.0
@@ -717,21 +767,15 @@ class TestHorizontalTilingLogic(unittest.TestCase):
         # Display itself is wider than tall
         self.assertGreater(display_w, display_h)  # 1440 > 900
 
-        # When buckets occupy full display width, they should tile horizontally
-        # Example: single bucket spanning 100% of display
-        full_span = 100
-        full_width = (full_span / 100) * display_w
-        self.assertGreater(full_width, display_h)  # 1440 > 900 → horizontal
-
-        # Even a 50% bucket is wider than tall
-        half_span = 50
-        half_width = (half_span / 100) * display_w
-        self.assertLess(half_width, display_h)  # 720 < 900 → vertical
-
-        # But 70%+ buckets would be wide enough
-        large_span = 70
-        large_width = (large_span / 100) * display_w
-        self.assertGreater(large_width, display_h)  # 1008 > 900 → horizontal
+        # Standard mode uses aspect ratio for tiling decisions
+        self.assertTrue(
+            yut.should_tile_horizontal(
+                None,
+                bucket_width=display_w,
+                bucket_height=display_h,
+                display_width=display_w,
+            )
+        )
 
     def test_ultrawide_center_tiles_horizontally(self):
         """Ultrawide display center bucket should tile horizontally."""
@@ -744,33 +788,53 @@ class TestHorizontalTilingLogic(unittest.TestCase):
         # But with 5 buckets...
 
         # Actually test a truly wide center bucket
-        # If center gets 55 span: 55% of 3440 = 1892px
+        # Center bucket always tiles horizontally
         center_span = 55
         center_width = (center_span / 100) * display_w
-        self.assertGreater(center_width, display_h)  # 1892 > 1440 → horizontal
+        self.assertTrue(
+            yut.should_tile_horizontal(
+                "center",
+                bucket_width=center_width,
+                bucket_height=display_h,
+                display_width=display_w,
+            )
+        )
 
     def test_4k_display_tiles_vertically(self):
-        """4K display buckets should tile vertically."""
+        """4K display non-center buckets should tile vertically."""
         # 3840x2160 display
         display_w = 3840.0
         display_h = 2160.0
 
-        # Even with large buckets, height dominates
-        # Center bucket at ~33%: 1280px < 2160px → vertical
-        center_span = 33
-        center_width = (center_span / 100) * display_w
-        self.assertLess(center_width, display_h)
+        # Non-center buckets are vertical regardless of width
+        bucket_span = 40
+        bucket_width = (bucket_span / 100) * display_w
+        self.assertFalse(
+            yut.should_tile_horizontal(
+                "left",
+                bucket_width=bucket_width,
+                bucket_height=display_h,
+                display_width=display_w,
+            )
+        )
 
     def test_super_ultrawide_tiles_horizontally(self):
-        """Super ultrawide display should tile horizontally."""
+        """Super ultrawide center bucket should tile horizontally."""
         # 5120x1440 (32:9 aspect ratio)
         display_w = 5120.0
         display_h = 1440.0
 
-        # With 5 buckets, center gets ~33%: 1690px > 1440px → horizontal
+        # Center bucket tiles horizontally regardless of width
         center_span = 33
         center_width = (center_span / 100) * display_w
-        self.assertGreater(center_width, display_h)
+        self.assertTrue(
+            yut.should_tile_horizontal(
+                "center",
+                bucket_width=center_width,
+                bucket_height=display_h,
+                display_width=display_w,
+            )
+        )
 
 
 class TestLaptopMultiDisplay(unittest.TestCase):
@@ -796,7 +860,7 @@ class TestLaptopMultiDisplay(unittest.TestCase):
         self.assertIsNotNone(mapping["far_right"])
 
     def test_laptop_bucket_tiles_horizontally_when_full_width(self):
-        """Laptop (1440x900) with full-width bucket should tile horizontally."""
+        """Laptop (1440x900) center bucket tiles horizontally."""
         # Simulate laptop as sole display with bucket occupying full width
         display_w = 1440.0
         display_h = 900.0
@@ -807,9 +871,16 @@ class TestLaptopMultiDisplay(unittest.TestCase):
         bucket_span = layout["center"]["span"]
         bucket_width = (bucket_span / yut.GRID_COLUMNS) * display_w
 
-        # Full width bucket: 1440px > 900px → should tile horizontally
-        self.assertGreater(bucket_width, display_h)
+        # Center bucket tiles horizontally regardless of dimensions
         self.assertEqual(bucket_span, 100)  # Full width
+        self.assertTrue(
+            yut.should_tile_horizontal(
+                "center",
+                bucket_width=bucket_width,
+                bucket_height=display_h,
+                display_width=display_w,
+            )
+        )
 
     def test_laptop_right_padding_for_hud_when_center(self):
         """Laptop should have right padding for HUD/widget area when it's the center display."""
@@ -1013,9 +1084,14 @@ class TestStandardModeTiling(unittest.TestCase):
 
             if space_windows:
                 sorted_windows = sorted(space_windows, key=lambda w: w.get("id", 0))
-                horizontal = display_w > display_h
+                horizontal = yut.should_tile_horizontal(
+                    None,
+                    bucket_width=display_w,
+                    bucket_height=display_h,
+                    display_width=display_w,
+                )
 
-                # Should tile horizontally (1440 > 900)
+                # Should tile horizontally in standard mode
                 self.assertTrue(horizontal)
 
                 yut.apply_bucket(
@@ -1102,9 +1178,14 @@ class TestStandardModeTiling(unittest.TestCase):
 
             if space_windows:
                 sorted_windows = sorted(space_windows, key=lambda w: w.get("id", 0))
-                horizontal = display_w > display_h
+                horizontal = yut.should_tile_horizontal(
+                    None,
+                    bucket_width=display_w,
+                    bucket_height=display_h,
+                    display_width=display_w,
+                )
 
-                # 2560 > 1440 → horizontal
+                # 2560 > 1440 → horizontal in standard mode
                 self.assertTrue(horizontal)
 
                 yut.apply_bucket(
@@ -1197,7 +1278,12 @@ class TestStandardModeTiling(unittest.TestCase):
 
             if space_windows:
                 sorted_windows = sorted(space_windows, key=lambda w: w.get("id", 0))
-                horizontal = display_w > display_h
+                horizontal = yut.should_tile_horizontal(
+                    None,
+                    bucket_width=display_w,
+                    bucket_height=display_h,
+                    display_width=display_w,
+                )
 
                 yut.apply_bucket(
                     [w.get("id") for w in sorted_windows],
@@ -1339,7 +1425,12 @@ class TestScenarioIntegration(unittest.TestCase):
                     bucket_span = layout[bucket_name]["span"]
                     bucket_width = (bucket_span / yut.GRID_COLUMNS) * display_w
                     bucket_height = display_h
-                    horizontal = bucket_width > bucket_height
+                    horizontal = yut.should_tile_horizontal(
+                        bucket_name,
+                        bucket_width=bucket_width,
+                        bucket_height=bucket_height,
+                        display_width=display_w,
+                    )
 
                     sorted_wins = sorted(wins, key=lambda w: w.get("id", 0))
                     yut.apply_bucket(

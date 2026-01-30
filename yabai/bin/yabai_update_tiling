@@ -375,6 +375,20 @@ def apply_bucket(windows: List[int], col: int, span: int, executor: YabaiCommand
             apply_grid(win, rows, col, idx, span, executor)
 
 
+def should_tile_horizontal(
+    bucket_name: Optional[str],
+    bucket_width: float,
+    bucket_height: float,
+    display_width: float,
+) -> bool:
+    """Return True when a bucket should tile horizontally."""
+    if bucket_name == "center":
+        return True
+    if bucket_name is None:
+        return bucket_width > bucket_height
+    return False
+
+
 def compute_bucket_widths(buckets_present: List[str], display_width: float) -> Dict[str, float]:
     if not buckets_present or display_width <= 0:
         return {}
@@ -1222,8 +1236,12 @@ def main() -> None:
                 bucket_width = (bucket_span / GRID_COLUMNS) * display_w
                 bucket_height = display_h
 
-                # Tile horizontally if bucket is wider than tall
-                horizontal = bucket_width > bucket_height
+                horizontal = should_tile_horizontal(
+                    bucket_name,
+                    bucket_width,
+                    bucket_height,
+                    display_w,
+                )
                 log(f"Bucket '{bucket_name}': {bucket_width:.0f}x{bucket_height:.0f}px, "
                     f"tiling {'horizontally' if horizontal else 'vertically'}")
 
@@ -1311,7 +1329,12 @@ def main() -> None:
             if left_bucket and "left" in layout:
                 bucket_span = layout["left"]["span"]
                 bucket_width = (bucket_span / GRID_COLUMNS) * ultra_w
-                horizontal = bucket_width > ultra_h
+                horizontal = should_tile_horizontal(
+                    "center",
+                    bucket_width,
+                    ultra_h,
+                    ultra_w,
+                )
                 log(f"Ultrawide bucket 'left': {bucket_width:.0f}x{ultra_h:.0f}px, "
                     f"tiling {'horizontally' if horizontal else 'vertically'}")
                 apply_bucket(
@@ -1325,7 +1348,12 @@ def main() -> None:
                 center_sorted = sorted(center_bucket, key=lambda w: w.get("id", 0))
                 bucket_span = layout["center"]["span"]
                 bucket_width = (bucket_span / GRID_COLUMNS) * ultra_w
-                horizontal = bucket_width > ultra_h
+                horizontal = should_tile_horizontal(
+                    "left",
+                    bucket_width,
+                    ultra_h,
+                    ultra_w,
+                )
                 log(f"Ultrawide bucket 'center': {bucket_width:.0f}x{ultra_h:.0f}px, "
                     f"tiling {'horizontally' if horizontal else 'vertically'}")
                 apply_bucket(
@@ -1338,7 +1366,12 @@ def main() -> None:
             if right_bucket and "right" in layout:
                 bucket_span = layout["right"]["span"]
                 bucket_width = (bucket_span / GRID_COLUMNS) * ultra_w
-                horizontal = bucket_width > ultra_h
+                horizontal = should_tile_horizontal(
+                    "right",
+                    bucket_width,
+                    ultra_h,
+                    ultra_w,
+                )
                 log(f"Ultrawide bucket 'right': {bucket_width:.0f}x{ultra_h:.0f}px, "
                     f"tiling {'horizontally' if horizontal else 'vertically'}")
                 apply_bucket(
@@ -1392,7 +1425,12 @@ def main() -> None:
             bucket_height = display_h
 
             # Determine tiling direction based on display aspect ratio
-            horizontal = bucket_width > bucket_height
+            horizontal = should_tile_horizontal(
+                None,
+                bucket_width,
+                bucket_height,
+                display_w,
+            )
 
             log(f"Display {space_display} space {space_index}: {len(sorted_windows)} windows, "
                 f"{bucket_width:.0f}x{bucket_height:.0f}px, "
