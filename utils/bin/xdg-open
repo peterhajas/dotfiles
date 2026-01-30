@@ -48,34 +48,74 @@ else
     tmpbase="/tmp/xdg-open-$(date +%s)-$$"
 fi
 
+# Helper: close Safari tab matching a file URL
+close_safari_tab() {
+    local url="$1"
+    [[ -z "$background" ]] && return
+    osascript -e "
+        try
+            tell application \"Safari\"
+                repeat with w in every window
+                    repeat with t in every tab of w
+                        if URL of t starts with \"$url\" then
+                            close t
+                        end if
+                    end repeat
+                end repeat
+            end tell
+        end try
+    " 2>/dev/null || true
+}
+
+# Helper: close Preview window matching a filename
+close_preview_window() {
+    local name="$1"
+    osascript -e "
+        tell application \"Preview\"
+            repeat with w in every window
+                if name of w contains \"$name\" then
+                    close w
+                end if
+            end repeat
+        end tell
+    " 2>/dev/null || true
+}
+
+# Get absolute path for file URL
+file_abs="$(cd "$(dirname "$file")" && pwd)/$(basename "$file")"
+
 case "$ext" in
     md)
         # Markdown → HTML → open in browser
         tmp="${tmpbase}.html"
-        tmp_url="file://${tmp}"
+        close_safari_tab "file://${tmp}"
 
-        # Close existing browser tab for this file (Safari)
-        if [[ -n "$background" ]]; then
-            osascript -e "
-                try
-                    tell application \"Safari\"
-                        set windowList to every window
-                        repeat with w in windowList
-                            set tabList to every tab of w
-                            repeat with t in tabList
-                                if URL of t starts with \"$tmp_url\" then
-                                    close t
-                                end if
-                            end repeat
-                        end repeat
-                    end tell
-                end try
-            " 2>/dev/null || true
-        fi
-
-        # Convert markdown to HTML with proper encoding
+        # Convert markdown to HTML with proper encoding and dark mode support
         {
-            echo '<!DOCTYPE html><html><head><meta charset="utf-8"><style>body{font-family:system-ui;max-width:800px;margin:40px auto;padding:0 20px;line-height:1.6}pre{background:#f4f4f4;padding:10px;overflow-x:auto}code{background:#f4f4f4;padding:2px 5px}</style></head><body>'
+            cat <<'HTMLHEAD'
+<!DOCTYPE html><html><head><meta charset="utf-8"><style>
+:root { color-scheme: light dark; }
+body {
+    font-family: system-ui;
+    max-width: 800px;
+    margin: 40px auto;
+    padding: 0 20px;
+    line-height: 1.6;
+}
+pre, code { padding: 2px 5px; border-radius: 4px; }
+pre { padding: 10px; overflow-x: auto; }
+@media (prefers-color-scheme: light) {
+    body { background: #fff; color: #222; }
+    pre, code { background: #f4f4f4; }
+    a { color: #0066cc; }
+}
+@media (prefers-color-scheme: dark) {
+    body { background: #1a1a1a; color: #e0e0e0; }
+    pre, code { background: #2d2d2d; }
+    a { color: #6db3f2; }
+}
+</style></head><body>
+HTMLHEAD
             if command -v multimarkdown &>/dev/null; then
                 multimarkdown "$file"
             elif command -v pandoc &>/dev/null; then
@@ -92,26 +132,14 @@ case "$ext" in
     scad)
         # OpenSCAD → USDZ (with color support) → Preview.app
         usdz="${tmpbase}.usdz"
-        usdz_name="$(basename "$usdz")"
-
-        # Close existing Preview window for this file (if any) to force refresh
-        osascript -e "
-            tell application \"Preview\"
-                set windowList to every window
-                repeat with w in windowList
-                    if name of w contains \"$usdz_name\" then
-                        close w
-                    end if
-                end repeat
-            end tell
-        " 2>/dev/null || true
-
+        close_preview_window "$(basename "$usdz")"
         scad2usdz "$file" "$usdz"
         open $background -a Preview "$usdz"
         ;;
 
     *)
-        # Default: use macOS open
+        # Default: close Safari tab if exists, then open
+        close_safari_tab "file://${file_abs}"
         open $background "$file"
         ;;
 esac
