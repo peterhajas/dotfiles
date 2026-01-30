@@ -1,6 +1,42 @@
 #!/bin/sh
 
+DEBUG=""
+case "${1:-}" in
+  -d|--debug)
+    DEBUG=1
+    export DEBUG
+    shift
+    ;;
+esac
+
+debug() {
+  if [ -n "$DEBUG" ]; then
+    printf '%s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" >&2
+  fi
+}
+
+debug "twitch: start"
 channels=$(tiddlywiki_render "Live Stream Subscriptions")
+debug "twitch: loaded channels"
 
 # Check each channel in parallel (10 at a time) and output only live ones
-echo "$channels" | xargs -P 0 -I {} sh -c 'if yt-dlp --skip-download "{}" >/dev/null 2>&1; then echo "{}"; fi' | fzf_mpv
+echo "$channels" | xargs -P 0 -I {} sh -c '
+  channel="$1"
+  if [ -n "$DEBUG" ]; then
+    printf "%s twitch: checking %s\n" "$(date "+%Y-%m-%d %H:%M:%S")" "$channel" >&2
+  fi
+
+  yt-dlp --skip-download "$channel" >/dev/null 2>&1
+  rc=$?
+  if [ $rc -eq 0 ]; then
+    if [ -n "$DEBUG" ]; then
+      printf "%s twitch: live %s\n" "$(date "+%Y-%m-%d %H:%M:%S")" "$channel" >&2
+    fi
+    echo "$channel"
+  else
+    if [ -n "$DEBUG" ]; then
+      printf "%s twitch: offline %s (exit %s)\n" "$(date "+%Y-%m-%d %H:%M:%S")" "$channel" "$rc" >&2
+    fi
+  fi
+' _ "{}" | fzf_mpv
+debug "twitch: done"
