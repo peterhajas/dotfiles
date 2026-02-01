@@ -21,5 +21,10 @@ macos-titlebar-style = "transparent"
 resize-overlay = "never"
 window-theme = "system"
 
+# quick terminal
+keybind = global:cmd+;=toggle_quick_terminal
+quick-terminal-animation-duration = 0
+quick-terminal-screen = "macos-menu-bar"
+
 # theme
 theme = dark:modus_dark,light:modus_light
