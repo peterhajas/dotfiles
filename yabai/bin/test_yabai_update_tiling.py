@@ -1298,6 +1298,135 @@ class TestStandardModeTiling(unittest.TestCase):
         self.assertEqual(len(grid_commands), 2)
 
 
+class TestNonUltrawideTilingInUltrawideMode(unittest.TestCase):
+    """Tests for standard tiling on non-ultrawide displays in ultrawide mode."""
+
+    def test_bottom_display_tiles_in_ultrawide_mode(self):
+        """Non-ultrawide display should get standard tiling when ultrawide is present."""
+        test_data = {
+            "displays": [
+                {"index": 1, "frame": {"x": 0, "y": 0, "w": 3440, "h": 1440}},   # Ultrawide
+                {"index": 2, "frame": {"x": 1000, "y": 1440, "w": 1440, "h": 900}},  # Bottom
+            ],
+            "spaces": [
+                {"index": 1, "display": 1, "layout": "float"},
+                {"index": 2, "display": 2, "layout": "float"},
+            ],
+            "windows": [
+                {
+                    "id": 100,
+                    "app": "Safari",
+                    "display": 1,
+                    "space": 1,
+                    "frame": {"x": 0, "y": 0, "w": 1000, "h": 800},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                },
+                {
+                    "id": 200,
+                    "app": "Ghostty",
+                    "display": 2,
+                    "space": 2,
+                    "frame": {"x": 100, "y": 100, "w": 600, "h": 400},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                }
+            ],
+            "rules": []
+        }
+
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+
+        yut.MANAGE_OFF_RULES = []
+        yut.MANAGE_OFF_APPS = set()
+
+        displays = provider.query_displays()
+        spaces = provider.query_spaces()
+        windows = provider.query_windows()
+
+        yut.apply_standard_tiling(
+            spaces,
+            windows,
+            displays,
+            provider,
+            executor,
+            exclude_displays={1},
+        )
+
+        grid_commands = [cmd for cmd in executor.executed_commands if "--grid" in cmd]
+        self.assertEqual(len(grid_commands), 1)
+        self.assertIn("1:100:0:0:100:1", grid_commands[0])
+
+
+class TestSingleDisplayStandardTiling(unittest.TestCase):
+    """Tests for standard tiling on a single display."""
+
+    def test_single_display_tall_tiles_vertically(self):
+        """Tall display should tile vertically in standard mode."""
+        test_data = {
+            "displays": [
+                {"index": 1, "frame": {"x": 0, "y": 0, "w": 900, "h": 1440}}
+            ],
+            "spaces": [
+                {"index": 1, "display": 1, "layout": "float"}
+            ],
+            "windows": [
+                {
+                    "id": 100,
+                    "app": "Terminal",
+                    "display": 1,
+                    "space": 1,
+                    "frame": {"x": 0, "y": 0, "w": 400, "h": 600},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                },
+                {
+                    "id": 101,
+                    "app": "Safari",
+                    "display": 1,
+                    "space": 1,
+                    "frame": {"x": 0, "y": 600, "w": 400, "h": 600},
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "floating": 0,
+                    "minimized": 0
+                }
+            ],
+            "rules": []
+        }
+
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+
+        yut.MANAGE_OFF_RULES = []
+        yut.MANAGE_OFF_APPS = set()
+
+        displays = provider.query_displays()
+        spaces = provider.query_spaces()
+        windows = provider.query_windows()
+
+        yut.apply_standard_tiling(
+            spaces,
+            windows,
+            displays,
+            provider,
+            executor,
+            exclude_displays=set(),
+        )
+
+        grid_commands = [cmd for cmd in executor.executed_commands if "--grid" in cmd]
+        self.assertEqual(len(grid_commands), 2)
+        self.assertIn("2:100:0:0:100:1", grid_commands[0])
+        self.assertIn("2:100:0:1:100:1", grid_commands[1])
+
+
 class TestScenarioIntegration(unittest.TestCase):
     """Integration tests using test scenarios."""
 
@@ -1774,6 +1903,8 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestLaptopMultiDisplay))
     suite.addTests(loader.loadTestsFromTestCase(TestWidgetPaddingAllModes))
     suite.addTests(loader.loadTestsFromTestCase(TestStandardModeTiling))
+    suite.addTests(loader.loadTestsFromTestCase(TestNonUltrawideTilingInUltrawideMode))
+    suite.addTests(loader.loadTestsFromTestCase(TestSingleDisplayStandardTiling))
     suite.addTests(loader.loadTestsFromTestCase(TestJournalWindows))
     suite.addTests(loader.loadTestsFromTestCase(TestPaddingConfiguration))
     suite.addTests(loader.loadTestsFromTestCase(TestScenarioIntegration))
