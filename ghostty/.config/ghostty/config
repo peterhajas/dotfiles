@@ -22,7 +22,7 @@ resize-overlay = "never"
 window-theme = "system"
 
 # quick terminal
-keybind = global:cmd+;=toggle_quick_terminal
+keybind = global:ctrl+;=toggle_quick_terminal
 quick-terminal-animation-duration = 0
 quick-terminal-screen = "macos-menu-bar"
 
