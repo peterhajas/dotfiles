@@ -231,10 +231,13 @@ main() {
     # Default destination path (relative to wiki root)
     local default_dest="assets/${final_filename}"
 
-    # Ask user for destination path with prefilled value
+    # Ask user for destination path with default (bash 3.2 lacks read -i)
     echo ""
-    info "Enter destination path (relative to wiki root):"
-    read -r -e -i "$default_dest" dest_path
+    info "Enter destination path (relative to wiki root) [${default_dest}]:"
+    read -r -e dest_path
+    if [[ -z "$dest_path" ]]; then
+        dest_path="$default_dest"
+    fi
 
     # Expand tilde in destination path
     dest_path="${dest_path/#\~/$HOME}"
