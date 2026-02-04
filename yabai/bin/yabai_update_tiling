@@ -9,6 +9,7 @@ import sys
 import time
 from typing import Any, Dict, List, Optional
 import re
+import math
 
 # Verbose logging flag (set via command line)
 VERBOSE = False
@@ -46,7 +47,7 @@ def query_yabai_config(key: str, default: int) -> int:
 # Padding configuration - query from yabai and environment
 EDGE_PADDING = int(os.environ.get('YABAI_EDGE_PADDING', '14'))
 PADDING = query_yabai_config('window_gap', 20)
-WIDGET_PADDING = int(os.environ.get('YABAI_WIDGET_PADDING', '208'))
+WIDGET_PADDING = int(os.environ.get('YABAI_WIDGET_PADDING', '192'))
 CONFIG_EVENTS = {
     "display_added",
     "display_changed",
@@ -432,17 +433,26 @@ def bucket_layout(
     center_bucket: bool = False,
     right_cutout_px: float = 0.0,
 ) -> Dict[str, Dict[str, int]]:
-    widths = compute_bucket_widths(buckets_present, display_width)
+    # Compute bucket widths based on available space (excluding right cutout)
+    effective_width = display_width - right_cutout_px
+    widths = compute_bucket_widths(buckets_present, effective_width)
     order = [bucket for bucket in BUCKET_ORDER if bucket in widths]
     if not order or display_width <= 0:
         return {}
 
+    # Calculate target grid columns (accounts for right cutout)
+    right_cutout_cols = 0
+    if right_cutout_px > 0 and display_width > 0:
+        right_cutout_cols = int(math.ceil((right_cutout_px / display_width) * GRID_COLUMNS))
+    target_cols = GRID_COLUMNS - right_cutout_cols
+
+    # Convert widths to column spans based on available space
     raw_spans = [
-        (widths[bucket] / display_width) * GRID_COLUMNS
+        (widths[bucket] / effective_width) * target_cols
         for bucket in order
     ]
     spans = [max(1, int(value)) for value in raw_spans]
-    diff = GRID_COLUMNS - sum(spans)
+    diff = target_cols - sum(spans)
 
     remainders = [value - int(value) for value in raw_spans]
     while diff != 0:
@@ -464,72 +474,72 @@ def bucket_layout(
         final_layout[bucket] = {"col": col, "span": span}
         col += span
 
-    # ensure total columns are consumed
+    # ensure target columns are consumed (may be less than GRID_COLUMNS if there's a cutout)
     total_assigned = sum(span for span in spans)
-    if total_assigned != GRID_COLUMNS and order:
+    if total_assigned != target_cols and order:
         adjust_bucket = "center" if "center" in final_layout else order[-1]
-        adjustment = GRID_COLUMNS - total_assigned
+        adjustment = target_cols - total_assigned
         final_layout[adjust_bucket]["span"] = max(1, final_layout[adjust_bucket]["span"] + adjustment)
 
     if center_bucket and "center" in final_layout and len(order) > 1:
         center_idx = order.index("center")
         center_span = final_layout["center"]["span"]
-        desired_center_col = max(0, (GRID_COLUMNS - center_span) // 2)
+        # Center on the full screen (including cutout area on right)
+        # This makes the center window visually centered on the display
+        desired_center_col = max(0, round((GRID_COLUMNS - center_span) / 2))
 
         left_buckets = order[:center_idx]
         right_buckets = order[center_idx + 1:]
 
-        # Calculate right cutout in columns (for widget padding area)
-        right_cutout_cols = 0
-        if right_cutout_px > 0 and display_width > 0:
-            right_cutout_cols = int((right_cutout_px / display_width) * GRID_COLUMNS)
-
-        # Build layout with right buckets respecting the cutout
+        # Build symmetric centered layout
         centered_layout: Dict[str, Dict[str, int]] = {}
-        left_col = 0
-        for bucket in left_buckets:
-            span = final_layout[bucket]["span"]
-            centered_layout[bucket] = {"col": left_col, "span": span}
-            left_col += span
 
-        right_col = GRID_COLUMNS - right_cutout_cols
-        for bucket in reversed(right_buckets):
-            span = final_layout[bucket]["span"]
-            right_col -= span
-            centered_layout[bucket] = {"col": right_col, "span": span}
+        # Place center bucket at desired position
+        centered_layout["center"] = {"col": desired_center_col, "span": center_span}
+        center_right_edge = desired_center_col + center_span
 
-        left_end = left_col
-        right_start = right_col
+        # Redistribute LEFT buckets to fill space from 0 to desired_center_col
+        if left_buckets and desired_center_col > 0:
+            total_left_span = sum(final_layout[b]["span"] for b in left_buckets)
+            left_col = 0
+            for i, bucket in enumerate(left_buckets):
+                original_span = final_layout[bucket]["span"]
+                if i < len(left_buckets) - 1:
+                    # Intermediate buckets: scale proportionally
+                    scaled_span = max(1, int((original_span / total_left_span) * desired_center_col))
+                    centered_layout[bucket] = {"col": left_col, "span": scaled_span}
+                    left_col += scaled_span
+                else:
+                    # Last left bucket: fill remaining space to center
+                    remaining = desired_center_col - left_col
+                    centered_layout[bucket] = {"col": left_col, "span": max(1, remaining)}
+        elif left_buckets:
+            # No space for left buckets - place them at 0 with minimal span
+            left_col = 0
+            for bucket in left_buckets:
+                centered_layout[bucket] = {"col": left_col, "span": 1}
+                left_col += 1
 
-        # Try to center the center bucket if there's room
-        if left_end <= desired_center_col and desired_center_col + center_span <= right_start:
-            # Use centered position when it doesn't overlap side buckets
-            centered_layout["center"] = {"col": desired_center_col, "span": center_span}
-        else:
-            # No room for centering gaps - place center immediately after left buckets
-            centered_layout["center"] = {"col": left_end, "span": center_span}
-
-        # Adjust right buckets to start at the center bucket's right edge
-        # (fill the space between center and cutout, rather than using weight-based positioning)
-        center_right_edge = centered_layout["center"]["col"] + centered_layout["center"]["span"]
-        available_right_space = (GRID_COLUMNS - right_cutout_cols) - center_right_edge
-
+        # Redistribute RIGHT buckets to fill space from center_right_edge to target_cols
+        available_right_space = target_cols - center_right_edge
         if right_buckets and available_right_space > 0:
-            # Redistribute right bucket spans to fill available space
             total_right_span = sum(final_layout[b]["span"] for b in right_buckets)
             right_col = center_right_edge
-            for bucket in right_buckets:
-                # Scale each bucket's span proportionally to available space
+            for i, bucket in enumerate(right_buckets):
                 original_span = final_layout[bucket]["span"]
-                scaled_span = max(1, int((original_span / total_right_span) * available_right_space))
-                centered_layout[bucket] = {"col": right_col, "span": scaled_span}
-                right_col += scaled_span
-
-            # Adjust last bucket to fill any remaining space due to rounding
-            if right_buckets:
-                last_bucket = right_buckets[-1]
-                remaining = (GRID_COLUMNS - right_cutout_cols) - right_col + centered_layout[last_bucket]["span"]
-                centered_layout[last_bucket]["span"] = max(1, remaining)
+                if i < len(right_buckets) - 1:
+                    # Intermediate buckets: scale proportionally
+                    scaled_span = max(1, int((original_span / total_right_span) * available_right_space))
+                    centered_layout[bucket] = {"col": right_col, "span": scaled_span}
+                    right_col += scaled_span
+                else:
+                    # Last right bucket: fill remaining space to target_cols
+                    remaining = target_cols - right_col
+                    centered_layout[bucket] = {"col": right_col, "span": max(1, remaining)}
+        elif right_buckets:
+            # No space for right buckets - place them at target_cols with minimal span
+            for bucket in right_buckets:
+                centered_layout[bucket] = {"col": target_cols - 1, "span": 1}
 
         # Always use the layout with cutout applied
         final_layout = {
@@ -1403,7 +1413,7 @@ def main() -> None:
                 bucket_span = layout["left"]["span"]
                 bucket_width = (bucket_span / GRID_COLUMNS) * ultra_w
                 horizontal = should_tile_horizontal(
-                    "center",
+                    "left",
                     bucket_width,
                     ultra_h,
                     ultra_w,
@@ -1422,7 +1432,7 @@ def main() -> None:
                 bucket_span = layout["center"]["span"]
                 bucket_width = (bucket_span / GRID_COLUMNS) * ultra_w
                 horizontal = should_tile_horizontal(
-                    "left",
+                    "center",
                     bucket_width,
                     ultra_h,
                     ultra_w,

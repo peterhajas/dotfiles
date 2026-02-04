@@ -6,6 +6,7 @@ Tests both pure functions (unit tests) and full scenario runs (integration tests
 """
 
 import json
+import math
 import os
 import sys
 import unittest
@@ -180,9 +181,9 @@ class TestBucketLayout(unittest.TestCase):
 
     def test_right_cutout_reduces_right_bucket_extent(self):
         """With right_cutout_px > 0, right bucket should not extend to display edge."""
-        # 5120px display with 208px widget padding = ~4 columns cutout
+        # 5120px display with 192px widget padding = ~4 columns cutout
         display_width = 5120.0
-        widget_padding = 208.0
+        widget_padding = 192.0
 
         result = yut.bucket_layout(
             ["left", "center", "right"],
@@ -193,7 +194,7 @@ class TestBucketLayout(unittest.TestCase):
 
         # Right bucket should end before column 100
         right_end = result["right"]["col"] + result["right"]["span"]
-        expected_cutout_cols = int((widget_padding / display_width) * 100)
+        expected_cutout_cols = int(math.ceil((widget_padding / display_width) * 100))
         expected_max_right = 100 - expected_cutout_cols
 
         self.assertLessEqual(right_end, expected_max_right)
@@ -251,7 +252,7 @@ class TestApplyBucket(unittest.TestCase):
     def test_right_bucket_starts_at_center_right_edge(self):
         """With center_bucket=True, right bucket should start at center's right edge."""
         display_width = 5120.0
-        widget_padding = 208.0
+        widget_padding = 192.0
 
         result = yut.bucket_layout(
             ["left", "center", "right"],
@@ -912,7 +913,7 @@ class TestLaptopMultiDisplay(unittest.TestCase):
         # Right bucket should not extend to edge due to cutout
         if "right" in layout:
             right_end = layout["right"]["col"] + layout["right"]["span"]
-            cutout_cols = int((yut.WIDGET_PADDING / laptop_w) * yut.GRID_COLUMNS)
+            cutout_cols = int(math.ceil((yut.WIDGET_PADDING / laptop_w) * yut.GRID_COLUMNS))
             expected_max = yut.GRID_COLUMNS - cutout_cols
             self.assertLessEqual(right_end, expected_max)
 
@@ -1701,7 +1702,7 @@ class TestJournalWindows(unittest.TestCase):
                     "title": "wiki_journal_today 2026-01-19",
                     "display": 1,
                     "space": 1,
-                    "frame": {"x": 2340, "y": 12, "w": 208, "h": 400},
+                    "frame": {"x": 2340, "y": 12, "w": 192, "h": 400},
                     "role": "AXWindow",
                     "subrole": "AXStandardWindow",
                     "floating": 0,
@@ -1759,6 +1760,162 @@ class TestJournalWindows(unittest.TestCase):
 
         self.assertEqual(len(all_bucketed_windows), 1)  # Only Safari
         self.assertEqual(all_bucketed_windows[0]["id"], 101)  # Not the journal window
+
+
+class TestCenteringAndRightEdge(unittest.TestCase):
+    """Tests for center bucket centering and right bucket edge alignment."""
+
+    def test_center_bucket_is_actually_centered_with_cutout(self):
+        """Center bucket should be centered on full screen (including cutout area)."""
+        # 5120px display with 192px cutout
+        display_width = 5120.0
+        cutout_px = 192.0
+
+        result = yut.bucket_layout(
+            ["left", "center", "right"],
+            display_width,
+            center_bucket=True,
+            right_cutout_px=cutout_px
+        )
+
+        # Calculate expected values
+        cutout_cols = int(math.ceil((cutout_px / display_width) * 100))
+        target_cols = 100 - cutout_cols
+
+        center_span = result["center"]["span"]
+        center_col = result["center"]["col"]
+
+        # Center should be positioned to center on FULL screen (GRID_COLUMNS=100)
+        expected_center_col = round((yut.GRID_COLUMNS - center_span) / 2)
+
+        # Allow rounding differences (discrete columns cause small offsets)
+        self.assertAlmostEqual(center_col, expected_center_col, delta=2,
+                              msg=f"Center bucket at col {center_col}, expected ~{expected_center_col}")
+
+        # Verify center bucket is visually centered on full display
+        # Convert to pixels to check visual centering
+        center_start_px = (center_col / 100) * display_width
+        center_width_px = (center_span / 100) * display_width
+        ideal_start_px = (display_width - center_width_px) / 2
+        offset_px = abs(center_start_px - ideal_start_px)
+
+        # Should be centered within ~30px (accounting for discrete column rounding)
+        self.assertLess(offset_px, 30,
+                       msg=f"Center offset {offset_px:.0f}px from ideal, not centered on full screen")
+
+    def test_right_bucket_hugs_cutout_edge(self):
+        """Right bucket should extend exactly to target_cols (cutout edge)."""
+        # 5120px display with 192px cutout
+        display_width = 5120.0
+        cutout_px = 192.0
+
+        result = yut.bucket_layout(
+            ["left", "center", "right"],
+            display_width,
+            center_bucket=True,
+            right_cutout_px=cutout_px
+        )
+
+        # Calculate expected values
+        cutout_cols = int(math.ceil((cutout_px / display_width) * 100))
+        target_cols = 100 - cutout_cols
+
+        # Right bucket should end exactly at target_cols
+        right_end = result["right"]["col"] + result["right"]["span"]
+
+        self.assertEqual(right_end, target_cols,
+                        msg=f"Right bucket ends at {right_end}, should be {target_cols}")
+
+    def test_three_bucket_ultrawide_with_cutout(self):
+        """Three-bucket ultrawide layout with cutout (realistic scenario)."""
+        # 3440px ultrawide with 192px cutout
+        display_width = 3440.0
+        cutout_px = 192.0
+
+        result = yut.bucket_layout(
+            ["left", "center", "right"],
+            display_width,
+            center_bucket=True,
+            right_cutout_px=cutout_px
+        )
+
+        cutout_cols = int(math.ceil((cutout_px / display_width) * 100))
+        target_cols = 100 - cutout_cols
+
+        # Verify all buckets are present
+        self.assertIn("left", result)
+        self.assertIn("center", result)
+        self.assertIn("right", result)
+
+        # Verify right bucket ends at cutout edge
+        right_end = result["right"]["col"] + result["right"]["span"]
+        self.assertEqual(right_end, target_cols)
+
+        # Verify center is centered on full screen
+        center_col = result["center"]["col"]
+        center_span = result["center"]["span"]
+        center_start_px = (center_col / 100) * display_width
+        center_width_px = (center_span / 100) * display_width
+        ideal_start_px = (display_width - center_width_px) / 2
+        offset_px = abs(center_start_px - ideal_start_px)
+        self.assertLess(offset_px, 30, msg=f"Center not centered on full screen (offset: {offset_px:.0f}px)")
+
+    def test_five_bucket_with_cutout_on_center_display(self):
+        """Five-bucket layout with cutout on center display."""
+        # 5120px display with 192px cutout
+        display_width = 5120.0
+        cutout_px = 192.0
+
+        result = yut.bucket_layout(
+            ["far_left", "left", "center", "right", "far_right"],
+            display_width,
+            center_bucket=True,
+            right_cutout_px=cutout_px
+        )
+
+        cutout_cols = int(math.ceil((cutout_px / display_width) * 100))
+        target_cols = 100 - cutout_cols
+
+        # Verify all buckets are present
+        for bucket in ["far_left", "left", "center", "right", "far_right"]:
+            self.assertIn(bucket, result)
+
+        # Verify far_right bucket ends at cutout edge
+        far_right_end = result["far_right"]["col"] + result["far_right"]["span"]
+        self.assertEqual(far_right_end, target_cols,
+                        msg=f"far_right ends at {far_right_end}, should be {target_cols}")
+
+        # Verify center is centered on full screen
+        center_col = result["center"]["col"]
+        center_span = result["center"]["span"]
+        center_start_px = (center_col / 100) * display_width
+        center_width_px = (center_span / 100) * display_width
+        ideal_start_px = (display_width - center_width_px) / 2
+        offset_px = abs(center_start_px - ideal_start_px)
+
+        # Should be centered within ~30px (accounting for side buckets and discrete columns)
+        self.assertLess(offset_px, 30,
+                       msg=f"Center not centered on full screen (offset: {offset_px:.0f}px)")
+
+
+class TestUltrawideBucketTiling(unittest.TestCase):
+    """Tests for ultrawide bucket tiling direction."""
+
+    def test_ultrawide_left_bucket_tiles_vertically(self):
+        """Left bucket in ultrawide mode should tile vertically."""
+        # Ultrawide display (3440x1440)
+        horizontal = yut.should_tile_horizontal("left", 1000.0, 1440.0, 3440.0)
+        self.assertFalse(horizontal, "Left bucket should tile vertically")
+
+    def test_ultrawide_center_bucket_tiles_horizontally(self):
+        """Center bucket in ultrawide mode should tile horizontally."""
+        horizontal = yut.should_tile_horizontal("center", 1280.0, 1440.0, 3440.0)
+        self.assertTrue(horizontal, "Center bucket should tile horizontally")
+
+    def test_ultrawide_right_bucket_tiles_vertically(self):
+        """Right bucket in ultrawide mode should tile vertically."""
+        horizontal = yut.should_tile_horizontal("right", 1000.0, 1440.0, 3440.0)
+        self.assertFalse(horizontal, "Right bucket should tile vertically")
 
 
 class TestPaddingConfiguration(unittest.TestCase):
@@ -1906,6 +2063,8 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestNonUltrawideTilingInUltrawideMode))
     suite.addTests(loader.loadTestsFromTestCase(TestSingleDisplayStandardTiling))
     suite.addTests(loader.loadTestsFromTestCase(TestJournalWindows))
+    suite.addTests(loader.loadTestsFromTestCase(TestCenteringAndRightEdge))
+    suite.addTests(loader.loadTestsFromTestCase(TestUltrawideBucketTiling))
     suite.addTests(loader.loadTestsFromTestCase(TestPaddingConfiguration))
     suite.addTests(loader.loadTestsFromTestCase(TestScenarioIntegration))
 
