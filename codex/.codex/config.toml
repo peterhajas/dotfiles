@@ -5,6 +5,7 @@ model_reasoning_effort = "medium"
 web_search_request = true
 
 notify = ["sh", "~/.codex/hooks/notify_bridge"]
+personality = "pragmatic"
 
 [projects."/Users/phajas/dotfiles"]
 trust_level = "trusted"
