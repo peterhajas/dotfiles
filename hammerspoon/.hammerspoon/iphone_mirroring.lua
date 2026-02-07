@@ -15,7 +15,7 @@ local function updateiPhoneMirroringFrame()
 
             local mirroringWidth = window:frame().w
             local mirroringHeight = window:frame().h
-            local mirroringInset = 7
+            local mirroringInset = 9
 
             local mirroringFrame = hs.geometry.rect(screenFrame.w - mirroringWidth + mirroringInset,
                                                     screenFrame.h - mirroringHeight + mirroringInset,
