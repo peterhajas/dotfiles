@@ -47,7 +47,10 @@ def query_yabai_config(key: str, default: int) -> int:
 # Padding configuration - query from yabai and environment
 EDGE_PADDING = int(os.environ.get('YABAI_EDGE_PADDING', '14'))
 PADDING = query_yabai_config('window_gap', 20)
-WIDGET_PADDING = int(os.environ.get('YABAI_WIDGET_PADDING', '192'))
+# Right-side reserved area (e.g., TiddlyWiki HUD). Subtracted from the usable
+# width on the display that hosts widgets/HUD.
+DEFAULT_WIDGET_PADDING_PX = 192
+WIDGET_PADDING = int(os.environ.get('YABAI_WIDGET_PADDING', str(DEFAULT_WIDGET_PADDING_PX)))
 CONFIG_EVENTS = {
     "display_added",
     "display_changed",
@@ -68,7 +71,17 @@ BUCKET_WEIGHTS = {
     "right": 1.0,
     "far_right": 1.0,
 }  # Adjust to change relative widths
-SIDE_MAX_WIDTH_PX: Optional[int] = 1080  # Cap non-center widths in pixels (when present with center); set to None to disable
+# Cap non-center widths in pixels (when present with center). This directly
+# controls side bucket width on the center display in 3-display 5-bucket mode,
+# and on single-display 5-bucket ultrawide mode.
+SIDE_MAX_WIDTH_PX: Optional[int] = 800  # Set to None to disable
+# When a right-side cutout is present (HUD/widgets), you have two sensible
+# choices for centering:
+# - full display: visually centered on the physical panel (default). This makes
+#   the left side effectively larger than the right by the cutout width.
+# - usable width: centered between x=0 and the cutout edge. This makes left/right
+#   symmetric, but shifts the "center" left on the physical panel.
+CENTER_BUCKET_ON_FULL_DISPLAY = True
 GRID_COLUMNS = 100  # Grid resolution for column calculations (higher -> finer control)
 
 
@@ -446,6 +459,74 @@ def bucket_layout(
         right_cutout_cols = int(math.ceil((right_cutout_px / display_width) * GRID_COLUMNS))
     target_cols = GRID_COLUMNS - right_cutout_cols
 
+    # Special case: when centering on the full display AND a right-side cutout exists, we
+    # want the center bucket visually centered on the physical panel while keeping buckets
+    # contiguous and not overlapping the cutout.
+    #
+    # To achieve this, we subtract the cutout width from the RIGHT side bucket total
+    # (starting from the rightmost bucket) and give that space to the center bucket.
+    # This results in:
+    # - left side buckets staying at their target widths (e.g., 800px)
+    # - the rightmost bucket being reduced by the cutout width (e.g., 800 - 192)
+    # - center bucket expanding so it remains visually centered on the full display.
+    if (
+        center_bucket
+        and right_cutout_px > 0
+        and CENTER_BUCKET_ON_FULL_DISPLAY
+        and "center" in widths
+        and len(order) > 1
+    ):
+        center_idx = order.index("center")
+        right_buckets = order[center_idx + 1 :]
+        if right_buckets:
+            remaining = float(right_cutout_px)
+            for bucket in reversed(right_buckets):
+                if remaining <= 0:
+                    break
+                current = float(widths.get(bucket, 0.0))
+                take = min(current, remaining)
+                widths[bucket] = max(0.0, current - take)
+                remaining -= take
+
+            # Give the removed width back to center so we still fill effective_width.
+            non_center_total = sum(
+                float(widths.get(b, 0.0)) for b in widths.keys() if b != "center"
+            )
+            widths["center"] = max(0.0, effective_width - non_center_total)
+
+        # Convert widths to column spans based on the usable space (target_cols).
+        raw_spans = [
+            (float(widths[bucket]) / max(effective_width, 1.0)) * target_cols
+            for bucket in order
+        ]
+        # Use round() instead of floor+remainders to avoid systematic tie bias
+        # (e.g., left/right with identical remainders).
+        spans = [max(1, int(round(value))) for value in raw_spans]
+        diff = target_cols - sum(spans)
+        if diff != 0 and "center" in order:
+            center_i = order.index("center")
+            spans[center_i] = max(1, spans[center_i] + diff)
+            diff = target_cols - sum(spans)
+        if diff != 0 and spans:
+            spans[-1] = max(1, spans[-1] + diff)
+
+        final_layout: Dict[str, Dict[str, int]] = {}
+        col = 0
+        for bucket, span in zip(order, spans):
+            final_layout[bucket] = {"col": col, "span": span}
+            col += span
+
+        # Ensure right edge hugs the cutout boundary.
+        total_assigned = sum(span for span in spans)
+        if total_assigned != target_cols and order:
+            adjust_bucket = "center" if "center" in final_layout else order[-1]
+            adjustment = target_cols - total_assigned
+            final_layout[adjust_bucket]["span"] = max(
+                1, final_layout[adjust_bucket]["span"] + adjustment
+            )
+
+        return final_layout
+
     # Convert widths to column spans based on available space
     raw_spans = [
         (widths[bucket] / effective_width) * target_cols
@@ -484,9 +565,13 @@ def bucket_layout(
     if center_bucket and "center" in final_layout and len(order) > 1:
         center_idx = order.index("center")
         center_span = final_layout["center"]["span"]
-        # Center on the full screen (including cutout area on right)
-        # This makes the center window visually centered on the display
-        desired_center_col = max(0, round((GRID_COLUMNS - center_span) / 2))
+        if CENTER_BUCKET_ON_FULL_DISPLAY:
+            # Center on the full screen (including the cutout area on right).
+            # This makes the center bucket visually centered on the display.
+            desired_center_col = max(0, round((GRID_COLUMNS - center_span) / 2))
+        else:
+            # Center within the usable area (excluding the right cutout).
+            desired_center_col = max(0, round((target_cols - center_span) / 2))
 
         left_buckets = order[:center_idx]
         right_buckets = order[center_idx + 1:]

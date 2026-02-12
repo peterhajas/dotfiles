@@ -39,6 +39,174 @@ with open(script_path, "r") as f:
 sys.modules["yabai_update_tiling"] = yut
 
 
+EMBEDDED_SCENARIOS: Dict[str, Dict[str, Any]] = {
+    # Scenario used to regression-test a 3-display layout: 1080 / 3840 / 1080.
+    # Embedded to avoid needing the JSON file present on disk to run tests.
+    "three-displays-uw-center": {
+        "displays": [
+            {
+                "id": 1,
+                "uuid": "left-display-uuid",
+                "index": 1,
+                "frame": {"x": 0.0, "y": 0.0, "w": 1080.0, "h": 1920.0},
+                "spaces": [1],
+            },
+            {
+                "id": 2,
+                "uuid": "center-display-uuid",
+                "index": 2,
+                "frame": {"x": 1080.0, "y": 0.0, "w": 3840.0, "h": 2160.0},
+                "spaces": [2],
+            },
+            {
+                "id": 3,
+                "uuid": "right-display-uuid",
+                "index": 3,
+                "frame": {"x": 4920.0, "y": 0.0, "w": 1080.0, "h": 1920.0},
+                "spaces": [3],
+            },
+        ],
+        "spaces": [
+            {
+                "id": 1,
+                "uuid": "space-uuid-1",
+                "index": 1,
+                "label": "",
+                "type": "bsp",
+                "display": 1,
+                "windows": [101],
+                "first-window": 101,
+                "last-window": 101,
+                "has-focus": False,
+                "is-visible": True,
+                "is-native-fullscreen": False,
+                "layout": "float",
+                "top_padding": 0,
+                "bottom_padding": 0,
+                "left_padding": 0,
+                "right_padding": 0,
+            },
+            {
+                "id": 2,
+                "uuid": "space-uuid-2",
+                "index": 2,
+                "label": "",
+                "type": "bsp",
+                "display": 2,
+                "windows": [201, 202, 203],
+                "first-window": 201,
+                "last-window": 203,
+                "has-focus": True,
+                "is-visible": True,
+                "is-native-fullscreen": False,
+                "layout": "float",
+                "top_padding": 0,
+                "bottom_padding": 0,
+                "left_padding": 0,
+                "right_padding": 0,
+            },
+            {
+                "id": 3,
+                "uuid": "space-uuid-3",
+                "index": 3,
+                "label": "",
+                "type": "bsp",
+                "display": 3,
+                "windows": [301],
+                "first-window": 301,
+                "last-window": 301,
+                "has-focus": False,
+                "is-visible": True,
+                "is-native-fullscreen": False,
+                "layout": "float",
+                "top_padding": 0,
+                "bottom_padding": 0,
+                "left_padding": 0,
+                "right_padding": 0,
+            },
+        ],
+        "windows": [
+            {
+                "id": 101,
+                "pid": 1001,
+                "app": "Ghostty",
+                "title": "left display terminal",
+                "frame": {"x": 0.0, "y": 0.0, "w": 1080.0, "h": 1920.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 1,
+                "space": 1,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 201,
+                "pid": 2001,
+                "app": "Ghostty",
+                "title": "center-left bucket",
+                "frame": {"x": 1100.0, "y": 0.0, "w": 800.0, "h": 2160.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 2,
+                "space": 2,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 202,
+                "pid": 2002,
+                "app": "Safari",
+                "title": "center bucket",
+                "frame": {"x": 2500.0, "y": 0.0, "w": 1800.0, "h": 2160.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 2,
+                "space": 2,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 203,
+                "pid": 2003,
+                "app": "Finder",
+                "title": "center-right bucket",
+                "frame": {"x": 4100.0, "y": 0.0, "w": 800.0, "h": 2160.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 2,
+                "space": 2,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 301,
+                "pid": 3001,
+                "app": "Music",
+                "title": "right display music",
+                "frame": {"x": 4920.0, "y": 0.0, "w": 1080.0, "h": 1920.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 3,
+                "space": 3,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+        ],
+        "rules": [],
+    },
+}
+
+
 class TestBucketLayout(unittest.TestCase):
     """Unit tests for bucket_layout() function."""
 
@@ -53,7 +221,9 @@ class TestBucketLayout(unittest.TestCase):
         """Three buckets with equal weights should split evenly."""
         # Temporarily override weights to be equal for this test
         original_weights = yut.BUCKET_WEIGHTS.copy()
+        original_side_max = yut.SIDE_MAX_WIDTH_PX
         yut.BUCKET_WEIGHTS = {"left": 1.0, "center": 1.0, "right": 1.0}
+        yut.SIDE_MAX_WIDTH_PX = None  # Disable capping so the split stays even
 
         result = yut.bucket_layout(["left", "center", "right"], 3000.0)
 
@@ -73,6 +243,7 @@ class TestBucketLayout(unittest.TestCase):
 
         # Restore original weights
         yut.BUCKET_WEIGHTS = original_weights
+        yut.SIDE_MAX_WIDTH_PX = original_side_max
 
     def test_five_buckets(self):
         """Five bucket layout should allocate all 100 columns."""
@@ -305,6 +476,23 @@ class TestComputeBucketWidths(unittest.TestCase):
 
         # Restore
         yut.SIDE_MAX_WIDTH_PX = original
+
+    def test_center_display_side_buckets_cap_to_800_with_cutout(self):
+        """With a right cutout, left/right should still cap to ~800px on a 3840px center display."""
+        original_weights = yut.BUCKET_WEIGHTS.copy()
+        original_side_max = yut.SIDE_MAX_WIDTH_PX
+        yut.BUCKET_WEIGHTS = {"left": 1.0, "center": 2.0, "right": 1.0}
+        yut.SIDE_MAX_WIDTH_PX = 800
+
+        # This is the "usable width" after a 192px HUD cutout on a 3840px display.
+        widths = yut.compute_bucket_widths(["left", "center", "right"], 3840.0 - 192.0)
+
+        self.assertAlmostEqual(widths["left"], 800.0, places=1)
+        self.assertAlmostEqual(widths["right"], 800.0, places=1)
+        self.assertAlmostEqual(widths["center"], (3840.0 - 192.0) - 1600.0, places=1)
+
+        yut.BUCKET_WEIGHTS = original_weights
+        yut.SIDE_MAX_WIDTH_PX = original_side_max
 
     def test_proportional_weights(self):
         """Buckets should be sized according to their weights."""
@@ -1448,13 +1636,15 @@ class TestScenarioIntegration(unittest.TestCase):
 
     def load_scenario(self, scenario_name: str) -> Dict[str, Any]:
         """Load a test scenario from JSON file."""
+        if scenario_name in EMBEDDED_SCENARIOS:
+            return EMBEDDED_SCENARIOS[scenario_name]
         scenario_file = self.scenarios_dir / f"{scenario_name}.json"
         with open(scenario_file, "r") as f:
             return json.load(f)
 
     def run_with_scenario(self, scenario_name: str) -> yut.YabaiCommandExecutor:
         """Run the tiling logic with a test scenario and return the executor."""
-        if not self.scenarios_available:
+        if not self.scenarios_available and scenario_name not in EMBEDDED_SCENARIOS:
             self.skipTest(f"Test scenarios not found in {self.scenarios_dir}")
 
         # Load scenario
@@ -1611,6 +1801,28 @@ class TestScenarioIntegration(unittest.TestCase):
         # Should have grid commands for windows across displays
         grid_commands = [cmd for cmd in executor.executed_commands if "--grid" in cmd]
         self.assertGreater(len(grid_commands), 0)
+
+    def test_three_displays_uw_center_sides_are_800ish(self):
+        """1080/3840/1080 should cap left/right buckets on the center display to ~800px (with HUD cutout)."""
+        executor = self.run_with_scenario("three-displays-uw-center")
+
+        # Map window id -> grid string
+        grids: Dict[int, str] = {}
+        for cmd in executor.executed_commands:
+            if "--grid" not in cmd:
+                continue
+            try:
+                win_id = int(cmd[3])
+                grid = cmd[5]
+                grids[win_id] = grid
+            except Exception:
+                continue
+
+        # Middle display layout (3840w, 192px cutout), centered on full display:
+        # left=21 cols (~806px), center=58 cols, right=16 cols (~614px), cutout=5 cols.
+        self.assertEqual(grids.get(201), "1:100:0:0:21:1")
+        self.assertEqual(grids.get(202), "1:100:21:0:58:1")
+        self.assertEqual(grids.get(203), "1:100:79:0:16:1")
 
     def test_special_windows_scenario(self):
         """Special windows should be filtered correctly."""
@@ -1793,7 +2005,6 @@ class TestCenteringAndRightEdge(unittest.TestCase):
                               msg=f"Center bucket at col {center_col}, expected ~{expected_center_col}")
 
         # Verify center bucket is visually centered on full display
-        # Convert to pixels to check visual centering
         center_start_px = (center_col / 100) * display_width
         center_width_px = (center_span / 100) * display_width
         ideal_start_px = (display_width - center_width_px) / 2
@@ -1896,6 +2107,36 @@ class TestCenteringAndRightEdge(unittest.TestCase):
         # Should be centered within ~30px (accounting for side buckets and discrete columns)
         self.assertLess(offset_px, 30,
                        msg=f"Center not centered on full screen (offset: {offset_px:.0f}px)")
+
+
+class TestThreeDisplayUltrawideCenterBucketSizing(unittest.TestCase):
+    """Specific regression tests for a 3-display setup with a 3840px center display and HUD cutout."""
+
+    def test_center_display_left_right_are_about_800px(self):
+        original_weights = yut.BUCKET_WEIGHTS.copy()
+        original_side_max = yut.SIDE_MAX_WIDTH_PX
+        yut.BUCKET_WEIGHTS = {"left": 1.0, "center": 2.0, "right": 1.0}
+        yut.SIDE_MAX_WIDTH_PX = 800
+
+        # 3840px center display with 192px cutout -> target_cols=95
+        result = yut.bucket_layout(
+            ["left", "center", "right"],
+            3840.0,
+            center_bucket=True,
+            right_cutout_px=192.0,
+        )
+
+        # Centered on the full display with a right cutout:
+        # left stays ~800px, right becomes ~800px - cutout.
+        self.assertEqual(result["left"]["col"], 0)
+        self.assertEqual(result["left"]["span"], 21)
+        self.assertEqual(result["center"]["col"], 21)
+        self.assertEqual(result["center"]["span"], 58)
+        self.assertEqual(result["right"]["col"], 79)
+        self.assertEqual(result["right"]["span"], 16)
+
+        yut.BUCKET_WEIGHTS = original_weights
+        yut.SIDE_MAX_WIDTH_PX = original_side_max
 
 
 class TestUltrawideBucketTiling(unittest.TestCase):
