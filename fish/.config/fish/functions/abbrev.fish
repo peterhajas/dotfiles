@@ -37,7 +37,7 @@ function abbrev -d "Install fish abbreviations"
     abbr za "zellij attach --create"
     abbr zc "zellij attach --create (basename (pwd))"
     ## zellij delete
-    abbr zd "zellij list-sessions --no-formatting --short | fzf | xargs zellij delete-session --force"
+    abbr zd "zellij list-sessions --no-formatting --short | awk '{print \$1 \" [active session]\"}' | fzf --preview='sh ~/bin/.zellij_sessionize_preview {}' --preview-window=right:70%:wrap --ansi | sed 's/ \\[active session\\]//' | xargs -r zellij delete-session --force"
 
     # youtube-dl
     abbr y 'ytd "'
