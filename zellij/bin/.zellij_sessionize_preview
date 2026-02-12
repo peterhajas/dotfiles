@@ -1,0 +1,131 @@
+#!/bin/sh
+
+print_section() {
+    # Blue, bold.
+    printf "\033[1;34m%s\033[0m\n" "$1"
+}
+
+print_dim() {
+    # Dim.
+    printf "\033[2m%s\033[0m\n" "$1"
+}
+
+preview_active_session() {
+    selection="$1"
+    session_name=$(printf "%s" "$selection" | sed "s/ \\[active session\\]$//")
+
+    tmp_dir="${TMPDIR:-/tmp}"
+    tmp_file=$(mktemp "${tmp_dir}/zellij_sessionize_${session_name}.XXXXXX" 2>/dev/null || printf "%s/zellij_sessionize_%s.txt" "$tmp_dir" "$session_name")
+    preview_lines="${FZF_PREVIEW_LINES:-200}"
+
+    if zellij --session "$session_name" action dump-screen "$tmp_file" 2>/dev/null; then
+        print_section "$session_name"
+        if [ -s "$tmp_file" ]; then
+            sed -n "1,${preview_lines}p" "$tmp_file" 2>/dev/null
+        else
+            print_dim "(empty pane output)"
+        fi
+    else
+        printf "\033[31m%s\033[0m\n" "Unable to capture screen for session: $session_name"
+    fi
+
+    rm -f "$tmp_file" 2>/dev/null
+}
+
+is_git_repo() {
+    dir="$1"
+    git -C "$dir" rev-parse --is-inside-work-tree >/dev/null 2>&1
+}
+
+preview_git_log() {
+    dir="$1"
+    # Keep it short; fzf preview window is narrow.
+    git -C "$dir" -c color.ui=always --no-pager log \
+        --max-count=20 \
+        --date=short \
+        --decorate=short \
+        --graph \
+        --pretty=format:'%C(auto)%h %C(blue)%ad%C(reset) %C(yellow)%d%C(reset) %s %C(black)%an%C(reset)' \
+        2>/dev/null
+}
+
+preview_recent_files() {
+    dir="$1"
+    max="${2:-25}"
+    depth="${3:-3}"
+
+    # Use tab as a delimiter so paths with spaces still work.
+    # (Tab-in-filename is rare enough for this preview use-case.)
+    delim=$(printf '\t')
+
+    # Prune common heavy dirs; cap depth to keep this snappy.
+    recent=$(
+        find "$dir" -maxdepth "$depth" \
+            \( -name .git -o -name node_modules -o -name target -o -name dist -o -name build -o -name .venv -o -name vendor \) -prune -o \
+            -type f -print0 2>/dev/null \
+        | xargs -0 stat -f "%m${delim}%N" 2>/dev/null \
+        | sort -rn 2>/dev/null \
+        | head -n "$max" 2>/dev/null
+    ) || true
+
+    if [ -z "$recent" ]; then
+        print_dim "(no recently modified files found)"
+        return 0
+    fi
+
+    printf "%s\n" "$recent" | while IFS="$delim" read -r epoch path; do
+        [ -n "$epoch" ] || continue
+        ts=$(date -r "$epoch" "+%Y-%m-%d %H:%M" 2>/dev/null || printf "%s" "$epoch")
+        printf "%s  %s\n" "$ts" "$path"
+    done
+}
+
+preview_listing() {
+    dir="$1"
+
+    if command -v eza >/dev/null 2>&1; then
+        # eza may not support all flags across versions; keep it conservative.
+        (cd "$dir" && eza -alh --group-directories-first --color=always 2>/dev/null) | sed -n '1,200p'
+        return 0
+    fi
+
+    (cd "$dir" && ls -lah 2>/dev/null) | sed -n '1,200p'
+}
+
+preview_directory() {
+    dir="$1"
+    # Show full path without a "Directory:" label.
+    print_section "$dir"
+
+    if is_git_repo "$dir"; then
+        preview_git_log "$dir"
+        printf "\n"
+        preview_recent_files "$dir" 25 5
+        printf "\n"
+        preview_listing "$dir"
+        return 0
+    fi
+
+    # Avoid traversing too much for non-repo directories (e.g. ~/Library).
+    preview_recent_files "$dir" 25 2
+    printf "\n"
+    preview_listing "$dir"
+}
+
+selection="$1"
+
+if [ -z "$selection" ]; then
+    exit 0
+fi
+
+if printf "%s" "$selection" | grep -q " \\[active session\\]$"; then
+    preview_active_session "$selection"
+    exit 0
+fi
+
+if [ -d "$selection" ]; then
+    preview_directory "$selection"
+    exit 0
+fi
+
+print_dim "(no preview)"

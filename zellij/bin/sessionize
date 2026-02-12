@@ -70,23 +70,27 @@ if zellij list-sessions >/dev/null 2>&1; then
     SESSIONS=$(zellij list-sessions --no-formatting --short 2>/dev/null | grep -v "^$" | awk '{print $1 " [active session]"}')
 fi
 
-# Pre-defined session names (no associated directories)
-PREDEFINED_SESSIONS="sysmon
-kanata
-claude
-codex
-phajas-wiki"
+# Optional predefined session names (no associated directories).
+# Defaults to empty to avoid showing "bare" entries like "codex" that have no directory preview.
+# If you want these back, set e.g.:
+#   export SESSIONIZE_PREDEFINED_SESSIONS=$'sysmon\nkanata\nclaude\ncodex\nphajas-wiki'
+PREDEFINED_SESSIONS="${SESSIONIZE_PREDEFINED_SESSIONS:-}"
 
 # Filter out predefined sessions that are already active
 ACTIVE_SESSION_NAMES=$(echo "$SESSIONS" | sed 's/ \[active session\]//')
-FILTERED_PREDEFINED=""
-for session in sysmon kanata claude codex phajas-wiki; do
-    if ! echo "$ACTIVE_SESSION_NAMES" | grep -q "^$session$"; then
-        FILTERED_PREDEFINED="$FILTERED_PREDEFINED$session
+if [ -n "$PREDEFINED_SESSIONS" ]; then
+    FILTERED_PREDEFINED=""
+    while IFS= read -r session; do
+        [ -n "$session" ] || continue
+        if ! printf "%s\n" "$ACTIVE_SESSION_NAMES" | grep -Fxq "$session"; then
+            FILTERED_PREDEFINED="${FILTERED_PREDEFINED}${session}
 "
-    fi
-done
-PREDEFINED_SESSIONS="$FILTERED_PREDEFINED"
+        fi
+    done <<EOF
+$PREDEFINED_SESSIONS
+EOF
+    PREDEFINED_SESSIONS="$FILTERED_PREDEFINED"
+fi
 
 # Find directories at depth 1 in each search directory
 DIRS=""
@@ -97,31 +101,42 @@ for search_dir in $SEARCH_DIRS; do
     fi
 done
 
+# If a directory basename matches an existing session name, selecting either
+# would attach to the same session. Hide those directory entries to avoid
+# duplicate choices like:
+#   dotfiles [active session]
+#   /Users/you/dotfiles
+FILTERED_DIRS=""
+while IFS= read -r dir; do
+    [ -n "$dir" ] || continue
+    base=$(basename "$dir")
+    if [ -n "$ACTIVE_SESSION_NAMES" ] && printf "%s\n" "$ACTIVE_SESSION_NAMES" | grep -qx "$base"; then
+        continue
+    fi
+    FILTERED_DIRS="${FILTERED_DIRS}${dir}
+"
+done <<EOF
+$DIRS
+EOF
+DIRS="$FILTERED_DIRS"
+
 # Combine sessions (first), predefined sessions, and directories
 ALL_OPTIONS="$SESSIONS
 $PREDEFINED_SESSIONS
 $DIRS"
 
-PREVIEW_CMD='sh -c '"'"'
-selection="$1"
-if printf "%s" "$selection" | grep -q " \\[active session\\]$"; then
-    session_name=$(printf "%s" "$selection" | sed "s/ \\[active session\\]$//")
-    tmp_dir="${TMPDIR:-/tmp}"
-    tmp_file=$(mktemp "${tmp_dir}/zellij_sessionize_${session_name}.XXXXXX" 2>/dev/null || printf "%s/zellij_sessionize_%s.txt" "$tmp_dir" "$session_name")
-    preview_lines="${FZF_PREVIEW_LINES:-200}"
-    if zellij --session "$session_name" action dump-screen "$tmp_file" 2>/dev/null; then
-        printf "\033[1;34m%s\033[0m\n" "Session: $session_name"
-        if [ -s "$tmp_file" ]; then
-            sed -n "1,${preview_lines}p" "$tmp_file" 2>/dev/null
-        else
-            printf "\033[2m%s\033[0m\n" "(empty pane output)"
-        fi
-    else
-        printf "\033[31m%s\033[0m\n" "Unable to capture screen for session: $session_name"
-    fi
-    rm -f "$tmp_file" 2>/dev/null
-fi
-'"'"' sh {}'
+SCRIPT_PATH="$0"
+case "$SCRIPT_PATH" in
+    */*) ;;
+    *)
+        # When invoked via $PATH, $0 may be just "sessionize". Resolve to an
+        # actual path so we can reliably find the preview helper next to it.
+        SCRIPT_PATH=$(command -v -- "$SCRIPT_PATH" 2>/dev/null || printf "%s" "$SCRIPT_PATH")
+        ;;
+esac
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)
+PREVIEW_HELPER="$SCRIPT_DIR/.zellij_sessionize_preview"
+PREVIEW_CMD="sh $PREVIEW_HELPER {}"
 
 RESULT=$(echo "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="Session: " --print-query --expect=ctrl-n --preview="$PREVIEW_CMD" --preview-window=right:70%:wrap --ansi)
 
