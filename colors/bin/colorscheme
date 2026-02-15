@@ -9,6 +9,7 @@ Commands:
   colorscheme                    # Show current theme
   colorscheme list               # List available families
   colorscheme modus              # Switch to Modus family
+  colorscheme phajas             # Switch to Phajas family
   colorscheme ef_melissa         # Switch to Ef Melissa family
   colorscheme catppuccin         # Switch to Catppuccin family
   colorscheme switch             # Interactive picker for theme families
