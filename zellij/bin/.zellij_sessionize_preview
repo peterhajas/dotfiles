@@ -16,7 +16,7 @@ preview_active_session() {
 
     tmp_dir="${TMPDIR:-/tmp}"
     tmp_file=$(mktemp "${tmp_dir}/zellij_sessionize_${session_name}.XXXXXX" 2>/dev/null || printf "%s/zellij_sessionize_%s.txt" "$tmp_dir" "$session_name")
-    preview_lines="${FZF_PREVIEW_LINES:-200}"
+    preview_lines="200"
 
     if zellij --session "$session_name" action dump-screen "$tmp_file" 2>/dev/null; then
         print_section "$session_name"
@@ -39,9 +39,9 @@ is_git_repo() {
 
 preview_git_log() {
     dir="$1"
-    # Keep it short; fzf preview window is narrow.
+    # Keep it short; this runs frequently while moving in fzf.
     git -C "$dir" -c color.ui=always --no-pager log \
-        --max-count=20 \
+        --max-count=12 \
         --date=short \
         --decorate=short \
         --graph \
@@ -49,47 +49,20 @@ preview_git_log() {
         2>/dev/null
 }
 
-preview_recent_files() {
+preview_git_status() {
     dir="$1"
-    max="${2:-25}"
-    depth="${3:-3}"
-
-    # Use tab as a delimiter so paths with spaces still work.
-    # (Tab-in-filename is rare enough for this preview use-case.)
-    delim=$(printf '\t')
-
-    # Prune common heavy dirs; cap depth to keep this snappy.
-    recent=$(
-        find "$dir" -maxdepth "$depth" \
-            \( -name .git -o -name node_modules -o -name target -o -name dist -o -name build -o -name .venv -o -name vendor \) -prune -o \
-            -type f -print0 2>/dev/null \
-        | xargs -0 stat -f "%m${delim}%N" 2>/dev/null \
-        | sort -rn 2>/dev/null \
-        | head -n "$max" 2>/dev/null
-    ) || true
-
-    if [ -z "$recent" ]; then
-        print_dim "(no recently modified files found)"
-        return 0
+    status=$(git -C "$dir" -c color.ui=always --no-pager status --short --branch --untracked-files=no 2>/dev/null | sed -n '1,80p')
+    if [ -n "$status" ]; then
+        printf "%s\n" "$status"
+    else
+        print_dim "(working tree clean)"
     fi
-
-    printf "%s\n" "$recent" | while IFS="$delim" read -r epoch path; do
-        [ -n "$epoch" ] || continue
-        ts=$(date -r "$epoch" "+%Y-%m-%d %H:%M" 2>/dev/null || printf "%s" "$epoch")
-        printf "%s  %s\n" "$ts" "$path"
-    done
 }
 
 preview_listing() {
     dir="$1"
-
-    if command -v eza >/dev/null 2>&1; then
-        # eza may not support all flags across versions; keep it conservative.
-        (cd "$dir" && eza -alh --group-directories-first --color=always 2>/dev/null) | sed -n '1,200p'
-        return 0
-    fi
-
-    (cd "$dir" && ls -lah 2>/dev/null) | sed -n '1,200p'
+    # Keep this cheap; preview executes often.
+    (cd "$dir" && ls -lah 2>/dev/null) | sed -n '1,160p'
 }
 
 preview_directory() {
@@ -100,15 +73,10 @@ preview_directory() {
     if is_git_repo "$dir"; then
         preview_git_log "$dir"
         printf "\n"
-        preview_recent_files "$dir" 25 5
-        printf "\n"
-        preview_listing "$dir"
+        preview_git_status "$dir"
         return 0
     fi
 
-    # Avoid traversing too much for non-repo directories (e.g. ~/Library).
-    preview_recent_files "$dir" 25 2
-    printf "\n"
     preview_listing "$dir"
 }
 

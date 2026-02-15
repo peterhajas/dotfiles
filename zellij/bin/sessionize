@@ -64,65 +64,46 @@ start_new_session() {
     fi
 }
 
-# Get existing zellij sessions with visual indicator
+# Get existing zellij sessions with visual indicator.
+# Keep the raw names too so we can do fast membership checks later.
+ACTIVE_SESSION_NAMES=$(zellij list-sessions --no-formatting --short 2>/dev/null | awk 'NF { print $1 }')
 SESSIONS=""
-if zellij list-sessions >/dev/null 2>&1; then
-    SESSIONS=$(zellij list-sessions --no-formatting --short 2>/dev/null | grep -v "^$" | awk '{print $1 " [active session]"}')
-fi
-
-# Optional predefined session names (no associated directories).
-# Defaults to empty to avoid showing "bare" entries like "codex" that have no directory preview.
-# If you want these back, set e.g.:
-#   export SESSIONIZE_PREDEFINED_SESSIONS=$'sysmon\nkanata\nclaude\ncodex\nphajas-wiki'
-PREDEFINED_SESSIONS="${SESSIONIZE_PREDEFINED_SESSIONS:-}"
-
-# Filter out predefined sessions that are already active
-ACTIVE_SESSION_NAMES=$(echo "$SESSIONS" | sed 's/ \[active session\]//')
-if [ -n "$PREDEFINED_SESSIONS" ]; then
-    FILTERED_PREDEFINED=""
+if [ -n "$ACTIVE_SESSION_NAMES" ]; then
     while IFS= read -r session; do
         [ -n "$session" ] || continue
-        if ! printf "%s\n" "$ACTIVE_SESSION_NAMES" | grep -Fxq "$session"; then
-            FILTERED_PREDEFINED="${FILTERED_PREDEFINED}${session}
+        SESSIONS="${SESSIONS}${session} [active session]
 "
-        fi
     done <<EOF
-$PREDEFINED_SESSIONS
+$ACTIVE_SESSION_NAMES
 EOF
-    PREDEFINED_SESSIONS="$FILTERED_PREDEFINED"
 fi
 
-# Find directories at depth 1 in each search directory
+session_exists() {
+    target="$1"
+    while IFS= read -r active; do
+        [ -n "$active" ] || continue
+        [ "$active" = "$target" ] && return 0
+    done <<EOF
+$ACTIVE_SESSION_NAMES
+EOF
+    return 1
+}
+
+# Find directories at depth 1 in each search directory.
+# Use shell globbing to avoid spawning find for every run.
 DIRS=""
 for search_dir in $SEARCH_DIRS; do
     if [ -d "$search_dir" ]; then
-        DIRS="$DIRS$(find "$search_dir" -maxdepth 1 -type d -not -name ".*" | grep -v "^$search_dir$")
+        for dir in "$search_dir"/*; do
+            [ -d "$dir" ] || continue
+            DIRS="${DIRS}${dir}
 "
+        done
     fi
 done
 
-# If a directory basename matches an existing session name, selecting either
-# would attach to the same session. Hide those directory entries to avoid
-# duplicate choices like:
-#   dotfiles [active session]
-#   /Users/you/dotfiles
-FILTERED_DIRS=""
-while IFS= read -r dir; do
-    [ -n "$dir" ] || continue
-    base=$(basename "$dir")
-    if [ -n "$ACTIVE_SESSION_NAMES" ] && printf "%s\n" "$ACTIVE_SESSION_NAMES" | grep -qx "$base"; then
-        continue
-    fi
-    FILTERED_DIRS="${FILTERED_DIRS}${dir}
-"
-done <<EOF
-$DIRS
-EOF
-DIRS="$FILTERED_DIRS"
-
-# Combine sessions (first), predefined sessions, and directories
+# Combine sessions (first) and directories.
 ALL_OPTIONS="$SESSIONS
-$PREDEFINED_SESSIONS
 $DIRS"
 
 SCRIPT_PATH="$0"
@@ -137,17 +118,23 @@ esac
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)
 PREVIEW_HELPER="$SCRIPT_DIR/.zellij_sessionize_preview"
 PREVIEW_CMD="sh $PREVIEW_HELPER {}"
-
-RESULT=$(echo "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="Session: " --print-query --expect=ctrl-n --preview="$PREVIEW_CMD" --preview-window=right:70%:wrap --ansi)
+RESULT=$(printf "%s\n" "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="Session: " --print-query --expect=ctrl-n --preview="$PREVIEW_CMD" --preview-window=right:70%:wrap --bind=ctrl-/:toggle-preview --ansi)
 
 if [ -z "$RESULT" ]; then
     exit 0
 fi
 
 # fzf outputs: key pressed, query, selection
-KEY=$(echo "$RESULT" | sed -n '1p')
-QUERY=$(echo "$RESULT" | sed -n '2p')
-SELECTION=$(echo "$RESULT" | sed -n '3p')
+KEY=""
+QUERY=""
+SELECTION=""
+{
+    IFS= read -r KEY
+    IFS= read -r QUERY
+    IFS= read -r SELECTION
+} <<EOF
+$RESULT
+EOF
 
 # If Ctrl+N was pressed or no selection was made, create new session with query name
 if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
@@ -159,7 +146,7 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
     SESSION_CWD=$(pwd)
 
     # Check if session already exists
-    if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION_NAME$"; then
+    if session_exists "$SESSION_NAME"; then
         # Session exists, attach to it
         if [ -n "$ZELLIJ" ]; then
             # Can't switch sessions from within Zellij, do nothing
@@ -181,8 +168,9 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
 fi
 
 # Handle existing session selection
-if echo "$SELECTION" | grep -q "\[active session\]"; then
-    SESSION_NAME=$(echo "$SELECTION" | sed 's/ \[active session\]//')
+case "$SELECTION" in
+*" [active session]")
+    SESSION_NAME=${SELECTION% \[active session\]}
     if [ -n "$ZELLIJ" ]; then
         # Can't switch sessions from within Zellij, do nothing
         exit 0
@@ -192,42 +180,15 @@ if echo "$SELECTION" | grep -q "\[active session\]"; then
         zellij attach "$SESSION_NAME"
     fi
     exit 0
-fi
-
-# Handle predefined session selection
-if echo "$PREDEFINED_SESSIONS" | grep -q "^$SELECTION$"; then
-    SESSION_NAME="$SELECTION"
-    LAYOUT=$(get_layout "$SESSION_NAME")
-    SESSION_CWD=$(pwd)
-
-    # Check if session already exists
-    if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION_NAME$"; then
-        # Session exists, attach to it
-        if [ -n "$ZELLIJ" ]; then
-            # Can't switch sessions from within Zellij, do nothing
-            exit 0
-        else
-            kill_existing_attach_processes "$SESSION_NAME"
-            set_terminal_title "$SESSION_NAME"
-            zellij attach "$SESSION_NAME"
-        fi
-    else
-        # Session doesn't exist, create it
-        if [ -n "$ZELLIJ" ]; then
-            zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
-        else
-            start_new_session "$SESSION_NAME" "$LAYOUT" "$SESSION_CWD"
-        fi
-    fi
-    exit 0
-fi
+    ;;
+esac
 
 # Handle directory choice
 DIR="$SELECTION"
-SESSION_NAME=$(basename "$DIR")
+SESSION_NAME=${DIR##*/}
 
 # Check if session exists
-if zellij list-sessions --no-formatting --short 2>/dev/null | grep -q "^$SESSION_NAME$"; then
+if session_exists "$SESSION_NAME"; then
     # Session exists, attach to it
     if [ -n "$ZELLIJ" ]; then
         # Can't switch sessions from within Zellij, do nothing
