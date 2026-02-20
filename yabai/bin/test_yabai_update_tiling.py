@@ -638,6 +638,211 @@ class TestIsManagementDisabled(unittest.TestCase):
         self.assertTrue(yut.is_management_disabled(window))
 
 
+class TestWindowIndexing(unittest.TestCase):
+    """Unit tests for build_eligible_windows_by_space()."""
+
+    def setUp(self):
+        self.original_rules = yut.MANAGE_OFF_RULES.copy()
+        self.original_apps = yut.MANAGE_OFF_APPS.copy()
+        yut.MANAGE_OFF_RULES = []
+        yut.MANAGE_OFF_APPS = set()
+
+    def tearDown(self):
+        yut.MANAGE_OFF_RULES = self.original_rules
+        yut.MANAGE_OFF_APPS = self.original_apps
+
+    def test_build_eligible_windows_by_space_filters_windows(self):
+        test_data = {
+            "displays": [{"index": 1}, {"index": 2}],
+            "spaces": [{"index": 1, "display": 1}, {"index": 2, "display": 2}],
+            "windows": [
+                {
+                    "id": 100,
+                    "app": "Ghostty",
+                    "title": "regular",
+                    "display": 1,
+                    "space": 1,
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "level": 0,
+                    "floating": 0,
+                    "minimized": 0,
+                },
+                {
+                    "id": 101,
+                    "app": "Ghostty",
+                    "title": "minimized",
+                    "display": 1,
+                    "space": 1,
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "level": 0,
+                    "floating": 0,
+                    "minimized": 1,
+                },
+                {
+                    "id": 102,
+                    "app": "Ghostty",
+                    "title": "hidden",
+                    "display": 1,
+                    "space": 1,
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "level": 0,
+                    "floating": 0,
+                    "minimized": 0,
+                    "is-hidden": True,
+                },
+                {
+                    "id": 103,
+                    "app": "Ghostty",
+                    "title": "wiki_journal_today",
+                    "display": 1,
+                    "space": 1,
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "level": 0,
+                    "floating": 0,
+                    "minimized": 0,
+                },
+                {
+                    "id": 104,
+                    "app": "Safari",
+                    "title": "regular-2",
+                    "display": 2,
+                    "space": 2,
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "level": 0,
+                    "floating": 0,
+                    "minimized": 0,
+                },
+            ],
+            "rules": [],
+        }
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        windows = provider.query_windows() or []
+
+        indexed = yut.build_eligible_windows_by_space(windows, provider, executor)
+
+        self.assertEqual([w["id"] for w in indexed.get((1, 1), [])], [100])
+        self.assertEqual([w["id"] for w in indexed.get((2, 2), [])], [104])
+
+    def test_build_eligible_windows_by_space_can_include_journal(self):
+        test_data = {
+            "displays": [{"index": 1}],
+            "spaces": [{"index": 1, "display": 1}],
+            "windows": [
+                {
+                    "id": 200,
+                    "app": "Ghostty",
+                    "title": "wiki_journal_today",
+                    "display": 1,
+                    "space": 1,
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "level": 0,
+                    "floating": 0,
+                    "minimized": 0,
+                },
+                {
+                    "id": 201,
+                    "app": "Ghostty",
+                    "title": "regular",
+                    "display": 1,
+                    "space": 1,
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "level": 0,
+                    "floating": 0,
+                    "minimized": 0,
+                },
+            ],
+            "rules": [],
+        }
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        windows = provider.query_windows() or []
+
+        indexed_default = yut.build_eligible_windows_by_space(windows, provider, executor)
+        indexed_with_journal = yut.build_eligible_windows_by_space(
+            windows, provider, executor, include_journal=True
+        )
+
+        self.assertEqual([w["id"] for w in indexed_default.get((1, 1), [])], [201])
+        self.assertEqual(
+            [w["id"] for w in indexed_with_journal.get((1, 1), [])],
+            [200, 201],
+        )
+
+    def test_build_eligible_windows_by_space_manages_floating_windows(self):
+        test_data = {
+            "displays": [{"index": 1}],
+            "spaces": [{"index": 1, "display": 1}],
+            "windows": [
+                {
+                    "id": 300,
+                    "app": "Ghostty",
+                    "title": "floating",
+                    "display": 1,
+                    "space": 1,
+                    "role": "AXWindow",
+                    "subrole": "AXStandardWindow",
+                    "level": 0,
+                    "floating": 1,
+                    "minimized": 0,
+                }
+            ],
+            "rules": [],
+        }
+        provider = yut.MockYabaiProvider(test_data)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        windows = provider.query_windows() or []
+
+        indexed = yut.build_eligible_windows_by_space(windows, provider, executor)
+
+        self.assertEqual([w["id"] for w in indexed.get((1, 1), [])], [300])
+        self.assertIn(
+            ["yabai", "-m", "window", "300", "--toggle", "float"],
+            executor.executed_commands,
+        )
+
+    def test_apply_standard_tiling_uses_precomputed_index(self):
+        displays = [{"index": 1, "frame": {"x": 0, "y": 0, "w": 1600, "h": 900}}]
+        spaces = [{"index": 1, "display": 1}]
+        window = {
+            "id": 400,
+            "app": "Ghostty",
+            "title": "regular",
+            "display": 1,
+            "space": 1,
+            "role": "AXWindow",
+            "subrole": "AXStandardWindow",
+            "level": 0,
+            "floating": 0,
+            "minimized": 0,
+        }
+        provider = yut.MockYabaiProvider(
+            {"displays": displays, "spaces": spaces, "windows": [window], "rules": []}
+        )
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+
+        yut.apply_standard_tiling(
+            spaces,
+            windows=[],
+            displays=displays,
+            provider=provider,
+            executor=executor,
+            exclude_displays=set(),
+            windows_by_space={(1, 1): [window]},
+        )
+
+        grid_commands = [cmd for cmd in executor.executed_commands if "--grid" in cmd]
+        self.assertEqual(len(grid_commands), 1)
+        self.assertIn("1:100:0:0:100:1", grid_commands[0])
+
+
 class TestLayoutModeSelection(unittest.TestCase):
     """Tests for layout mode selection logic."""
 
@@ -2292,6 +2497,7 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestComputeBucketWidths))
     suite.addTests(loader.loadTestsFromTestCase(TestDetermineBucketByPosition))
     suite.addTests(loader.loadTestsFromTestCase(TestIsManagementDisabled))
+    suite.addTests(loader.loadTestsFromTestCase(TestWindowIndexing))
     suite.addTests(loader.loadTestsFromTestCase(TestLayoutModeSelection))
     suite.addTests(loader.loadTestsFromTestCase(TestWindowSorting))
     suite.addTests(loader.loadTestsFromTestCase(TestGetMainHorizontalRow))

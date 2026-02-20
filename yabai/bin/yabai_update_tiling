@@ -7,7 +7,7 @@ import os
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import re
 import math
 
@@ -837,6 +837,39 @@ def ensure_managed(win_id: int, provider: YabaiDataProvider, executor: YabaiComm
         executor.execute(["yabai", "-m", "window", str(win_id), "--toggle", "float"])
 
 
+def build_eligible_windows_by_space(
+    windows: List[Dict[str, Any]],
+    provider: YabaiDataProvider,
+    executor: YabaiCommandExecutor,
+    include_journal: bool = False,
+) -> Dict[Tuple[int, int], List[Dict[str, Any]]]:
+    """
+    Build a (display, space) -> windows index for windows eligible for tiling.
+
+    This avoids repeatedly scanning all windows for each space across layout modes.
+    """
+    indexed: Dict[Tuple[int, int], List[Dict[str, Any]]] = {}
+
+    for win in windows:
+        display = win.get("display")
+        space = win.get("space")
+        if display is None or space is None:
+            continue
+        if win.get("minimized") == 1:
+            continue
+        if is_management_disabled(win):
+            continue
+        if not include_journal and is_special_journal(win):
+            continue
+        if win.get("floating") == 1:
+            ensure_managed(win.get("id"), provider, executor)
+        if win.get("is-visible") is False or win.get("is-hidden") is True:
+            continue
+        indexed.setdefault((display, space), []).append(win)
+
+    return indexed
+
+
 def apply_standard_tiling(
     spaces: List[Dict[str, Any]],
     windows: List[Dict[str, Any]],
@@ -844,6 +877,7 @@ def apply_standard_tiling(
     provider: YabaiDataProvider,
     executor: YabaiCommandExecutor,
     exclude_displays: Optional[set] = None,
+    windows_by_space: Optional[Dict[Tuple[int, int], List[Dict[str, Any]]]] = None,
 ) -> None:
     if exclude_displays is None:
         exclude_displays = set()
@@ -861,22 +895,15 @@ def apply_standard_tiling(
         if not display_w or not display_h:
             continue
 
-        # Collect manageable windows on this space
-        space_windows = []
-        for win in windows:
-            if win.get("display") != space_display or win.get("space") != space_index:
-                continue
-            if win.get("minimized") == 1:
-                continue
-            if is_management_disabled(win):
-                continue
-            if is_special_journal(win):
-                continue
-            if win.get("floating") == 1:
-                ensure_managed(win.get("id"), provider, executor)
-            if win.get("is-visible") is False or win.get("is-hidden") is True:
-                continue
-            space_windows.append(win)
+        if windows_by_space is not None:
+            space_windows = windows_by_space.get((space_display, space_index), [])
+        else:
+            # Fallback path used by tests and direct function calls.
+            space_windows = build_eligible_windows_by_space(
+                windows,
+                provider,
+                executor,
+            ).get((space_display, space_index), [])
 
         if not space_windows:
             continue
@@ -1337,9 +1364,18 @@ def main() -> None:
 
     # Refresh windows after special moves
     windows = provider.query_windows() or []
+    windows_by_space = build_eligible_windows_by_space(windows, provider, executor)
 
     # 5-bucket workspace layout
     if use_five_buckets and display_to_buckets:
+        widget_display_override = explicit_display_override(
+            displays, ["YABAI_WIDGET_DISPLAY"]
+        )
+        widget_display_idx = (
+            widget_display_override
+            if widget_display_override is not None
+            else bucket_to_display.get("center")
+        )
         for space in spaces:
             space_display = space.get("display")
             space_index = space.get("index")
@@ -1351,21 +1387,8 @@ def main() -> None:
             display_w = display_obj.get("frame", {}).get("w", 0)
 
             buckets: Dict[str, List[Dict[str, Any]]] = {name: [] for name in buckets_for_display}
-
-            for win in windows:
-                if win.get("display") != space_display or win.get("space") != space_index:
-                    continue
-                if win.get("minimized") == 1:
-                    continue
-                if is_management_disabled(win):
-                    continue
-                # Skip journal windows - they're positioned separately
-                if is_special_journal(win):
-                    continue
-                if win.get("floating") == 1:
-                    ensure_managed(win.get("id"), provider, executor)
-                if win.get("is-visible") is False or win.get("is-hidden") is True:
-                    continue
+            space_windows = windows_by_space.get((space_display, space_index), [])
+            for win in space_windows:
 
                 # Determine bucket based on window position
                 bucket = determine_bucket_by_position(win, display_obj, buckets_for_display)
@@ -1376,16 +1399,7 @@ def main() -> None:
             # Always allocate space for all buckets, even if empty
             present_buckets = buckets_for_display
 
-            # Apply widget padding cutout
-            # Priority: YABAI_WIDGET_DISPLAY env var > center display
-            widget_display_override = explicit_display_override(
-                displays, ["YABAI_WIDGET_DISPLAY"]
-            )
-            if widget_display_override is not None:
-                widget_display_idx = widget_display_override
-            else:
-                widget_display_idx = bucket_to_display.get("center")
-
+            # Apply widget padding cutout on the widget display.
             right_cutout = WIDGET_PADDING if space_display == widget_display_idx else 0
 
             layout = bucket_layout(present_buckets, display_w, center_bucket=True, right_cutout_px=right_cutout)
@@ -1426,32 +1440,17 @@ def main() -> None:
     if not use_five_buckets and ultra_index is not None:
         ultra_frame = ultra_display.get("frame", {})
         ultra_w = ultra_frame.get("w", 1)
+        widget_display_override = explicit_display_override(
+            displays, ["YABAI_WIDGET_DISPLAY"]
+        )
 
         ultra_space_ids = [s.get("index") for s in spaces if s.get("display") == ultra_index]
 
         for space_id in ultra_space_ids:
-            space_windows: List[Dict[str, Any]] = []
             left_bucket: List[Dict[str, Any]] = []
             center_bucket: List[Dict[str, Any]] = []
             right_bucket: List[Dict[str, Any]] = []
-
-            for win in windows:
-                if win.get("display") != ultra_index or win.get("space") != space_id:
-                    continue
-                if win.get("minimized") == 1:
-                    continue
-                if is_management_disabled(win):
-                    continue
-                # Skip journal windows - they're positioned separately
-                if is_special_journal(win):
-                    continue
-                if win.get("floating") == 1:
-                    # Make sure floating windows get managed so grid placement works
-                    ensure_managed(win.get("id"), provider, executor)
-                if win.get("is-visible") is False or win.get("is-hidden") is True:
-                    # Ignore windows that are hidden/invisible so they don't reserve space
-                    continue
-                space_windows.append(win)
+            space_windows = windows_by_space.get((ultra_index, space_id), [])
 
             if not space_windows:
                 continue
@@ -1476,9 +1475,6 @@ def main() -> None:
 
             # Apply widget padding cutout on the ultrawide display
             # Check if there's an override for widget display
-            widget_display_override = explicit_display_override(
-                displays, ["YABAI_WIDGET_DISPLAY"]
-            )
             # Apply padding to ultrawide display (or override if set and matches)
             if widget_display_override is not None and widget_display_override == ultra_index:
                 right_cutout = WIDGET_PADDING
@@ -1560,6 +1556,7 @@ def main() -> None:
             provider,
             executor,
             exclude_displays=set(),
+            windows_by_space=windows_by_space,
         )
 
     # In ultrawide mode, apply standard tiling to all non-ultrawide displays
@@ -1572,6 +1569,7 @@ def main() -> None:
             provider,
             executor,
             exclude_displays={ultra_index},
+            windows_by_space=windows_by_space,
         )
 
 
