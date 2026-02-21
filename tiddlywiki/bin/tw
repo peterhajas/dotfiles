@@ -4,7 +4,6 @@ import os
 import sys
 import subprocess
 import tempfile
-import shutil
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -154,7 +153,22 @@ MUTATING_COMMANDS = {
 NO_WIKI_COMMANDS = {"init", "filetype-map", "mimetype"}
 
 # Commands not safe/sensible inside ops batches
-OPS_DISALLOWED_COMMANDS = {"ops", "init", "filetype-map", "mimetype", "serve", "webdav", "edit"}
+OPS_DISALLOWED_COMMANDS = {"ops", "init", "filetype-map", "mimetype", "serve", "webdav", "edit", "install_plugin"}
+
+# Commands supported by the in-memory transactional ops engine
+OPS_TRANSACTION_SUPPORTED_COMMANDS = {
+    "ls",
+    "cat",
+    "json",
+    "get",
+    "set",
+    "rm",
+    "touch",
+    "insert",
+    "replace",
+    "append",
+    "detect",
+}
 
 def verbose_print(*args, **kwargs):
     if VERBOSE:
@@ -1324,21 +1338,8 @@ def remove_tiddler(wiki_path, tiddler_title):
 
     verbose_print(f"Removed tiddler: {tiddler_title}")
 
-def replace_tiddler(wiki_path, markdown_content, update_modified=True):
-    """Replace a tiddler from cat-style format (YAML frontmatter + text)
-
-    This is the inverse of cat_tiddler - it parses the same format that
-    cat outputs and inserts it back into the wiki.
-
-    Args:
-        wiki_path: Path to the wiki file
-        markdown_content: Content in cat format (YAML frontmatter + text)
-        update_modified: If True, update the modified timestamp. If False, preserve existing timestamp.
-    """
-    import json
-
-    ensure_local_wiki(wiki_path)
-
+def parse_replace_content(markdown_content, update_modified=True):
+    """Parse cat-style content into a tiddler dict and normalize timestamps."""
     # Parse YAML frontmatter and text
     lines = markdown_content.split('\n')
 
@@ -1398,6 +1399,25 @@ def replace_tiddler(wiki_path, markdown_content, update_modified=True):
         # 1. update_modified=True (requested), AND
         # 2. The user didn't explicitly provide the modified field in the input
         tiddler['modified'] = get_tiddlywiki_timestamp()
+
+    return tiddler
+
+def replace_tiddler(wiki_path, markdown_content, update_modified=True):
+    """Replace a tiddler from cat-style format (YAML frontmatter + text)
+
+    This is the inverse of cat_tiddler - it parses the same format that
+    cat outputs and inserts it back into the wiki.
+
+    Args:
+        wiki_path: Path to the wiki file
+        markdown_content: Content in cat format (YAML frontmatter + text)
+        update_modified: If True, update the modified timestamp. If False, preserve existing timestamp.
+    """
+    import json
+
+    ensure_local_wiki(wiki_path)
+
+    tiddler = parse_replace_content(markdown_content, update_modified=update_modified)
 
     # Use insert_tiddler to do the actual insertion
     tiddler_json = json.dumps(tiddler)
@@ -3383,6 +3403,385 @@ def parse_ops_arguments(raw_args):
         parsed.append((op[0], op[1:]))
     return parsed
 
+def load_ops_state(wiki_path):
+    """Load wiki once for transactional ops execution."""
+    ensure_local_wiki(wiki_path)
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    wiki_format = detect_wiki_format(content)
+
+    state = {
+        "wiki_path": wiki_path,
+        "wiki_format": wiki_format,
+        "content": content,
+    }
+
+    if wiki_format == 'modern':
+        stores = extract_tiddler_stores(content)
+        if not stores:
+            print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+            sys.exit(1)
+
+        for store in stores:
+            for tiddler in store['tiddlers']:
+                if 'title' in tiddler:
+                    record_field_order(wiki_path, tiddler['title'], list(tiddler.keys()))
+
+        state["stores"] = stores
+    else:
+        tiddlers = extract_legacy_tiddlers(content)
+        if not tiddlers:
+            print("Error: Could not find any tiddlers in wiki", file=sys.stderr)
+            sys.exit(1)
+
+        for tiddler in tiddlers:
+            if 'title' in tiddler:
+                record_field_order(wiki_path, tiddler['title'], list(tiddler.keys()))
+
+        state["tiddlers"] = tiddlers
+
+    return state
+
+def ops_state_all_tiddlers(state):
+    if state["wiki_format"] == 'modern':
+        all_tiddlers = []
+        for store in state["stores"]:
+            all_tiddlers.extend(store['tiddlers'])
+        return all_tiddlers
+    return state["tiddlers"]
+
+def ops_state_find_first_tiddler(state, tiddler_title):
+    if state["wiki_format"] == 'modern':
+        for store in state["stores"]:
+            for tiddler in store['tiddlers']:
+                if tiddler.get('title') == tiddler_title:
+                    return store, tiddler
+    else:
+        for tiddler in state["tiddlers"]:
+            if tiddler.get('title') == tiddler_title:
+                return None, tiddler
+    return None, None
+
+def ops_state_insert_tiddlers(state, tiddlers_to_insert):
+    """Insert/replace tiddlers in-memory using insert_tiddler semantics."""
+    replaced_titles = []
+    inserted_titles = []
+
+    for i, tiddler in enumerate(tiddlers_to_insert):
+        if not isinstance(tiddler, dict):
+            print(f"Error: Array element {i} is not a valid tiddler object", file=sys.stderr)
+            sys.exit(1)
+        if 'title' not in tiddler:
+            print(f"Error: Array element {i} is missing required 'title' field", file=sys.stderr)
+            sys.exit(1)
+
+    for new_tiddler in tiddlers_to_insert:
+        if 'created' not in new_tiddler:
+            new_tiddler['created'] = get_tiddlywiki_timestamp()
+        if 'modified' not in new_tiddler:
+            new_tiddler['modified'] = get_tiddlywiki_timestamp()
+
+        tiddler_title = new_tiddler['title']
+
+        if state["wiki_format"] == 'modern':
+            found = False
+            for store in state["stores"]:
+                original_count = len(store['tiddlers'])
+                store['tiddlers'] = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
+                if len(store['tiddlers']) < original_count:
+                    found = True
+
+            state["stores"][0]['tiddlers'].append(new_tiddler)
+        else:
+            found = False
+            for idx, existing in enumerate(state["tiddlers"]):
+                if existing.get('title') == tiddler_title:
+                    state["tiddlers"][idx] = new_tiddler
+                    found = True
+                    break
+            if not found:
+                state["tiddlers"].append(new_tiddler)
+
+        if found:
+            replaced_titles.append(tiddler_title)
+        else:
+            inserted_titles.append(tiddler_title)
+
+    for title in replaced_titles:
+        verbose_print(f"Replaced tiddler: {title}")
+    for title in inserted_titles:
+        verbose_print(f"Inserted tiddler: {title}")
+
+def ops_state_set_field(state, tiddler_title, field_name, field_value):
+    store, tiddler = ops_state_find_first_tiddler(state, tiddler_title)
+
+    is_new_tiddler = False
+    if not tiddler:
+        tiddler = {"title": tiddler_title}
+        is_new_tiddler = True
+        if state["wiki_format"] == 'modern':
+            state["stores"][0]['tiddlers'].append(tiddler)
+        else:
+            state["tiddlers"].append(tiddler)
+        verbose_print(f"Created tiddler: {tiddler_title}")
+
+    old_value = tiddler.get(field_name)
+    field_changed = (old_value != field_value)
+    tiddler[field_name] = field_value
+
+    if is_new_tiddler or (field_changed and field_name not in ('modified', 'created')):
+        ensure_timestamps(tiddler, is_modification=True)
+    elif not is_new_tiddler:
+        ensure_timestamps(tiddler, is_modification=False)
+
+    verbose_print(f"Set {field_name} = {field_value}")
+
+def ops_state_touch_tiddler(state, tiddler_title, text=""):
+    _, tiddler = ops_state_find_first_tiddler(state, tiddler_title)
+
+    if tiddler:
+        ensure_timestamps(tiddler, is_modification=True)
+        if text:
+            tiddler['text'] = text
+        verbose_print(f"Updated tiddler: {tiddler_title}")
+    else:
+        new_tiddler = {"title": tiddler_title, "text": text}
+        ensure_timestamps(new_tiddler, is_modification=True)
+        if state["wiki_format"] == 'modern':
+            state["stores"][0]['tiddlers'].append(new_tiddler)
+        else:
+            state["tiddlers"].append(new_tiddler)
+        verbose_print(f"Created tiddler: {tiddler_title}")
+
+def ops_state_remove_tiddler(state, tiddler_title):
+    found = False
+
+    if state["wiki_format"] == 'modern':
+        for store in state["stores"]:
+            original_count = len(store['tiddlers'])
+            store['tiddlers'] = [t for t in store['tiddlers'] if t.get('title') != tiddler_title]
+            if len(store['tiddlers']) < original_count:
+                found = True
+    else:
+        original_count = len(state["tiddlers"])
+        state["tiddlers"] = [t for t in state["tiddlers"] if t.get('title') != tiddler_title]
+        found = len(state["tiddlers"]) < original_count
+
+    if not found:
+        print(f"Error: Tiddler '{tiddler_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    verbose_print(f"Removed tiddler: {tiddler_title}")
+
+def ops_state_append_tiddler(state, tiddler_title, text_to_append):
+    all_tiddlers = ops_state_all_tiddlers(state)
+    tiddler = None
+    for item in all_tiddlers:
+        if item.get('title') == tiddler_title:
+            tiddler = item
+            break
+
+    if not tiddler:
+        tiddler = {"title": tiddler_title, "text": text_to_append}
+        ensure_timestamps(tiddler, is_modification=True)
+        verbose_print(f"Created tiddler: {tiddler_title}")
+    else:
+        existing_text = tiddler.get('text', '')
+        if existing_text:
+            tiddler['text'] = existing_text + '\n' + text_to_append
+        else:
+            tiddler['text'] = text_to_append
+        ensure_timestamps(tiddler, is_modification=True)
+
+    # Keep append behavior consistent with append_tiddler -> insert_tiddler flow.
+    ops_state_insert_tiddlers(state, [tiddler])
+
+def commit_ops_state(state, wiki_path):
+    """Write in-memory state once to disk."""
+    import json
+
+    if state["wiki_format"] == 'modern':
+        replacements = []
+        for store in state["stores"]:
+            sorted_tiddlers = sorted(store['tiddlers'], key=lambda t: t.get('title', ''))
+            tiddler_jsons = [
+                json.dumps(
+                    reorder_tiddler_fields(t, wiki_path, t.get('title', '')),
+                    ensure_ascii=False,
+                    separators=(',', ':')
+                )
+                for t in sorted_tiddlers
+            ]
+            new_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+            new_json = new_json.replace('<', '\\u003C')
+            new_store = f'<script class="tiddlywiki-tiddler-store" type="application/json">{new_json}</script>'
+            replacements.append((store['start'], store['end'], new_store))
+
+        new_content = state["content"]
+        for start, end, replacement in reversed(replacements):
+            new_content = new_content[:start] + replacement + new_content[end:]
+    else:
+        import re
+
+        content = state["content"]
+        store_pattern = r'<div id="storeArea"[^>]*>'
+        store_match = re.search(store_pattern, content)
+        if not store_match:
+            print("Error: Could not find storeArea in wiki", file=sys.stderr)
+            sys.exit(1)
+
+        store_start = store_match.start()
+        div_open_pattern = re.compile(r'<div(?:\s+[^>]*)?>|</div>', re.DOTALL)
+        div_count = 1
+        store_end = None
+
+        for match in div_open_pattern.finditer(content, store_match.end()):
+            tag = match.group()
+            if tag.startswith('</'):
+                div_count -= 1
+                if div_count == 0:
+                    store_end = match.end()
+                    break
+            else:
+                div_count += 1
+
+        if store_end is None:
+            print("Error: Could not find closing tag for storeArea", file=sys.stderr)
+            sys.exit(1)
+
+        new_store = build_legacy_store(state["tiddlers"])
+        new_content = content[:store_start] + new_store + content[store_end:]
+
+    temp_path = None
+    try:
+        fd, temp_path = tempfile.mkstemp(
+            prefix='.tw-ops-',
+            suffix='.tmp',
+            dir=os.path.dirname(wiki_path) or '.'
+        )
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+        os.replace(temp_path, wiki_path)
+    except Exception as e:
+        print(f"Error: Failed to write wiki file: {e}", file=sys.stderr)
+        sys.exit(1)
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except OSError:
+                pass
+
+def run_transactional_ops_command(state, command, command_args):
+    import json
+
+    if command not in OPS_TRANSACTION_SUPPORTED_COMMANDS:
+        print(f"Error: Command '{command}' is not supported in mutating ops batches", file=sys.stderr)
+        sys.exit(1)
+
+    if command == "ls":
+        titles = [t.get('title', '') for t in ops_state_all_tiddlers(state) if 'title' in t]
+        titles.sort()
+        for title in titles:
+            print(title)
+    elif command == "cat":
+        if len(command_args) < 1:
+            print("Error: cat command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        _, tiddler = ops_state_find_first_tiddler(state, command_args[0])
+        if not tiddler:
+            print(f"Error: Tiddler '{command_args[0]}' not found", file=sys.stderr)
+            sys.exit(1)
+        print(format_tiddler_cat(tiddler))
+    elif command == "json":
+        all_tiddlers = ops_state_all_tiddlers(state)
+        if len(command_args) >= 1 and command_args[0] == "--all":
+            print(json.dumps(all_tiddlers, ensure_ascii=False))
+        elif len(command_args) < 1:
+            print("Error: json command requires at least one tiddler name or --all flag", file=sys.stderr)
+            sys.exit(1)
+        else:
+            found_tiddlers = []
+            for title in command_args:
+                _, tiddler = ops_state_find_first_tiddler(state, title)
+                if not tiddler:
+                    print(f"Error: Tiddler '{title}' not found", file=sys.stderr)
+                    sys.exit(1)
+                found_tiddlers.append(tiddler)
+
+            if len(found_tiddlers) == 1:
+                print(json.dumps(found_tiddlers[0], indent=2, ensure_ascii=False))
+            else:
+                print(json.dumps(found_tiddlers, indent=2, ensure_ascii=False))
+    elif command == "get":
+        if len(command_args) < 2:
+            print("Error: get command requires a tiddler name and field name", file=sys.stderr)
+            sys.exit(1)
+        _, tiddler = ops_state_find_first_tiddler(state, command_args[0])
+        if not tiddler:
+            print(f"Error: Tiddler '{command_args[0]}' not found", file=sys.stderr)
+            sys.exit(1)
+        field_name = command_args[1]
+        if field_name not in tiddler:
+            print(f"Error: Field '{field_name}' not found in tiddler '{command_args[0]}'", file=sys.stderr)
+            sys.exit(1)
+        print(tiddler[field_name])
+    elif command == "set":
+        if len(command_args) < 3:
+            print("Error: set command requires a tiddler name, field name, and value", file=sys.stderr)
+            sys.exit(1)
+        ops_state_set_field(state, command_args[0], command_args[1], command_args[2])
+    elif command == "rm":
+        if len(command_args) < 1:
+            print("Error: rm command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        ops_state_remove_tiddler(state, command_args[0])
+    elif command == "touch":
+        if len(command_args) < 1:
+            print("Error: touch command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        text = command_args[1] if len(command_args) > 1 else ""
+        ops_state_touch_tiddler(state, command_args[0], text)
+    elif command == "insert":
+        if len(command_args) < 1:
+            print("Error: insert command requires explicit JSON when used in ops", file=sys.stderr)
+            sys.exit(1)
+        try:
+            parsed_json = json.loads(command_args[0])
+        except json.JSONDecodeError as e:
+            print(f"Error: Invalid JSON: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        if isinstance(parsed_json, dict):
+            tiddlers_to_insert = [parsed_json]
+        elif isinstance(parsed_json, list):
+            tiddlers_to_insert = parsed_json
+        else:
+            print("Error: JSON must be either an object (single tiddler) or an array (multiple tiddlers)", file=sys.stderr)
+            sys.exit(1)
+
+        ops_state_insert_tiddlers(state, tiddlers_to_insert)
+    elif command == "replace":
+        if len(command_args) < 1:
+            print("Error: replace command requires explicit content when used in ops", file=sys.stderr)
+            sys.exit(1)
+        tiddler = parse_replace_content(command_args[0], update_modified=True)
+        ops_state_insert_tiddlers(state, [tiddler])
+    elif command == "append":
+        if len(command_args) < 1:
+            print("Error: append command requires a tiddler name", file=sys.stderr)
+            sys.exit(1)
+        if len(command_args) < 2:
+            print("Error: append command requires explicit text when used in ops", file=sys.stderr)
+            sys.exit(1)
+        tiddler_title = command_args[0]
+        text_to_append = ' '.join(command_args[1:])
+        ops_state_append_tiddler(state, tiddler_title, text_to_append)
+    elif command == "detect":
+        print(state["wiki_format"])
+
 def run_ops_command(wiki_path, raw_args):
     operations = parse_ops_arguments(raw_args)
 
@@ -3394,31 +3793,26 @@ def run_ops_command(wiki_path, raw_args):
     mutating = any(command_mutates_wiki(command) for command, _ in operations)
     use_transaction = mutating and not is_remote_wiki(wiki_path)
 
-    execution_wiki = wiki_path
-    temp_dir = None
-    temp_wiki = None
-
     if use_transaction:
-        ensure_local_wiki(wiki_path)
-        temp_dir = tempfile.mkdtemp(prefix='tw-ops-')
-        temp_wiki = os.path.join(temp_dir, os.path.basename(wiki_path) or "wiki.html")
-        shutil.copy2(wiki_path, temp_wiki)
-        execution_wiki = temp_wiki
-
-    try:
+        state = load_ops_state(wiki_path)
         for op_index, (command, command_args) in enumerate(operations, start=1):
             try:
-                run_single_command(command, command_args, wiki_path=execution_wiki, allow_stdin=False)
+                run_transactional_ops_command(state, command, command_args)
             except SystemExit as e:
                 code = e.code if isinstance(e.code, int) else 1
                 print(f"Error: ops failed at operation {op_index} ('{command}')", file=sys.stderr)
                 sys.exit(code)
+        commit_ops_state(state, wiki_path)
+        return
 
-        if use_transaction:
-            os.replace(temp_wiki, wiki_path)
-    finally:
-        if temp_dir:
-            shutil.rmtree(temp_dir, ignore_errors=True)
+    # Non-mutating batches (or remote wiki batches) use regular command execution.
+    for op_index, (command, command_args) in enumerate(operations, start=1):
+        try:
+            run_single_command(command, command_args, wiki_path=wiki_path, allow_stdin=False)
+        except SystemExit as e:
+            code = e.code if isinstance(e.code, int) else 1
+            print(f"Error: ops failed at operation {op_index} ('{command}')", file=sys.stderr)
+            sys.exit(code)
 
 def main():
     global VERBOSE

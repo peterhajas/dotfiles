@@ -15,6 +15,7 @@ This test suite uses Python's built-in unittest framework (no dependencies).
 """
 
 import unittest
+from unittest import mock
 import json
 import os
 import sys
@@ -6977,6 +6978,55 @@ class TestOpsCommand(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout.strip(), 'in-batch-value')
+
+    def test_ops_transaction_reads_wiki_once(self):
+        real_open = open
+
+        with mock.patch('builtins.open', wraps=real_open) as mocked_open:
+            tw_module.run_ops_command(
+                self.test_wiki,
+                [
+                    '--op', 'set', 'Start', 'text', 'one',
+                    '--op', 'set', 'Start', 'tags', 'alpha',
+                ]
+            )
+
+        read_calls = 0
+        for call in mocked_open.call_args_list:
+            args = call.args
+            kwargs = call.kwargs
+            if not args:
+                continue
+
+            path = args[0]
+            mode = kwargs.get('mode', args[1] if len(args) > 1 else 'r')
+            if path == self.test_wiki and 'r' in mode:
+                read_calls += 1
+
+        self.assertEqual(read_calls, 1)
+
+    def test_ops_transaction_commits_once(self):
+        real_replace = os.replace
+
+        with mock.patch('os.replace', wraps=real_replace) as mocked_replace:
+            tw_module.run_ops_command(
+                self.test_wiki,
+                [
+                    '--op', 'set', 'Start', 'text', 'one',
+                    '--op', 'set', 'Start', 'tags', 'alpha',
+                ]
+            )
+
+        commit_calls = 0
+        for call in mocked_replace.call_args_list:
+            args = call.args
+            if len(args) < 2:
+                continue
+            dst = args[1]
+            if dst == self.test_wiki:
+                commit_calls += 1
+
+        self.assertEqual(commit_calls, 1)
 
 
 class TestFiletypeMap(unittest.TestCase):
