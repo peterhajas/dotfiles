@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import tempfile
+import base64
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -147,13 +148,25 @@ MUTATING_COMMANDS = {
     "replace",
     "append",
     "install_plugin",
+    "import-dir",
 }
 
 # Commands that do not accept a wiki path
 NO_WIKI_COMMANDS = {"init", "filetype-map", "mimetype"}
 
 # Commands not safe/sensible inside ops batches
-OPS_DISALLOWED_COMMANDS = {"ops", "init", "filetype-map", "mimetype", "serve", "webdav", "edit", "install_plugin"}
+OPS_DISALLOWED_COMMANDS = {
+    "ops",
+    "init",
+    "filetype-map",
+    "mimetype",
+    "serve",
+    "webdav",
+    "edit",
+    "install_plugin",
+    "export-dir",
+    "import-dir",
+}
 
 # Commands supported by the in-memory transactional ops engine
 OPS_TRANSACTION_SUPPORTED_COMMANDS = {
@@ -1732,6 +1745,299 @@ def insert_tiddler(wiki_path, tiddler_json):
     for title in inserted_titles:
         verbose_print(f"Inserted tiddler: {title}")
 
+def _b64_encode_utf8(text):
+    return base64.b64encode(text.encode('utf-8')).decode('ascii')
+
+def _b64_decode_utf8(value, label):
+    try:
+        return base64.b64decode(value.encode('ascii')).decode('utf-8')
+    except Exception as e:
+        print(f"Error: Invalid base64 payload for {label}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+def _coerce_text_for_markdown_export(text, mime_type):
+    """Return a markdown-friendly representation of text while preserving original payload separately."""
+    if not text:
+        return ''
+
+    markdown_like_types = {
+        'text/markdown',
+        'text/x-markdown',
+        'text/plain',
+        'text/vnd.tiddlywiki',
+        'text/x-tiddlywiki',
+        'text/vnd.tiddlywiki-multiple',
+    }
+    if mime_type in markdown_like_types:
+        return text
+
+    language = MIME_TO_VIM_FILETYPE.get(mime_type, 'text')
+    return f"```{language}\n{text}\n```"
+
+def build_export_markdown_document(tiddler, coerce_markdown=False):
+    """Build a lossless markdown interchange document for a tiddler."""
+    import json
+
+    fields_without_text = OrderedDict((k, v) for k, v in tiddler.items() if k != 'text')
+    fields_json = json.dumps(fields_without_text, ensure_ascii=False, separators=(',', ':'))
+
+    has_text = 'text' in tiddler
+    original_text = tiddler.get('text', '') if has_text else ''
+    original_type = tiddler.get('type', 'text/vnd.tiddlywiki')
+
+    body_mode = 'coerced' if coerce_markdown else 'raw'
+    if coerce_markdown and has_text:
+        body = _coerce_text_for_markdown_export(original_text, original_type)
+    elif has_text:
+        body = original_text
+    else:
+        body = ''
+
+    frontmatter_lines = [
+        'tw_export_version: 1',
+        f'tw_body_mode: {body_mode}',
+        f'tw_has_text: {1 if has_text else 0}',
+        f'tw_fields_json_b64: {_b64_encode_utf8(fields_json)}',
+    ]
+
+    if coerce_markdown:
+        frontmatter_lines.append(f'tw_original_type: {original_type}')
+        if has_text:
+            frontmatter_lines.append(f'tw_original_text_b64: {_b64_encode_utf8(original_text)}')
+
+    return '---\n' + '\n'.join(frontmatter_lines) + '\n---\n' + body
+
+def parse_export_markdown_document(content, file_path):
+    """Parse a markdown interchange document back into a tiddler dict."""
+    import json
+
+    if not content.startswith('---\n'):
+        print(f"Error: Invalid export file (missing frontmatter start): {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    frontmatter_end = content.find('\n---\n', 4)
+    if frontmatter_end == -1:
+        print(f"Error: Invalid export file (missing frontmatter end): {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    frontmatter_text = content[4:frontmatter_end]
+    body = content[frontmatter_end + 5:]
+
+    frontmatter = {}
+    for line in frontmatter_text.split('\n'):
+        if not line.strip():
+            continue
+        if ':' not in line:
+            print(f"Error: Invalid frontmatter line in {file_path}: {line}", file=sys.stderr)
+            sys.exit(1)
+        key, value = line.split(':', 1)
+        frontmatter[key.strip()] = value.strip()
+
+    required_keys = ['tw_export_version', 'tw_body_mode', 'tw_has_text', 'tw_fields_json_b64']
+    for key in required_keys:
+        if key not in frontmatter:
+            print(f"Error: Missing required frontmatter key '{key}' in {file_path}", file=sys.stderr)
+            sys.exit(1)
+
+    if frontmatter['tw_export_version'] != '1':
+        print(f"Error: Unsupported export version '{frontmatter['tw_export_version']}' in {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    body_mode = frontmatter['tw_body_mode']
+    if body_mode not in ('raw', 'coerced'):
+        print(f"Error: Invalid tw_body_mode '{body_mode}' in {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    has_text_raw = frontmatter['tw_has_text'].lower()
+    if has_text_raw in ('1', 'true', 'yes'):
+        has_text = True
+    elif has_text_raw in ('0', 'false', 'no'):
+        has_text = False
+    else:
+        print(f"Error: Invalid tw_has_text value '{frontmatter['tw_has_text']}' in {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    fields_json = _b64_decode_utf8(frontmatter['tw_fields_json_b64'], f"tw_fields_json_b64 in {file_path}")
+    try:
+        parsed_fields = json.loads(fields_json)
+    except json.JSONDecodeError as e:
+        print(f"Error: Invalid decoded field JSON in {file_path}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+    if not isinstance(parsed_fields, dict):
+        print(f"Error: Decoded fields must be an object in {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    tiddler = OrderedDict(parsed_fields)
+    if 'title' not in tiddler:
+        print(f"Error: Imported file is missing title field in {file_path}", file=sys.stderr)
+        sys.exit(1)
+
+    if has_text:
+        if body_mode == 'coerced':
+            if 'tw_original_text_b64' not in frontmatter:
+                print(f"Error: Missing tw_original_text_b64 in coerced file {file_path}", file=sys.stderr)
+                sys.exit(1)
+            tiddler['text'] = _b64_decode_utf8(frontmatter['tw_original_text_b64'], f"tw_original_text_b64 in {file_path}")
+            if 'tw_original_type' in frontmatter and frontmatter['tw_original_type']:
+                tiddler['type'] = frontmatter['tw_original_type']
+        else:
+            tiddler['text'] = body
+    else:
+        tiddler.pop('text', None)
+
+    return tiddler
+
+def export_tiddlers_to_dir(wiki_path, dest_dir, filter_expr=None, coerce_markdown=False, force=False):
+    """Export wiki tiddlers to a directory of markdown files."""
+    all_tiddlers = load_all_tiddlers(wiki_path)
+
+    if filter_expr:
+        filtered_titles = tw_filter.evaluate_filter(filter_expr, wiki_path=wiki_path)
+        title_to_tiddler = {}
+        for tiddler in all_tiddlers:
+            title = tiddler.get('title')
+            if title and title not in title_to_tiddler:
+                title_to_tiddler[title] = tiddler
+
+        selected = []
+        seen = set()
+        for title in filtered_titles:
+            if title in seen:
+                continue
+            seen.add(title)
+            if title in title_to_tiddler:
+                selected.append(title_to_tiddler[title])
+    else:
+        selected = sorted(all_tiddlers, key=lambda t: t.get('title', ''))
+
+    if os.path.exists(dest_dir) and not os.path.isdir(dest_dir):
+        print(f"Error: Destination path is not a directory: {dest_dir}", file=sys.stderr)
+        sys.exit(1)
+    os.makedirs(dest_dir, exist_ok=True)
+
+    files_to_write = []
+    seen_paths = set()
+    for tiddler in selected:
+        title = tiddler.get('title')
+        if not title:
+            continue
+        filename = encode_tiddler_title_for_path(title) + '.md'
+        path = os.path.join(dest_dir, filename)
+        if path in seen_paths:
+            print(f"Error: Export filename collision for title '{title}'", file=sys.stderr)
+            sys.exit(1)
+        seen_paths.add(path)
+        files_to_write.append((path, tiddler))
+
+    if not force:
+        for path, _ in files_to_write:
+            if os.path.exists(path):
+                print(f"Error: File already exists (use --force to overwrite): {path}", file=sys.stderr)
+                sys.exit(1)
+
+    for path, tiddler in files_to_write:
+        content = build_export_markdown_document(tiddler, coerce_markdown=coerce_markdown)
+        temp_path = path + '.tmp'
+        try:
+            with open(temp_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            os.replace(temp_path, path)
+        except Exception as e:
+            if os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except OSError:
+                    pass
+            print(f"Error: Failed to export file {path}: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    verbose_print(f"Exported {len(files_to_write)} tiddler(s) to {dest_dir}")
+
+def import_tiddlers_from_dir(wiki_path, source_dir, mode='upsert', delete_missing=False, dry_run=False):
+    """Import a directory of markdown-exported tiddlers into a wiki transactionally."""
+    ensure_local_wiki(wiki_path)
+
+    if mode not in ('upsert', 'replace', 'create-only'):
+        print(f"Error: Invalid import mode '{mode}'", file=sys.stderr)
+        sys.exit(1)
+    if mode == 'create-only' and delete_missing:
+        print("Error: --delete-missing is not valid with --mode create-only", file=sys.stderr)
+        sys.exit(1)
+
+    if not os.path.isdir(source_dir):
+        print(f"Error: Import source is not a directory: {source_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    filenames = sorted(
+        name for name in os.listdir(source_dir)
+        if name.endswith('.md') and os.path.isfile(os.path.join(source_dir, name))
+    )
+    if not filenames:
+        print(f"Error: No markdown files found in directory: {source_dir}", file=sys.stderr)
+        sys.exit(1)
+
+    imported_tiddlers = []
+    imported_titles = set()
+
+    for filename in filenames:
+        path = os.path.join(source_dir, filename)
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                content = f.read()
+        except OSError as e:
+            print(f"Error: Failed to read import file {path}: {e}", file=sys.stderr)
+            sys.exit(1)
+
+        tiddler = parse_export_markdown_document(content, path)
+        title = tiddler.get('title')
+        if title in imported_titles:
+            print(f"Error: Duplicate title '{title}' found in import directory", file=sys.stderr)
+            sys.exit(1)
+        imported_titles.add(title)
+        imported_tiddlers.append(tiddler)
+
+    state = load_ops_state(wiki_path)
+    existing_titles = {t.get('title') for t in ops_state_all_tiddlers(state) if 'title' in t}
+
+    create_count = len(imported_titles - existing_titles)
+    update_count = len(imported_titles & existing_titles)
+    delete_count = 0
+    if mode == 'replace':
+        delete_count = len(existing_titles - imported_titles)
+    elif mode == 'upsert' and delete_missing:
+        delete_count = len(existing_titles - imported_titles)
+
+    collisions = sorted(imported_titles & existing_titles)
+    if mode == 'create-only' and collisions:
+        print(f"Error: create-only mode found existing titles: {', '.join(collisions[:10])}", file=sys.stderr)
+        sys.exit(1)
+
+    if dry_run:
+        print(f"Dry run: create={create_count} update={update_count} delete={delete_count}")
+        return
+
+    if mode == 'replace':
+        if state["wiki_format"] == 'modern':
+            for store in state["stores"]:
+                store['tiddlers'] = []
+        else:
+            state["tiddlers"] = []
+        ops_state_insert_tiddlers(state, imported_tiddlers)
+    elif mode == 'upsert':
+        ops_state_insert_tiddlers(state, imported_tiddlers)
+    else:
+        # create-only already validated for collisions
+        ops_state_insert_tiddlers(state, imported_tiddlers)
+
+    if mode == 'upsert' and delete_missing:
+        titles_to_delete = sorted(existing_titles - imported_titles)
+        for title in titles_to_delete:
+            ops_state_remove_tiddler(state, title)
+
+    commit_ops_state(state, wiki_path)
+    verbose_print(f"Imported {len(imported_tiddlers)} tiddler(s) from {source_dir}")
+
 def install_live_reload_plugin(wiki_path):
     """Install the live reload plugin into the wiki"""
     import json
@@ -3181,6 +3487,8 @@ def show_help():
     print("  replace <content>           - Insert/replace from cat format", file=sys.stderr)
     print("  append <tiddler> [text]     - Append text to tiddler", file=sys.stderr)
     print("  detect                      - Detect wiki format (modern or legacy)", file=sys.stderr)
+    print("  export-dir <dir> [options]  - Export tiddlers to lossless markdown files", file=sys.stderr)
+    print("  import-dir <dir> [options]  - Import tiddlers from markdown files", file=sys.stderr)
     print("  filetype-map                - Output MIME type to filetype mapping as JSON", file=sys.stderr)
     print("  mimetype <filename>         - Get MIME type for a file extension", file=sys.stderr)
     print("  install_plugin              - Install live reload plugin", file=sys.stderr)
@@ -3191,6 +3499,16 @@ def show_help():
     print("", file=sys.stderr)
     print("Ops format:", file=sys.stderr)
     print("  tw <wiki> ops --op <command> [args] --op <command> [args] ...", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Export options:", file=sys.stderr)
+    print("  --filter EXPR               - Export only tiddlers matching filter expression", file=sys.stderr)
+    print("  --coerce-markdown           - Emit markdown-friendly body while preserving original payload", file=sys.stderr)
+    print("  --force                     - Overwrite existing files in destination directory", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Import options:", file=sys.stderr)
+    print("  --mode MODE                 - upsert (default), replace, create-only", file=sys.stderr)
+    print("  --delete-missing            - Delete wiki tiddlers not present in import dir (upsert mode)", file=sys.stderr)
+    print("  --dry-run                   - Validate and report changes without writing wiki", file=sys.stderr)
 
 def parse_global_flags(argv):
     verbose = False
@@ -3348,6 +3666,72 @@ def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
         else:
             format_type = detect_format_streaming(wiki_path)
         print(format_type)
+    elif command == "export-dir":
+        if len(command_args) < 1:
+            print("Error: export-dir command requires a destination directory", file=sys.stderr)
+            sys.exit(1)
+
+        dest_dir = command_args[0]
+        filter_expr = None
+        coerce_markdown = False
+        force = False
+
+        i = 1
+        while i < len(command_args):
+            if command_args[i] == '--filter' and i + 1 < len(command_args):
+                filter_expr = command_args[i + 1]
+                i += 2
+            elif command_args[i] == '--coerce-markdown':
+                coerce_markdown = True
+                i += 1
+            elif command_args[i] == '--force':
+                force = True
+                i += 1
+            else:
+                print(f"Error: Unknown argument '{command_args[i]}'", file=sys.stderr)
+                print("Usage: tw [<wiki_path>] export-dir <dir> [--filter EXPR] [--coerce-markdown] [--force]", file=sys.stderr)
+                sys.exit(1)
+
+        export_tiddlers_to_dir(
+            wiki_path,
+            dest_dir,
+            filter_expr=filter_expr,
+            coerce_markdown=coerce_markdown,
+            force=force
+        )
+    elif command == "import-dir":
+        if len(command_args) < 1:
+            print("Error: import-dir command requires a source directory", file=sys.stderr)
+            sys.exit(1)
+
+        source_dir = command_args[0]
+        mode = 'upsert'
+        delete_missing = False
+        dry_run = False
+
+        i = 1
+        while i < len(command_args):
+            if command_args[i] == '--mode' and i + 1 < len(command_args):
+                mode = command_args[i + 1]
+                i += 2
+            elif command_args[i] == '--delete-missing':
+                delete_missing = True
+                i += 1
+            elif command_args[i] == '--dry-run':
+                dry_run = True
+                i += 1
+            else:
+                print(f"Error: Unknown argument '{command_args[i]}'", file=sys.stderr)
+                print("Usage: tw [<wiki_path>] import-dir <dir> [--mode MODE] [--delete-missing] [--dry-run]", file=sys.stderr)
+                sys.exit(1)
+
+        import_tiddlers_from_dir(
+            wiki_path,
+            source_dir,
+            mode=mode,
+            delete_missing=delete_missing,
+            dry_run=dry_run
+        )
     elif command == "install_plugin":
         install_live_reload_plugin(wiki_path)
     elif command == "serve":

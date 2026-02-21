@@ -7029,6 +7029,369 @@ class TestOpsCommand(unittest.TestCase):
         self.assertEqual(commit_calls, 1)
 
 
+class TestBulkExportImport(unittest.TestCase):
+    """Test bulk markdown export/import commands and lossless roundtrip behavior."""
+
+    def _write_wiki(self, path, tiddlers):
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Bulk Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def _tiddler_map(self, wiki_path):
+        return {
+            t['title']: t
+            for t in tw_module.load_all_tiddlers(wiki_path)
+            if 'title' in t
+        }
+
+    def _assert_maps_equal(self, expected_map, actual_map):
+        self.assertEqual(set(expected_map.keys()), set(actual_map.keys()))
+        for title in expected_map:
+            self.assertEqual(expected_map[title], actual_map[title], f"Mismatch for title {title}")
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'bulk_test_wiki.html')
+        self.export_dir = os.path.join(self.test_dir, 'export')
+
+        self.seed_tiddlers = [
+            {
+                "title": "MarkdownTid",
+                "text": "Line one\nLine two",
+                "type": "text/vnd.tiddlywiki",
+                "tags": "alpha beta",
+                "created": "20240101010101010",
+                "modified": "20240102020202020",
+            },
+            {
+                "title": "JsonTid",
+                "text": '{"a":1,"b":[2,3]}',
+                "type": "application/json",
+                "created": "20240103030303030",
+                "modified": "20240104040404040",
+            },
+            {
+                "title": "NoTextTid",
+                "tags": "meta",
+                "type": "text/plain",
+                "created": "20240105050505050",
+                "modified": "20240106060606060",
+            },
+            {
+                "title": "TrailingNewlineTid",
+                "text": "keep trailing newline\n",
+                "type": "text/plain",
+                "created": "20240107070707070",
+                "modified": "20240108080808080",
+            },
+            {
+                "title": "Special/Title:$中文",
+                "text": "Unicode body: 中文 and emoji 🎯",
+                "type": "text/plain",
+                "created": "20240109090909090",
+                "modified": "20240110101010100",
+                "custom": "value",
+            },
+        ]
+        self._write_wiki(self.test_wiki, self.seed_tiddlers)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_export_dir_creates_markdown_files(self):
+        result = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+
+        files = sorted(name for name in os.listdir(self.export_dir) if name.endswith('.md'))
+        self.assertEqual(len(files), len(self.seed_tiddlers))
+
+        encoded = tw_module.encode_tiddler_title_for_path("Special/Title:$中文") + '.md'
+        self.assertIn(encoded, files)
+
+        sample_path = os.path.join(self.export_dir, files[0])
+        with open(sample_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        self.assertIn('tw_export_version: 1', content)
+        self.assertIn('tw_fields_json_b64:', content)
+
+    def test_export_requires_force_when_files_exist(self):
+        first = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(first.returncode, 0)
+
+        second = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(second.returncode, 0)
+        self.assertIn('use --force', second.stderr)
+
+        third = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir, '--force'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(third.returncode, 0)
+
+    def test_export_filter_exports_subset(self):
+        result = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir, '--filter', '[[MarkdownTid]] [[NoTextTid]]'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+
+        files = sorted(name for name in os.listdir(self.export_dir) if name.endswith('.md'))
+        self.assertEqual(len(files), 2)
+
+    def test_raw_export_import_roundtrip_is_lossless(self):
+        export_result = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(export_result.returncode, 0)
+
+        target_wiki = os.path.join(self.test_dir, 'target_raw_roundtrip.html')
+        self._write_wiki(target_wiki, [{"title": "Placeholder", "text": "x"}])
+
+        import_result = run_tw_command(
+            [target_wiki, 'import-dir', self.export_dir, '--mode', 'replace'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(import_result.returncode, 0)
+
+        expected = self._tiddler_map(self.test_wiki)
+        actual = self._tiddler_map(target_wiki)
+        self._assert_maps_equal(expected, actual)
+
+    def test_coerced_export_import_roundtrip_restores_original_type_and_text(self):
+        export_result = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir, '--coerce-markdown'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(export_result.returncode, 0)
+
+        json_path = os.path.join(self.export_dir, tw_module.encode_tiddler_title_for_path('JsonTid') + '.md')
+        with open(json_path, 'r', encoding='utf-8') as f:
+            json_export = f.read()
+        self.assertIn('tw_body_mode: coerced', json_export)
+        self.assertIn('tw_original_text_b64:', json_export)
+        self.assertIn('```json', json_export)
+
+        target_wiki = os.path.join(self.test_dir, 'target_coerced_roundtrip.html')
+        self._write_wiki(target_wiki, [{"title": "Placeholder", "text": "x"}])
+
+        import_result = run_tw_command(
+            [target_wiki, 'import-dir', self.export_dir, '--mode', 'replace'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(import_result.returncode, 0)
+
+        expected = self._tiddler_map(self.test_wiki)
+        actual = self._tiddler_map(target_wiki)
+        self._assert_maps_equal(expected, actual)
+
+    def test_roundtrip_preserves_absent_text_field(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+
+        target_wiki = os.path.join(self.test_dir, 'target_no_text.html')
+        self._write_wiki(target_wiki, [{"title": "Placeholder", "text": "x"}])
+        run_tw_command([target_wiki, 'import-dir', self.export_dir, '--mode', 'replace'], check=True, capture_output=True, text=True)
+
+        mapped = self._tiddler_map(target_wiki)
+        self.assertIn('NoTextTid', mapped)
+        self.assertNotIn('text', mapped['NoTextTid'])
+
+    def test_roundtrip_preserves_trailing_newline_text(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+
+        target_wiki = os.path.join(self.test_dir, 'target_trailing_newline.html')
+        self._write_wiki(target_wiki, [{"title": "Placeholder", "text": "x"}])
+        run_tw_command([target_wiki, 'import-dir', self.export_dir, '--mode', 'replace'], check=True, capture_output=True, text=True)
+
+        mapped = self._tiddler_map(target_wiki)
+        self.assertEqual(mapped['TrailingNewlineTid']['text'], "keep trailing newline\n")
+
+    def test_import_create_only_fails_when_titles_exist(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+        before = self._tiddler_map(self.test_wiki)
+
+        result = run_tw_command(
+            [self.test_wiki, 'import-dir', self.export_dir, '--mode', 'create-only'],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('create-only mode found existing titles', result.stderr)
+
+        after = self._tiddler_map(self.test_wiki)
+        self._assert_maps_equal(before, after)
+
+    def test_import_replace_removes_missing_titles(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+
+        remove_path = os.path.join(self.export_dir, tw_module.encode_tiddler_title_for_path('MarkdownTid') + '.md')
+        os.remove(remove_path)
+
+        result = run_tw_command(
+            [self.test_wiki, 'import-dir', self.export_dir, '--mode', 'replace'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+
+        mapped = self._tiddler_map(self.test_wiki)
+        self.assertNotIn('MarkdownTid', mapped)
+        self.assertIn('JsonTid', mapped)
+
+    def test_import_upsert_delete_missing_removes_others(self):
+        run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir, '--filter', '[[MarkdownTid]] [[JsonTid]]'],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        result = run_tw_command(
+            [self.test_wiki, 'import-dir', self.export_dir, '--mode', 'upsert', '--delete-missing'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+
+        mapped = self._tiddler_map(self.test_wiki)
+        self.assertEqual(set(mapped.keys()), {'MarkdownTid', 'JsonTid'})
+
+    def test_import_dry_run_does_not_modify_wiki(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            before_content = f.read()
+
+        result = run_tw_command(
+            [self.test_wiki, 'import-dir', self.export_dir, '--mode', 'replace', '--dry-run'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('Dry run:', result.stdout)
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            after_content = f.read()
+        self.assertEqual(before_content, after_content)
+
+    def test_import_invalid_frontmatter_rolls_back(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            before_content = f.read()
+
+        bad_path = os.path.join(self.export_dir, tw_module.encode_tiddler_title_for_path('JsonTid') + '.md')
+        with open(bad_path, 'r', encoding='utf-8') as f:
+            bad_content = f.read().replace('tw_fields_json_b64:', 'tw_fields_json_b64_broken:')
+        with open(bad_path, 'w', encoding='utf-8') as f:
+            f.write(bad_content)
+
+        result = run_tw_command(
+            [self.test_wiki, 'import-dir', self.export_dir, '--mode', 'replace'],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Missing required frontmatter key', result.stderr)
+
+        with open(self.test_wiki, 'r', encoding='utf-8') as f:
+            after_content = f.read()
+        self.assertEqual(before_content, after_content)
+
+    def test_import_duplicate_titles_in_directory_fails(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+
+        src = os.path.join(self.export_dir, tw_module.encode_tiddler_title_for_path('MarkdownTid') + '.md')
+        dst = os.path.join(self.export_dir, 'duplicate_markdown_tid.md')
+        shutil.copy2(src, dst)
+
+        result = run_tw_command(
+            [self.test_wiki, 'import-dir', self.export_dir],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Duplicate title', result.stderr)
+
+    def test_import_rejects_bad_export_version(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+
+        path = os.path.join(self.export_dir, tw_module.encode_tiddler_title_for_path('MarkdownTid') + '.md')
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read().replace('tw_export_version: 1', 'tw_export_version: 99')
+        with open(path, 'w', encoding='utf-8') as f:
+            f.write(content)
+
+        result = run_tw_command(
+            [self.test_wiki, 'import-dir', self.export_dir],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn('Unsupported export version', result.stderr)
+
+    def test_import_transaction_reads_and_commits_once(self):
+        run_tw_command([self.test_wiki, 'export-dir', self.export_dir], check=True, capture_output=True, text=True)
+        real_open = open
+        real_replace = os.replace
+
+        with mock.patch('builtins.open', wraps=real_open) as mocked_open, \
+             mock.patch('os.replace', wraps=real_replace) as mocked_replace:
+            tw_module.import_tiddlers_from_dir(
+                self.test_wiki,
+                self.export_dir,
+                mode='replace',
+                delete_missing=False,
+                dry_run=False
+            )
+
+        read_calls = 0
+        for call in mocked_open.call_args_list:
+            args = call.args
+            kwargs = call.kwargs
+            if not args:
+                continue
+            path = args[0]
+            mode = kwargs.get('mode', args[1] if len(args) > 1 else 'r')
+            if path == self.test_wiki and 'r' in mode:
+                read_calls += 1
+        self.assertEqual(read_calls, 1)
+
+        commit_calls = 0
+        for call in mocked_replace.call_args_list:
+            args = call.args
+            if len(args) >= 2 and args[1] == self.test_wiki:
+                commit_calls += 1
+        self.assertEqual(commit_calls, 1)
+
+
 class TestFiletypeMap(unittest.TestCase):
     """Tests for the filetype-map command"""
 
