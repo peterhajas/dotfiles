@@ -2,6 +2,7 @@
 
 import argparse
 import atexit
+import fcntl
 import json
 import os
 import subprocess
@@ -24,10 +25,7 @@ def log(message: str) -> None:
 SUBPROCESS_TIMEOUT = 5.0
 ULTRAWIDE_THRESHOLD = 2000  # plh-evil
 WORKSPACE_WIDTH_THRESHOLD = 5000  # Switch to 5-bucket layout when total width exceeds this
-LOCK_PATH = "/tmp/yabai_update_tiling.active"
-LOCK_STALE_SECONDS = 6.0
 LOCK_ENV_SKIP = "YABAI_UPDATE_TILING_SKIP_LOCK"
-DEBOUNCE_PATH = "/tmp/yabai_update_tiling.debounce"
 
 
 def query_yabai_config(key: str, default: int) -> int:
@@ -198,32 +196,62 @@ def run_cmd(cmd: List[str]) -> None:
         log(f"  -> timeout after {SUBPROCESS_TIMEOUT}s")
 
 
-def acquire_lock(path: str, stale_seconds: float) -> bool:
-    """Acquire a single-instance lock; return False if another run is active."""
-    now = time.time()
+def acquire_lock(path: str) -> Optional[int]:
+    """Acquire a single-instance lock on an existing file; return fd or None."""
     try:
-        fd = os.open(path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        with os.fdopen(fd, "w") as f:
-            f.write(f"{os.getpid()}\n{now}\n")
-        return True
-    except FileExistsError:
-        try:
-            with open(path, "r") as f:
-                lines = f.read().splitlines()
-            ts = float(lines[1]) if len(lines) > 1 else 0.0
-            if now - ts > stale_seconds:
-                os.unlink(path)
-                return acquire_lock(path, stale_seconds)
-        except Exception:
-            pass
+        fd = os.open(path, os.O_RDONLY)
+    except OSError as e:
+        log(f"Failed to open lock target {path}: {e}")
+        return None
+
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        return fd
+    except (BlockingIOError, OSError):
+        os.close(fd)
+        return None
+
+
+def release_lock(fd: int) -> None:
+    try:
+        fcntl.flock(fd, fcntl.LOCK_UN)
+    except OSError:
+        pass
+    try:
+        os.close(fd)
+    except OSError:
+        pass
+
+
+def has_newer_script_invocation(script_name: str, my_pid: int) -> bool:
+    """Return True when a newer process appears to be running this script."""
+    pattern = re.compile(rf"(^|[\s/]){re.escape(script_name)}(\s|$)")
+    try:
+        result = subprocess.run(
+            ["ps", "-axo", "pid=,command="],
+            capture_output=True,
+            text=True,
+            timeout=SUBPROCESS_TIMEOUT,
+            check=True,
+        )
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return False
 
+    for line in result.stdout.splitlines():
+        parts = line.strip().split(None, 1)
+        if len(parts) != 2:
+            continue
+        try:
+            pid = int(parts[0])
+        except ValueError:
+            continue
+        if pid <= my_pid:
+            continue
+        cmdline = parts[1]
+        if pattern.search(cmdline):
+            return True
 
-def release_lock(path: str) -> None:
-    try:
-        os.unlink(path)
-    except FileNotFoundError:
-        pass
+    return False
 
 
 def get_display_by_index(displays: List[Dict[str, Any]], idx: int) -> Optional[Dict[str, Any]]:
@@ -1090,32 +1118,20 @@ def main() -> None:
 
     # Debounce: wait for activity to settle before proceeding
     if args.debounce > 0:
-        my_timestamp = f"{time.time():.6f}"
-        try:
-            with open(DEBOUNCE_PATH, "w") as f:
-                f.write(my_timestamp)
-        except OSError:
-            pass  # Best effort
-
         time.sleep(args.debounce / 1000.0)
 
-        try:
-            with open(DEBOUNCE_PATH, "r") as f:
-                current = f.read().strip()
-            if current != my_timestamp:
-                # A newer invocation superseded us
-                sys.exit(0)
-        except OSError:
-            pass  # File gone or unreadable; proceed anyway
+        if has_newer_script_invocation(os.path.basename(sys.argv[0]), os.getpid()):
+            # A newer invocation superseded us
+            sys.exit(0)
 
     # Prevent re-entrant updates triggered by our own window moves/resizes
-    lock_acquired = False
+    lock_fd: Optional[int] = None
     if not args.test_data and os.environ.get(LOCK_ENV_SKIP) != "1":
-        lock_acquired = acquire_lock(LOCK_PATH, LOCK_STALE_SECONDS)
-        if not lock_acquired:
+        lock_fd = acquire_lock(os.path.realpath(__file__))
+        if lock_fd is None:
             log("Another update in progress; skipping")
             sys.exit(0)
-        atexit.register(release_lock, LOCK_PATH)
+        atexit.register(release_lock, lock_fd)
 
     # Initialize provider and executor based on args
     provider: YabaiDataProvider

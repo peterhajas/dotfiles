@@ -2483,6 +2483,58 @@ class TestPaddingConfiguration(unittest.TestCase):
         self.assertGreater(yut.WIDGET_PADDING, 0)
 
 
+class TestLockAndDebounce(unittest.TestCase):
+    """Tests for lock and debounce helper functions."""
+
+    def test_acquire_lock_returns_fd_when_available(self):
+        """Lock acquisition should return fd when flock succeeds."""
+        from unittest.mock import patch
+
+        with patch("yabai_update_tiling.os.open", return_value=42), \
+             patch("yabai_update_tiling.fcntl.flock"), \
+             patch("yabai_update_tiling.os.close") as mock_close:
+            fd = yut.acquire_lock("/tmp/lock-target")
+            self.assertEqual(fd, 42)
+            mock_close.assert_not_called()
+
+    def test_acquire_lock_returns_none_when_busy(self):
+        """Lock acquisition should return None when flock reports contention."""
+        from unittest.mock import patch
+
+        with patch("yabai_update_tiling.os.open", return_value=42), \
+             patch("yabai_update_tiling.fcntl.flock", side_effect=BlockingIOError), \
+             patch("yabai_update_tiling.os.close") as mock_close:
+            fd = yut.acquire_lock("/tmp/lock-target")
+            self.assertIsNone(fd)
+            mock_close.assert_called_once_with(42)
+
+    def test_has_newer_script_invocation_true_for_newer_pid(self):
+        """Debounce helper should detect newer invocations by PID and name match."""
+        from unittest.mock import patch, MagicMock
+
+        mock_result = MagicMock()
+        mock_result.stdout = (
+            "100 /Users/me/bin/yabai_update_tiling --debounce 100\n"
+            "250 /Users/me/bin/yabai_update_tiling\n"
+        )
+
+        with patch("yabai_update_tiling.subprocess.run", return_value=mock_result):
+            self.assertTrue(yut.has_newer_script_invocation("yabai_update_tiling", 100))
+
+    def test_has_newer_script_invocation_false_without_newer_pid(self):
+        """Debounce helper should ignore matching processes with older or equal PIDs."""
+        from unittest.mock import patch, MagicMock
+
+        mock_result = MagicMock()
+        mock_result.stdout = (
+            "50 /Users/me/bin/yabai_update_tiling --debounce 100\n"
+            "75 /Users/me/bin/yabai_update_tiling\n"
+        )
+
+        with patch("yabai_update_tiling.subprocess.run", return_value=mock_result):
+            self.assertFalse(yut.has_newer_script_invocation("yabai_update_tiling", 100))
+
+
 def run_tests():
     """Run all tests and return exit code."""
     # Disable verbose logging for tests
@@ -2513,6 +2565,7 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestCenteringAndRightEdge))
     suite.addTests(loader.loadTestsFromTestCase(TestUltrawideBucketTiling))
     suite.addTests(loader.loadTestsFromTestCase(TestPaddingConfiguration))
+    suite.addTests(loader.loadTestsFromTestCase(TestLockAndDebounce))
     suite.addTests(loader.loadTestsFromTestCase(TestScenarioIntegration))
 
     # Run tests
