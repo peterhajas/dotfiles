@@ -7103,6 +7103,13 @@ class TestBulkExportImport(unittest.TestCase):
                 "modified": "20240110101010100",
                 "custom": "value",
             },
+            {
+                "title": "Title With Spaces",
+                "text": "space title body",
+                "type": "text/plain",
+                "created": "20240111111111110",
+                "modified": "20240112121212120",
+            },
         ]
         self._write_wiki(self.test_wiki, self.seed_tiddlers)
 
@@ -7122,6 +7129,8 @@ class TestBulkExportImport(unittest.TestCase):
 
         encoded = tw_module.encode_tiddler_title_for_path("Special/Title:$中文") + '.md'
         self.assertIn(encoded, files)
+        self.assertIn('Title With Spaces.md', files)
+        self.assertNotIn('Title%20With%20Spaces.md', files)
 
         sample_path = os.path.join(self.export_dir, files[0])
         with open(sample_path, 'r', encoding='utf-8') as f:
@@ -7162,6 +7171,52 @@ class TestBulkExportImport(unittest.TestCase):
 
         files = sorted(name for name in os.listdir(self.export_dir) if name.endswith('.md'))
         self.assertEqual(len(files), 2)
+
+    def test_export_filename_helper_uses_literal_spaces(self):
+        self.assertEqual(
+            tw_module.export_filename_for_title('Title With Spaces'),
+            'Title With Spaces.md'
+        )
+        self.assertEqual(
+            tw_module.export_filename_for_title('Slash/Space Title'),
+            'Slash%2FSpace Title.md'
+        )
+
+    def test_export_skips_system_tiddlers_by_default(self):
+        run_tw_command(
+            [self.test_wiki, 'set', '$:/core', 'text', 'core-content'],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        result = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+
+        files = set(name for name in os.listdir(self.export_dir) if name.endswith('.md'))
+        self.assertNotIn(tw_module.export_filename_for_title('$:/core'), files)
+
+    def test_export_include_system_flag_exports_system_tiddlers(self):
+        run_tw_command(
+            [self.test_wiki, 'set', '$:/core', 'text', 'core-content'],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+
+        result = run_tw_command(
+            [self.test_wiki, 'export-dir', self.export_dir, '--include-system'],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+
+        files = set(name for name in os.listdir(self.export_dir) if name.endswith('.md'))
+        self.assertIn(tw_module.export_filename_for_title('$:/core'), files)
 
     def test_raw_export_import_roundtrip_is_lossless(self):
         export_result = run_tw_command(

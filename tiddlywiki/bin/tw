@@ -1774,6 +1774,16 @@ def _coerce_text_for_markdown_export(text, mime_type):
     language = MIME_TO_VIM_FILETYPE.get(mime_type, 'text')
     return f"```{language}\n{text}\n```"
 
+def is_system_tiddler_title(title):
+    return isinstance(title, str) and title.startswith('$:/')
+
+def export_filename_for_title(title):
+    """Generate a human-readable export filename for a tiddler title."""
+    encoded = encode_tiddler_title_for_path(title)
+    # Keep export files readable while retaining URL-encoding for other characters.
+    encoded = encoded.replace('%20', ' ')
+    return encoded + '.md'
+
 def build_export_markdown_document(tiddler, coerce_markdown=False):
     """Build a lossless markdown interchange document for a tiddler."""
     import json
@@ -1888,7 +1898,14 @@ def parse_export_markdown_document(content, file_path):
 
     return tiddler
 
-def export_tiddlers_to_dir(wiki_path, dest_dir, filter_expr=None, coerce_markdown=False, force=False):
+def export_tiddlers_to_dir(
+    wiki_path,
+    dest_dir,
+    filter_expr=None,
+    coerce_markdown=False,
+    force=False,
+    include_system=False,
+):
     """Export wiki tiddlers to a directory of markdown files."""
     all_tiddlers = load_all_tiddlers(wiki_path)
 
@@ -1911,6 +1928,9 @@ def export_tiddlers_to_dir(wiki_path, dest_dir, filter_expr=None, coerce_markdow
     else:
         selected = sorted(all_tiddlers, key=lambda t: t.get('title', ''))
 
+    if not include_system:
+        selected = [t for t in selected if not is_system_tiddler_title(t.get('title'))]
+
     if os.path.exists(dest_dir) and not os.path.isdir(dest_dir):
         print(f"Error: Destination path is not a directory: {dest_dir}", file=sys.stderr)
         sys.exit(1)
@@ -1922,7 +1942,7 @@ def export_tiddlers_to_dir(wiki_path, dest_dir, filter_expr=None, coerce_markdow
         title = tiddler.get('title')
         if not title:
             continue
-        filename = encode_tiddler_title_for_path(title) + '.md'
+        filename = export_filename_for_title(title)
         path = os.path.join(dest_dir, filename)
         if path in seen_paths:
             print(f"Error: Export filename collision for title '{title}'", file=sys.stderr)
@@ -3504,6 +3524,7 @@ def show_help():
     print("  --filter EXPR               - Export only tiddlers matching filter expression", file=sys.stderr)
     print("  --coerce-markdown           - Emit markdown-friendly body while preserving original payload", file=sys.stderr)
     print("  --force                     - Overwrite existing files in destination directory", file=sys.stderr)
+    print("  --include-system            - Include system tiddlers (titles starting with $:/)", file=sys.stderr)
     print("", file=sys.stderr)
     print("Import options:", file=sys.stderr)
     print("  --mode MODE                 - upsert (default), replace, create-only", file=sys.stderr)
@@ -3675,6 +3696,7 @@ def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
         filter_expr = None
         coerce_markdown = False
         force = False
+        include_system = False
 
         i = 1
         while i < len(command_args):
@@ -3687,9 +3709,12 @@ def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
             elif command_args[i] == '--force':
                 force = True
                 i += 1
+            elif command_args[i] == '--include-system':
+                include_system = True
+                i += 1
             else:
                 print(f"Error: Unknown argument '{command_args[i]}'", file=sys.stderr)
-                print("Usage: tw [<wiki_path>] export-dir <dir> [--filter EXPR] [--coerce-markdown] [--force]", file=sys.stderr)
+                print("Usage: tw [<wiki_path>] export-dir <dir> [--filter EXPR] [--coerce-markdown] [--force] [--include-system]", file=sys.stderr)
                 sys.exit(1)
 
         export_tiddlers_to_dir(
@@ -3697,7 +3722,8 @@ def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
             dest_dir,
             filter_expr=filter_expr,
             coerce_markdown=coerce_markdown,
-            force=force
+            force=force,
+            include_system=include_system,
         )
     elif command == "import-dir":
         if len(command_args) < 1:
