@@ -4,6 +4,7 @@ import os
 import sys
 import subprocess
 import tempfile
+import shutil
 import urllib.request
 import urllib.error
 import urllib.parse
@@ -137,6 +138,23 @@ MIME_TO_VIM_FILETYPE = {
 }
 
 VERBOSE = False
+
+# Commands that mutate wiki content
+MUTATING_COMMANDS = {
+    "set",
+    "rm",
+    "touch",
+    "insert",
+    "replace",
+    "append",
+    "install_plugin",
+}
+
+# Commands that do not accept a wiki path
+NO_WIKI_COMMANDS = {"init", "filetype-map", "mimetype"}
+
+# Commands not safe/sensible inside ops batches
+OPS_DISALLOWED_COMMANDS = {"ops", "init", "filetype-map", "mimetype", "serve", "webdav", "edit"}
 
 def verbose_print(*args, **kwargs):
     if VERBOSE:
@@ -3146,9 +3164,13 @@ def show_help():
     print("  filetype-map                - Output MIME type to filetype mapping as JSON", file=sys.stderr)
     print("  mimetype <filename>         - Get MIME type for a file extension", file=sys.stderr)
     print("  install_plugin              - Install live reload plugin", file=sys.stderr)
+    print("  ops [--op ...]              - Run multiple wiki operations sequentially", file=sys.stderr)
     print("  serve [options]             - Serve wiki locally (--host, --port, --readonly)", file=sys.stderr)
     print("  webdav [options]            - Serve tiddlers via WebDAV (--host, --port, --readonly)", file=sys.stderr)
     print("  filter <expression>         - Evaluate a TiddlyWiki filter expression", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("Ops format:", file=sys.stderr)
+    print("  tw <wiki> ops --op <command> [args] --op <command> [args] ...", file=sys.stderr)
 
 def parse_global_flags(argv):
     verbose = False
@@ -3164,161 +3186,142 @@ def parse_global_flags(argv):
         args.append(arg)
     return verbose, args
 
-def main():
-    global VERBOSE
-    verbose, args = parse_global_flags(sys.argv[1:])
-    VERBOSE = verbose
+def command_mutates_wiki(command):
+    return command in MUTATING_COMMANDS
 
-    # Check for help flag
-    if len(args) > 0 and args[0] in ('--help', '-h', 'help'):
-        show_help()
-        sys.exit(0)
+def parse_server_args(args, default_port, command_name):
+    host = 'localhost'
+    port = default_port
+    readonly = False
 
-    if len(args) < 1:
-        show_help()
-        sys.exit(1)
+    i = 0
+    while i < len(args):
+        if args[i] == '--host' and i + 1 < len(args):
+            host = args[i + 1]
+            i += 2
+        elif args[i] == '--port' and i + 1 < len(args):
+            try:
+                port = int(args[i + 1])
+            except ValueError:
+                print(f"Error: Invalid port number '{args[i + 1]}'", file=sys.stderr)
+                sys.exit(1)
+            i += 2
+        elif args[i] == '--readonly':
+            readonly = True
+            i += 1
+        else:
+            print(f"Error: Unknown argument '{args[i]}'", file=sys.stderr)
+            print(f"Usage: tw [<wiki_path>] {command_name} [--host HOST] [--port PORT] [--readonly]", file=sys.stderr)
+            sys.exit(1)
 
-    # Parse arguments: check if first arg is a wiki path or a command
-    arg_idx = 0
-    wiki_path_arg = None
+    return host, port, readonly
 
-    # If first arg looks like a file path (ends with .html or exists as a file), treat it as wiki path
-    if len(args) > 1:
-        potential_path = args[0]
-        if potential_path.endswith('.html') or os.path.exists(potential_path) or is_remote_wiki(potential_path):
-            wiki_path_arg = potential_path
-            arg_idx = 1
-
-    command = args[arg_idx] if arg_idx < len(args) else None
-
-    if not command:
-        print("Error: No command provided", file=sys.stderr)
-        sys.exit(1)
-
-    # Check for help flag as command (e.g., tw wiki.html --help)
-    if command in ('--help', '-h', 'help'):
-        show_help()
-        sys.exit(0)
-
-    # Handle commands that don't need a wiki path
+def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
     if command == "init":
-        if arg_idx + 1 >= len(args):
+        if len(command_args) < 1:
             print("Error: init command requires a destination path", file=sys.stderr)
             sys.exit(1)
-        # init doesn't use wiki_path_arg - it creates a new wiki
-        dest_path = args[arg_idx + 1]
-        init_wiki(dest_path)
+        init_wiki(command_args[0])
         return
-    elif command == "filetype-map":
-        # Output MIME type to filetype mapping as JSON (doesn't need wiki path)
+
+    if command == "filetype-map":
         import json
         print(json.dumps(MIME_TO_VIM_FILETYPE, ensure_ascii=False))
         return
-    elif command == "mimetype":
-        # Get MIME type for a file extension (doesn't need wiki path)
-        if arg_idx + 1 >= len(args):
+
+    if command == "mimetype":
+        if len(command_args) < 1:
             print("Error: mimetype command requires a filename", file=sys.stderr)
             sys.exit(1)
-        filename = args[arg_idx + 1]
-        # Get extension (including the dot)
+        filename = command_args[0]
         _, ext = os.path.splitext(filename)
         ext = ext.lower()
         mime_type = EXT_TO_MIME_TYPE.get(ext, 'application/octet-stream')
         print(mime_type)
         return
 
-    wiki_path = get_wiki_path(wiki_path_arg)
+    if not wiki_path:
+        print("Error: Wiki path not provided", file=sys.stderr)
+        sys.exit(1)
 
     if command == "ls":
         list_tiddlers(wiki_path)
     elif command == "cat":
-        if arg_idx + 1 >= len(args):
+        if len(command_args) < 1:
             print("Error: cat command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = args[arg_idx + 1]
-        cat_tiddler(wiki_path, tiddler_title)
+        cat_tiddler(wiki_path, command_args[0])
     elif command == "edit":
-        if arg_idx + 1 >= len(args):
+        if len(command_args) < 1:
             print("Error: edit command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = args[arg_idx + 1]
-        edit_tiddler(wiki_path, tiddler_title)
+        edit_tiddler(wiki_path, command_args[0])
     elif command == "json":
-        # Check for --all flag
-        if arg_idx + 1 < len(args) and args[arg_idx + 1] == "--all":
+        if len(command_args) >= 1 and command_args[0] == "--all":
             json_tiddler(wiki_path, export_all=True)
-        elif arg_idx + 1 >= len(args):
+        elif len(command_args) < 1:
             print("Error: json command requires at least one tiddler name or --all flag", file=sys.stderr)
             sys.exit(1)
         else:
-            # Collect all remaining arguments as tiddler titles
-            tiddler_titles = args[arg_idx + 1:]
-            json_tiddler(wiki_path, *tiddler_titles)
+            json_tiddler(wiki_path, *command_args)
     elif command == "get":
-        if arg_idx + 2 >= len(args):
+        if len(command_args) < 2:
             print("Error: get command requires a tiddler name and field name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = args[arg_idx + 1]
-        field_name = args[arg_idx + 2]
-        get_tiddler_field(wiki_path, tiddler_title, field_name)
+        get_tiddler_field(wiki_path, command_args[0], command_args[1])
     elif command == "set":
-        if arg_idx + 3 >= len(args):
+        if len(command_args) < 3:
             print("Error: set command requires a tiddler name, field name, and value", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = args[arg_idx + 1]
-        field_name = args[arg_idx + 2]
-        field_value = args[arg_idx + 3]
-        set_tiddler_field(wiki_path, tiddler_title, field_name, field_value)
+        set_tiddler_field(wiki_path, command_args[0], command_args[1], command_args[2])
     elif command == "rm":
-        if arg_idx + 1 >= len(args):
+        if len(command_args) < 1:
             print("Error: rm command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = args[arg_idx + 1]
-        remove_tiddler(wiki_path, tiddler_title)
+        remove_tiddler(wiki_path, command_args[0])
     elif command == "touch":
-        if arg_idx + 1 >= len(args):
+        if len(command_args) < 1:
             print("Error: touch command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = args[arg_idx + 1]
-        text = args[arg_idx + 2] if arg_idx + 2 < len(args) else ""
-        touch_tiddler(wiki_path, tiddler_title, text)
+        text = command_args[1] if len(command_args) > 1 else ""
+        touch_tiddler(wiki_path, command_args[0], text)
     elif command == "insert":
-        # Accept JSON from either command line argument or stdin
-        if arg_idx + 1 < len(args):
-            tiddler_json = args[arg_idx + 1]
-        else:
-            # Read from stdin
+        if len(command_args) >= 1:
+            tiddler_json = command_args[0]
+        elif allow_stdin:
             tiddler_json = sys.stdin.read()
             if not tiddler_json:
                 print("Error: insert command requires JSON string or stdin input", file=sys.stderr)
                 sys.exit(1)
+        else:
+            print("Error: insert command requires explicit JSON when used in ops", file=sys.stderr)
+            sys.exit(1)
         insert_tiddler(wiki_path, tiddler_json)
     elif command == "replace":
-        # Accept content from either command line argument or stdin
-        if arg_idx + 1 < len(args):
-            content = args[arg_idx + 1]
-        else:
-            # Read from stdin
+        if len(command_args) >= 1:
+            content = command_args[0]
+        elif allow_stdin:
             content = sys.stdin.read()
             if not content:
                 print("Error: replace command requires content string or stdin input", file=sys.stderr)
                 sys.exit(1)
+        else:
+            print("Error: replace command requires explicit content when used in ops", file=sys.stderr)
+            sys.exit(1)
         replace_tiddler(wiki_path, content)
     elif command == "append":
-        if arg_idx + 1 >= len(args):
+        if len(command_args) < 1:
             print("Error: append command requires a tiddler name", file=sys.stderr)
             sys.exit(1)
-        tiddler_title = args[arg_idx + 1]
-        # Check if there are additional arguments for text to append
-        if arg_idx + 2 < len(args):
-            # Join all remaining arguments as the text
-            text_to_append = ' '.join(args[arg_idx + 2:])
-            append_tiddler(wiki_path, tiddler_title, text_to_append)
-        else:
-            # No text argument, will read from stdin
+        tiddler_title = command_args[0]
+        if len(command_args) > 1:
+            append_tiddler(wiki_path, tiddler_title, ' '.join(command_args[1:]))
+        elif allow_stdin:
             append_tiddler(wiki_path, tiddler_title)
+        else:
+            print("Error: append command requires explicit text when used in ops", file=sys.stderr)
+            sys.exit(1)
     elif command == "detect":
-        # Use streaming detection for local files, fetch content for remote
         if is_remote_wiki(wiki_path):
             content = read_wiki_content(wiki_path)
             format_type = detect_wiki_format(content)
@@ -3328,68 +3331,139 @@ def main():
     elif command == "install_plugin":
         install_live_reload_plugin(wiki_path)
     elif command == "serve":
-        # Parse optional --host, --port, and --readonly arguments
-        host = 'localhost'
-        port = 8080
-        readonly = False
-
-        i = arg_idx + 1
-        while i < len(args):
-            if args[i] == '--host' and i + 1 < len(args):
-                host = args[i + 1]
-                i += 2
-            elif args[i] == '--port' and i + 1 < len(args):
-                try:
-                    port = int(args[i + 1])
-                except ValueError:
-                    print(f"Error: Invalid port number '{args[i + 1]}'", file=sys.stderr)
-                    sys.exit(1)
-                i += 2
-            elif args[i] == '--readonly':
-                readonly = True
-                i += 1
-            else:
-                print(f"Error: Unknown argument '{args[i]}'", file=sys.stderr)
-                print("Usage: tw [<wiki_path>] serve [--host HOST] [--port PORT] [--readonly]", file=sys.stderr)
-                sys.exit(1)
-
+        host, port, readonly = parse_server_args(command_args, default_port=8080, command_name="serve")
         serve_wiki(wiki_path, host, port, readonly)
     elif command == "webdav":
-        # Parse optional --host, --port, and --readonly arguments
-        host = 'localhost'
-        port = 8081
-        readonly = False
-
-        i = arg_idx + 1
-        while i < len(args):
-            if args[i] == '--host' and i + 1 < len(args):
-                host = args[i + 1]
-                i += 2
-            elif args[i] == '--port' and i + 1 < len(args):
-                try:
-                    port = int(args[i + 1])
-                except ValueError:
-                    print(f"Error: Invalid port number '{args[i + 1]}'", file=sys.stderr)
-                    sys.exit(1)
-                i += 2
-            elif args[i] == '--readonly':
-                readonly = True
-                i += 1
-            else:
-                print(f"Error: Unknown argument '{args[i]}'", file=sys.stderr)
-                print("Usage: tw [<wiki_path>] webdav [--host HOST] [--port PORT] [--readonly]", file=sys.stderr)
-                sys.exit(1)
-
+        host, port, readonly = parse_server_args(command_args, default_port=8081, command_name="webdav")
         serve_webdav(wiki_path, host, port, readonly)
     elif command == "filter":
-        if arg_idx + 1 >= len(args):
+        if len(command_args) < 1:
             print("Error: filter command requires an expression", file=sys.stderr)
             sys.exit(1)
-        filter_expr = args[arg_idx + 1]
-        tw_filter.filter_command(filter_expr, wiki_path=wiki_path)
+        tw_filter.filter_command(command_args[0], wiki_path=wiki_path)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)
+
+def parse_ops_arguments(raw_args):
+    operations = []
+    current = []
+    expecting_command = False
+
+    for arg in raw_args:
+        if arg == "--op":
+            if expecting_command:
+                print("Error: Empty operation after --op", file=sys.stderr)
+                sys.exit(1)
+            if current:
+                operations.append(current)
+                current = []
+            expecting_command = True
+            continue
+
+        current.append(arg)
+        expecting_command = False
+
+    if expecting_command:
+        print("Error: Empty operation after --op", file=sys.stderr)
+        sys.exit(1)
+
+    if current:
+        operations.append(current)
+
+    if not operations:
+        print("Error: ops requires at least one operation", file=sys.stderr)
+        sys.exit(1)
+
+    parsed = []
+    for op in operations:
+        if not op:
+            print("Error: Empty operation in ops", file=sys.stderr)
+            sys.exit(1)
+        parsed.append((op[0], op[1:]))
+    return parsed
+
+def run_ops_command(wiki_path, raw_args):
+    operations = parse_ops_arguments(raw_args)
+
+    for command, _ in operations:
+        if command in OPS_DISALLOWED_COMMANDS:
+            print(f"Error: Command '{command}' is not supported inside ops", file=sys.stderr)
+            sys.exit(1)
+
+    mutating = any(command_mutates_wiki(command) for command, _ in operations)
+    use_transaction = mutating and not is_remote_wiki(wiki_path)
+
+    execution_wiki = wiki_path
+    temp_dir = None
+    temp_wiki = None
+
+    if use_transaction:
+        ensure_local_wiki(wiki_path)
+        temp_dir = tempfile.mkdtemp(prefix='tw-ops-')
+        temp_wiki = os.path.join(temp_dir, os.path.basename(wiki_path) or "wiki.html")
+        shutil.copy2(wiki_path, temp_wiki)
+        execution_wiki = temp_wiki
+
+    try:
+        for op_index, (command, command_args) in enumerate(operations, start=1):
+            try:
+                run_single_command(command, command_args, wiki_path=execution_wiki, allow_stdin=False)
+            except SystemExit as e:
+                code = e.code if isinstance(e.code, int) else 1
+                print(f"Error: ops failed at operation {op_index} ('{command}')", file=sys.stderr)
+                sys.exit(code)
+
+        if use_transaction:
+            os.replace(temp_wiki, wiki_path)
+    finally:
+        if temp_dir:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+def main():
+    global VERBOSE
+    verbose, args = parse_global_flags(sys.argv[1:])
+    VERBOSE = verbose
+
+    if len(args) > 0 and args[0] in ('--help', '-h', 'help'):
+        show_help()
+        sys.exit(0)
+
+    if len(args) < 1:
+        show_help()
+        sys.exit(1)
+
+    arg_idx = 0
+    wiki_path_arg = None
+
+    if len(args) > 1:
+        potential_path = args[0]
+        if potential_path.endswith('.html') or os.path.exists(potential_path) or is_remote_wiki(potential_path):
+            wiki_path_arg = potential_path
+            arg_idx = 1
+
+    command = args[arg_idx] if arg_idx < len(args) else None
+    if not command:
+        print("Error: No command provided", file=sys.stderr)
+        sys.exit(1)
+
+    if command in ('--help', '-h', 'help'):
+        show_help()
+        sys.exit(0)
+
+    command_args = args[arg_idx + 1:]
+
+    if command in NO_WIKI_COMMANDS:
+        run_single_command(command, command_args, wiki_path=None)
+        return
+
+    wiki_path = get_wiki_path(wiki_path_arg)
+
+    if command == "ops":
+        run_ops_command(wiki_path, command_args)
+        return
+
+    run_single_command(command, command_args, wiki_path=wiki_path)
 
 if __name__ == "__main__":
     main()

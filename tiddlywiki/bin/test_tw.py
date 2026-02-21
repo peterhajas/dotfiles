@@ -6868,6 +6868,117 @@ class TestDetectCommand(unittest.TestCase):
             os.unlink(large_wiki.name)
 
 
+class TestOpsCommand(unittest.TestCase):
+    """Tests for running multiple operations with the ops command."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'ops_test_wiki.html')
+
+        test_tiddlers = [
+            {
+                "title": "Start",
+                "text": "original",
+                "created": "20230101000000000",
+                "modified": "20230101000000000",
+            },
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Ops Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_ops_applies_multiple_operations(self):
+        result = run_tw_command(
+            [
+                self.test_wiki, 'ops',
+                '--op', 'set', 'Start', 'text', 'updated',
+                '--op', 'touch', 'NewTiddler', 'new-content',
+                '--op', 'set', 'NewTiddler', 'tags', 'alpha beta',
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        updated = next(t for t in tiddlers if t['title'] == 'Start')
+        self.assertEqual(updated['text'], 'updated')
+
+        new_tiddler = next(t for t in tiddlers if t['title'] == 'NewTiddler')
+        self.assertEqual(new_tiddler['text'], 'new-content')
+        self.assertEqual(new_tiddler['tags'], 'alpha beta')
+
+    def test_ops_rolls_back_on_failure(self):
+        result = run_tw_command(
+            [
+                self.test_wiki, 'ops',
+                '--op', 'set', 'Start', 'text', 'first-change',
+                '--op', 'rm', 'DoesNotExist',
+                '--op', 'set', 'Start', 'text', 'second-change',
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ops failed at operation 2", result.stderr)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        start = next(t for t in tiddlers if t['title'] == 'Start')
+        self.assertEqual(start['text'], 'original')
+
+    def test_ops_disallows_serve(self):
+        result = run_tw_command(
+            [self.test_wiki, 'ops', '--op', 'serve'],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not supported inside ops", result.stderr)
+
+    def test_ops_requires_explicit_insert_payload(self):
+        result = run_tw_command(
+            [self.test_wiki, 'ops', '--op', 'insert'],
+            input='{"title":"FromStdin","text":"x"}',
+            capture_output=True,
+            text=True
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires explicit JSON when used in ops", result.stderr)
+
+    def test_ops_reads_updated_state_within_batch(self):
+        result = run_tw_command(
+            [
+                self.test_wiki, 'ops',
+                '--op', 'set', 'Start', 'text', 'in-batch-value',
+                '--op', 'get', 'Start', 'text',
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'in-batch-value')
+
+
 class TestFiletypeMap(unittest.TestCase):
     """Tests for the filetype-map command"""
 
