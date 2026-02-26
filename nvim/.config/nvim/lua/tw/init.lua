@@ -195,6 +195,14 @@ function M.setup(opts)
       vim.keymap.set("n", opts.keybindings.grep, "<Cmd>TiddlerGrep<CR>", { desc = "Search tiddler content" })
     end
 
+    if opts.keybindings.new then
+      vim.keymap.set("n", opts.keybindings.new, "<Cmd>TiddlerNew<CR>", { desc = "New tiddler" })
+    end
+
+    if opts.keybindings.journal_today then
+      vim.keymap.set("n", opts.keybindings.journal_today, "<Cmd>TiddlerJournalToday<CR>", { desc = "Open today's journal" })
+    end
+
     if opts.keybindings.sidebar_toggle then
       -- Use <Cmd> mapping for sidebar toggle
       vim.keymap.set("n", opts.keybindings.sidebar_toggle, "<Cmd>TiddlerSidebarToggle<CR>", { desc = "Toggle TiddlyWiki sidebar" })
