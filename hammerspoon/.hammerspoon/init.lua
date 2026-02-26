@@ -33,7 +33,6 @@ local streamdeck = require("streamdeck")
 streamdeck:init()
 require "server"
 require "tiddlywiki"
-claudeStatus = require "claude_status"
 
 profileStop('imports')
 profileStart('globals')
@@ -204,7 +203,6 @@ audio_output.init()
 link_replace.init()
 youtubedl.init()
 iphone_mirroring.init()
-claudeStatus.init()
 
 -- Subscribe to ntfy topics
 -- Load topics dynamically from TiddlyWiki
