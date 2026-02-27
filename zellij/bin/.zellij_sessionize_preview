@@ -91,6 +91,19 @@ if printf "%s" "$selection" | grep -q " \\[active session\\]$"; then
     exit 0
 fi
 
+if printf "%s" "$selection" | grep -q " \\[bookmark\\]$"; then
+    selection_no_tag=${selection% \[bookmark\]}
+    bookmark_name=${selection_no_tag%% :: *}
+    bookmark_dir=${selection_no_tag#* :: }
+    if [ -n "$bookmark_dir" ] && [ -d "$bookmark_dir" ]; then
+        preview_directory "$bookmark_dir"
+        exit 0
+    fi
+    print_section "$bookmark_name"
+    print_dim "(bookmark path not found)"
+    exit 0
+fi
+
 if [ -d "$selection" ]; then
     preview_directory "$selection"
     exit 0

@@ -1,49 +1,30 @@
-;; MacBook Air 13" keyboard with home row mods
-;; (we can add other files if we want to here)
-
 (defcfg
   process-unmapped-keys yes
 )
 
+;; ANSI US layout. Enter/Return is Hyper when held, Enter when tapped.
+;; MacBook Air ANSI US layout (includes function row + arrows).
 (defsrc
-  esc  f1   f2   f3   f4   f5   f6   f7   f8   f9   f10  f11  f12
-  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
-  tab  q    w    e    r    t    y    u    i    o    p    [    ]    \
-  caps a    s    d    f    g    h    j    k    l    ;    '    ret
-  lsft z    x    c    v    b    n    m    ,    .    /    rsft
-  fn   lctl lalt lmet           spc            rmet ralt
-)
-
-(defvar
-  ;; Per-finger timing - pinkies and index fingers are slower
-  tap-time 200
-  hold-time 200
-  hold-time-slow 300
-  ;; Shift keys need very short tap time to be useful as modifiers
-  shift-tap-time 100
-  shift-hold-time 150
+  esc f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12
+  ` 1 2 3 4 5 6 7 8 9 0 - = bspc
+  tab q w e r t y u i o p [ ] \
+  caps a s d f g h j k l ; ' ret
+  lsft z x c v b n m , . / rsft
+  fn lctl lalt lmet spc rmet ralt
+  left down up right
 )
 
 (defalias
-  a (tap-hold $tap-time $hold-time-slow a lsft)
-  s (tap-hold $tap-time $hold-time s lctl)
-  d (tap-hold $tap-time $hold-time d lalt)
-  f (tap-hold $tap-time $hold-time-slow f lmet)
-  j (tap-hold $tap-time $hold-time-slow j rmet)
-  k (tap-hold $tap-time $hold-time k ralt)
-  l (tap-hold $tap-time $hold-time l rctl)
-  ; (tap-hold $tap-time $hold-time-slow ; rsft)
-  tab (tap-hold $tap-time $hold-time tab (multi lctl lalt lsft))
-  rsf (tap-hold $shift-tap-time $shift-hold-time f13 rsft)
-  rmeh (tap-hold $tap-time $hold-time rmet (multi lctl lalt lsft))
-  cap (tap-hold $tap-time $hold-time esc lctl)
+  hyper (multi lctl lalt lsft)
+  ret_h (tap-hold 200 200 ret hyper)
 )
 
 (deflayer base
-  esc  brdown brup mctl lpad bldn blup prev pp next mute vold volu
-  grv  1    2    3    4    5    6    7    8    9    0    -    =    bspc
-  @tab q    w    e    r    t    y    u    i    o    p    [    ]    \
-  @cap @a   @s   @d   @f   g    h    @j   @k   @l   @;   '    ret
-  lsft z    x    c    v    b    n    m    ,    .    /    @rsf
-  fn   lctl lalt lmet           spc            @rmeh ralt
+  esc f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12
+  ` 1 2 3 4 5 6 7 8 9 0 - = bspc
+  tab q w e r t y u i o p [ ] \
+  caps a s d f g h j k l ; ' @ret_h
+  lsft z x c v b n m , . / rsft
+  fn lctl lalt lmet spc rmet ralt
+  left down up right
 )

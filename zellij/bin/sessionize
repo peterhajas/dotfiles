@@ -6,6 +6,13 @@ $HOME
 $HOME/src
 "
 
+# Bookmarked sessions: name|path
+BOOKMARKS="
+phajas-wiki|$HOME/phajas-wiki
+scratch|$HOME/scratch
+kanata|$HOME/.config/kanata
+"
+
 # Function to kill any existing "zellij attach SESSION_NAME" processes
 kill_existing_attach_processes() {
     session_name="$1"
@@ -89,6 +96,27 @@ EOF
     return 1
 }
 
+# Build bookmark options with a stable label for fzf.
+BOOKMARK_OPTIONS=""
+IFS='
+'
+for line in $BOOKMARKS; do
+    [ -n "$line" ] || continue
+    name=$(printf "%s" "$line" | cut -d'|' -f1)
+    dir=$(printf "%s" "$line" | cut -d'|' -f2-)
+    [ -n "$name" ] || continue
+    # If a session is already active, the active session entry is enough.
+    if session_exists "$name"; then
+        continue
+    fi
+    if [ -n "$dir" ] && [ -d "$dir" ]; then
+        dir=$(resolve_dir "$dir")
+    fi
+    BOOKMARK_OPTIONS="${BOOKMARK_OPTIONS}${name} :: ${dir} [bookmark]
+"
+done
+unset IFS
+
 # Find directories at depth 1 in each search directory.
 # Use shell globbing to avoid spawning find for every run.
 DIRS=""
@@ -104,6 +132,7 @@ done
 
 # Combine sessions (first) and directories.
 ALL_OPTIONS="$SESSIONS
+$BOOKMARK_OPTIONS
 $DIRS"
 
 SCRIPT_PATH="$0"
@@ -178,6 +207,41 @@ case "$SELECTION" in
         kill_existing_attach_processes "$SESSION_NAME"
         set_terminal_title "$SESSION_NAME"
         zellij attach "$SESSION_NAME"
+    fi
+    exit 0
+    ;;
+esac
+
+# Handle bookmark selection
+case "$SELECTION" in
+*" [bookmark]")
+    SELECTION_NO_TAG=${SELECTION% \[bookmark\]}
+    SESSION_NAME=${SELECTION_NO_TAG%% :: *}
+    BOOKMARK_DIR=${SELECTION_NO_TAG#* :: }
+
+    if [ -z "$SESSION_NAME" ]; then
+        exit 0
+    fi
+
+    if [ -z "$BOOKMARK_DIR" ] || [ ! -d "$BOOKMARK_DIR" ]; then
+        BOOKMARK_DIR="$HOME"
+    fi
+
+    if session_exists "$SESSION_NAME"; then
+        if [ -n "$ZELLIJ" ]; then
+            exit 0
+        else
+            kill_existing_attach_processes "$SESSION_NAME"
+            set_terminal_title "$SESSION_NAME"
+            zellij attach "$SESSION_NAME"
+        fi
+    else
+        LAYOUT=$(get_layout "$SESSION_NAME")
+        if [ -n "$ZELLIJ" ]; then
+            zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
+        else
+            start_new_session "$SESSION_NAME" "$LAYOUT" "$BOOKMARK_DIR"
+        fi
     fi
     exit 0
     ;;
