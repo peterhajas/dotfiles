@@ -14,6 +14,9 @@ local yOffset = -1
 -- - HUD should start at: 431 (zero gap)
 -- - Since HUD y = yOffset + journalOffset = -1 + journalOffset, we need journalOffset = 432
 local journalOffset = 432  -- Reserve space for journal window (zero gap)
+local journalOffsetEnabled = true
+local journalWindowTitleToken = "wiki_journal_today"
+local journalOffsetActive = false
 
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
@@ -119,12 +122,29 @@ local function displayForWikiState(wikiState)
     return nil
 end
 
+local function journalWindowPresent()
+    for _, win in ipairs(hs.window.allWindows()) do
+        local title = win:title() or ""
+        if title:lower():find(journalWindowTitleToken, 1, true) then
+            return true
+        end
+    end
+    return false
+end
+
+local function currentJournalOffset()
+    if journalOffsetEnabled and journalOffsetActive then
+        return journalOffset
+    end
+    return 0
+end
+
 local function layoutWikiState(wikiState)
     local display = displayForWikiState(wikiState)
     local webView = wikiState['webView']
     if display ~= nil then
         local screenFrame = display:frame()
-        local topPadding = yOffset + journalOffset
+        local topPadding = yOffset + currentJournalOffset()
         -- This lets us just match the right sidebar's frame (for now)
         -- to use less memory for the webview
         local hudWidth = 192  -- Match journal window width
@@ -145,6 +165,14 @@ local function layout()
     update()
     for _, wikiState in ipairs(wikiStates) do
         layoutWikiState(wikiState)
+    end
+end
+
+local function refreshJournalOffset()
+    local present = journalWindowPresent()
+    if present ~= journalOffsetActive then
+        journalOffsetActive = present
+        layout()
     end
 end
 
@@ -170,6 +198,12 @@ end
 WikiCaffeinateWatcher = hs.caffeinate.watcher.new(caffeinateCallback)
 WikiScreenWatcher = hs.screen.watcher.new(screenCallback)
 WikiPathWatcher = hs.pathwatcher.new(WikiPath, layout)
+JournalWindowWatcher = hs.window.filter.new():subscribe(
+    {hs.window.filter.windowCreated, hs.window.filter.windowDestroyed, hs.window.filter.windowTitleChanged},
+    function()
+        refreshJournalOffset()
+    end
+)
 
 -- This is load-bearring and I don't know why
 function UPDATEWIKI()
@@ -193,6 +227,7 @@ local function setupWebView()
     WikiScreenWatcher:start()
     WikiCaffeinateWatcher:start()
     WikiPathWatcher:start()
+    refreshJournalOffset()
 
     screenCallback()
 end
