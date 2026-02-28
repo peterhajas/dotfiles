@@ -13,81 +13,189 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 local plugins = {
-    {'numToStr/Comment.nvim',
+    -- Core editing
+    { "numToStr/Comment.nvim",
+        event = "VeryLazy",
         config = function()
             require("phajas.plugins.comment")
-        end
+        end,
     },
-    {'tpope/vim-surround'},
-    {'tpope/vim-unimpaired'},
+    { "tpope/vim-surround", event = "VeryLazy" },
+    { "tpope/vim-unimpaired", event = "VeryLazy" },
 
-    {'mbbill/undotree'},
-    {'tpope/vim-dadbod'},
-    {'kristijanhusak/vim-dadbod-ui'},
-    -- I know, I know. I dig oil.nvim, but this helps with exploring some
-    -- projects.
-    {'nvim-tree/nvim-tree.lua'},
+    { "mbbill/undotree",
+        keys = { "<leader>u" },
+        config = function()
+            require("phajas.plugins.undotree")
+        end,
+    },
+    { "tpope/vim-dadbod",
+        event = "VeryLazy",
+    },
+    { "kristijanhusak/vim-dadbod-ui",
+        event = "VeryLazy",
+        dependencies = { "tpope/vim-dadbod" },
+        config = function()
+            require("phajas.plugins.dadbod")
+        end,
+    },
 
-    {'folke/zen-mode.nvim'},
+    -- File explorers
+    { "nvim-tree/nvim-tree.lua",
+        keys = { "<leader>s" },
+        dependencies = { "nvim-tree/nvim-web-devicons" },
+        config = function()
+            require("phajas.plugins.nvim-tree")
+        end,
+    },
+    { "stevearc/oil.nvim",
+        keys = { "-" },
+        cmd = { "Oil", "Beacon" },
+        dependencies = { "nvim-tree/nvim-web-devicons" },
+        config = function()
+            require("phajas.plugins.oil")
+        end,
+    },
 
-    {'nvim-telescope/telescope.nvim', tag = '0.1.3', dependencies = {
-        'nvim-lua/plenary.nvim',
-        {'nvim-telescope/telescope-fzf-native.nvim', build = 'cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release'},
-    }},
+    { "folke/zen-mode.nvim",
+        keys = { "<leader>;" },
+        config = function()
+            require("phajas.plugins.zen-mode")
+        end,
+    },
 
-    {'stevearc/oil.nvim'},
+    { "nvim-telescope/telescope.nvim",
+        event = "VeryLazy",
+        tag = "0.1.3",
+        dependencies = {
+            "nvim-lua/plenary.nvim",
+            { "nvim-telescope/telescope-fzf-native.nvim", build = "cmake -S. -Bbuild -DCMAKE_BUILD_TYPE=Release && cmake --build build --config Release" },
+        },
+        config = function()
+            require("phajas.plugins.telescope")
+        end,
+    },
 
-    {'nvim-treesitter/nvim-treesitter', cmd = {'TSUpdate'}},
-    {'nvim-treesitter/nvim-treesitter-context'},
+    { "nvim-treesitter/nvim-treesitter",
+        event = { "BufReadPre", "BufNewFile" },
+        cmd = { "TSUpdate" },
+        config = function()
+            require("phajas.plugins.treesitter")
+        end,
+    },
+    { "nvim-treesitter/nvim-treesitter-context",
+        event = { "BufReadPre", "BufNewFile" },
+        dependencies = { "nvim-treesitter/nvim-treesitter" },
+    },
 
     -- LSP Support
-    {'neovim/nvim-lspconfig', dependencies = {
-        'williamboman/mason.nvim',
-        'williamboman/mason-lspconfig.nvim',
-        'j-hui/fidget.nvim',
-    }},
+    { "neovim/nvim-lspconfig",
+        event = { "BufReadPre", "BufNewFile" },
+        dependencies = {
+            "williamboman/mason.nvim",
+            "williamboman/mason-lspconfig.nvim",
+        },
+        config = function()
+            require("phajas.plugins.mason")
+        end,
+    },
+    { "j-hui/fidget.nvim",
+        event = "LspAttach",
+        config = function()
+            require("phajas.plugins.fidget")
+        end,
+    },
 
     -- Autocompletion
-    {'saghen/blink.cmp',
+    { "saghen/blink.cmp",
+        event = "InsertEnter",
         dependencies = {
-            'L3MON4D3/LuaSnip',
-            'rafamadriz/friendly-snippets',
+            "L3MON4D3/LuaSnip",
+            "rafamadriz/friendly-snippets",
         },
-        version = '*',
-        opts = {},
+        version = "*",
+        config = function()
+            require("phajas.plugins.blink")
+        end,
     },
 
     -- Debugging
-    {
-        "mfussenegger/nvim-dap",
+    { "mfussenegger/nvim-dap",
+        event = "VeryLazy",
         dependencies = {
             "rcarriga/nvim-dap-ui",
             "nvim-neotest/nvim-nio", -- required for dap-ui
             "theHamsta/nvim-dap-virtual-text",
-            "mfussenegger/nvim-dap-python",
         },
+        config = function()
+            require("phajas.plugins.debug")
+        end,
+    },
+    { "mfussenegger/nvim-dap-python",
+        ft = { "python" },
+        dependencies = { "mfussenegger/nvim-dap" },
+        config = function()
+            require("phajas.plugins.debug_python")
+        end,
     },
 
     -- Markdown Stuff
-    -- Tables
-    {'dhruvasagar/vim-table-mode'},
+    { "dhruvasagar/vim-table-mode",
+        ft = { "markdown", "tiddlywiki" },
+        config = function()
+            require("phajas.plugins.table-mode")
+        end,
+    },
 
     -- Harpoon
-    {'theprimeagen/harpoon'},
+    { "theprimeagen/harpoon",
+        event = "VeryLazy",
+        dependencies = { "nvim-telescope/telescope.nvim" },
+        config = function()
+            require("phajas.plugins.harpoon")
+        end,
+    },
 
     -- Git
-    {'tpope/vim-fugitive'},
-    {'lewis6991/gitsigns.nvim'},
+    { "tpope/vim-fugitive",
+        event = "VeryLazy",
+        cmd = { "Git", "G", "Gdiffsplit", "Gvdiffsplit", "Gedit", "Gread", "Gwrite", "Gwq", "Gclog", "Ggrep" },
+        config = function()
+            require("phajas.plugins.fugitive")
+        end,
+    },
+    { "lewis6991/gitsigns.nvim",
+        event = { "BufReadPre", "BufNewFile" },
+        config = function()
+            require("phajas.plugins.gitsigns")
+        end,
+    },
 
     -- UI enhancements
-    {'nvim-tree/nvim-web-devicons'},
-    {'nvim-lualine/lualine.nvim', dependencies = {
-        'nvim-tree/nvim-web-devicons',
-    }},
-    {'nvim-mini/mini.indentscope', version = false},
+    { "nvim-tree/nvim-web-devicons", lazy = true },
+    { "nvim-lualine/lualine.nvim",
+        event = "VimEnter",
+        dependencies = { "nvim-tree/nvim-web-devicons" },
+        config = function()
+            require("phajas.plugins.lualine")
+        end,
+    },
+    { "nvim-mini/mini.indentscope",
+        event = { "BufReadPre", "BufNewFile" },
+        version = false,
+        config = function()
+            require("phajas.plugins.indentscope")
+        end,
+    },
 
     -- Local plugins
-    { dir = "~/.config/nvim/lua/tw", name = "tw" },
+    { dir = "~/.config/nvim/lua/tw",
+        name = "tw",
+        event = "VeryLazy",
+        config = function()
+            require("phajas.plugins.tw")
+        end,
+    },
 }
 
 local opts = {}

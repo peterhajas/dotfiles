@@ -58,8 +58,3 @@ end
 vim.keymap.set("n", "<leader><CR>", function() terminal() end)
 vim.keymap.set("t", "<leader><CR>", function() terminal() end)
 
--- Zen Mode for "fullscreen"
-vim.keymap.set("n", "<leader>;", function()
-    require("zen-mode").toggle()
-end)
-

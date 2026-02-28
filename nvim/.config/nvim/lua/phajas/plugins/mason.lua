@@ -1,5 +1,9 @@
--- Configure LSP capabilities for blink.cmp
-local capabilities = require('blink.cmp').get_lsp_capabilities()
+-- Configure LSP capabilities (use blink.cmp when available)
+local capabilities = vim.lsp.protocol.make_client_capabilities()
+local ok, blink = pcall(require, "blink.cmp")
+if ok and blink.get_lsp_capabilities then
+    capabilities = blink.get_lsp_capabilities()
+end
 
 -- LSP keymaps and autocommands - only your custom ones, telescope handles gd/gr
 local function on_attach(_, bufnr)
