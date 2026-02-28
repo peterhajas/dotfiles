@@ -83,13 +83,6 @@ uv.lock
 # Claude
 /.claude
 
-# Codex
-codex/.codex/rules
-codex/.codex/tmp
-codex/.codex/.personality_migration
-codex/.codex/models_cache.json
-codex/.codex/shell_snapshots/
-
 # Colors
 colors/.config/colors/palettes/from_wallpaper*.toml
 ghostty/.config/ghostty/themes/from_wallpaper_*

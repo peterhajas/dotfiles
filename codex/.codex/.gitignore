@@ -4,6 +4,12 @@ log
 sessions
 skills/.system
 version.json
+rules
+tmp
+.personality_migration
+models_cache.json
+shell_snapshots/
 
 # maybe?
 settings.json
+state_*.sqlite*
