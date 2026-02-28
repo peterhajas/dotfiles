@@ -16,14 +16,15 @@
 
 (defalias
   hyper (multi lctl lalt lsft)
-  ret_h (tap-hold 200 200 ret hyper)
+  ret_h (tap-hold 200 200 ret @hyper)
+  caps_ctl (tap-hold 200 200 esc lctl)
 )
 
 (deflayer base
   esc f1 f2 f3 f4 f5 f6 f7 f8 f9 f10 f11 f12
   ` 1 2 3 4 5 6 7 8 9 0 - = bspc
   tab q w e r t y u i o p [ ] \
-  caps a s d f g h j k l ; ' @ret_h
+  @caps_ctl a s d f g h j k l ; ' @ret_h
   lsft z x c v b n m , . / rsft
   fn lctl lalt lmet spc rmet ralt
   left down up right
