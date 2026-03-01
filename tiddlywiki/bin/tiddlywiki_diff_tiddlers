@@ -1,0 +1,103 @@
+#!/usr/bin/env python3
+"""Compare two TiddlyWiki HTML files and output a summary of tiddler changes.
+
+Usage: tiddlywiki_diff_tiddlers <prev.html> <curr.html>
+
+Output (stdout):
+  Summary string like "+New Tiddler, Other | -Old One | ~Modified"
+  Empty string if only $:/ tiddlers changed or no changes at all.
+
+Exit codes: 0 always (errors to stderr).
+"""
+
+import sys
+import json
+import hashlib
+
+
+def extract_tiddlers(path):
+    """Parse HTML wiki and return {title: hash} for non-$:/ tiddlers."""
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except OSError as e:
+        print(f"Error reading {path}: {e}", file=sys.stderr)
+        return {}
+
+    pattern = '<script class="tiddlywiki-tiddler-store" type="application/json">'
+    end_tag = '</script>'
+    result = {}
+    pos = 0
+
+    while True:
+        start = content.find(pattern, pos)
+        if start == -1:
+            break
+        json_start = content.find('[', start)
+        if json_start == -1:
+            break
+        end = content.find(end_tag, json_start)
+        if end == -1:
+            break
+
+        json_str = content[json_start:end].strip()
+        try:
+            tiddlers = json.loads(json_str, strict=False)
+            for t in tiddlers:
+                title = t.get('title', '')
+                if title.startswith('$:/'):
+                    continue
+                # Hash all fields to detect any modification
+                canonical = json.dumps(t, sort_keys=True, ensure_ascii=False)
+                result[title] = hashlib.sha1(canonical.encode()).hexdigest()
+        except json.JSONDecodeError as e:
+            print(f"Warning: JSON parse error in {path}: {e}", file=sys.stderr)
+
+        pos = end + len(end_tag)
+
+    return result
+
+
+def format_section(prefix, titles, cap=5):
+    if not titles:
+        return ''
+    titles = sorted(titles)
+    if len(titles) > cap:
+        shown = titles[:cap]
+        extra = len(titles) - cap
+        return prefix + ', '.join(shown) + f' (+{extra} more)'
+    return prefix + ', '.join(titles)
+
+
+def main():
+    if len(sys.argv) != 3:
+        print(f"Usage: {sys.argv[0]} <prev.html> <curr.html>", file=sys.stderr)
+        sys.exit(1)
+
+    prev_path, curr_path = sys.argv[1], sys.argv[2]
+
+    prev = extract_tiddlers(prev_path)
+    curr = extract_tiddlers(curr_path)
+
+    # No prev tiddlers = first commit or empty file; skip noisy "all added" output
+    if not prev:
+        sys.exit(0)
+
+    prev_titles = set(prev)
+    curr_titles = set(curr)
+
+    added = curr_titles - prev_titles
+    removed = prev_titles - curr_titles
+    modified = {t for t in prev_titles & curr_titles if prev[t] != curr[t]}
+
+    sections = [
+        format_section('+', added),
+        format_section('-', removed),
+        format_section('~', modified),
+    ]
+    output = ' | '.join(s for s in sections if s)
+    print(output)
+
+
+if __name__ == '__main__':
+    main()

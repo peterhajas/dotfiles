@@ -22,7 +22,15 @@ if [[ -n $($GIT status --porcelain) ]]; then
     # We have local changes - commit and push
     echo "Local changes detected, committing and pushing..."
     $GIT add *
-    $GIT commit -a -m "auto commit from macOS"
+    $GIT show HEAD:phajas-wiki.html > /tmp/tw_prev_$$.html 2>/dev/null
+    TIDDLER_DIFF=$(tiddlywiki_diff_tiddlers /tmp/tw_prev_$$.html phajas-wiki.html 2>/dev/null)
+    rm -f /tmp/tw_prev_$$.html
+    if [[ -n "$TIDDLER_DIFF" ]]; then
+        COMMIT_MSG="macOS: $TIDDLER_DIFF"
+    else
+        COMMIT_MSG="macOS"
+    fi
+    $GIT commit -a -m "$COMMIT_MSG"
     $GIT pull --rebase origin master && $GIT push origin master
 else
     # No local changes - just pull remote changes
