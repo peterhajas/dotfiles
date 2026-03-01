@@ -285,11 +285,12 @@ def parse_scad_colors(src: str) -> tuple:
                     color_expr = args[0] if args else 'undef'
                     alpha_expr = args[1] if len(args) > 1 else None
 
-                    if color_expr not in seen:
-                        seen[color_expr] = len(colors)
+                    key = (color_expr, alpha_expr)
+                    if key not in seen:
+                        seen[key] = len(colors)
                         colors.append({'expr': color_expr, 'alpha': alpha_expr})
 
-                    idx = seen[color_expr]
+                    idx = seen[key]
                     out.append(f'COLOR_ID({idx}, {args_str})')
                     i = end
                     continue
@@ -320,6 +321,22 @@ def parse_color_from_echo(val: str) -> list:
         return rgb + [a]
 
     return DEFAULT_COLOR.copy()
+
+
+def parse_alpha_from_echo(val: str):
+    """Parse alpha scalar from OpenSCAD echo output."""
+    val = val.strip().strip('"').lower()
+    if val in ('undef', ''):
+        return None
+
+    m = re.search(r'[-+]?\d*\.?\d+(?:[eE][-+]?\d+)?', val)
+    if not m:
+        return None
+
+    alpha = float(m.group(0))
+    if alpha > 1.0:
+        alpha = alpha / 255.0
+    return max(0.0, min(1.0, alpha))
 
 
 def read_stl(path: str) -> list:
@@ -380,6 +397,8 @@ def write_usda_multi(meshes: list, path: str):
         lines.append('    point3f[] points = [' + ', '.join(fmt_vec(v) for v in verts) + ']')
         lines.append(f'    color3f[] primvars:displayColor = [{fmt_vec(rgba[:3])}]')
         lines.append('    uniform token primvars:displayColor:interpolation = "constant"')
+        lines.append(f'    float[] primvars:displayOpacity = [{rgba[3]:.6g}]')
+        lines.append('    uniform token primvars:displayOpacity:interpolation = "constant"')
         lines.append('  }')
 
     lines.append('}')
@@ -432,6 +451,8 @@ def main():
                 echo_lines = [modified_src, '']
                 for idx, c in enumerate(colors):
                     echo_lines.append(f'echo(str("COLOR_EVAL:{idx}:", {c["expr"]}));')
+                    if c["alpha"] is not None:
+                        echo_lines.append(f'echo(str("ALPHA_EVAL:{idx}:", {c["alpha"]}));')
                 echo_scad.write_text('\n'.join(echo_lines))
 
                 # Run OpenSCAD to get color values
@@ -442,14 +463,20 @@ def main():
 
                 # Parse echoed color values
                 for line in output.splitlines():
-                    if 'COLOR_EVAL:' not in line:
+                    m_color = re.search(r'COLOR_EVAL:(\d+):\s*(.+?)\s*$', line)
+                    if m_color:
+                        idx = int(m_color.group(1))
+                        if idx < len(colors):
+                            colors[idx]['rgba'] = parse_color_from_echo(m_color.group(2))
                         continue
-                    m = re.search(r'COLOR_EVAL:(\d+):\s*(.+?)\s*$', line)
-                    if not m:
-                        continue
-                    idx = int(m.group(1))
-                    if idx < len(colors):
-                        colors[idx]['rgba'] = parse_color_from_echo(m.group(2))
+
+                    m_alpha = re.search(r'ALPHA_EVAL:(\d+):\s*(.+?)\s*$', line)
+                    if m_alpha:
+                        idx = int(m_alpha.group(1))
+                        if idx < len(colors):
+                            alpha = parse_alpha_from_echo(m_alpha.group(2))
+                            if alpha is not None:
+                                colors[idx]['rgba'][3] = alpha
 
                 # Create wrapper scad
                 wrapper = []
