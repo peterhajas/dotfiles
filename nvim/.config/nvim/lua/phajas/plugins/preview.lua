@@ -1,6 +1,6 @@
 -- File preview plugin
 -- Uses xdg-open to preview current buffer's file
--- <leader>p toggles auto-preview mode (refreshes on save)
+-- <leader>p toggles auto-preview mode (refreshes on save + external file updates)
 
 local M = {}
 
@@ -18,11 +18,22 @@ local function enable_preview(bufnr)
 
     -- Create autocmd for this buffer
     local group = vim.api.nvim_create_augroup('Preview_' .. bufnr, { clear = true })
-    vim.api.nvim_create_autocmd('BufWritePost', {
+    vim.api.nvim_create_autocmd({ 'BufWritePost', 'FileChangedShellPost' }, {
         group = group,
         buffer = bufnr,
         callback = function()
             run_preview(bufnr)
+        end,
+    })
+
+    -- Pull in out-of-band file edits (for example, agent/file watcher writes).
+    vim.api.nvim_create_autocmd({ 'FocusGained', 'BufEnter' }, {
+        group = group,
+        buffer = bufnr,
+        callback = function()
+            vim.api.nvim_buf_call(bufnr, function()
+                vim.cmd('silent! checktime')
+            end)
         end,
     })
 
@@ -56,7 +67,7 @@ local function toggle_preview()
         end
         run_preview(bufnr)
         enable_preview(bufnr)
-        vim.notify('Preview on (auto-refresh on save)', vim.log.levels.INFO)
+        vim.notify('Preview on (auto-refresh on save + external edits)', vim.log.levels.INFO)
     end
 end
 
