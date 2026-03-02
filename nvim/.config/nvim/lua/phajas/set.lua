@@ -51,23 +51,25 @@ vim.fn.mkdir(undodir, "p")
 
 -- Diagnostics
 
+local diagnostic_float_wins = {}
+
 -- Show in a floating window
 vim.api.nvim_create_autocmd("CursorHold", {
     callback = function()
-        vim.diagnostic.open_float(nil, { focus = false })
+        local _, win = vim.diagnostic.open_float(nil, { focus = false })
+        if win and vim.api.nvim_win_is_valid(win) then
+            diagnostic_float_wins[win] = true
+        end
     end
 })
 -- ...and tear them down when the cursor moves
 vim.api.nvim_create_autocmd({"CursorMoved", "WinLeave", "BufLeave"}, {
     callback = function()
-        for _, win in ipairs(vim.api.nvim_list_wins()) do
-            local config = vim.api.nvim_win_get_config(win)
-            if config.relative ~= "" then
-                -- Don't close if it's likely treesitter-context (high zindex)
-                if not (config.zindex and config.zindex >= 20) then
-                    pcall(vim.api.nvim_win_close, win, false)
-                end
+        for win, _ in pairs(diagnostic_float_wins) do
+            if vim.api.nvim_win_is_valid(win) then
+                pcall(vim.api.nvim_win_close, win, false)
             end
+            diagnostic_float_wins[win] = nil
         end
     end,
 })

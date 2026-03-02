@@ -1,13 +1,23 @@
-local ok, snacks = pcall(require, "snacks")
-if not ok then
-    return
-end
+local snacks = require("snacks")
 
 snacks.setup({
     dashboard = {
         enabled = true,
         sections = {
             { section = "header" },
+            {
+                section = "terminal",
+                cmd = {
+                    "sh",
+                    "-lc",
+                    "if command -v pokemon-colorscripts >/dev/null 2>&1; then out=\"$(pokemon-colorscripts -r)\"; name=\"$(printf '%s\\n' \"$out\" | sed -n '1p')\"; printf '%s\\n' \"$out\" | sed '1d'; printf '\\n%s\\n' \"$name\"; else printf 'pokemon-colorscripts missing in PATH\\nPATH=%s\\n' \"$PATH\"; fi; sleep .1",
+                },
+                random = 10,
+                ttl = 0,
+                indent = 2,
+                height = 14,
+                padding = 1,
+            },
             { section = "keys", gap = 1, padding = 1 },
             {
                 icon = " ",
@@ -24,15 +34,6 @@ snacks.setup({
                 end,
             },
             { section = "startup" },
-            {
-                section = "terminal",
-                cmd = "pokemon-colorscripts -r --no-title; sleep .1",
-                random = 10,
-                pane = 2,
-                indent = 4,
-                height = 30,
-                padding = 1,
-            },
         },
     },
 })
