@@ -42,6 +42,52 @@ local _cache = {
 
 local SPECIAL_PREFIX = "[Special] "
 
+local function escapeHtml(str)
+    if str == nil then
+        return ""
+    end
+    return tostring(str)
+        :gsub("&", "&amp;")
+        :gsub("<", "&lt;")
+        :gsub(">", "&gt;")
+        :gsub('"', "&quot;")
+end
+
+local function plainPreviewHTML(title, message)
+    return [[
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0;
+      padding: 18px;
+      background: rgba(20, 20, 30, 0.95);
+      color: #d2d8e2;
+      font-family: Menlo, Monaco, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    h1 {
+      font-size: 15px;
+      margin: 0 0 10px;
+      color: #f0f3f8;
+    }
+    p {
+      margin: 0;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>]] .. escapeHtml(title or "Preview") .. [[</h1>
+  <p>]] .. escapeHtml(message or "") .. [[</p>
+</body>
+</html>
+]]
+end
+
 local function buildTwCommand(args)
     return shellQuote(M.config.tw_binary) .. " " .. shellQuote(M.config.wiki_path) .. " " .. args
 end
@@ -72,6 +118,17 @@ local function removeTitleFromCache(title)
             break
         end
     end
+end
+
+local function quickOpenHelpTitle()
+    if type(TiddlyWikiQuickOpenHelpTitle) == "function" then
+        return TiddlyWikiQuickOpenHelpTitle()
+    end
+    return "$:/plugins/phajas/hud/QuickOpenPreviewHelp"
+end
+
+local function canUseHUDPreview()
+    return type(TiddlyWikiBuildHUDHTML) == "function" and type(TiddlyWikiUpdateHUDCurrent) == "function"
 end
 
 function M.loadTitles(force)
@@ -189,33 +246,45 @@ end
 local function buildSpecialActions()
     local todayTitle = M.todayJournalTitle()
     local actions = {}
+    local previewTargets = {}
 
-    actions[SPECIAL_PREFIX .. "Open Today's Journal (" .. todayTitle .. ")"] = function()
+    local openTodayLabel = SPECIAL_PREFIX .. "Open Today's Journal (" .. todayTitle .. ")"
+    actions[openTodayLabel] = function()
         if ensureTiddlerExists(todayTitle) then
             M.openInEditor(todayTitle)
         end
     end
+    previewTargets[openTodayLabel] = todayTitle
 
-    actions[SPECIAL_PREFIX .. "Append to Today's Journal (" .. todayTitle .. ")"] = function()
+    local appendTodayLabel = SPECIAL_PREFIX .. "Append to Today's Journal (" .. todayTitle .. ")"
+    actions[appendTodayLabel] = function()
         promptAndAppendTo(todayTitle, "Today Journal")
     end
+    previewTargets[appendTodayLabel] = todayTitle
 
-    actions[SPECIAL_PREFIX .. "Open Inbox (" .. M.config.inbox_tiddler .. ")"] = function()
-        if ensureTiddlerExists(M.config.inbox_tiddler) then
-            M.openInEditor(M.config.inbox_tiddler)
-        end
+    return actions, previewTargets
+end
+
+local function buildPreviewRuntimeHTML()
+    if not canUseHUDPreview() then
+        return nil
     end
+    return TiddlyWikiBuildHUDHTML(quickOpenHelpTitle(), "Select a tiddler to preview.")
+end
 
-    actions[SPECIAL_PREFIX .. "Append to Inbox (" .. M.config.inbox_tiddler .. ")"] = function()
-        promptAndAppendTo(M.config.inbox_tiddler, "Inbox")
+local function setPreviewTarget(previewWebview, targetTitle, helpText)
+    if not previewWebview then
+        return false
     end
-
-    return actions
+    if not canUseHUDPreview() then
+        return false
+    end
+    return TiddlyWikiUpdateHUDCurrent(previewWebview, targetTitle, helpText)
 end
 
 function M.quickOpen()
     local titles = M.loadTitles(false)
-    local specialActions = buildSpecialActions()
+    local specialActions, specialPreviewTargets = buildSpecialActions()
     local choices = {}
 
     for label, _ in pairs(specialActions) do
@@ -254,6 +323,43 @@ function M.quickOpen()
     end, {
         allowFreeform = true,
         allowDelete = true,
+        enablePreview = true,
+        previewPlaceholder = "Select a tiddler to preview",
+        onPreviewInit = function(previewWebview)
+            local runtimeHTML = buildPreviewRuntimeHTML()
+            if runtimeHTML then
+                previewWebview:html(runtimeHTML)
+                hs.timer.doAfter(0.2, function()
+                    setPreviewTarget(previewWebview, quickOpenHelpTitle(), "Select a tiddler to preview.")
+                end)
+            else
+                previewWebview:html(plainPreviewHTML("Preview", "Could not load wiki HTML."))
+            end
+        end,
+        onPreviewEvent = function(previewWebview, selection)
+            local text = trim(selection)
+            local helpTitle = quickOpenHelpTitle()
+            if text == "" then
+                return setPreviewTarget(previewWebview, helpTitle, "Type to search, or select an entry.")
+            end
+
+            if text:sub(1, #SPECIAL_PREFIX) == SPECIAL_PREFIX then
+                local target = specialPreviewTargets[text]
+                if target then
+                    if titleExists(titles, target) then
+                        return setPreviewTarget(previewWebview, target, "")
+                    end
+                    return setPreviewTarget(previewWebview, helpTitle, "Will create on use: " .. target)
+                end
+                return setPreviewTarget(previewWebview, helpTitle, "Execute this special action.")
+            end
+
+            if not titleExists(titles, text) then
+                return setPreviewTarget(previewWebview, helpTitle, "Press Enter to create this new tiddler: " .. text)
+            end
+
+            return setPreviewTarget(previewWebview, text, "")
+        end,
         onDelete = function(title)
             if title:sub(1, #SPECIAL_PREFIX) == SPECIAL_PREFIX then
                 hs.alert.show("Special entries cannot be deleted")
@@ -279,6 +385,10 @@ end
 
 function M.init()
     hs.hotkey.bind(hyper.key, "space", function()
+        if chooser.isVisible and chooser.isVisible() then
+            chooser.hide()
+            return
+        end
         M.quickOpen()
     end)
 end

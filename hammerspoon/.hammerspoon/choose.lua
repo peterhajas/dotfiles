@@ -11,11 +11,80 @@ local exited = false
 
 -- Private state for webview chooser
 local currentWebview = nil
+local currentPreviewWebview = nil
 local currentCompletion = nil
 local previousWindow = nil
 local windowWatcher = nil
 local eventHandlersInitialized = false
 local currentOptions = {}
+
+local function escapeHtml(str)
+    if str == nil then
+        return ""
+    end
+    return tostring(str)
+        :gsub("&", "&amp;")
+        :gsub("<", "&lt;")
+        :gsub(">", "&gt;")
+        :gsub('"', "&quot;")
+end
+
+local function defaultPreviewHTML(message)
+    return [[
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      background: rgba(20, 20, 30, 0.95);
+      color: #b9c0cc;
+      font-family: Menlo, Monaco, monospace;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div>]] .. escapeHtml(message or "Select a tiddler to preview") .. [[</div>
+</body>
+</html>
+]]
+end
+
+local function closeChooserViews()
+    if currentWebview then
+        currentWebview:delete()
+        currentWebview = nil
+    end
+    if currentPreviewWebview then
+        currentPreviewWebview:delete()
+        currentPreviewWebview = nil
+    end
+end
+
+local function cancelCurrentChooser()
+    if not currentCompletion then
+        return
+    end
+
+    closeChooserViews()
+
+    if windowWatcher then
+        windowWatcher:stop()
+        windowWatcher = nil
+    end
+
+    if previousWindow then
+        previousWindow:focus()
+        previousWindow = nil
+    end
+
+    currentCompletion(nil)
+    currentCompletion = nil
+end
 
 -- Simple URL decode function
 local function urlDecode(str)
@@ -34,6 +103,7 @@ local function generateHTML(choices, options)
     local escapedPlaceholder = placeholder:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;")
     local allowFreeform = options.allowFreeform == true
     local allowDelete = options.allowDelete == true
+    local enablePreview = options.enablePreview == true
     -- Use table for efficient string concatenation
     local choicesParts = {}
     for i, choice in ipairs(choices) do
@@ -145,6 +215,9 @@ local function generateHTML(choices, options)
         let lastSelectedItem = null;
         const allowFreeform = ]] .. tostring(allowFreeform) .. [[;
         const allowDelete = ]] .. tostring(allowDelete) .. [[;
+        const enablePreview = ]] .. tostring(enablePreview) .. [[;
+        let previewTimer = null;
+        let lastPreviewValue = null;
 
         const searchInput = document.getElementById('search');
 
@@ -159,6 +232,33 @@ local function generateHTML(choices, options)
                 lastSelectedItem = visibleItems[selectedIndex];
                 visibleItems[selectedIndex].scrollIntoView({ block: 'nearest', behavior: 'instant' });
             }
+
+            if (enablePreview) {
+                schedulePreview();
+            }
+        }
+
+        function selectedOrQueryText() {
+            if (visibleItems[selectedIndex]) {
+                return visibleItems[selectedIndex].textContent;
+            }
+            const query = searchInput.value.trim();
+            return query;
+        }
+
+        function requestPreview() {
+            const text = selectedOrQueryText();
+            if (text && text !== '' && text !== lastPreviewValue) {
+                lastPreviewValue = text;
+                window.location.href = 'hammerspoon://preview?value=' + encodeURIComponent(text);
+            }
+        }
+
+        function schedulePreview() {
+            if (previewTimer) {
+                clearTimeout(previewTimer);
+            }
+            previewTimer = setTimeout(requestPreview, 140);
         }
 
         function filterResults() {
@@ -265,11 +365,7 @@ local function initializeEventHandlers()
             if value then
                 value = urlDecode(value)
 
-                -- Close webview
-                if currentWebview then
-                    currentWebview:delete()
-                    currentWebview = nil
-                end
+                closeChooserViews()
 
                 -- Stop watcher
                 if windowWatcher then
@@ -291,29 +387,7 @@ local function initializeEventHandlers()
     end)
 
     hs.urlevent.bind("cancel", function(eventName, params)
-        if currentCompletion then
-            -- Close webview
-            if currentWebview then
-                currentWebview:delete()
-                currentWebview = nil
-            end
-
-            -- Stop watcher
-            if windowWatcher then
-                windowWatcher:stop()
-                windowWatcher = nil
-            end
-
-            -- Restore previous window focus
-            if previousWindow then
-                previousWindow:focus()
-                previousWindow = nil
-            end
-
-            -- Call completion with nil
-            currentCompletion(nil)
-            currentCompletion = nil
-        end
+        cancelCurrentChooser()
     end)
 
     hs.urlevent.bind("delete", function(eventName, params)
@@ -322,11 +396,7 @@ local function initializeEventHandlers()
             if value then
                 value = urlDecode(value)
 
-                -- Close webview
-                if currentWebview then
-                    currentWebview:delete()
-                    currentWebview = nil
-                end
+                closeChooserViews()
 
                 -- Stop watcher
                 if windowWatcher then
@@ -352,6 +422,35 @@ local function initializeEventHandlers()
         end
     end)
 
+    hs.urlevent.bind("preview", function(eventName, params)
+        if not currentPreviewWebview then
+            return
+        end
+        if not currentOptions then
+            return
+        end
+        local value = urlDecode(params.value or "")
+        if currentOptions.onPreviewEvent then
+            local ok, handled = pcall(currentOptions.onPreviewEvent, currentPreviewWebview, value)
+            if ok and handled then
+                return
+            end
+        end
+        if not currentOptions.onPreview then
+            return
+        end
+        local ok, previewHTML = pcall(currentOptions.onPreview, value)
+        if not ok then
+            currentPreviewWebview:html(defaultPreviewHTML("Preview error"))
+            return
+        end
+        if type(previewHTML) ~= "string" or previewHTML == "" then
+            currentPreviewWebview:html(defaultPreviewHTML("No preview"))
+            return
+        end
+        currentPreviewWebview:html(previewHTML)
+    end)
+
     eventHandlersInitialized = true
 end
 
@@ -364,10 +463,7 @@ function chooser.show(choices, completion, options)
     previousWindow = hs.window.focusedWindow()
 
     -- Close any existing webview
-    if currentWebview then
-        currentWebview:delete()
-        currentWebview = nil
-    end
+    closeChooserViews()
 
     currentCompletion = completion
     currentOptions = options or {}
@@ -376,14 +472,18 @@ function chooser.show(choices, completion, options)
     local mainScreen = hs.screen.mainScreen()
     local screenFrame = mainScreen:frame()
 
+    local enablePreview = currentOptions.enablePreview == true
+
     -- Create webview at top of screen with fixed height
-    -- Make it narrower (60% of screen width) and centered
-    local webviewHeight = 400
-    local webviewWidth = screenFrame.w * 0.6
+    local webviewHeight = 420
+    local totalWidth = screenFrame.w * (enablePreview and 0.85 or 0.6)
+    local originX = screenFrame.x + (screenFrame.w - totalWidth) / 2
+
+    local chooserWidth = enablePreview and (totalWidth * 0.42) or totalWidth
     local webviewFrame = {
-        x = screenFrame.x + (screenFrame.w - webviewWidth) / 2,
+        x = originX,
         y = screenFrame.y,
-        w = webviewWidth,
+        w = chooserWidth,
         h = webviewHeight
     }
 
@@ -393,6 +493,25 @@ function chooser.show(choices, completion, options)
         :allowTextEntry(true)
         :html(generateHTML(choices, currentOptions))
         :show()
+
+    if enablePreview then
+        local previewFrame = {
+            x = originX + chooserWidth + 8,
+            y = screenFrame.y,
+            w = totalWidth - chooserWidth - 8,
+            h = webviewHeight
+        }
+        currentPreviewWebview = hs.webview.new(previewFrame)
+            :windowStyle({})
+            :level(hs.drawing.windowLevels.floating)
+            :allowTextEntry(false)
+            :html(defaultPreviewHTML(currentOptions.previewPlaceholder or "Select a tiddler to preview"))
+            :show()
+
+        if currentOptions.onPreviewInit then
+            pcall(currentOptions.onPreviewInit, currentPreviewWebview)
+        end
+    end
 
     -- Focus the webview window immediately
     hs.timer.doAfter(0.01, function()
@@ -406,33 +525,31 @@ function chooser.show(choices, completion, options)
                     windowWatcher:stop()
                 end
 
-                windowWatcher = hs.window.watcher.new(function(win, event, app)
-                    -- Check if a different window got focused
-                    if event == hs.window.watcher.windowFocused then
-                        if win ~= webviewWindow and currentWebview and currentCompletion then
-                            -- Another window got focused, trigger cancel
-                            -- Close webview
-                            if currentWebview then
-                                currentWebview:delete()
-                                currentWebview = nil
+                if hs.window and hs.window.watcher and hs.window.watcher.new then
+                    windowWatcher = hs.window.watcher.new(function(win, event, app)
+                        -- Check if a different window got focused
+                        if event == hs.window.watcher.windowFocused then
+                            if win ~= webviewWindow and currentWebview and currentCompletion then
+                                -- Another window got focused, trigger cancel
+                                closeChooserViews()
+
+                                -- Stop watcher
+                                if windowWatcher then
+                                    windowWatcher:stop()
+                                    windowWatcher = nil
+                                end
+
+                                -- Restore previous window focus (which is now the focused window)
+                                previousWindow = nil
+
+                                -- Call completion with nil
+                                currentCompletion(nil)
+                                currentCompletion = nil
                             end
-
-                            -- Stop watcher
-                            if windowWatcher then
-                                windowWatcher:stop()
-                                windowWatcher = nil
-                            end
-
-                            -- Restore previous window focus (which is now the focused window)
-                            previousWindow = nil
-
-                            -- Call completion with nil
-                            currentCompletion(nil)
-                            currentCompletion = nil
                         end
-                    end
-                end)
-                windowWatcher:start()
+                    end)
+                    windowWatcher:start()
+                end
             end
         end
     end)
@@ -440,6 +557,14 @@ end
 
 function chooser.showWithOptions(choices, completion, options)
     chooser.show(choices, completion, options)
+end
+
+function chooser.isVisible()
+    return currentWebview ~= nil
+end
+
+function chooser.hide()
+    cancelCurrentChooser()
 end
 
 -- Show chooser from CLI with pipe-separated arguments

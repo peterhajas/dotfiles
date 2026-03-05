@@ -24,6 +24,7 @@ local hudStylesheetPath = os.getenv("HOME") .. "/dotfiles/userscripts/colorschem
 local cachedWikiContents = ""
 local cachedHudStylesheet = ""
 local wikiStates = {}
+local quickOpenPreviewHelpTitle = "$:/plugins/phajas/hud/QuickOpenPreviewHelp"
 
 local function readFile(path)
     local handle = io.open(path, "r")
@@ -33,6 +34,18 @@ local function readFile(path)
     local contents = handle:read("*a")
     handle:close()
     return contents
+end
+
+local function jsQuote(value)
+    if value == nil then
+        return "''"
+    end
+    return "'" .. tostring(value)
+        :gsub("\\", "\\\\")
+        :gsub("'", "\\'")
+        :gsub("\n", "\\n")
+        :gsub("\r", "\\r")
+        .. "'"
 end
 
 local function createWikiState(name, tiddler, displayName)
@@ -85,6 +98,37 @@ local function updateWikiState(wikiState)
     webView:html(webViewContents)
 end
 
+local function buildHUDHTML(currentHUDTitle, previewHelpText)
+    local tiddlers = {
+        {
+            title = "$:/plugins/phajas/hud/CurrentHUD",
+            text = currentHUDTitle or "",
+        },
+    }
+
+    if previewHelpText ~= nil then
+        table.insert(tiddlers, {
+            title = quickOpenPreviewHelpTitle,
+            text = previewHelpText,
+        })
+    end
+
+    if cachedHudStylesheet ~= "" then
+        table.insert(tiddlers, {
+            title = "$:/plugins/phajas/hud/ColorschemeStylesheet",
+            type = "text/css",
+            tags = "$:/tags/Stylesheet",
+            text = cachedHudStylesheet,
+        })
+    end
+
+    local tiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">]]
+        .. hs.json.encode(tiddlers)
+        .. [[</script>]]
+
+    return tiddlerStore .. cachedWikiContents
+end
+
 local function updateAllIfNeeded()
     for _, wikiState in ipairs(wikiStates) do
         if wikiState['needsUpdate'] then
@@ -108,6 +152,43 @@ local function update()
         setNeedsUpdate()
     end
     updateAllIfNeeded()
+end
+
+-- Exposed for other Hammerspoon modules (e.g. quick-open preview)
+function TiddlyWikiBuildHUDHTML(currentHUDTitle, previewHelpText)
+    update()
+    return buildHUDHTML(currentHUDTitle, previewHelpText)
+end
+
+-- Update CurrentHUD in an already-running webview without reloading full HTML
+function TiddlyWikiUpdateHUDCurrent(webview, currentHUDTitle, previewHelpText)
+    if webview == nil then
+        return false
+    end
+
+    local script = [[
+(function(currentHUD, helpTitle, helpText) {
+  if (!window.$tw || !$tw.wiki || !window.$tw.Tiddler) { return false; }
+  $tw.wiki.addTiddler(new $tw.Tiddler({title: "$:/plugins/phajas/hud/CurrentHUD", text: currentHUD}));
+  if (helpText !== null) {
+    $tw.wiki.addTiddler(new $tw.Tiddler({title: helpTitle, text: helpText}));
+  }
+  if ($tw.rootWidget && $tw.rootWidget.refresh) {
+    var changed = {};
+    changed["$:/plugins/phajas/hud/CurrentHUD"] = true;
+    changed[helpTitle] = true;
+    $tw.rootWidget.refresh(changed);
+  }
+  return true;
+})(]] .. jsQuote(currentHUDTitle or "") .. [[, ]] .. jsQuote(quickOpenPreviewHelpTitle) .. [[, ]] .. (previewHelpText == nil and "null" or jsQuote(previewHelpText)) .. [[);
+]]
+
+    webview:evaluateJavaScript(script)
+    return true
+end
+
+function TiddlyWikiQuickOpenHelpTitle()
+    return quickOpenPreviewHelpTitle
 end
 
 local function displayForWikiState(wikiState)
