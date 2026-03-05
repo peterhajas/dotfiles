@@ -187,14 +187,6 @@ local plugins = {
             require("phajas.plugins.indentscope")
         end,
     },
-    { "folke/snacks.nvim",
-        event = "VimEnter",
-        priority = 1000,
-        config = function()
-            require("phajas.plugins.snacks")
-        end,
-    },
-
     -- Local plugins
     { dir = "~/.config/nvim/lua/tw",
         name = "tw",
