@@ -54,19 +54,20 @@ function owntoneButton(server, port)
         end,
         ['updateInterval'] = 1,
         ['stateProvider'] = function()
-            local player = owntoneGet(server, port, 'player')
-            local queue = owntoneGet(server, port, 'queue')
+            local player = owntoneGet(server, port, 'player') or { }
+            local queue = owntoneGet(server, port, 'queue') or { }
+            local queueItems = queue['items'] or { }
 
             local playing = player['state'] == 'play'
-            local progressMS = player['item_progress_ms']
-            local lengthMS = player['item_length_ms']
+            local progressMS = tonumber(player['item_progress_ms']) or 0
+            local lengthMS = tonumber(player['item_length_ms']) or 0
             progressMS = math.max(1, progressMS)
             lengthMS = math.max(progressMS, lengthMS)
             local progressFraction = progressMS / lengthMS
 
             local artworkURL = nil
             local itemID = player['item_id']
-            for index,playerItem in pairs(queue['items']) do
+            for index,playerItem in pairs(queueItems) do
                 if playerItem['id'] == itemID then
                     artworkURL = playerItem['artwork_url']
                     break
@@ -75,8 +76,8 @@ function owntoneButton(server, port)
 
             if artworkURL == nil then
                 artworkURL = player['artwork_url']
-                if tableLength(queue['items']) > 0 then
-                    local firstItem = queue['items'][1]
+                if tableLength(queueItems) > 0 then
+                    local firstItem = queueItems[1]
                     artworkURL = firstItem['artwork_url'] or artworkURL
                 end
             end
@@ -100,4 +101,3 @@ function owntoneButton(server, port)
         end
     }
 end
-
