@@ -480,9 +480,12 @@ function chooser.show(choices, completion, options)
     local originX = screenFrame.x + (screenFrame.w - totalWidth) / 2
 
     local chooserWidth = enablePreview and (totalWidth * 0.42) or totalWidth
+    local verticalMargin = 12
+    local overlayY = screenFrame.y + screenFrame.h - webviewHeight - verticalMargin
+
     local webviewFrame = {
         x = originX,
-        y = screenFrame.y,
+        y = overlayY,
         w = chooserWidth,
         h = webviewHeight
     }
@@ -497,7 +500,7 @@ function chooser.show(choices, completion, options)
     if enablePreview then
         local previewFrame = {
             x = originX + chooserWidth + 8,
-            y = screenFrame.y,
+            y = overlayY,
             w = totalWidth - chooserWidth - 8,
             h = webviewHeight
         }
