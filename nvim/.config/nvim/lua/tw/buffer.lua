@@ -84,6 +84,17 @@ function M.save(bufnr)
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
 
+  -- If the entire buffer is blank, treat save as delete.
+  if vim.trim(content) == "" then
+    local success = tw_wrapper.delete(tiddler_name)
+    if success then
+      vim.api.nvim_buf_delete(bufnr, { force = true })
+      vim.notify("Deleted: " .. tiddler_name, vim.log.levels.INFO)
+      return true
+    end
+    return false
+  end
+
   -- Save via tw replace
   local success = tw_wrapper.replace(tiddler_name, content)
 

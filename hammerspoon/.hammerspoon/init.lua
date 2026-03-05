@@ -29,6 +29,7 @@ local link_replace = require "link_replace"
 local youtubedl = require "youtubedl"
 local flux = require "flux"
 local iphone_mirroring = require "iphone_mirroring"
+local tiddlywiki_quickopen = require "tiddlywiki_quickopen"
 local streamdeck = require("streamdeck")
 streamdeck:init()
 require "server"
@@ -203,6 +204,7 @@ audio_output.init()
 link_replace.init()
 youtubedl.init()
 iphone_mirroring.init()
+tiddlywiki_quickopen.init()
 
 -- Subscribe to ntfy topics
 -- Load topics dynamically from TiddlyWiki

@@ -15,6 +15,7 @@ local currentCompletion = nil
 local previousWindow = nil
 local windowWatcher = nil
 local eventHandlersInitialized = false
+local currentOptions = {}
 
 -- Simple URL decode function
 local function urlDecode(str)
@@ -27,7 +28,12 @@ local function urlDecode(str)
 end
 
 -- Generate HTML for the chooser
-local function generateHTML(choices)
+local function generateHTML(choices, options)
+    options = options or {}
+    local placeholder = options.placeholder or "Type to filter..."
+    local escapedPlaceholder = placeholder:gsub("&", "&amp;"):gsub("<", "&lt;"):gsub(">", "&gt;"):gsub('"', "&quot;")
+    local allowFreeform = options.allowFreeform == true
+    local allowDelete = options.allowDelete == true
     -- Use table for efficient string concatenation
     local choicesParts = {}
     for i, choice in ipairs(choices) do
@@ -128,7 +134,7 @@ local function generateHTML(choices)
 </head>
 <body>
     <div id="container">
-        <input type="text" id="search" placeholder="Type to filter..." autofocus>
+        <input type="text" id="search" placeholder="]] .. escapedPlaceholder .. [[" autofocus>
         <div id="results">]] .. choicesHTML .. [[</div>
     </div>
 
@@ -137,6 +143,8 @@ local function generateHTML(choices)
         let selectedIndex = 0;
         let visibleItems = [...allItems];
         let lastSelectedItem = null;
+        const allowFreeform = ]] .. tostring(allowFreeform) .. [[;
+        const allowDelete = ]] .. tostring(allowDelete) .. [[;
 
         const searchInput = document.getElementById('search');
 
@@ -184,11 +192,26 @@ local function generateHTML(choices)
             if (visibleItems[selectedIndex]) {
                 const text = visibleItems[selectedIndex].textContent;
                 window.location.href = 'hammerspoon://select?value=' + encodeURIComponent(text);
+            } else if (allowFreeform) {
+                const query = searchInput.value.trim();
+                if (query !== '') {
+                    window.location.href = 'hammerspoon://select?value=' + encodeURIComponent(query);
+                }
             }
         }
 
         function cancel() {
             window.location.href = 'hammerspoon://cancel';
+        }
+
+        function deleteItem() {
+            if (!allowDelete) {
+                return;
+            }
+            if (visibleItems[selectedIndex]) {
+                const text = visibleItems[selectedIndex].textContent;
+                window.location.href = 'hammerspoon://delete?value=' + encodeURIComponent(text);
+            }
         }
 
         searchInput.addEventListener('input', filterResults);
@@ -205,6 +228,9 @@ local function generateHTML(choices)
             } else if (e.key === 'ArrowRight' || e.key === 'Enter') {
                 e.preventDefault();
                 selectItem();
+            } else if (allowDelete && (e.key === 'd' || e.key === 'D') && e.ctrlKey) {
+                e.preventDefault();
+                deleteItem();
             } else if (e.key === 'ArrowLeft' || e.key === 'Escape') {
                 e.preventDefault();
                 cancel();
@@ -290,11 +316,47 @@ local function initializeEventHandlers()
         end
     end)
 
+    hs.urlevent.bind("delete", function(eventName, params)
+        if currentCompletion then
+            local value = params.value
+            if value then
+                value = urlDecode(value)
+
+                -- Close webview
+                if currentWebview then
+                    currentWebview:delete()
+                    currentWebview = nil
+                end
+
+                -- Stop watcher
+                if windowWatcher then
+                    windowWatcher:stop()
+                    windowWatcher = nil
+                end
+
+                -- Restore previous window focus
+                if previousWindow then
+                    previousWindow:focus()
+                    previousWindow = nil
+                end
+
+                -- Call onDelete callback if provided
+                if currentOptions and currentOptions.onDelete then
+                    currentOptions.onDelete(value)
+                end
+
+                -- End the chooser interaction
+                currentCompletion(nil)
+                currentCompletion = nil
+            end
+        end
+    end)
+
     eventHandlersInitialized = true
 end
 
 -- Show a chooser with the given choices, calling completion with the chosen item
-function chooser.show(choices, completion)
+function chooser.show(choices, completion, options)
     -- Initialize event handlers on first use
     initializeEventHandlers()
 
@@ -308,6 +370,7 @@ function chooser.show(choices, completion)
     end
 
     currentCompletion = completion
+    currentOptions = options or {}
 
     -- Get the main screen frame
     local mainScreen = hs.screen.mainScreen()
@@ -328,7 +391,7 @@ function chooser.show(choices, completion)
         :windowStyle({})
         :level(hs.drawing.windowLevels.floating)
         :allowTextEntry(true)
-        :html(generateHTML(choices))
+        :html(generateHTML(choices, currentOptions))
         :show()
 
     -- Focus the webview window immediately
@@ -373,6 +436,10 @@ function chooser.show(choices, completion)
             end
         end
     end)
+end
+
+function chooser.showWithOptions(choices, completion, options)
+    chooser.show(choices, completion, options)
 end
 
 -- Show chooser from CLI with pipe-separated arguments
