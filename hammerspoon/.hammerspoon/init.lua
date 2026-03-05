@@ -17,7 +17,9 @@ profileStart('configTotal')
 require "util"
 
 require("hs.ipc")
-hs.ipc.cliInstall()
+if hs.fs.attributes("/usr/local/bin/hs", "mode") == nil and hs.fs.attributes("/opt/homebrew/bin/hs", "mode") == nil then
+    hs.ipc.cliInstall()
+end
 
 local hyper = require "hyper"
 local vim_movement = require "vim_movement"
