@@ -32,10 +32,7 @@ local youtubedl = require "youtubedl"
 local flux = require "flux"
 local iphone_mirroring = require "iphone_mirroring"
 local tiddlywiki_quickopen = require "tiddlywiki_quickopen"
-local streamdeck = require("streamdeck")
-streamdeck:init()
-require "server"
-require "tiddlywiki"
+local streamdeck = nil
 
 profileStop('imports')
 profileStart('globals')
@@ -156,10 +153,14 @@ function caffeinateCallback(eventType)
     elseif (eventType == hs.caffeinate.watcher.systemDidWake) then
         scheduleFluxRefresh()
     elseif (eventType == hs.caffeinate.watcher.screensDidLock) then
-        streamdeck:sleep()
+        if streamdeck ~= nil then
+            streamdeck:sleep()
+        end
         -- hs.execute("osascript -e 'tell application \"DisplayLink Manager\" to quit'")
     elseif (eventType == hs.caffeinate.watcher.screensDidUnlock) then
-        streamdeck:wake()
+        if streamdeck ~= nil then
+            streamdeck:wake()
+        end
         -- hs.application.open("DisplayLink Manager")
         scheduleFluxRefresh()
 
@@ -208,25 +209,51 @@ youtubedl.init()
 iphone_mirroring.init()
 tiddlywiki_quickopen.init()
 
--- Subscribe to ntfy topics
--- Load topics dynamically from TiddlyWiki
-local topicsRaw = TiddlyWikiRender("ntfy topics")
-if topicsRaw then
-    print("ntfy: Loading topics from TiddlyWiki")
-    -- Parse topics (one per line, trim whitespace)
-    for topic in topicsRaw:gmatch("[^\r\n]+") do
-        topic = topic:match("^%s*(.-)%s*$")  -- trim whitespace
-        if topic ~= "" then
-            print("ntfy: Subscribing to topic: " .. topic)
-            ntfy.subscribe({
-                server = "https://ntfy.peterhajas.com",
-                topic = topic
-            })
+local function subscribeNtfyTopicsFromTiddlyWiki()
+    local topicsRaw = TiddlyWikiRender("ntfy topics")
+    if topicsRaw then
+        print("ntfy: Loading topics from TiddlyWiki")
+        -- Parse topics (one per line, trim whitespace)
+        for topic in topicsRaw:gmatch("[^\r\n]+") do
+            topic = topic:match("^%s*(.-)%s*$")  -- trim whitespace
+            if topic ~= "" then
+                print("ntfy: Subscribing to topic: " .. topic)
+                ntfy.subscribe({
+                    server = "https://ntfy.peterhajas.com",
+                    topic = topic
+                })
+            end
         end
+    else
+        print("ntfy: Failed to load topics from TiddlyWiki")
     end
-else
-    print("ntfy: Failed to load topics from TiddlyWiki")
 end
+
+local function startDeferredServices()
+    profileStart("deferredServices")
+
+    local okStreamdeck, streamdeckModule = pcall(require, "streamdeck")
+    if okStreamdeck then
+        streamdeck = streamdeckModule
+        streamdeck:init()
+    else
+        print("startup: streamdeck failed to load: " .. tostring(streamdeckModule))
+    end
+    local okServer, serverError = pcall(require, "server")
+    if not okServer then
+        print("startup: server failed to load: " .. tostring(serverError))
+    end
+
+    local okTiddly, tiddlyError = pcall(require, "tiddlywiki")
+    if okTiddly then
+        subscribeNtfyTopicsFromTiddlyWiki()
+    else
+        print("startup: tiddlywiki failed to load: " .. tostring(tiddlyError))
+    end
+    profileStop("deferredServices")
+end
+
+deferredServicesTimer = hs.timer.doAfter(0, startDeferredServices)
 
 hs.alert.show("hs ready!")
 

@@ -25,6 +25,31 @@ local cachedWikiContents = ""
 local cachedHudStylesheet = ""
 local wikiStates = {}
 local quickOpenPreviewHelpTitle = "$:/plugins/phajas/hud/QuickOpenPreviewHelp"
+local wikiContentsDirty = true
+local hudStylesheetDirty = true
+local loadingHUDHTML = [[
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: transparent;
+      color: rgba(240, 244, 255, 0.9);
+      font-family: Menlo, Monaco, monospace;
+      font-size: 12px;
+    }
+    .loading {
+      padding: 10px 8px;
+      opacity: 0.8;
+    }
+  </style>
+</head>
+<body><div class="loading">HUD loading...</div></body>
+</html>
+]]
 
 local function readFile(path)
     local handle = io.open(path, "r")
@@ -58,6 +83,7 @@ local function createWikiState(name, tiddler, displayName)
         :allowTextEntry(true)
         :allowNewWindows(false)
         :level(hs.drawing.windowLevels.normal - 1)
+        :html(loadingHUDHTML)
         :show(),
         ['needsUpdate'] = false,
         ['tiddler'] = tiddler,
@@ -73,8 +99,8 @@ local function setNeedsUpdate()
 end
 
 local function updateWikiState(wikiState)
-    local contents = cachedWikiContents
     local tiddler = wikiState['tiddler']
+    local contents = cachedWikiContents
     local tiddlers = {
         {
             title = "$:/plugins/phajas/hud/CurrentHUD",
@@ -139,18 +165,26 @@ local function updateAllIfNeeded()
 end
 
 local function update()
-    local wikiContents = readFile(WikiPath)
-    if wikiContents ~= nil and wikiContents ~= cachedWikiContents then
-        cachedWikiContents = wikiContents
-        setNeedsUpdate()
+    if wikiContentsDirty then
+        local wikiContents = readFile(WikiPath)
+        if wikiContents ~= nil and wikiContents ~= cachedWikiContents then
+            cachedWikiContents = wikiContents
+            setNeedsUpdate()
+        end
+        wikiContentsDirty = false
     end
-    local stylesheetContents = readFile(hudStylesheetPath) or ""
-    -- Remove background override for HUD to preserve transparent/custom backgrounds
-    stylesheetContents = stylesheetContents:gsub("background: var%(%-%-cs%-bg%) !important;", "")
-    if stylesheetContents ~= cachedHudStylesheet then
-        cachedHudStylesheet = stylesheetContents
-        setNeedsUpdate()
+
+    if hudStylesheetDirty then
+        local stylesheetContents = readFile(hudStylesheetPath) or ""
+        -- Remove background override for HUD to preserve transparent/custom backgrounds
+        stylesheetContents = stylesheetContents:gsub("background: var%(%-%-cs%-bg%) !important;", "")
+        if stylesheetContents ~= cachedHudStylesheet then
+            cachedHudStylesheet = stylesheetContents
+            setNeedsUpdate()
+        end
+        hudStylesheetDirty = false
     end
+
     updateAllIfNeeded()
 end
 
@@ -243,7 +277,6 @@ local function layoutWikiState(wikiState)
 end
 
 local function layout()
-    update()
     for _, wikiState in ipairs(wikiStates) do
         layoutWikiState(wikiState)
     end
@@ -266,19 +299,24 @@ local function caffeinateCallback(event)
             tiddlyApp:kill()
         end
     elseif event == hs.caffeinate.watcher.screensDidUnlock then
+        wikiContentsDirty = true
+        hudStylesheetDirty = true
         setNeedsUpdate()
         update()
     end
 end
 
 local function screenCallback()
-    setNeedsUpdate()
     layout()
 end
 
 WikiCaffeinateWatcher = hs.caffeinate.watcher.new(caffeinateCallback)
 WikiScreenWatcher = hs.screen.watcher.new(screenCallback)
-WikiPathWatcher = hs.pathwatcher.new(WikiPath, layout)
+WikiPathWatcher = hs.pathwatcher.new(WikiPath, function()
+    wikiContentsDirty = true
+    setNeedsUpdate()
+    update()
+end)
 JournalWindowWatcher = hs.window.filter.new():subscribe(
     {hs.window.filter.windowCreated, hs.window.filter.windowDestroyed, hs.window.filter.windowTitleChanged},
     function()
@@ -288,6 +326,10 @@ JournalWindowWatcher = hs.window.filter.new():subscribe(
 
 -- This is load-bearring and I don't know why
 function UPDATEWIKI()
+    wikiContentsDirty = true
+    hudStylesheetDirty = true
+    setNeedsUpdate()
+    update()
     layout()
 end
 
@@ -295,6 +337,8 @@ local function registerColorsWatcher()
     local ok, colors = pcall(require, "colors")
     if ok and colors and colors.onColorsChanged then
         colors.onColorsChanged(function()
+            hudStylesheetDirty = true
+            setNeedsUpdate()
             update()
         end)
     end
@@ -311,6 +355,8 @@ local function setupWebView()
     refreshJournalOffset()
 
     screenCallback()
+    setNeedsUpdate()
+    update()
 end
 
 function SaveWiki()
@@ -329,12 +375,11 @@ wikiAppWatcher = hs.application.watcher.new(function(name, type, app)
 end)
 wikiAppWatcher:start()
 
-local port = 8045
 WikiServer = nil
 local function startWikiServer()
     WikiServer = hs.httpserver.hsminweb.new(os.getenv("HOME").."/phajas-wiki")
     :interface("localhost")
-    :port(port)
+    :port(8045)
     :start()
 end
 
