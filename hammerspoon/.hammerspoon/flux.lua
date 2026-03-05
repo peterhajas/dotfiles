@@ -2,6 +2,8 @@
 -- Provides automatic screen color temperature adjustment based on time of day
 
 local flux = {}
+local fluxStateKey = "flux.lastEnabled"
+local fluxLocationKey = "flux.lastLocation"
 
 -- Private helper functions
 
@@ -38,15 +40,21 @@ end
 -- Our override flux setting, if any
 -- Optional boolean
 local overrideFluxSetting = nil
+local lastKnownLocation = hs.settings.get(fluxLocationKey)
+local lastKnownFluxEnabled = hs.settings.get(fluxStateKey)
+if type(lastKnownFluxEnabled) ~= "boolean" then
+    lastKnownFluxEnabled = nil
+end
 
-local function fluxShouldBeEnabledForLocation()
-    local location = hs.location.get()
-
+local function fluxShouldBeEnabledForLocation(location)
     if location == nil then
-        return false  -- Default to disabled if location unavailable
+        return nil
     end
     local latitude = location['latitude']
     local longitude = location['longitude']
+    if latitude == nil or longitude == nil then
+        return nil
+    end
     local now = os.time()
 
     local sunriseTime = hs.location.sunrise(latitude, longitude, -7)
@@ -88,9 +96,24 @@ local function fluxShouldBeEnabledForLocation()
     return shouldBeEnabled
 end
 
+local function fallbackFluxEnabled()
+    if type(lastKnownFluxEnabled) == "boolean" then
+        return lastKnownFluxEnabled
+    end
+    -- Reasonable fallback until location callbacks arrive.
+    local hour = tonumber(os.date("%H")) or 12
+    return (hour < 7 or hour >= 19)
+end
+
 local function shouldHaveFluxEnabled()
     if overrideFluxSetting == nil then
-        return fluxShouldBeEnabledForLocation()
+        local computed = fluxShouldBeEnabledForLocation(lastKnownLocation)
+        if computed == nil then
+            return fallbackFluxEnabled()
+        end
+        lastKnownFluxEnabled = computed
+        hs.settings.set(fluxStateKey, computed)
+        return computed
     end
 
     return overrideFluxSetting
@@ -112,7 +135,6 @@ local function updateFluxinessEnabled(shouldBeEnabled)
 end
 
 local function updateFluxiness()
-    hs.screen.restoreGamma()
     updateFluxinessEnabled(shouldHaveFluxEnabled())
 end
 
@@ -165,6 +187,14 @@ function flux.init()
     locationObserver = hs.location.new()
     locationObserver:callback(function(obj, msg, data)
         if msg == "didUpdateLocations" then
+            if type(data) == "table" and #data > 0 and type(data[1]) == "table" then
+                lastKnownLocation = data[1]
+            elseif type(data) == "table" and data["latitude"] ~= nil then
+                lastKnownLocation = data
+            end
+            if lastKnownLocation ~= nil then
+                hs.settings.set(fluxLocationKey, lastKnownLocation)
+            end
             updateFluxiness()
         elseif msg == "didChangeAuthorizationStatus" then
             updateFluxiness()
