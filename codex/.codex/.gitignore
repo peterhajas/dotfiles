@@ -9,6 +9,11 @@ tmp
 .personality_migration
 models_cache.json
 shell_snapshots/
+.codex-global-state.json
+archived_sessions
+session_index.jsonl
+sqlite
+vendor_imports
 
 # maybe?
 settings.json
