@@ -1,3 +1,5 @@
+local config = require("phajas.config")
+
 -- Most of these settings were extracted or modified from my .vimrc. I made some
 -- effort to sort them
 --
@@ -95,7 +97,7 @@ vim.api.nvim_create_autocmd({"WinResized"}, {
 vim.api.nvim_create_autocmd({"BufReadPost"}, {
     callback = function()
         local line_count = vim.fn.line('$')
-        local max_lines = 10000
+        local max_lines = config.large_file_max_lines
 
         if line_count > max_lines then
             vim.notify("File has " .. line_count .. " lines. Disabling LSP and syntax for performance.", vim.log.levels.WARN)

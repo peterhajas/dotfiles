@@ -1,3 +1,5 @@
+local config = require("phajas.config")
+
 require'nvim-treesitter.configs'.setup {
     -- A list of parser names, or "all" (the five listed parsers should always be installed)
     ensure_installed = {
@@ -39,7 +41,7 @@ require'nvim-treesitter.configs'.setup {
 
             -- Also disable if too many lines
             local line_count = vim.api.nvim_buf_line_count(buf)
-            if line_count > 10000 then
+            if line_count > config.large_file_max_lines then
                 return true
             end
         end,
