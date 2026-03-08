@@ -139,6 +139,7 @@ VERBOSE = False
 # Commands that mutate wiki content
 MUTATING_COMMANDS = {
     "set",
+    "mv",
     "rm",
     "touch",
     "insert",
@@ -172,6 +173,7 @@ OPS_TRANSACTION_SUPPORTED_COMMANDS = {
     "json",
     "get",
     "set",
+    "mv",
     "rm",
     "touch",
     "insert",
@@ -955,6 +957,12 @@ def ensure_timestamps(tiddler, is_modification=True):
 
     return timestamp
 
+def is_valid_tiddlywiki_timestamp(value):
+    """Return True when value matches YYYYMMDDhhmmssmmm."""
+    if value is None:
+        return False
+    return bool(re.fullmatch(r'\d{17}', str(value)))
+
 def get_tiddler_field(wiki_path, tiddler_title, field_name):
     """Get the value of a specific field from a tiddler"""
     # Use early-exit optimization to stop parsing after finding target
@@ -1128,6 +1136,147 @@ def set_tiddler_field(wiki_path, tiddler_title, field_name, field_value):
         write_legacy_wiki(wiki_path, all_tiddlers)
 
     verbose_print(f"Set {field_name} = {field_value}")
+
+def move_tiddler(wiki_path, source_title, dest_title):
+    """Rename a tiddler title."""
+    ensure_local_wiki(wiki_path)
+
+    if source_title == dest_title:
+        return
+
+    with open(wiki_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+
+    wiki_format = detect_wiki_format(content)
+
+    if wiki_format == 'modern':
+        stores = extract_tiddler_stores(content)
+        if not stores:
+            print("Error: Could not find any tiddler stores in wiki", file=sys.stderr)
+            sys.exit(1)
+
+        source_tiddler = None
+        dest_exists = False
+        for store in stores:
+            for tiddler in store['tiddlers']:
+                title = tiddler.get('title')
+                if title == source_title and source_tiddler is None:
+                    source_tiddler = tiddler
+                elif title == dest_title:
+                    dest_exists = True
+
+        if not source_tiddler:
+            print(f"Error: Tiddler '{source_title}' not found", file=sys.stderr)
+            sys.exit(1)
+        if dest_exists:
+            print(f"Error: Tiddler '{dest_title}' already exists", file=sys.stderr)
+            sys.exit(1)
+
+        source_tiddler['title'] = dest_title
+        ensure_timestamps(source_tiddler, is_modification=True)
+
+        replacements = []
+        for store in stores:
+            new_store = build_modern_store_markup(store['tiddlers'])
+            replacements.append((store['start'], store['end'], new_store))
+
+        new_content = content
+        for start, end, replacement in reversed(replacements):
+            new_content = new_content[:start] + replacement + new_content[end:]
+
+        with open(wiki_path, 'w', encoding='utf-8') as f:
+            f.write(new_content)
+    else:
+        all_tiddlers = load_all_tiddlers(wiki_path)
+        source_tiddler = None
+        dest_exists = False
+        for tiddler in all_tiddlers:
+            title = tiddler.get('title')
+            if title == source_title and source_tiddler is None:
+                source_tiddler = tiddler
+            elif title == dest_title:
+                dest_exists = True
+
+        if not source_tiddler:
+            print(f"Error: Tiddler '{source_title}' not found", file=sys.stderr)
+            sys.exit(1)
+        if dest_exists:
+            print(f"Error: Tiddler '{dest_title}' already exists", file=sys.stderr)
+            sys.exit(1)
+
+        source_tiddler['title'] = dest_title
+        ensure_timestamps(source_tiddler, is_modification=True)
+        write_legacy_wiki(wiki_path, all_tiddlers)
+
+def check_wiki(wiki_path, json_output=False):
+    """Validate wiki integrity and report problems."""
+    all_tiddlers = load_all_tiddlers(wiki_path)
+    issues = []
+    title_counts = {}
+
+    for idx, tiddler in enumerate(all_tiddlers):
+        title = tiddler.get('title')
+        if not isinstance(title, str) or not title:
+            issues.append({
+                "severity": "error",
+                "code": "missing_or_invalid_title",
+                "index": idx,
+                "message": "Tiddler is missing a non-empty string title",
+            })
+            continue
+
+        title_counts[title] = title_counts.get(title, 0) + 1
+
+        for field in ("created", "modified"):
+            if field not in tiddler:
+                issues.append({
+                    "severity": "warning",
+                    "code": "missing_timestamp",
+                    "title": title,
+                    "field": field,
+                    "message": f"Tiddler '{title}' is missing '{field}'",
+                })
+            elif not is_valid_tiddlywiki_timestamp(tiddler.get(field)):
+                issues.append({
+                    "severity": "warning",
+                    "code": "invalid_timestamp",
+                    "title": title,
+                    "field": field,
+                    "value": str(tiddler.get(field)),
+                    "message": f"Tiddler '{title}' has invalid '{field}' timestamp",
+                })
+
+    for title, count in sorted(title_counts.items()):
+        if count > 1:
+            issues.append({
+                "severity": "error",
+                "code": "duplicate_title",
+                "title": title,
+                "count": count,
+                "message": f"Title '{title}' appears {count} times",
+            })
+
+    if json_output:
+        report = {
+            "ok": len(issues) == 0,
+            "tiddler_count": len(all_tiddlers),
+            "issue_count": len(issues),
+            "issues": issues,
+        }
+        print(json.dumps(report, indent=2, ensure_ascii=False))
+    else:
+        if not issues:
+            print(f"OK: checked {len(all_tiddlers)} tiddlers, no issues found")
+        else:
+            print(f"Found {len(issues)} issue(s) across {len(all_tiddlers)} tiddlers")
+            for issue in issues:
+                title = issue.get("title", "<unknown>")
+                field = issue.get("field")
+                loc = f"{title}.{field}" if field else title
+                print(f"{issue['severity'].upper():7} {issue['code']}: {loc} - {issue['message']}")
+
+    if issues:
+        sys.exit(1)
 
 def touch_tiddler(wiki_path, tiddler_title, text=""):
     """Create a new tiddler or update an existing one. Works with both modern and legacy formats."""
@@ -3424,6 +3573,7 @@ def show_help():
     print("  json <tiddler> [...]        - Output tiddler(s) as JSON (--all for all tiddlers)", file=sys.stderr)
     print("  get <tiddler> <field>       - Get a specific field value", file=sys.stderr)
     print("  set <tiddler> <field> <val> - Set a field value", file=sys.stderr)
+    print("  mv <src> <dst>              - Rename a tiddler title", file=sys.stderr)
     print("  rm <tiddler>                - Remove a tiddler", file=sys.stderr)
     print("  touch <tiddler> [text]      - Create or update a tiddler", file=sys.stderr)
     print("  insert <json>               - Insert/replace tiddler(s) from JSON", file=sys.stderr)
@@ -3438,7 +3588,8 @@ def show_help():
     print("  ops [--op ...]              - Run multiple wiki operations sequentially", file=sys.stderr)
     print("  serve [options]             - Serve wiki locally (--host, --port, --readonly)", file=sys.stderr)
     print("  webdav [options]            - Serve tiddlers via WebDAV (--host, --port, --readonly)", file=sys.stderr)
-    print("  filter <expression>         - Evaluate a TiddlyWiki filter expression", file=sys.stderr)
+    print("  filter [--json] <expr>      - Evaluate a TiddlyWiki filter expression", file=sys.stderr)
+    print("  check [--json]              - Validate wiki integrity", file=sys.stderr)
     print("  selftest [unittest args]    - Run embedded tw test suite", file=sys.stderr)
     print("", file=sys.stderr)
     print("Ops format:", file=sys.stderr)
@@ -3560,6 +3711,11 @@ def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
             print("Error: set command requires a tiddler name, field name, and value", file=sys.stderr)
             sys.exit(1)
         set_tiddler_field(wiki_path, command_args[0], command_args[1], command_args[2])
+    elif command == "mv":
+        if len(command_args) < 2:
+            print("Error: mv command requires source and destination titles", file=sys.stderr)
+            sys.exit(1)
+        move_tiddler(wiki_path, command_args[0], command_args[1])
     elif command == "rm":
         if len(command_args) < 1:
             print("Error: rm command requires a tiddler name", file=sys.stderr)
@@ -3697,7 +3853,31 @@ def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
         if len(command_args) < 1:
             print("Error: filter command requires an expression", file=sys.stderr)
             sys.exit(1)
-        filter_command(command_args[0], wiki_path=wiki_path)
+        json_output = False
+        filter_expr = None
+        for arg in command_args:
+            if arg == "--json":
+                json_output = True
+            elif filter_expr is None:
+                filter_expr = arg
+            else:
+                print(f"Error: Unknown argument '{arg}'", file=sys.stderr)
+                print("Usage: tw [<wiki_path>] filter [--json] <expression>", file=sys.stderr)
+                sys.exit(1)
+        if filter_expr is None:
+            print("Error: filter command requires an expression", file=sys.stderr)
+            sys.exit(1)
+        filter_command(filter_expr, wiki_path=wiki_path, json_output=json_output)
+    elif command == "check":
+        json_output = False
+        for arg in command_args:
+            if arg == "--json":
+                json_output = True
+            else:
+                print(f"Error: Unknown argument '{arg}'", file=sys.stderr)
+                print("Usage: tw [<wiki_path>] check [--json]", file=sys.stderr)
+                sys.exit(1)
+        check_wiki(wiki_path, json_output=json_output)
     else:
         print(f"Error: Unknown command '{command}'", file=sys.stderr)
         sys.exit(1)
@@ -3865,6 +4045,23 @@ def ops_state_set_field(state, tiddler_title, field_name, field_value):
         ensure_timestamps(tiddler, is_modification=False)
 
     verbose_print(f"Set {field_name} = {field_value}")
+
+def ops_state_move_tiddler(state, source_title, dest_title):
+    if source_title == dest_title:
+        return
+
+    _, source_tiddler = ops_state_find_first_tiddler(state, source_title)
+    if not source_tiddler:
+        print(f"Error: Tiddler '{source_title}' not found", file=sys.stderr)
+        sys.exit(1)
+
+    _, dest_tiddler = ops_state_find_first_tiddler(state, dest_title)
+    if dest_tiddler:
+        print(f"Error: Tiddler '{dest_title}' already exists", file=sys.stderr)
+        sys.exit(1)
+
+    source_tiddler['title'] = dest_title
+    ensure_timestamps(source_tiddler, is_modification=True)
 
 def ops_state_touch_tiddler(state, tiddler_title, text=""):
     _, tiddler = ops_state_find_first_tiddler(state, tiddler_title)
@@ -4050,6 +4247,11 @@ def run_transactional_ops_command(state, command, command_args):
             print("Error: set command requires a tiddler name, field name, and value", file=sys.stderr)
             sys.exit(1)
         ops_state_set_field(state, command_args[0], command_args[1], command_args[2])
+    elif command == "mv":
+        if len(command_args) < 2:
+            print("Error: mv command requires source and destination titles", file=sys.stderr)
+            sys.exit(1)
+        ops_state_move_tiddler(state, command_args[0], command_args[1])
     elif command == "rm":
         if len(command_args) < 1:
             print("Error: rm command requires a tiddler name", file=sys.stderr)
@@ -6342,7 +6544,7 @@ def evaluate_filter(filter_expr, wiki_path=None):
     return current_values
 
 
-def filter_command(filter_expr, wiki_path=None):
+def filter_command(filter_expr, wiki_path=None, json_output=False):
     """Execute a filter expression and print results.
 
     Args:
@@ -6351,6 +6553,9 @@ def filter_command(filter_expr, wiki_path=None):
     """
     try:
         results = evaluate_filter(filter_expr, wiki_path=wiki_path)
+        if json_output:
+            print(json.dumps(results, ensure_ascii=False))
+            return
         for result in results:
             # Format numbers nicely (remove trailing .0 for integers)
             try:
@@ -9662,6 +9867,273 @@ class TestSetCommand(unittest.TestCase):
         self.assertEqual(new_tiddler1['text'], 'content1')
         self.assertEqual(new_tiddler2['text'], 'content2')
         self.assertEqual(new_tiddler3['text'], 'content3')
+
+class TestMoveCommand(unittest.TestCase):
+    """Test the mv command for renaming tiddlers."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'mv_test_wiki.html')
+
+        self.test_tiddlers = [
+            {
+                "title": "Source",
+                "text": "Source content",
+                "created": "20230101000000000",
+                "modified": "20230101000000000",
+                "tags": "alpha",
+            },
+            {
+                "title": "Other",
+                "text": "Other content",
+                "created": "20230102000000000",
+                "modified": "20230102000000000",
+            },
+        ]
+
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in self.test_tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        formatted_json = formatted_json.replace('<', '\\u003C')
+        html_content = f'''<!DOCTYPE html>
+<html>
+<head><title>Move Test Wiki</title></head>
+<body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body>
+</html>'''
+
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_mv_renames_tiddler_and_preserves_fields(self):
+        tw_module.move_tiddler(self.test_wiki, "Source", "Renamed")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+        self.assertIn("Renamed", titles)
+        self.assertNotIn("Source", titles)
+
+        renamed = next(t for t in tiddlers if t['title'] == 'Renamed')
+        self.assertEqual(renamed['text'], 'Source content')
+        self.assertEqual(renamed['tags'], 'alpha')
+
+    def test_mv_updates_modified_and_preserves_created(self):
+        import time
+
+        before = next(t for t in tw_module.load_all_tiddlers(self.test_wiki) if t['title'] == 'Source')
+        before_created = before['created']
+        before_modified = before['modified']
+
+        time.sleep(0.01)
+        tw_module.move_tiddler(self.test_wiki, "Source", "Renamed")
+
+        after = next(t for t in tw_module.load_all_tiddlers(self.test_wiki) if t['title'] == 'Renamed')
+        self.assertEqual(after['created'], before_created)
+        self.assertGreater(after['modified'], before_modified)
+
+    def test_mv_same_source_and_destination_is_noop(self):
+        tw_module.move_tiddler(self.test_wiki, "Source", "Source")
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        source = next(t for t in tiddlers if t['title'] == 'Source')
+        self.assertEqual(source['text'], 'Source content')
+
+    def test_mv_missing_source_fails(self):
+        result = run_tw_command(
+            [self.test_wiki, "mv", "Missing", "Renamed"],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Tiddler 'Missing' not found", result.stderr)
+
+    def test_mv_destination_exists_fails(self):
+        result = run_tw_command(
+            [self.test_wiki, "mv", "Source", "Other"],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Tiddler 'Other' already exists", result.stderr)
+
+    def test_mv_works_on_legacy_wiki(self):
+        legacy_wiki = os.path.join(self.test_dir, 'legacy_mv_wiki.html')
+        with open(legacy_wiki, 'w', encoding='utf-8') as f:
+            f.write('''<!DOCTYPE html>
+<html><body>
+<div id="storeArea" style="display:none;">
+<div title="LegacySource" created="20230101000000000" modified="20230101000000000"><pre>Legacy text</pre></div>
+</div>
+</body></html>''')
+
+        tw_module.move_tiddler(legacy_wiki, "LegacySource", "LegacyRenamed")
+        tiddlers = tw_module.load_all_tiddlers(legacy_wiki)
+        self.assertEqual(len(tiddlers), 1)
+        self.assertEqual(tiddlers[0]['title'], 'LegacyRenamed')
+        self.assertEqual(tiddlers[0]['text'], 'Legacy text')
+
+
+class TestFilterJsonCommand(unittest.TestCase):
+    """Test filter --json output and argument parsing."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.test_wiki = os.path.join(self.test_dir, 'filter_json_test_wiki.html')
+
+        tiddlers = [
+            {"title": "Alpha", "text": "A"},
+            {"title": "Beta", "text": "B"},
+        ]
+        tiddler_jsons = [json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in tiddlers]
+        formatted_json = '[\n' + ',\n'.join(tiddler_jsons) + '\n]'
+        html_content = f'''<!DOCTYPE html>
+<html><body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{formatted_json}</script>
+</body></html>'''
+        with open(self.test_wiki, 'w', encoding='utf-8') as f:
+            f.write(html_content)
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_filter_json_outputs_json_array(self):
+        result = run_tw_command(
+            [self.test_wiki, "filter", "--json", "[all[tiddlers]sort[]]"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        parsed = json.loads(result.stdout)
+        self.assertEqual(parsed, ["Alpha", "Beta"])
+
+    def test_filter_json_requires_expression(self):
+        result = run_tw_command(
+            [self.test_wiki, "filter", "--json"],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("requires an expression", result.stderr)
+
+    def test_filter_rejects_unknown_argument(self):
+        result = run_tw_command(
+            [self.test_wiki, "filter", "--json", "[all[tiddlers]]", "--bad"],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Unknown argument '--bad'", result.stderr)
+
+    def test_filter_plain_output_still_line_based(self):
+        result = run_tw_command(
+            [self.test_wiki, "filter", "[all[tiddlers]sort[]]"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip().splitlines(), ["Alpha", "Beta"])
+
+
+class TestCheckCommand(unittest.TestCase):
+    """Test wiki integrity checks."""
+
+    def setUp(self):
+        self.test_dir = tempfile.mkdtemp()
+        self.good_wiki = os.path.join(self.test_dir, 'good_check_wiki.html')
+        self.bad_wiki = os.path.join(self.test_dir, 'bad_check_wiki.html')
+
+        good_tiddlers = [
+            {
+                "title": "GoodOne",
+                "text": "ok",
+                "created": "20240101010101010",
+                "modified": "20240102020202020",
+            },
+            {
+                "title": "GoodTwo",
+                "text": "ok2",
+                "created": "20240103030303030",
+                "modified": "20240104040404040",
+            },
+        ]
+        good_json = '[\n' + ',\n'.join(json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in good_tiddlers) + '\n]'
+        with open(self.good_wiki, 'w', encoding='utf-8') as f:
+            f.write(f'''<!DOCTYPE html>
+<html><body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{good_json}</script>
+</body></html>''')
+
+        bad_tiddlers = [
+            {"title": "Dup", "text": "x", "created": "bad", "modified": "20240101010101010"},
+            {"title": "Dup", "text": "y", "modified": "also-bad"},
+            {"title": "MissingCreated", "text": "z", "modified": "20240101010101010"},
+        ]
+        bad_json = '[\n' + ',\n'.join(json.dumps(t, ensure_ascii=False, separators=(',', ':')) for t in bad_tiddlers) + '\n]'
+        with open(self.bad_wiki, 'w', encoding='utf-8') as f:
+            f.write(f'''<!DOCTYPE html>
+<html><body>
+<script class="tiddlywiki-tiddler-store" type="application/json">{bad_json}</script>
+</body></html>''')
+
+    def tearDown(self):
+        shutil.rmtree(self.test_dir)
+
+    def test_check_ok_plain_output(self):
+        result = run_tw_command(
+            [self.good_wiki, "check"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("no issues found", result.stdout)
+
+    def test_check_ok_json_output(self):
+        result = run_tw_command(
+            [self.good_wiki, "check", "--json"],
+            capture_output=True,
+            text=True
+        )
+        self.assertEqual(result.returncode, 0)
+        parsed = json.loads(result.stdout)
+        self.assertTrue(parsed["ok"])
+        self.assertEqual(parsed["issue_count"], 0)
+        self.assertEqual(parsed["issues"], [])
+
+    def test_check_finds_invalid_and_duplicate_issues(self):
+        result = run_tw_command(
+            [self.bad_wiki, "check", "--json"],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        parsed = json.loads(result.stdout)
+        self.assertFalse(parsed["ok"])
+
+        issue_codes = [issue["code"] for issue in parsed["issues"]]
+        self.assertIn("duplicate_title", issue_codes)
+        self.assertIn("invalid_timestamp", issue_codes)
+        self.assertIn("missing_timestamp", issue_codes)
+
+    def test_check_plain_output_nonzero_on_issues(self):
+        result = run_tw_command(
+            [self.bad_wiki, "check"],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Found", result.stdout)
+
+    def test_check_rejects_unknown_argument(self):
+        result = run_tw_command(
+            [self.good_wiki, "check", "--bad"],
+            capture_output=True,
+            text=True
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Unknown argument '--bad'", result.stderr)
+
 
 class TestVerbosityFlags(unittest.TestCase):
     """Test verbose flag controls for stdout output"""
@@ -15687,6 +16159,43 @@ class TestOpsCommand(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0)
         self.assertEqual(result.stdout.strip(), 'in-batch-value')
+
+    def test_ops_mv_renames_tiddler_within_batch(self):
+        result = run_tw_command(
+            [
+                self.test_wiki, 'ops',
+                '--op', 'mv', 'Start', 'Renamed',
+                '--op', 'get', 'Renamed', 'text',
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(result.stdout.strip(), 'original')
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+        self.assertIn('Renamed', titles)
+        self.assertNotIn('Start', titles)
+
+    def test_ops_mv_collision_rolls_back_batch(self):
+        result = run_tw_command(
+            [
+                self.test_wiki, 'ops',
+                '--op', 'touch', 'Existing', 'content',
+                '--op', 'mv', 'Start', 'Existing',
+            ],
+            capture_output=True,
+            text=True
+        )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("ops failed at operation 2", result.stderr)
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        titles = [t['title'] for t in tiddlers]
+        self.assertEqual(titles, ['Start'])
 
     def test_ops_transaction_reads_wiki_once(self):
         real_open = open
