@@ -15,19 +15,6 @@ local function fugitive_blame()
     vim.notify("Git blame: file is not in a git repository", vim.log.levels.WARN)
     return
   end
-  root = root:gsub("/$", "")
-  local abs = vim.fn.fnamemodify(file, ":p")
-  local rel = abs
-  if abs:sub(1, #root) == root then
-    rel = abs:sub(#root + 2)
-  end
-
-  vim.fn.system("git -C " .. vim.fn.shellescape(root) .. " ls-files --error-unmatch -- " .. vim.fn.shellescape(rel))
-  if vim.v.shell_error ~= 0 then
-    vim.notify("Git blame: file is untracked", vim.log.levels.WARN)
-    return
-  end
-
   vim.cmd("G blame --date=short")
 end
 
