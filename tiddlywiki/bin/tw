@@ -150,7 +150,7 @@ MUTATING_COMMANDS = {
 }
 
 # Commands that do not accept a wiki path
-NO_WIKI_COMMANDS = {"init", "filetype-map", "mimetype", "selftest"}
+NO_WIKI_COMMANDS = {"init", "filetype-map", "mimetype", "completion", "selftest"}
 
 # Commands not safe/sensible inside ops batches
 OPS_DISALLOWED_COMMANDS = {
@@ -728,32 +728,64 @@ def edit_tiddler(wiki_path, tiddler_title):
         if 'modified' not in tiddler:
             tiddler['modified'] = get_tiddlywiki_timestamp()
 
-    # Store the original tiddler's meaningful content (excluding timestamps) for comparison
-    def get_editable_fields(t):
-        """Get tiddler fields excluding created/modified timestamps"""
-        result = {}
-        for key, value in t.items():
-            if key not in ('created', 'modified'):
-                result[key] = value
-        return result
+    # Store original content for change detection.
+    def get_comparable_fields(t):
+        return dict(t)
 
-    original_editable = get_editable_fields(tiddler)
+    def strip_unchanged_modified_field(content, original_modified_value):
+        """Remove frontmatter modified field when unchanged so save can auto-generate it."""
+        lines = content.split('\n')
+
+        # Locate frontmatter boundary (blank line or first non-field line)
+        frontmatter_end = len(lines)
+        for i, line in enumerate(lines):
+            if line.strip() == '':
+                frontmatter_end = i
+                break
+            if ':' not in line:
+                frontmatter_end = i
+                break
+
+        # Parse frontmatter fields
+        fields = {}
+        for line in lines[:frontmatter_end]:
+            if ':' in line:
+                key, value = line.split(':', 1)
+                fields[key.strip()] = value.strip()
+
+        modified_value = fields.get('modified')
+        if modified_value is None:
+            return content, False
+
+        user_modified_modified = str(modified_value) != str(original_modified_value)
+        if user_modified_modified:
+            return content, True
+
+        # Remove all 'modified:' lines in frontmatter, keep everything else unchanged
+        new_lines = []
+        for i, line in enumerate(lines):
+            if i < frontmatter_end and ':' in line:
+                key, _ = line.split(':', 1)
+                if key.strip() == 'modified':
+                    continue
+            new_lines.append(line)
+        return '\n'.join(new_lines), False
+
+    original_editable = get_comparable_fields(tiddler)
 
     # Create a temporary file to edit
     temp_fd, temp_path = tempfile.mkstemp(suffix='.txt', text=True)
 
     try:
         # Write tiddler in cat format to temp file
-        # NOTE: We exclude 'created' and 'modified' so that replace_tiddler
-        # can detect whether content changed and update the timestamp appropriately
         with os.fdopen(temp_fd, 'w', encoding='utf-8') as f:
             # Write title first
             if 'title' in tiddler:
                 f.write(f"title: {tiddler['title']}\n")
 
-            # Write all other fields except 'text', 'title', 'created', and 'modified'
+            # Write all other fields except text/title
             for key, value in sorted(tiddler.items()):
-                if key not in ('text', 'title', 'created', 'modified'):
+                if key not in ('text', 'title'):
                     f.write(f"{key}: {value}\n")
 
             # Write the text content after a blank line
@@ -792,26 +824,15 @@ def edit_tiddler(wiki_path, tiddler_title):
 
                         last_content[0] = updated_content
 
-                        # Add timestamps and update the wiki
-                        updated_content_lines = updated_content.split('\n')
-                        # Find where to insert timestamps (before the empty line or text)
-                        insert_pos = 0
-                        for i, line in enumerate(updated_content_lines):
-                            if line.strip() == '':
-                                insert_pos = i
-                                break
-
-                        # Reconstruct content with timestamps
-                        new_lines = updated_content_lines[:insert_pos]
-                        # Always add created timestamp
-                        new_lines.insert(insert_pos, f"created: {tiddler['created']}")
-                        # replace_tiddler will update modified timestamp automatically
-                        new_lines.extend(updated_content_lines[insert_pos:])
-                        content_with_timestamps = '\n'.join(new_lines)
+                        # Auto-generate modified unless user edited it in the buffer.
+                        save_content, _ = strip_unchanged_modified_field(
+                            updated_content,
+                            tiddler.get('modified')
+                        )
 
                         # Update the tiddler in the wiki (suppress output)
                         with contextlib.redirect_stdout(io.StringIO()):
-                            replace_tiddler(wiki_path, content_with_timestamps, update_modified=True)
+                            replace_tiddler(wiki_path, save_content, update_modified=True)
                 except (FileNotFoundError, OSError):
                     # File was deleted or other OS error, stop watching
                     break
@@ -880,7 +901,7 @@ def edit_tiddler(wiki_path, tiddler_title):
                     edited_tiddler['text'] = text_stripped
 
         # Compare the editable fields
-        edited_editable = get_editable_fields(edited_tiddler)
+        edited_editable = get_comparable_fields(edited_tiddler)
         content_changed = (edited_editable != original_editable)
 
         # Check if tiddler was missing timestamps before editing
@@ -897,27 +918,14 @@ def edit_tiddler(wiki_path, tiddler_title):
             if 'modified' not in tiddler:
                 tiddler['modified'] = get_tiddlywiki_timestamp()
 
-            # Add timestamps to edited_content before saving
-            edited_content_lines = edited_content.split('\n')
-            # Find where to insert timestamps (before the empty line or text)
-            insert_pos = 0
-            for i, line in enumerate(edited_content_lines):
-                if line.strip() == '':
-                    insert_pos = i
-                    break
-
-            # Reconstruct content with timestamps
-            new_lines = edited_content_lines[:insert_pos]
-            # Always add created timestamp
-            new_lines.insert(insert_pos, f"created: {tiddler['created']}")
-            # Only add modified if content didn't change (otherwise replace_tiddler will update it)
-            if not content_changed:
-                new_lines.insert(insert_pos + 1, f"modified: {tiddler['modified']}")
-            new_lines.extend(edited_content_lines[insert_pos:])
-            edited_content = '\n'.join(new_lines)
+            # Auto-generate modified unless user edited it in the buffer.
+            save_content, _ = strip_unchanged_modified_field(
+                edited_content,
+                tiddler.get('modified')
+            )
 
             # Use replace_tiddler to save the changes (final save when editor closes)
-            replace_tiddler(wiki_path, edited_content, update_modified=should_update_modified)
+            replace_tiddler(wiki_path, save_content, update_modified=should_update_modified)
 
     finally:
         # Clean up the temporary file
