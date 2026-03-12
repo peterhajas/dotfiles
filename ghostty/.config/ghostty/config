@@ -24,6 +24,8 @@ window-theme = "system"
 # quick terminal
 keybind = global:ctrl+;=toggle_quick_terminal
 quick-terminal-animation-duration = 0
+quick-terminal-position = top
+quick-terminal-size = 100%
 quick-terminal-screen = "macos-menu-bar"
 
 # theme
