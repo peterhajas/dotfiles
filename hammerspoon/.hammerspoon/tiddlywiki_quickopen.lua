@@ -30,7 +30,6 @@ M.config = {
     wiki_path = os.getenv("TW_NVALT_WIKI_PATH") or (os.getenv("HOME") .. "/phajas-wiki/phajas-wiki.html"),
     tw_binary = os.getenv("HOME") .. "/dotfiles/tiddlywiki/bin/tw",
     cache_ttl_seconds = 45,
-    hide_system_tiddlers = true,
     inbox_tiddler = "Inbox",
     journal_title_format = os.getenv("TW_JOURNAL_TITLE_FORMAT") or "YYYY-0MM-0DD",
 }
@@ -111,6 +110,25 @@ local function titleExists(titles, candidate)
     return false
 end
 
+local function isSystemTiddler(title)
+    return type(title) == "string" and title:match("^%$:/") ~= nil
+end
+
+local function compareTitles(a, b)
+    local aIsSystem = isSystemTiddler(a)
+    local bIsSystem = isSystemTiddler(b)
+    if aIsSystem ~= bIsSystem then
+        return not aIsSystem
+    end
+
+    local aKey = tostring(a):lower()
+    local bKey = tostring(b):lower()
+    if aKey == bKey then
+        return tostring(a) < tostring(b)
+    end
+    return aKey < bKey
+end
+
 local function removeTitleFromCache(title)
     for i, existing in ipairs(_cache.titles) do
         if existing == title then
@@ -146,11 +164,11 @@ function M.loadTitles(force)
     for _, line in ipairs(splitLines(output)) do
         local title = trim(line)
         if title ~= "" then
-            if not M.config.hide_system_tiddlers or not title:match("^%$:/") then
-                table.insert(titles, title)
-            end
+            table.insert(titles, title)
         end
     end
+
+    table.sort(titles, compareTitles)
 
     _cache.titles = titles
     _cache.loaded_at = now
@@ -176,7 +194,7 @@ function M.createTiddler(title)
     end
     if not titleExists(_cache.titles, title) then
         table.insert(_cache.titles, title)
-        table.sort(_cache.titles)
+        table.sort(_cache.titles, compareTitles)
     end
     return true
 end
