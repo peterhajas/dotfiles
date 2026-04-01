@@ -24,10 +24,7 @@ kill_existing_attach_processes() {
     fi
 }
 
-if [ -n "$ZELLIJ" ]; then
-    zellij action launch-or-focus-plugin session-manager --floating --move-to-focused-tab
-    exit 0
-fi
+INSIDE_ZELLIJ="${ZELLIJ:-}"
 
 # Function to get the appropriate layout for a session
 get_layout() {
@@ -176,18 +173,15 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
 
     # Check if session already exists
     if session_exists "$SESSION_NAME"; then
-        # Session exists, attach to it
-        if [ -n "$ZELLIJ" ]; then
-            # Can't switch sessions from within Zellij, do nothing
-            exit 0
+        if [ -n "$INSIDE_ZELLIJ" ]; then
+            zellij action switch-session "$SESSION_NAME"
         else
             kill_existing_attach_processes "$SESSION_NAME"
             set_terminal_title "$SESSION_NAME"
             zellij attach "$SESSION_NAME"
         fi
     else
-        # Session doesn't exist, create it
-        if [ -n "$ZELLIJ" ]; then
+        if [ -n "$INSIDE_ZELLIJ" ]; then
             zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
         else
             start_new_session "$SESSION_NAME" "$LAYOUT" "$SESSION_CWD"
@@ -200,9 +194,8 @@ fi
 case "$SELECTION" in
 *" [active session]")
     SESSION_NAME=${SELECTION% \[active session\]}
-    if [ -n "$ZELLIJ" ]; then
-        # Can't switch sessions from within Zellij, do nothing
-        exit 0
+    if [ -n "$INSIDE_ZELLIJ" ]; then
+        zellij action switch-session "$SESSION_NAME"
     else
         kill_existing_attach_processes "$SESSION_NAME"
         set_terminal_title "$SESSION_NAME"
@@ -228,8 +221,8 @@ case "$SELECTION" in
     fi
 
     if session_exists "$SESSION_NAME"; then
-        if [ -n "$ZELLIJ" ]; then
-            exit 0
+        if [ -n "$INSIDE_ZELLIJ" ]; then
+            zellij action switch-session "$SESSION_NAME"
         else
             kill_existing_attach_processes "$SESSION_NAME"
             set_terminal_title "$SESSION_NAME"
@@ -237,7 +230,7 @@ case "$SELECTION" in
         fi
     else
         LAYOUT=$(get_layout "$SESSION_NAME")
-        if [ -n "$ZELLIJ" ]; then
+        if [ -n "$INSIDE_ZELLIJ" ]; then
             zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
         else
             start_new_session "$SESSION_NAME" "$LAYOUT" "$BOOKMARK_DIR"
@@ -253,23 +246,18 @@ SESSION_NAME=${DIR##*/}
 
 # Check if session exists
 if session_exists "$SESSION_NAME"; then
-    # Session exists, attach to it
-    if [ -n "$ZELLIJ" ]; then
-        # Can't switch sessions from within Zellij, do nothing
-        exit 0
+    if [ -n "$INSIDE_ZELLIJ" ]; then
+        zellij action switch-session "$SESSION_NAME"
     else
         kill_existing_attach_processes "$SESSION_NAME"
         set_terminal_title "$SESSION_NAME"
         zellij attach "$SESSION_NAME"
     fi
 else
-    # Session doesn't exist
-    if [ -n "$ZELLIJ" ]; then
-        # Inside Zellij: just switch (do nothing if session doesn't exist)
-        exit 0
+    LAYOUT=$(get_layout "$SESSION_NAME")
+    if [ -n "$INSIDE_ZELLIJ" ]; then
+        zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
     else
-        # Outside Zellij: create new session
-        LAYOUT=$(get_layout "$SESSION_NAME")
         start_new_session "$SESSION_NAME" "$LAYOUT" "$DIR"
     fi
 fi
