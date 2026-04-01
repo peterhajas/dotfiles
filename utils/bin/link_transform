@@ -1,115 +1,112 @@
-#!/usr/bin/awk -f
-# Cleans up URLs for sharing.
-# Usage: printf %s "https://twitter.com/..." | link_transform
-BEGIN {
-    RS = "\0"
-    ORS = ""
-    domains["imgur.com"] = 1
-    domains["instagram.com"] = 1
-    domains["medium.com"] = 1
-    domains["tiktok.com"] = 1
+#!/usr/bin/env python3
+"""Cleans up URLs for sharing.
 
-    stripParams["dclid"] = 1
-    stripParams["fbclid"] = 1
-    stripParams["feature"] = 1
-    stripParams["gclid"] = 1
-    stripParams["igshid"] = 1
-    stripParams["mc_cid"] = 1
-    stripParams["mc_eid"] = 1
-    stripParams["pp"] = 1
-    stripParams["ref"] = 1
-    stripParams["ref_src"] = 1
-    stripParams["si"] = 1
-    stripParams["spm"] = 1
-    stripParams["utm_campaign"] = 1
-    stripParams["utm_content"] = 1
-    stripParams["utm_medium"] = 1
-    stripParams["utm_source"] = 1
-    stripParams["utm_term"] = 1
+Usage: printf %s "https://twitter.com/..." | link_transform
+Requires Python 3 via /usr/bin/env in the shebang.
+"""
+
+import re
+import sys
+
+
+FARSIDE_DOMAINS = (
+    "imgur.com",
+    "instagram.com",
+    "medium.com",
+    "tiktok.com",
+)
+
+STRIP_PARAMS = {
+    "dclid",
+    "fbclid",
+    "feature",
+    "gclid",
+    "igshid",
+    "mc_cid",
+    "mc_eid",
+    "pp",
+    "ref",
+    "ref_src",
+    "si",
+    "spm",
+    "utm_campaign",
+    "utm_content",
+    "utm_medium",
+    "utm_source",
+    "utm_term",
 }
 
-{
-    contents = $0
-    if (contents == "") {
-        exit 0
-    }
+BASE_REWRITES = (
+    (re.compile(r"^https?://(?:www\.)?x\.com(?=/|$)"), "https://x.peterhajas.com"),
+    (re.compile(r"^https?://(?:www\.)?twitter\.com(?=/|$)"), "https://x.peterhajas.com"),
+    (re.compile(r"^https?://mobile\.twitter\.com(?=/|$)"), "https://x.peterhajas.com"),
+    (re.compile(r"^https?://(?:www\.)?reddit\.com(?=/|$)"), "https://reddit.peterhajas.com"),
+    (re.compile(r"^https?://old\.reddit\.com(?=/|$)"), "https://reddit.peterhajas.com"),
+)
 
-    if (contents !~ /^https?:\/\//) {
-        exit 0
-    }
 
-    clean = contents
-    fragment = ""
-    # Split by # first to separate fragment from base
-    split(clean, fragParts, "#")
-    base_with_query = fragParts[1]
-    # Collect all fragments (everything after first #)
-    if (length(fragParts) > 1) {
-        for (i = 2; i <= length(fragParts); i++) {
-            if (fragment != "") {
-                fragment = fragment "#"
-            }
-            fragment = fragment fragParts[i]
-        }
-    }
+def rewrite_base(base: str) -> str:
+    for pattern, replacement in BASE_REWRITES:
+        if pattern.search(base):
+            return pattern.sub(replacement, base, count=1)
+    return base
 
-    # Now split the fragment-free base by ?
-    split(base_with_query, queryParts, "?")
-    base = queryParts[1]
-    query = ""
-    if (length(queryParts) > 1) {
-        query = queryParts[2]
-    }
 
-    if (base ~ /^https?:\/\/(www\.)?x\.com(\/|$)/) {
-        sub(/^https?:\/\/(www\.)?x\.com/, "https://x.peterhajas.com", base)
-    } else if (base ~ /^https?:\/\/(www\.)?twitter\.com(\/|$)/) {
-        sub(/^https?:\/\/(www\.)?twitter\.com/, "https://x.peterhajas.com", base)
-    } else if (base ~ /^https?:\/\/mobile\.twitter\.com(\/|$)/) {
-        sub(/^https?:\/\/mobile\.twitter\.com/, "https://x.peterhajas.com", base)
-    } else if (base ~ /^https?:\/\/(www\.)?reddit\.com(\/|$)/) {
-        sub(/^https?:\/\/(www\.)?reddit\.com/, "https://reddit.peterhajas.com", base)
-    } else if (base ~ /^https?:\/\/old\.reddit\.com(\/|$)/) {
-        sub(/^https?:\/\/old\.reddit\.com/, "https://reddit.peterhajas.com", base)
-    }
+def clean_query(query: str) -> str:
+    if not query:
+        return ""
 
-    clean = base
-    if (query != "") {
-        cleanedQuery = ""
-        num = split(query, params, "&")
-        for (i = 1; i <= num; i++) {
-            split(params[i], kv, "=")
-            key = kv[1]
-            if (key ~ /^utm_/) {
-                continue
-            }
-            if (key in stripParams) {
-                continue
-            }
-            if (cleanedQuery != "") {
-                cleanedQuery = cleanedQuery "&"
-            }
-            cleanedQuery = cleanedQuery params[i]
-        }
-        if (cleanedQuery != "") {
-            clean = base "?" cleanedQuery
-        }
-    }
+    cleaned_parts = []
+    for param in query.split("&"):
+        key = param.split("=", 1)[0]
+        if key.startswith("utm_") or key in STRIP_PARAMS:
+            continue
+        cleaned_parts.append(param)
 
-    if (fragment != "") {
-        clean = clean "#" fragment
-    }
+    return "&".join(cleaned_parts)
 
-    for (domain in domains) {
-        https = "https://" domain
-        www = "https://www." domain
-        if (substr(clean, 1, length(https)) == https || substr(clean, 1, length(www)) == www) {
-            clean = "https://farside.link/" clean
-            break
-        }
-    }
 
-    if (clean != contents) {
-        print clean
-    }
-}
+def maybe_wrap_farside(url: str) -> str:
+    for domain in FARSIDE_DOMAINS:
+        https_prefix = f"https://{domain}"
+        www_prefix = f"https://www.{domain}"
+        if url.startswith(https_prefix) or url.startswith(www_prefix):
+            return f"https://farside.link/{url}"
+    return url
+
+
+def transform(contents: str) -> str:
+    if not contents or not re.match(r"^https?://", contents):
+        return ""
+
+    base_with_query, fragment_separator, fragment = contents.partition("#")
+    base, query_separator, query = base_with_query.partition("?")
+
+    clean = rewrite_base(base)
+
+    if query_separator:
+        cleaned_query = clean_query(query)
+        if cleaned_query:
+            clean = f"{clean}?{cleaned_query}"
+
+    if fragment_separator:
+        clean = f"{clean}#{fragment}"
+
+    clean = maybe_wrap_farside(clean)
+
+    if clean == contents:
+        return ""
+
+    return clean
+
+
+def main() -> int:
+    contents = sys.stdin.read()
+    output = transform(contents)
+    if output:
+        sys.stdout.write(output)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

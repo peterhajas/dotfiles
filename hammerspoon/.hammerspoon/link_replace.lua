@@ -20,7 +20,7 @@ function link_replace.replacePasteboardLinkIfNecessary(contents)
         return
     end
 
-    local command = "printf %s " .. shellEscape(contents) .. " | " .. scriptPath
+    local command = "printf %s " .. shellEscape(contents) .. " | /usr/bin/env python3.9 " .. shellEscape(scriptPath)
     local output = hs.execute(command, true)
     if output ~= nil and output ~= "" and output ~= contents then
         hs.pasteboard.setContents(output)
