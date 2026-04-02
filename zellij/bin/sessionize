@@ -25,6 +25,15 @@ kill_existing_attach_processes() {
 }
 
 INSIDE_ZELLIJ="${ZELLIJ:-}"
+CURRENT_SESSION="${ZELLIJ_SESSION_NAME:-}"
+
+# Prevent multiple overlapping sessionize pickers
+if [ -n "$INSIDE_ZELLIJ" ]; then
+    count=$(zellij action list-panes --command 2>/dev/null | grep -c "sessionize")
+    if [ "$count" -gt 1 ]; then
+        exit 0
+    fi
+fi
 
 # Function to get the appropriate layout for a session
 get_layout() {
@@ -72,11 +81,16 @@ start_new_session() {
 # Keep the raw names too so we can do fast membership checks later.
 ACTIVE_SESSION_NAMES=$(zellij list-sessions --no-formatting --short 2>/dev/null | awk 'NF { print $1 }')
 SESSIONS=""
+CURRENT_SESSION_LINE=""
 if [ -n "$ACTIVE_SESSION_NAMES" ]; then
     while IFS= read -r session; do
         [ -n "$session" ] || continue
-        SESSIONS="${SESSIONS}${session} [active session]
+        if [ "$session" = "$CURRENT_SESSION" ]; then
+            CURRENT_SESSION_LINE="${session} [current session]"
+        else
+            SESSIONS="${SESSIONS}${session} [active session]
 "
+        fi
     done <<EOF
 $ACTIVE_SESSION_NAMES
 EOF
@@ -127,10 +141,11 @@ for search_dir in $SEARCH_DIRS; do
     fi
 done
 
-# Combine sessions (first) and directories.
+# Combine sessions (first) and directories. Current session last.
 ALL_OPTIONS="$SESSIONS
 $BOOKMARK_OPTIONS
-$DIRS"
+$DIRS
+$CURRENT_SESSION_LINE"
 
 SCRIPT_PATH="$0"
 case "$SCRIPT_PATH" in
@@ -182,7 +197,7 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
         fi
     else
         if [ -n "$INSIDE_ZELLIJ" ]; then
-            zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
+            zellij action switch-session "$SESSION_NAME" --layout "$LAYOUT" --cwd "$SESSION_CWD"
         else
             start_new_session "$SESSION_NAME" "$LAYOUT" "$SESSION_CWD"
         fi
@@ -192,8 +207,9 @@ fi
 
 # Handle existing session selection
 case "$SELECTION" in
-*" [active session]")
+*" [active session]"|*" [current session]")
     SESSION_NAME=${SELECTION% \[active session\]}
+    SESSION_NAME=${SESSION_NAME% \[current session\]}
     if [ -n "$INSIDE_ZELLIJ" ]; then
         zellij action switch-session "$SESSION_NAME"
     else
@@ -231,7 +247,7 @@ case "$SELECTION" in
     else
         LAYOUT=$(get_layout "$SESSION_NAME")
         if [ -n "$INSIDE_ZELLIJ" ]; then
-            zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
+            zellij action switch-session "$SESSION_NAME" --layout "$LAYOUT" --cwd "$BOOKMARK_DIR"
         else
             start_new_session "$SESSION_NAME" "$LAYOUT" "$BOOKMARK_DIR"
         fi
@@ -256,7 +272,7 @@ if session_exists "$SESSION_NAME"; then
 else
     LAYOUT=$(get_layout "$SESSION_NAME")
     if [ -n "$INSIDE_ZELLIJ" ]; then
-        zellij action new-session --layout "$LAYOUT" --name "$SESSION_NAME"
+        zellij action switch-session "$SESSION_NAME" --layout "$LAYOUT" --cwd "$DIR"
     else
         start_new_session "$SESSION_NAME" "$LAYOUT" "$DIR"
     fi
