@@ -14,22 +14,21 @@ preview_active_session() {
     selection="$1"
     session_name=$(printf "%s" "$selection" | sed "s/ \\[active session\\]$//")
 
-    tmp_dir="${TMPDIR:-/tmp}"
-    tmp_file=$(mktemp "${tmp_dir}/zellij_sessionize_${session_name}.XXXXXX" 2>/dev/null || printf "%s/zellij_sessionize_%s.txt" "$tmp_dir" "$session_name")
     preview_lines="200"
 
-    if zellij --session "$session_name" action dump-screen "$tmp_file" 2>/dev/null; then
+    # Unset ZELLIJ vars so the CLI connects to the target session's socket
+    # directly instead of conflicting with the current session context.
+    output=$(ZELLIJ= ZELLIJ_SESSION_NAME= zellij --session "$session_name" action dump-screen --ansi 2>/dev/null)
+    if [ $? -eq 0 ]; then
         print_section "$session_name"
-        if [ -s "$tmp_file" ]; then
-            sed -n "1,${preview_lines}p" "$tmp_file" 2>/dev/null
+        if [ -n "$output" ]; then
+            printf "%s\n" "$output" | sed -n "1,${preview_lines}p"
         else
             print_dim "(empty pane output)"
         fi
     else
         printf "\033[31m%s\033[0m\n" "Unable to capture screen for session: $session_name"
     fi
-
-    rm -f "$tmp_file" 2>/dev/null
 }
 
 is_git_repo() {

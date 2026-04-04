@@ -27,12 +27,14 @@ kill_existing_attach_processes() {
 INSIDE_ZELLIJ="${ZELLIJ:-}"
 CURRENT_SESSION="${ZELLIJ_SESSION_NAME:-}"
 
-# Prevent multiple overlapping sessionize pickers
+# Prevent multiple overlapping sessionize pickers (use a lockfile instead of
+# slow IPC via list-panes).
+LOCKFILE="${TMPDIR:-/tmp}/sessionize.lock"
 if [ -n "$INSIDE_ZELLIJ" ]; then
-    count=$(zellij action list-panes --command 2>/dev/null | grep -c "sessionize")
-    if [ "$count" -gt 1 ]; then
+    if ! mkdir "$LOCKFILE" 2>/dev/null; then
         exit 0
     fi
+    trap 'rmdir "$LOCKFILE" 2>/dev/null' EXIT INT TERM
 fi
 
 # Function to get the appropriate layout for a session
