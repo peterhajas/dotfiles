@@ -14,6 +14,9 @@ archived_sessions
 session_index.jsonl
 sqlite
 vendor_imports
+cache
+.tip
+logs*
 
 # maybe?
 settings.json
