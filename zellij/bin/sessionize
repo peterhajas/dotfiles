@@ -191,10 +191,10 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
 
     # Check if session already exists
     if session_exists "$SESSION_NAME"; then
-        kill_existing_attach_processes "$SESSION_NAME"
         if [ -n "$INSIDE_ZELLIJ" ]; then
             zellij action switch-session "$SESSION_NAME"
         else
+            kill_existing_attach_processes "$SESSION_NAME"
             set_terminal_title "$SESSION_NAME"
             zellij attach "$SESSION_NAME"
         fi
@@ -213,10 +213,10 @@ case "$SELECTION" in
 *" [active session]"|*" [current session]")
     SESSION_NAME=${SELECTION% \[active session\]}
     SESSION_NAME=${SESSION_NAME% \[current session\]}
-    kill_existing_attach_processes "$SESSION_NAME"
     if [ -n "$INSIDE_ZELLIJ" ]; then
         zellij action switch-session "$SESSION_NAME"
     else
+        kill_existing_attach_processes "$SESSION_NAME"
         set_terminal_title "$SESSION_NAME"
         zellij attach "$SESSION_NAME"
     fi
@@ -240,10 +240,10 @@ case "$SELECTION" in
     fi
 
     if session_exists "$SESSION_NAME"; then
-        kill_existing_attach_processes "$SESSION_NAME"
         if [ -n "$INSIDE_ZELLIJ" ]; then
             zellij action switch-session "$SESSION_NAME"
         else
+            kill_existing_attach_processes "$SESSION_NAME"
             set_terminal_title "$SESSION_NAME"
             zellij attach "$SESSION_NAME"
         fi
@@ -265,10 +265,10 @@ SESSION_NAME=${DIR##*/}
 
 # Check if session exists
 if session_exists "$SESSION_NAME"; then
-    kill_existing_attach_processes "$SESSION_NAME"
     if [ -n "$INSIDE_ZELLIJ" ]; then
         zellij action switch-session "$SESSION_NAME"
     else
+        kill_existing_attach_processes "$SESSION_NAME"
         set_terminal_title "$SESSION_NAME"
         zellij attach "$SESSION_NAME"
     fi
