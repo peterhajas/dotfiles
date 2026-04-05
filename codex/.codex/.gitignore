@@ -6,6 +6,7 @@ skills/.system
 version.json
 rules
 tmp
+.tmp
 .personality_migration
 models_cache.json
 shell_snapshots/
