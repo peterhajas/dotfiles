@@ -159,10 +159,56 @@ end
 vim.keymap.set('n', '<leader>pf', find_files_with_git_status, {})
 vim.keymap.set('n', '<leader>pg', find_files_with_git_status, {})
 vim.keymap.set('n', '<leader>ps', function()
+    local cwd = vim.fn.getcwd()
+    local status_map = git_status_map(cwd)
+    local vimgrep_entry_maker = make_entry.gen_from_vimgrep({ cwd = cwd })
+
     builtin.live_grep({
         additional_args = function(args)
             return vim.list_extend(args, {"--hidden", "--glob", "!.git"})
-        end
+        end,
+        entry_maker = function(line)
+            local entry = vimgrep_entry_maker(line)
+            if not entry then
+                return nil
+            end
+
+            local rel_path = entry.filename or ""
+            if cwd and rel_path:sub(1, #cwd + 1) == cwd .. "/" then
+                rel_path = rel_path:sub(#cwd + 2)
+            end
+
+            local status = status_map[rel_path] or "  "
+            local status_hl = fugitive_status_hl(status)
+            local orig_display = entry.display
+
+            entry.display = function(e)
+                if type(orig_display) == "function" then
+                    local ok, display, hl = pcall(orig_display, e)
+                    if not ok then
+                        return string.format("%2s %s", status, line)
+                    end
+                    local prefix = string.format("%2s ", status)
+                    local display_str = type(display) == "string" and display or tostring(display)
+                    local normalized = normalize_highlights(hl)
+                    if not normalized then
+                        return prefix .. display_str
+                    end
+                    local shifted = { { { 0, #prefix }, status_hl } }
+                    for _, h in ipairs(normalized) do
+                        local start_pos = h[1][1]
+                        local end_pos = h[1][2]
+                        local group = h[2]
+                        if start_pos and end_pos and group then
+                            table.insert(shifted, { { start_pos + #prefix, end_pos + #prefix }, group })
+                        end
+                    end
+                    return prefix .. display_str, shifted
+                end
+                return string.format("%2s %s", status, orig_display or line)
+            end
+            return entry
+        end,
     })
 end)
 vim.keymap.set('n', '<leader>pS', function()
