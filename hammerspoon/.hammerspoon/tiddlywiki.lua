@@ -225,7 +225,29 @@ function TiddlyWikiQuickOpenHelpTitle()
     return quickOpenPreviewHelpTitle
 end
 
+local function rightmostScreen()
+    local screens = hs.screen.allScreens()
+    if #screens < 3 then
+        return nil
+    end
+    local rightmost = nil
+    local maxX = -math.huge
+    for _, screen in ipairs(screens) do
+        local frame = screen:frame()
+        if frame.x > maxX then
+            maxX = frame.x
+            rightmost = screen
+        end
+    end
+    return rightmost
+end
+
 local function displayForWikiState(wikiState)
+    -- In 3+ display configs, use the rightmost screen
+    local rm = rightmostScreen()
+    if rm then
+        return rm
+    end
     if wikiState['displayName'] == "Primary" then
         return hs.screen.primaryScreen()
     end
@@ -238,7 +260,9 @@ local function displayForWikiState(wikiState)
 end
 
 local function journalWindowPresent()
-    for _, win in ipairs(hs.window.allWindows()) do
+    local ok, windows = pcall(hs.window.allWindows)
+    if not ok then return false end
+    for _, win in ipairs(windows) do
         local title = win:title() or ""
         if title:lower():find(journalWindowTitleToken, 1, true) then
             return true
@@ -260,11 +284,17 @@ local function layoutWikiState(wikiState)
     if display ~= nil then
         local screenFrame = display:frame()
         local topPadding = yOffset + currentJournalOffset()
-        -- This lets us just match the right sidebar's frame (for now)
-        -- to use less memory for the webview
-        local hudWidth = 192  -- Match journal window width
+        local hudWidth = 192
+        -- In 3+ display configs, HUD is on the far left of the rightmost display
+        local useLeftEdge = rightmostScreen() ~= nil
+        local hudX
+        if useLeftEdge then
+            hudX = screenFrame.x
+        else
+            hudX = screenFrame.x + screenFrame.w - hudWidth
+        end
         local hudFrame = {
-            x = screenFrame.x + screenFrame.w - hudWidth,
+            x = hudX,
             y = screenFrame.y + topPadding,
             w = hudWidth,
             h = screenFrame.h - topPadding
@@ -317,12 +347,15 @@ WikiPathWatcher = hs.pathwatcher.new(WikiPath, function()
     setNeedsUpdate()
     update()
 end)
-JournalWindowWatcher = hs.window.filter.new():subscribe(
-    {hs.window.filter.windowCreated, hs.window.filter.windowDestroyed, hs.window.filter.windowTitleChanged},
-    function()
-        refreshJournalOffset()
-    end
-)
+local okWf, journalWf = pcall(hs.window.filter.new)
+if okWf and journalWf then
+    JournalWindowWatcher = journalWf:subscribe(
+        {hs.window.filter.windowCreated, hs.window.filter.windowDestroyed, hs.window.filter.windowTitleChanged},
+        function()
+            refreshJournalOffset()
+        end
+    )
+end
 
 -- This is load-bearring and I don't know why
 function UPDATEWIKI()

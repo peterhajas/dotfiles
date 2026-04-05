@@ -1,8 +1,46 @@
 require "util"
 
 local port = 8044
+local secretHeaderName = "X-Hammerspoon-Secret"
+local sharedSecretTiddler = "Hammerspoon Server Shared Secret"
+local wikiPath = os.getenv("HOME") .. "/phajas-wiki/phajas-wiki.html"
+local twBinary = os.getenv("HOME") .. "/dotfiles/tiddlywiki/bin/tw"
 
-commandToFunction = {
+local function trim(value)
+    if value == nil then
+        return nil
+    end
+    return tostring(value):match("^%s*(.-)%s*$")
+end
+
+local function shellQuote(value)
+    return "'" .. tostring(value):gsub("'", "'\\''") .. "'"
+end
+
+local function wikiGetText(title)
+    local command = shellQuote(twBinary) .. " " .. shellQuote(wikiPath) .. " get " .. shellQuote(title) .. " text"
+    local output, success = hs.execute(command, true)
+    if not success then
+        return nil
+    end
+    return trim(output)
+end
+
+local function getHeaderValue(headers, targetName)
+    local wanted = string.lower(targetName)
+    for name, value in pairs(headers or {}) do
+        if string.lower(tostring(name)) == wanted then
+            return tostring(value)
+        end
+    end
+    return nil
+end
+
+local function commandUsesGet(command)
+    return command == "widgets"
+end
+
+local commandToFunction = {
     ["lock"] = function() hs.caffeinate.lockScreen() end,
 
     ["fullscreen"] = function() hs.window.frontmostWindow():toggleFullScreen() end,
@@ -35,7 +73,12 @@ commandToFunction = {
             return str
         end
 
-        local escaped_name = applescript_escape(args["name"])
+        local shortcutName = args["name"]
+        if shortcutName == nil or shortcutName == "" then
+            error("missing shortcut name")
+        end
+
+        local escaped_name = applescript_escape(shortcutName)
         local escaped_input = applescript_escape(input)
 
         local applescript = 'tell application "Shortcuts Events" to run shortcut "' .. escaped_name .. '" with input "' .. escaped_input .. '"'
@@ -54,12 +97,18 @@ commandToFunction = {
             else
                 result = tostring(output)
             end
+        else
+            error(tostring(rawTable))
         end
 
         return result
     end,
     ["tw_glance"] = function(args, body)
-        local bodyTable = hs.json.decode(body)
+        local bodyTable = hs.json.decode(body or "")
+        if type(bodyTable) ~= "table" then
+            error("invalid JSON body")
+        end
+
         local tiddler = bodyTable["tiddler"]
         if tiddler ~= nil then
             SendGlanceToTiddler(tiddler)
@@ -68,6 +117,10 @@ commandToFunction = {
     ["widgets"] = function()
         local out = { }
         local app = hs.application.find("Notification Center")
+        if app == nil then
+            return hs.json.encode(out)
+        end
+
         local appWindows = app:allWindows()
         table.sort(appWindows, function(a, b)
             local aX = a:frame().x
@@ -84,71 +137,108 @@ commandToFunction = {
         end)
         for _, window in pairs(appWindows) do
             if window:frame().w == 180 then
-                local windowEntry = { }
                 local snap = window:snapshot(true)
-                windowEntry["image"] = snap:encodeAsURLString()
-                table.insert(out, windowEntry)
+                if snap ~= nil then
+                    table.insert(out, {
+                        ["image"] = snap:encodeAsURLString(),
+                    })
+                end
             end
         end
         return hs.json.encode(out)
     end,
 }
 
--- Returns true if parsed correctly, false otherwise
-function parseHTTPCommand(cmd, headers, contents)
+local function parseArguments(cmd)
     local components = split(cmd, "?")
     local command = components[1]
-    local outSuccess = false
-    local outOutput = ""
     local arguments = {}
+
     if components[2] ~= nil then
-        local args = components[2]
-        args = url_decode(args)
+        local args = url_decode(components[2])
         local argElements = split(args, "&")
-        for _, v in pairs(argElements) do
-            local eqPos = v:find("=")
+        for _, value in pairs(argElements) do
+            local eqPos = value:find("=")
             if eqPos then
-                local argName = v:sub(1, eqPos - 1)
-                local argValue = v:sub(eqPos + 1)
+                local argName = value:sub(1, eqPos - 1)
+                local argValue = value:sub(eqPos + 1)
                 arguments[argName] = argValue
             end
         end
     end
-    local func = commandToFunction[command]
-    if func ~= nil then
-        local output = func(arguments, contents)
-        if output ~= nil then
-            outSuccess, outOutput = true, output
-        else
-            outSuccess, outOutput = true, ""
-        end
-    else
-        hs.application.open(command)
-        outSuccess, outOutput = true, ""
-    end
-    local outSuccessDescription = "false"
-    if outSuccess then
-        outSuccessDescription = "true"
-    end
-    dbg("ran " .. cmd .. " successfully " .. outSuccessDescription)
-    return outSuccess, outOutput
+
+    return command, arguments
 end
+
+local function logCommand(cmd, success)
+    local components = split(cmd, "?")
+    local command = components[1]
+    if command ~= "widgets" then
+        local outSuccessDescription = "false"
+        if success then
+            outSuccessDescription = "true"
+        end
+        dbg("ran " .. cmd .. " successfully " .. outSuccessDescription)
+    end
+end
+
+local function parseHTTPCommand(requestType, cmd, headers, contents)
+    local command, arguments = parseArguments(cmd)
+    if command == nil or command == "" then
+        return false, "Missing command", 404
+    end
+
+    local func = commandToFunction[command]
+    if func == nil then
+        return false, "Unknown command", 404
+    end
+
+    local sharedSecret = wikiGetText(sharedSecretTiddler)
+    if sharedSecret == nil or sharedSecret == "" then
+        dbg("server shared secret missing")
+        return false, "Server secret unavailable", 503
+    end
+
+    local providedSecret = getHeaderValue(headers, secretHeaderName)
+    if providedSecret ~= sharedSecret then
+        return false, "Unauthorized", 401
+    end
+
+    local expectedMethod = commandUsesGet(command) and "GET" or "POST"
+    if requestType ~= expectedMethod then
+        return false, "Method Not Allowed", 405
+    end
+
+    local ok, output = pcall(func, arguments, contents)
+    logCommand(cmd, ok)
+    if not ok then
+        dbg("server error for " .. cmd .. ": " .. tostring(output))
+        return false, "An error occurred", 500
+    end
+
+    if output == nil then
+        output = ""
+    end
+    return true, output, 200
+end
+
+local corsHeaders = {
+    ["Access-Control-Allow-Origin"] = "*",
+    ["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS",
+    ["Access-Control-Allow-Headers"] = secretHeaderName .. ", X-Requested-With",
+}
 
 server = hs.httpserver.new(false, false)
 :setInterface("localhost")
 :setPort(port)
 :setCallback(function(requestType, path, headers, contents)
-    local additionalHeaders = {
-        ["Access-Control-Allow-Origin"] = "*"
-    }
-
-    local command = path:sub(2)
-    local success, output = parseHTTPCommand(command, headers, contents)
-    if success == false then
-        return "An error occurred", 400, additionalHeaders
+    if requestType == "OPTIONS" then
+        return "", 204, corsHeaders
     end
 
-    return output, 200, additionalHeaders
+    local command = path:sub(2)
+    local success, output, statusCode = parseHTTPCommand(requestType, command, headers, contents)
+    return output, statusCode, corsHeaders
 end)
 :start()
 
@@ -156,9 +246,9 @@ function printHomeAssistantYAML(host)
     local out = "\n"
     out = out .. "rest_command:\n"
     for name, _ in pairs(commandToFunction) do
-        out = out .. "  " .. "hammerspoon_" .. name .. ":\n"
+        out = out .. "  hammerspoon_" .. name .. ":\n"
         out = out .. "    url: \"" .. host .. ":" .. port .. "/" .. name .. "\"\n"
-        out = out .. "    method: GET\n"
+        out = out .. "    method: " .. (commandUsesGet(name) and "GET" or "POST") .. "\n"
     end
     print(out)
 end
