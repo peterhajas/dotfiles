@@ -73,7 +73,8 @@ start_new_session() {
     set_terminal_title "$session_name"
 
     # Prefer tying the session to a default cwd so new tabs open in the same workspace.
-    if ! zellij options --default-cwd "$session_cwd" --default-layout "$layout" --session-name "$session_name" --attach-to-session true 2>/dev/null; then
+    # Always cd first so the initial pane inherits the correct cwd regardless of zellij version.
+    if ! (cd "$session_cwd" && zellij options --default-cwd "$session_cwd" --default-layout "$layout" --session-name "$session_name" --attach-to-session true 2>/dev/null); then
         # Fallback for older zellij versions.
         (cd "$session_cwd" && zellij --new-session-with-layout "$layout" --session "$session_name")
     fi
