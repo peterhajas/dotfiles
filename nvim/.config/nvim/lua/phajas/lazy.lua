@@ -141,7 +141,7 @@ local plugins = {
 
     -- Markdown Stuff
     { "dhruvasagar/vim-table-mode",
-        ft = { "markdown", "tiddlywiki" },
+        ft = { "markdown", "tiddlywiki", "claude_prompt" },
         config = function()
             require("phajas.plugins.table-mode")
         end,

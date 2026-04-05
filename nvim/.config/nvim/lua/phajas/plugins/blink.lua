@@ -20,6 +20,9 @@ require('blink.cmp').setup({
 
     sources = {
         default = { 'lsp', 'path', 'snippets', 'buffer' },
+        per_filetype = {
+            claude_prompt = { 'claude_prompt_skills', 'path', 'snippets', 'buffer' },
+        },
         providers = {
             buffer = {
                 min_keyword_length = min_keyword_length,
@@ -29,6 +32,11 @@ require('blink.cmp').setup({
             },
             snippets = {
                 min_keyword_length = min_keyword_length,
+            },
+            claude_prompt_skills = {
+                name = 'claude_prompt_skills',
+                module = 'phajas.claude_prompt_source',
+                min_keyword_length = 1,
             },
         },
     },
