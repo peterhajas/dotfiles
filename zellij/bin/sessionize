@@ -11,6 +11,7 @@ BOOKMARKS="
 phajas-wiki|$HOME/phajas-wiki
 scratch|$HOME/scratch
 kanata|$HOME/.config/kanata
+sysmon|$HOME
 "
 
 # Function to kill any existing "zellij attach SESSION_NAME" processes
