@@ -45,14 +45,14 @@ local function load_filetype_mapping()
 end
 
 -- Get Neovim filetype from tiddler's MIME type
--- Returns: filetype string, defaults to 'markdown' if not found
+-- Returns: filetype string, defaults to 'tiddlywiki' if not found
 local function get_filetype_from_mime(mime_type)
   if not mime_type or mime_type == "" then
-    return 'markdown'  -- Default for TiddlyWiki content
+    return 'tiddlywiki'
   end
 
   local mapping = load_filetype_mapping()
-  return mapping[mime_type] or 'markdown'
+  return mapping[mime_type] or 'tiddlywiki'
 end
 
 -- Get file modification time

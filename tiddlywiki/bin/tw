@@ -110,9 +110,9 @@ EXT_TO_MIME_TYPE = {
 # Mapping of TiddlyWiki MIME types to Neovim filetypes
 MIME_TO_VIM_FILETYPE = {
     # TiddlyWiki formats
-    'text/vnd.tiddlywiki': 'markdown',
-    'text/x-tiddlywiki': 'markdown',
-    'text/vnd.tiddlywiki-multiple': 'markdown',
+    'text/vnd.tiddlywiki': 'tiddlywiki',
+    'text/x-tiddlywiki': 'tiddlywiki',
+    'text/vnd.tiddlywiki-multiple': 'tiddlywiki',
 
     # Markup formats
     'text/markdown': 'markdown',
