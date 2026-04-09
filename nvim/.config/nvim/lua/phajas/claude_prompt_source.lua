@@ -12,6 +12,13 @@ function source:get_trigger_characters()
 end
 
 function source:get_completions(context, callback)
+    -- Only show skills when the user typed '/' to start
+    local before_cursor = context.line:sub(1, context.cursor[2])
+    if not before_cursor:match("/%S*$") then
+        callback({ is_incomplete_forward = false, is_incomplete_backward = false, items = {} })
+        return
+    end
+
     local skills = require("phajas.claude_prompt").get_skills()
     local items = {}
     for _, skill in ipairs(skills) do
