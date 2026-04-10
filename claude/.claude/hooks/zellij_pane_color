@@ -22,11 +22,11 @@ get_idle_color() {
 set_idle_color() {
     local bg
     bg=$(get_idle_color)
-    zellij action set-pane-color --pane-id "$PANE_TARGET" --bg "$bg" 2>/dev/null
+    zellij action set-pane-color --pane-id "$PANE_TARGET" --bg "$bg" >/dev/null 2>&1
 }
 
 reset_color() {
-    zellij action set-pane-color --pane-id "$PANE_TARGET" --reset 2>/dev/null
+    zellij action set-pane-color --pane-id "$PANE_TARGET" --reset >/dev/null 2>&1
 }
 
 # Read event from stdin
@@ -41,6 +41,14 @@ fi
 case "$hook_event" in
     Stop|Notification)
         set_idle_color
+        ;;
+    PostToolUse)
+        tool_name=$(echo "$input" | jq -r '.tool_name // ""' 2>/dev/null)
+        case "$tool_name" in
+            ExitPlanMode|AskUserQuestion)
+                set_idle_color
+                ;;
+        esac
         ;;
     UserPromptSubmit|PreToolUse|SessionStart|SessionEnd)
         reset_color

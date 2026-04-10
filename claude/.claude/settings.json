@@ -39,18 +39,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/hammerspoon_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_rename",
-            "timeout": 1000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_pane_color",
-            "timeout": 1000
+            "command": "~/.claude/hooks/dispatch",
+            "timeout": 10000
           }
         ]
       }
@@ -61,18 +51,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/hammerspoon_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_rename",
-            "timeout": 1000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_pane_color",
-            "timeout": 1000
+            "command": "~/.claude/hooks/dispatch",
+            "timeout": 10000
           }
         ]
       }
@@ -83,13 +63,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/hammerspoon_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_rename",
-            "timeout": 1000
+            "command": "~/.claude/hooks/dispatch",
+            "timeout": 10000
           }
         ]
       }
@@ -100,23 +75,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/hammerspoon_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/ntfy_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_rename",
-            "timeout": 1000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_pane_color",
-            "timeout": 1000
+            "command": "~/.claude/hooks/dispatch",
+            "timeout": 10000
           }
         ]
       }
@@ -127,18 +87,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/hammerspoon_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_rename",
-            "timeout": 1000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_pane_color",
-            "timeout": 1000
+            "command": "~/.claude/hooks/dispatch",
+            "timeout": 10000
           }
         ]
       }
@@ -149,18 +99,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/hammerspoon_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_rename",
-            "timeout": 1000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_pane_color",
-            "timeout": 1000
+            "command": "~/.claude/hooks/dispatch",
+            "timeout": 10000
           }
         ]
       }
@@ -171,23 +111,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/hooks/hammerspoon_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/ntfy_hook",
-            "timeout": 5000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_rename",
-            "timeout": 1000
-          },
-          {
-            "type": "command",
-            "command": "~/.claude/hooks/zellij_pane_color",
-            "timeout": 1000
+            "command": "~/.claude/hooks/dispatch",
+            "timeout": 10000
           }
         ]
       }
