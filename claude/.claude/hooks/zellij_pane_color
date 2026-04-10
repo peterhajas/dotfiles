@@ -29,6 +29,40 @@ reset_color() {
     zellij action set-pane-color --pane-id "$PANE_TARGET" --reset >/dev/null 2>&1
 }
 
+# Check if a tool call matches any "ask" permission pattern in settings.json
+matches_ask_pattern() {
+    local tool_name="$1"
+    local input="$2"
+    local settings="$HOME/.claude/settings.json"
+    [ -f "$settings" ] || return 1
+
+    local command=""
+    if [ "$tool_name" = "Bash" ]; then
+        command=$(echo "$input" | jq -r '.tool_input.command // ""' 2>/dev/null)
+    fi
+
+    while IFS= read -r pattern; do
+        if [[ "$pattern" == Bash\(* ]]; then
+            [ "$tool_name" != "Bash" ] && continue
+            local inner="${pattern#Bash(}"
+            inner="${inner%)}"
+            inner="${inner%:\*}"
+            inner="${inner%\*}"
+            # Handle wildcard prefix like */tw
+            if [[ "$inner" == \*/* ]]; then
+                local suffix="${inner#\*/}"
+                [[ "$command" =~ (^|.*/)"$suffix"($|[[:space:]]) ]] && return 0
+            else
+                [[ "$command" == "$inner"* ]] && return 0
+            fi
+        else
+            [ "$tool_name" = "$pattern" ] && return 0
+        fi
+    done < <(jq -r '.permissions.ask[]? // empty' "$settings" 2>/dev/null)
+
+    return 1
+}
+
 # Read event from stdin
 input=$(cat)
 hook_event=$(echo "$input" | jq -r '.hook_event_name // ""' 2>/dev/null)
@@ -42,15 +76,25 @@ case "$hook_event" in
     Stop|Notification)
         set_idle_color
         ;;
-    PostToolUse)
+    PreToolUse)
         tool_name=$(echo "$input" | jq -r '.tool_name // ""' 2>/dev/null)
         case "$tool_name" in
             ExitPlanMode|AskUserQuestion)
                 set_idle_color
                 ;;
+            *)
+                if matches_ask_pattern "$tool_name" "$input"; then
+                    set_idle_color
+                else
+                    reset_color
+                fi
+                ;;
         esac
         ;;
-    UserPromptSubmit|PreToolUse|SessionStart|SessionEnd)
+    PostToolUse)
+        reset_color
+        ;;
+    UserPromptSubmit|SessionStart|SessionEnd)
         reset_color
         ;;
 esac
