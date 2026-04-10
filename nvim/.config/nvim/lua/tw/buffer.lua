@@ -3,7 +3,7 @@
 local M = {}
 local tw_wrapper = require("tw.tw_wrapper")
 
--- Map buffer numbers to tiddler names
+-- Map buffer numbers to tiddler names and original modified values
 local buffer_map = {}
 
 -- Generate buffer name for a tiddler
@@ -47,8 +47,10 @@ function M.open(tiddler_name)
   local ft = tw_wrapper.get_tiddler_filetype(tiddler_name)
   vim.bo[bufnr].filetype = ft
 
-  -- Store mapping
-  buffer_map[bufnr] = tiddler_name
+  -- Store mapping and original modified value for save-time comparison
+  local tiddler_obj = tw_wrapper.get_tiddler_object(tiddler_name)
+  local original_modified = tiddler_obj and tiddler_obj.modified or nil
+  buffer_map[bufnr] = { name = tiddler_name, original_modified = original_modified }
 
   -- Split content into lines and set buffer content
   local lines = vim.split(content, "\n", { plain = true })
@@ -67,6 +69,41 @@ function M.open(tiddler_name)
   vim.opt_local.foldcolumn = "0"
 end
 
+-- Strip the modified field from frontmatter if unchanged from original,
+-- so tw replace will auto-generate a new timestamp.
+local function strip_unchanged_modified(content, original_modified)
+  if not original_modified then
+    return content
+  end
+
+  local lines = vim.split(content, "\n", { plain = true })
+  local result = {}
+  local in_frontmatter = true
+
+  for _, line in ipairs(lines) do
+    if in_frontmatter then
+      if line:match("^%s*$") or not line:find(":") then
+        in_frontmatter = false
+        table.insert(result, line)
+      elseif line:match("^modified:%s*(.+)$") then
+        local value = line:match("^modified:%s*(.+)$")
+        if value == original_modified then
+          -- unchanged — skip this line so replace auto-generates
+        else
+          -- user deliberately changed it — keep it
+          table.insert(result, line)
+        end
+      else
+        table.insert(result, line)
+      end
+    else
+      table.insert(result, line)
+    end
+  end
+
+  return table.concat(result, "\n")
+end
+
 -- Save a tiddler buffer
 function M.save(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
@@ -80,9 +117,16 @@ function M.save(bufnr)
     return false
   end
 
+  local buf_info = buffer_map[bufnr]
+
   -- Get buffer content
   local lines = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
   local content = table.concat(lines, "\n")
+
+  -- Strip unchanged modified field so tw replace auto-generates a new timestamp
+  if buf_info and buf_info.original_modified then
+    content = strip_unchanged_modified(content, buf_info.original_modified)
+  end
 
   -- If the entire buffer is blank, treat save as delete.
   if vim.trim(content) == "" then
@@ -99,6 +143,11 @@ function M.save(bufnr)
   local success = tw_wrapper.replace(tiddler_name, content)
 
   if success then
+    -- Update stored original_modified so subsequent saves also get fresh timestamps
+    if buf_info then
+      local updated = tw_wrapper.get_tiddler_object(tiddler_name)
+      buf_info.original_modified = updated and updated.modified or nil
+    end
     -- Mark buffer as saved
     vim.bo[bufnr].modified = false
     vim.notify("Saved: " .. tiddler_name, vim.log.levels.INFO)
