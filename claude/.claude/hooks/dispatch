@@ -3,8 +3,6 @@
 input=$(cat)
 HOOK_DIR="$(dirname "$0")"
 
-echo "$input" | "$HOOK_DIR/hammerspoon_hook" >/dev/null 2>&1 &
 echo "$input" | "$HOOK_DIR/zellij_rename" >/dev/null 2>&1 &
 echo "$input" | "$HOOK_DIR/zellij_pane_color" >/dev/null 2>&1 &
-echo "$input" | "$HOOK_DIR/ntfy_hook" >/dev/null 2>&1 &
 wait
