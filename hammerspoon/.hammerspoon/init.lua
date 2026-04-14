@@ -32,6 +32,7 @@ local youtubedl = require "youtubedl"
 local flux = require "flux"
 local iphone_mirroring = require "iphone_mirroring"
 local tiddlywiki_quickopen = require "tiddlywiki_quickopen"
+local controller = require "controller"
 local streamdeck = nil
 
 profileStop('imports')
@@ -208,6 +209,7 @@ link_replace.init()
 youtubedl.init()
 iphone_mirroring.init()
 tiddlywiki_quickopen.init()
+controller.init()
 
 local function subscribeNtfyTopicsFromTiddlyWiki()
     local topicsRaw = TiddlyWikiRender("ntfy topics")
