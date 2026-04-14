@@ -29,26 +29,23 @@ local mods = {"shift", "ctrl", "alt"}
 -- Action handlers per button
 -- Each entry is a function, or nil to do nothing
 local actions = {
-    Up    = function() hs.eventtap.keyStroke({}, "up")    end,
-    Down  = function() hs.eventtap.keyStroke({}, "down")  end,
-    Left  = function() hs.eventtap.keyStroke({}, "left")  end,
-    Right = function() hs.eventtap.keyStroke({}, "right") end,
-    A     = function() hs.eventtap.keyStroke({}, "return") end,
-    B     = function() hs.eventtap.keyStroke({}, "escape") end,
-    L1    = function() hs.eventtap.keyStroke({"ctrl"}, "p")
-                       hs.eventtap.keyStroke({}, "h")
-                       hs.eventtap.keyStroke({}, "return") end,
-    R1    = function() hs.eventtap.keyStroke({"ctrl"}, "p")
+    Up    = function() hs.eventtap.keyStroke({}, "left")  end,
+    Down  = function() hs.eventtap.keyStroke({}, "right") end,
+    Left  = function() hs.eventtap.keyStroke({}, "down")  end,
+    Right = function() hs.eventtap.keyStroke({}, "up")    end,
+    A     = function() hs.eventtap.keyStroke({"cmd", "shift"}, "t") end,
+    B     = function() hs.eventtap.keyStroke({"ctrl"}, "p")
                        hs.eventtap.keyStroke({}, "l")
                        hs.eventtap.keyStroke({}, "return") end,
-    L2    = function() hs.eventtap.keyStroke({"ctrl"}, "t")
+    X     = function() hs.eventtap.keyStroke({"ctrl"}, "p")
                        hs.eventtap.keyStroke({}, "h")
                        hs.eventtap.keyStroke({}, "return") end,
-    R2    = function() hs.eventtap.keyStroke({"ctrl"}, "t")
+    Y     = function() hs.eventtap.keyStroke({"ctrl"}, "t")
                        hs.eventtap.keyStroke({}, "l")
                        hs.eventtap.keyStroke({}, "return") end,
+    R1    = function() hs.eventtap.keyStroke({}, "return") end,
+    R2    = function() hs.eventtap.keyStroke({}, "escape") end,
     Heart = function() hs.eventtap.keyStroke({"ctrl"}, ";") end,
-    X     = function() hs.eventtap.keyStroke({"cmd", "shift"}, "t") end,
 }
 
 function controller.init()
