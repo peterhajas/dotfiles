@@ -25,6 +25,14 @@ keybinds clear-defaults=true {
         bind "w" { ToggleFloatingPanes; SwitchToMode "normal"; }
         bind "z" { TogglePaneFrames; SwitchToMode "normal"; }
         bind "=" { NextSwapLayout; SwitchToMode "normal"; }
+        bind "g" {
+            Run "sh" "-lc" "zellij_grid" {
+                floating true
+                close_on_exit true
+                hold_on_close false
+            }
+            SwitchToMode "normal"
+        }
     }
     tab {
         bind "left" { GoToPreviousTab; }

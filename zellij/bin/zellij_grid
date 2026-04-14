@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# zellij_grid - Apply a 2-row grid layout to the current tab
+# Arranges N panes into ceil(N/2) columns, each with 2 rows.
+# Odd pane counts put the short column on the right.
+
+set -euo pipefail
+
+# Count terminal panes in the focused tab
+pane_count=$(zellij action list-panes -t --json | jq '
+  ([.[] | select(.is_focused)] | .[0].tab_id) as $tid |
+  [.[] | select(.is_plugin == false and .is_floating == false and .tab_id == $tid)] | length
+')
+
+if [[ -z "$pane_count" || "$pane_count" -le 1 ]]; then
+    exit 0
+fi
+
+cols=$(( (pane_count + 1) / 2 ))
+
+# Build the layout KDL
+layout='layout {
+    tab {'
+
+# For 2 panes: simple horizontal split (top/bottom)
+if [[ "$pane_count" -eq 2 ]]; then
+    layout+='
+        pane size=1 borderless=true {
+            plugin location="tab-bar"
+        }
+        pane split_direction="horizontal" {
+            pane
+            pane
+        }
+        pane size=1 borderless=true {
+            plugin location="status-bar" {
+                tips false
+            }
+        }'
+else
+    layout+='
+        pane size=1 borderless=true {
+            plugin location="tab-bar"
+        }
+        pane split_direction="vertical" {'
+
+    remaining=$pane_count
+    for ((c = 0; c < cols; c++)); do
+        if [[ $remaining -ge 2 ]]; then
+            layout+='
+            pane split_direction="horizontal" {
+                pane
+                pane
+            }'
+            remaining=$((remaining - 2))
+        else
+            layout+='
+            pane'
+            remaining=$((remaining - 1))
+        fi
+    done
+
+    layout+='
+        }
+        pane size=1 borderless=true {
+            plugin location="status-bar" {
+                tips false
+            }
+        }'
+fi
+
+layout+='
+    }
+}'
+
+tmpfile=$(mktemp /tmp/zellij_grid_XXXXXX.kdl)
+trap 'rm -f "$tmpfile"' EXIT
+printf '%s\n' "$layout" > "$tmpfile"
+
+zellij action override-layout --apply-only-to-active-tab --retain-existing-plugin-panes "$tmpfile"
