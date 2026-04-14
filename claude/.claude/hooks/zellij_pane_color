@@ -98,3 +98,5 @@ case "$hook_event" in
         reset_color
         ;;
 esac
+
+exit 0
