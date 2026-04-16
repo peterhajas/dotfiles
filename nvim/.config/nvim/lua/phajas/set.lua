@@ -6,6 +6,8 @@ local config = require("phajas.config")
 -- Set our clipboard to map to the system one
 vim.opt.clipboard = "unnamedplus"
 
+vim.opt.modeline = false
+
 -- Turn off gui stuff
 vim.opt.guicursor = ""
 -- but leave on the mouse

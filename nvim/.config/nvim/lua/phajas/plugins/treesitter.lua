@@ -3,16 +3,41 @@ local config = require("phajas.config")
 require'nvim-treesitter.configs'.setup {
     -- A list of parser names, or "all" (the five listed parsers should always be installed)
     ensure_installed = {
+        "bash",
         "c",
+        "css",
+        "diff",
+        "dockerfile",
+        "fish",
+        "git_config",
+        "gitcommit",
+        "gitignore",
+        "go",
+        "gomod",
         "html",
+        "ini",
         "javascript",
+        "json",
+        "jsonc",
+        "kdl",
         "lua",
         "luadoc",
+        "make",
         "markdown",
+        "markdown_inline",
+        "php",
+        "python",
         "query",
+        "requirements",
+        "sql",
         "swift",
+        "tmux",
+        "toml",
+        "typescript",
         "vim",
         "vimdoc",
+        "xml",
+        "yaml",
     },
 
     -- Install parsers synchronously (only applied to `ensure_installed`)
@@ -20,7 +45,7 @@ require'nvim-treesitter.configs'.setup {
 
     -- Automatically install missing parsers when entering buffer
     -- Recommendation: set to false if you don't have `tree-sitter` CLI installed locally
-    auto_install = true,
+    auto_install = false,
 
     highlight = {
         enable = true,
