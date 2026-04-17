@@ -179,8 +179,13 @@ local locationObserver = nil
 
 -- Initialize the flux module
 function flux.init()
-    -- Set up screen watcher to update when screens change
-    fluxScreenWatcher = hs.screen.watcher.new(updateFluxiness)
+    -- Set up screen watcher to update when screens change.
+    -- Delay the re-apply so a freshly-connected display has finished
+    -- settling before we push gamma (otherwise macOS overwrites it).
+    fluxScreenWatcher = hs.screen.watcher.new(function()
+        updateFluxiness()
+        hs.timer.doAfter(2, updateFluxiness)
+    end)
     fluxScreenWatcher:start()
 
     -- Set up location observer to update when location changes
