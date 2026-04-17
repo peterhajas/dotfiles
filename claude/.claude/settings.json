@@ -23,8 +23,6 @@
       "Write(/Users/phajas/.claude/phajas_plans/**)"
     ],
     "ask": [
-      "Bash(git checkout:*)",
-      "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(rm:*)",
       "Bash(*/tw:*)",
