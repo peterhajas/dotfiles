@@ -1,36 +1,67 @@
 function prompt_char
-    version_control_repo_type | read REPO_TYPE
-    echo -n "F5A623" | read PROMPT_COLOR
-    echo -n "99CC99" | read PROMPT_GREEN
-    echo -n "F2777A" | read PROMPT_RED
-    echo -n "6699CC" | read PROMPT_BLUE
-    # If we're in a VCS, print some info
-    if test $REPO_TYPE != (echo -n 'none')
-        # Find the status of the current VCS
-        echo -n (prompt_vcs_status) | read VCS_STATUS
-        echo $VCS_STATUS | wc -c | read VCS_STATUS_LENGTH
-        # If there is a status, pick a color for it
-        if test $VCS_STATUS_LENGTH -gt 1
-            switch $VCS_STATUS
-                # Staged -> Green
-                case "+"
-                    echo -n $PROMPT_GREEN | read PROMPT_COLOR
-                # Untracked -> Blue
-                case "?"
-                    echo -n $PROMPT_BLUE | read PROMPT_COLOR
-                # Unstaged -> Red
-                case "!"
-                    echo -n $PROMPT_RED | read PROMPT_COLOR
+    set -l PROMPT_COLOR F5A623
+    set -l PROMPT_GREEN 99CC99
+    set -l PROMPT_RED F2777A
+    set -l PROMPT_BLUE 6699CC
+
+    # Fast path: single git invocation covers repo detection, branch, and status.
+    set -l status_lines (git status --porcelain=v1 -b 2>/dev/null)
+    if test $status -eq 0
+        # First line: "## branch...upstream" or "## HEAD (no branch)" or "## No commits yet on branch"
+        set -l header $status_lines[1]
+        set -l branch (string replace -r '^## ' '' -- $header | string replace -r '\.\.\..*$' '' | string replace -r ' \[.*$' '')
+
+        # Walk remaining lines to figure out staged / untracked / unstaged.
+        # XY meanings per git: '??' untracked; X (col 1) staged; Y (col 2) unstaged.
+        set -l has_staged 0
+        set -l has_untracked 0
+        set -l has_unstaged 0
+        for line in $status_lines[2..-1]
+            set -l xy (string sub -l 2 -- $line)
+            if test "$xy" = '??'
+                set has_untracked 1
+            else
+                set -l x (string sub -l 1 -- $xy)
+                set -l y (string sub -s 2 -l 1 -- $xy)
+                if test "$x" != ' '
+                    set has_staged 1
                 end
+                if test "$y" != ' '
+                    set has_unstaged 1
+                end
+            end
         end
 
-        # Now that we (might) have a custom color, set it and print the branch name
+        # Priority: staged > untracked > unstaged (matches legacy prompt_vcs_status).
+        if test $has_staged -eq 1
+            set PROMPT_COLOR $PROMPT_GREEN
+        else if test $has_untracked -eq 1
+            set PROMPT_COLOR $PROMPT_BLUE
+        else if test $has_unstaged -eq 1
+            set PROMPT_COLOR $PROMPT_RED
+        end
+
         set_color $PROMPT_COLOR --bold
-        echo -n (prompt_vcs_info)
+        echo -n $branch
     else
-        # Print the regular prompt character
-        set_color $PROMPT_COLOR --bold
-        echo -n '▶'
+        # Slow path: git said no. Fall back to existing helpers for svn/hg (low-frequency).
+        set -l repo_type (version_control_repo_type)
+        if test "$repo_type" != 'none'
+            set -l vcs_status (prompt_vcs_status)
+            switch $vcs_status
+                case '+'
+                    set PROMPT_COLOR $PROMPT_GREEN
+                case '?'
+                    set PROMPT_COLOR $PROMPT_BLUE
+                case '!'
+                    set PROMPT_COLOR $PROMPT_RED
+            end
+            set_color $PROMPT_COLOR --bold
+            echo -n (prompt_vcs_info)
+        else
+            set_color $PROMPT_COLOR --bold
+            echo -n '▶'
+        end
     end
     set_color normal
     echo -n ' '

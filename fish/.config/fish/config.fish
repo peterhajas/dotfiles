@@ -1,9 +1,11 @@
 # Shell
 
+## Homebrew (must come before other PATH additions so brew shadows /usr/local)
+fish_add_path /opt/homebrew/bin
+fish_add_path /opt/homebrew/sbin
+
 ## ~/bin is where personal executables are stored
-for dir in (find -L ~/bin -type d)
-    fish_add_path $dir
-end
+fish_add_path ~/bin
 
 ## ~/.bitbar/plugins is where bitbar plugs are stored
 fish_add_path ~/.bitbar/plugins
@@ -14,7 +16,7 @@ fish_add_path /usr/local/bin
 # Editor
 
 ## Set my editor to vim
-set -gx EDITOR (which nvim)
+set -gx EDITOR nvim
 
 # Abbreviations
 if type -q abbrev
@@ -25,15 +27,12 @@ end
 
 ## Set LC_ALL for unicode detection in Ubuntu
 ## This is from (https://github.com/fish-shell/fish-shell/issues/2126)
-set LC_ALL "en_US.utf8"
+set -gx LC_ALL en_US.UTF-8
 
 # Tool configuration
 config_editor_aliases
 
 alias mutt neomutt
-
-fish_add_path /opt/homebrew/bin
-fish_add_path /opt/homebrew/sbin
 
 # Variables
 
