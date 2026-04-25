@@ -28,6 +28,23 @@ kill_existing_attach_processes() {
 INSIDE_ZELLIJ="${ZELLIJ:-}"
 CURRENT_SESSION="${ZELLIJ_SESSION_NAME:-}"
 
+# Zellij creates a unix-domain socket at $TMPDIR/zellij-<uid>/contract_version_1/<session>.
+# On macOS sockaddr_un.sun_path is 104 bytes — overflowing it makes the
+# server panic on bind and the client hang forever (no error surfaced).
+# Compute a safe upper bound and truncate session names that would overflow.
+ZELLIJ_SOCKET_DIR="${TMPDIR:-/tmp}/zellij-$(id -u 2>/dev/null)/contract_version_1"
+MAX_SESSION_NAME_LEN=$(( 100 - ${#ZELLIJ_SOCKET_DIR} - 1 ))
+[ "$MAX_SESSION_NAME_LEN" -lt 8 ] && MAX_SESSION_NAME_LEN=8
+
+truncate_session_name() {
+    name="$1"
+    if [ "${#name}" -gt "$MAX_SESSION_NAME_LEN" ]; then
+        printf '%s' "$name" | cut -c1-"$MAX_SESSION_NAME_LEN"
+    else
+        printf '%s' "$name"
+    fi
+}
+
 # Prevent multiple overlapping sessionize pickers (use a lockfile instead of
 # slow IPC via list-panes).
 LOCKFILE="${TMPDIR:-/tmp}/sessionize.lock"
@@ -73,17 +90,21 @@ start_new_session() {
 
     set_terminal_title "$session_name"
 
-    # Prefer tying the session to a default cwd so new tabs open in the same workspace.
-    # Always cd first so the initial pane inherits the correct cwd regardless of zellij version.
-    if ! (cd "$session_cwd" && zellij options --default-cwd "$session_cwd" --default-layout "$layout" --session-name "$session_name" --attach-to-session true 2>/dev/null); then
-        # Fallback for older zellij versions.
-        (cd "$session_cwd" && zellij --new-session-with-layout "$layout" --session "$session_name")
-    fi
+    # `attach -c` creates the session if missing and attaches; the `options`
+    # subcommand sets a default cwd so new tabs open in the same workspace.
+    (cd "$session_cwd" && zellij attach -c "$session_name" options --default-cwd "$session_cwd" --default-layout "$layout")
 }
 
 # Get existing zellij sessions with visual indicator.
-# Keep the raw names too so we can do fast membership checks later.
-ACTIVE_SESSION_NAMES=$(zellij list-sessions --no-formatting --short 2>/dev/null | awk 'NF { print $1 }')
+# Read the socket dir directly — `zellij list-sessions` is slow (700ms–3s+
+# when there are EXITED sessions to validate). EXITED sessions that have no
+# live socket won't show up; typing their name + Ctrl+N still resurrects via
+# `zellij attach -c`.
+if [ -d "$ZELLIJ_SOCKET_DIR" ]; then
+    ACTIVE_SESSION_NAMES=$(ls -1 "$ZELLIJ_SOCKET_DIR" 2>/dev/null)
+else
+    ACTIVE_SESSION_NAMES=""
+fi
 SESSIONS=""
 CURRENT_SESSION_LINE=""
 if [ -n "$ACTIVE_SESSION_NAMES" ]; then
@@ -187,6 +208,7 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
     if [ -z "$SESSION_NAME" ]; then
         exit 0
     fi
+    SESSION_NAME=$(truncate_session_name "$SESSION_NAME")
     LAYOUT=$(get_layout "$SESSION_NAME")
     SESSION_CWD=$(pwd)
 
@@ -235,6 +257,7 @@ case "$SELECTION" in
     if [ -z "$SESSION_NAME" ]; then
         exit 0
     fi
+    SESSION_NAME=$(truncate_session_name "$SESSION_NAME")
 
     if [ -z "$BOOKMARK_DIR" ] || [ ! -d "$BOOKMARK_DIR" ]; then
         BOOKMARK_DIR="$HOME"
@@ -263,6 +286,7 @@ esac
 # Handle directory choice
 DIR="$SELECTION"
 SESSION_NAME=${DIR##*/}
+SESSION_NAME=$(truncate_session_name "$SESSION_NAME")
 
 # Check if session exists
 if session_exists "$SESSION_NAME"; then
