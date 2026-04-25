@@ -11,6 +11,7 @@
       - btop
       - claude
       - codex
+      - colors
       - fish
       - ghostty
       - git
@@ -83,7 +84,7 @@
         msg: "Setting up dotfiles for {{ ansible_system }} on {{ ansible_hostname }}"
 
     - name: Build color artifacts from palette
-      command: python3 colors/build.py
+      command: python3 colors/.config/colors/build.py
       args:
         chdir: "{{ playbook_dir }}"
       environment:
