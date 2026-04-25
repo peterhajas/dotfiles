@@ -24,9 +24,7 @@
     ],
     "ask": [
       "Bash(git push:*)",
-      "Bash(rm:*)",
-      "Bash(*/tw:*)",
-      "Bash(tw:*)"
+      "Bash(rm:*)"
     ]
   },
   "model": "opus[1m]",
