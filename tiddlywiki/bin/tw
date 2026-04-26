@@ -2175,6 +2175,11 @@ def install_live_reload_plugin(wiki_path):
   };
 
   function checkForServer() {
+    // Guard: fetch() on file:// throws; skip before touching the network
+    if (!/^https?:$/.test(window.location.protocol)) {
+      console.log('[LiveReload] Not on http(s), aborting');
+      return;
+    }
     var meta = document.querySelector('meta[name="tw-server"]');
     if (!meta || meta.getAttribute('content') !== 'enabled') {
       console.log('[LiveReload] Not running on tw server, aborting');
@@ -2182,6 +2187,7 @@ def install_live_reload_plugin(wiki_path):
     }
 
     console.log('[LiveReload] Detected tw server, starting live reload');
+    installChangeTracker();
     startPolling();
     enableWebDAVSaver();
   }
@@ -2221,47 +2227,38 @@ def install_live_reload_plugin(wiki_path):
   var savedVersions = {}; // Track versions we saved: {version: timestamp}
   var VERSION_SKIP_DURATION = 10000; // Skip reloading versions we saved for 10 seconds
   var isReloading = false; // Flag to prevent marking as dirty during reload
-  var isSaving = false; // Flag to track when a save is in progress
+  var pendingSaveUntil = 0; // While Date.now() < this, rescan /_tw/version on each poll
 
-  // Hook into TiddlyWiki's save mechanism to track when we initiate a save
-  if ($tw.wiki) {
-    var originalAddTiddler = $tw.wiki.addTiddler;
-    $tw.wiki.addTiddler = function(tiddler) {
-      var result = originalAddTiddler.apply(this, arguments);
-      // If this is a user-initiated change (not from our plugin reload), mark as saving
-      // Ignore: reloads and temporary tiddlers
-      if (!isReloading &&
-          tiddler &&
-          tiddler.fields &&
-          tiddler.fields.title &&
-          !tiddler.fields.title.startsWith('$:/temp')) {
+  function isIgnoredTitle(title) {
+    if (!title) return true;
+    if (title.indexOf('$:/temp') === 0) return true;
+    if (title.indexOf('$:/state') === 0) return true;
+    if (title.indexOf('$:/info/') === 0) return true;
+    if (title === '$:/HistoryList') return true;
+    if (title === '$:/StoryList') return true;
+    return false;
+  }
 
-        // Debounce: only mark as saving if we're not already saving
-        if (!isSaving) {
-          isSaving = true;
-          console.log('[LiveReload] User change detected:', tiddler.fields.title);
+  function noteUserChange(title) {
+    // Keep watching /_tw/version for a few seconds so any post-save version bump
+    // lands in savedVersions before the periodic poll sees it as an external edit.
+    pendingSaveUntil = Date.now() + 5000;
+    console.log('[LiveReload] User change detected:', title);
+  }
 
-          // Clear the saving flag after a short delay to capture the version after save
-          setTimeout(function() {
-            if (isSaving) {
-              // Fetch current version and mark it as saved by us
-              fetch('/_tw/version')
-                .then(function(response) { return response.json(); })
-                .then(function(data) {
-                  savedVersions[data.version] = Date.now();
-                  console.log('[LiveReload] Marked version as saved:', data.version);
-                  isSaving = false;
-                })
-                .catch(function(error) {
-                  console.error('[LiveReload] Error fetching version after save:', error);
-                  isSaving = false;
-                });
-            }
-          }, 1000); // Wait 1 second for the save to complete
+  // Called only after checkForServer() confirms we're on an http(s) tw server —
+  // keeps the hook off the page in file:// mode where fetch would throw.
+  function installChangeTracker() {
+    if (!$tw.wiki || typeof $tw.wiki.addEventListener !== 'function') return;
+    $tw.wiki.addEventListener('change', function(changes) {
+      if (isReloading) return;
+      for (var title in changes) {
+        if (!isIgnoredTitle(title)) {
+          noteUserChange(title);
+          return;
         }
       }
-      return result;
-    };
+    });
   }
 
   function startPolling() {
@@ -2269,6 +2266,16 @@ def install_live_reload_plugin(wiki_path):
       checkVersion();
       cleanupOldSavedVersions();
     }, 3000); // Poll every 3 seconds
+    // Fast loop while a save is in flight, so we capture the post-save version
+    // before the slow poll mistakes it for an external edit.
+    setInterval(function() {
+      if (Date.now() < pendingSaveUntil) {
+        fetch('/_tw/version')
+          .then(function(r) { return r.json(); })
+          .then(function(data) { savedVersions[data.version] = Date.now(); })
+          .catch(function() {});
+      }
+    }, 400);
   }
 
   function cleanupOldSavedVersions() {
@@ -2411,14 +2418,11 @@ def install_live_reload_plugin(wiki_path):
           $tw.rootWidget.refresh(changedTiddlers);
           console.log('[LiveReload] Reload complete - updated:', updateCount, 'deleted:', deleteCount);
 
-          // Mark the wiki as saved at current change count
-          // This prevents the wiki from showing as "dirty" after a reload from server
-          if ($tw.wiki.getChangeCount && $tw.syncer && $tw.syncer.wiki) {
-            $tw.syncer.wiki.addTiddler(new $tw.Tiddler(
-              $tw.wiki.getTiddler('$:/config/SaverStartupTime'),
-              {text: '' + $tw.wiki.getChangeCount()}
-            ));
-            console.log('[LiveReload] Updated save marker to change count:', $tw.wiki.getChangeCount());
+          // Stop the saver from autosaving the content we just pulled back to the
+          // server: $tw.syncer is undefined for WebDAV-only wikis, so reset the
+          // saver-handler's change counter directly.
+          if ($tw.saverHandler && typeof $tw.saverHandler.numChanges === 'number') {
+            $tw.saverHandler.numChanges = 0;
           }
         } else {
           console.log('[LiveReload] No changes detected');
@@ -2449,7 +2453,7 @@ def install_live_reload_plugin(wiki_path):
         "text": plugin_code,
         "tags": "$:/tags/StartupModule",
         "description": "Live reload functionality with WebDAV save support for tw server",
-        "version": "0.8.1"
+        "version": "0.8.2"
     }
 
     # Convert to JSON and insert
@@ -12535,7 +12539,7 @@ class TestInstallPlugin(unittest.TestCase):
         self.assertEqual(plugin['type'], 'application/javascript')
         self.assertEqual(plugin['module-type'], 'startup')
         self.assertEqual(plugin['tags'], '$:/tags/StartupModule')
-        self.assertEqual(plugin['version'], '0.8.1')
+        self.assertEqual(plugin['version'], '0.8.2')
         self.assertIn('Live reload functionality', plugin['description'])
 
         # Check plugin code contains key functions
@@ -13030,55 +13034,48 @@ class TestWebDAVSupport(unittest.TestCase):
         finally:
             pass
 
-    def test_plugin_handles_null_tiddlers(self):
-        """Test that the live reload plugin handles null/undefined tiddlers gracefully"""
-        # This test verifies the plugin code can handle edge cases
-        # The plugin hooks into $tw.wiki.addTiddler and must handle:
-        # - null tiddlers
-        # - tiddlers without fields
-        # - tiddlers without title field
-
-        # Get the plugin tiddler
-        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
-
-        # First install the plugin
+    def test_plugin_change_tracking_safeguards(self):
+        """Plugin's change tracking must be gated on the tw server and must ignore
+        navigation-state tiddlers, or the file:// path throws and navigation churn
+        triggers spurious save bookkeeping."""
         tw_module.install_live_reload_plugin(self.test_wiki)
 
-        # Verify plugin was installed
         tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
-        plugin = None
-        for t in tiddlers:
-            if t.get('title') == '$:/plugins/phajas/live-reload':
-                plugin = t
-                break
-
+        plugin = next((t for t in tiddlers
+                       if t.get('title') == '$:/plugins/phajas/live-reload'), None)
         self.assertIsNotNone(plugin, "Plugin should be installed")
-        self.assertIn('text', plugin, "Plugin should have code")
-
-        # Verify the plugin code has null safety checks
         plugin_code = plugin['text']
 
-        # Should check for tiddler existence
-        self.assertIn('tiddler &&', plugin_code,
-            "Plugin should check if tiddler exists")
+        # Change tracker must not wire up before server confirmation (otherwise
+        # fetch('/_tw/version') throws on file:// loads).
+        self.assertIn('installChangeTracker()', plugin_code,
+            "Plugin should install change tracker via named function")
+        tracker_pos = plugin_code.find('function installChangeTracker')
+        checkserver_pos = plugin_code.find('function checkForServer')
+        tracker_call_pos = plugin_code.find('installChangeTracker()')
+        self.assertGreater(tracker_call_pos, checkserver_pos,
+            "installChangeTracker() must be called from checkForServer(), not at module scope")
+        self.assertIn("/^https?:$/.test(window.location.protocol)", plugin_code,
+            "Plugin should bail out on file:// before any fetch")
 
-        # Should check for fields existence
-        self.assertIn('tiddler.fields &&', plugin_code,
-            "Plugin should check if tiddler.fields exists")
+        # Uses the supported change event rather than monkey-patching addTiddler.
+        self.assertIn("addEventListener('change'", plugin_code,
+            "Plugin should subscribe to $tw.wiki's change event")
 
-        # Should check for title existence
-        self.assertIn('tiddler.fields.title &&', plugin_code,
-            "Plugin should check if tiddler.fields.title exists")
+        # Must ignore navigation/state tiddlers so history/story churn doesn't
+        # masquerade as user saves.
+        for ignored in ("'$:/temp'", "'$:/state'", "'$:/info/'",
+                        "'$:/HistoryList'", "'$:/StoryList'"):
+            self.assertIn(ignored, plugin_code,
+                f"Plugin should ignore {ignored} in change tracker")
 
-        # Should have version skip mechanism
+        # Version-skip bookkeeping still exists.
         self.assertIn('VERSION_SKIP_DURATION', plugin_code,
             "Plugin should have version skip duration mechanism")
         self.assertIn('savedVersions', plugin_code,
             "Plugin should track saved versions")
-        self.assertIn('isSaving', plugin_code,
-            "Plugin should track saving state")
-
-        # Should skip reload for versions we just saved
+        self.assertIn('pendingSaveUntil', plugin_code,
+            "Plugin should use a save-tracking window to catch post-save version bumps")
         self.assertIn('version we just saved', plugin_code,
             "Plugin should skip reload for versions we just saved")
 
