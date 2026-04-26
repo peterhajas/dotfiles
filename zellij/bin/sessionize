@@ -25,6 +25,13 @@ kill_existing_attach_processes() {
     fi
 }
 
+# --pick-dir: skip all session manipulation, just print the chosen directory.
+# Used by `cdg` (fish ctrl-g) to navigate without creating/switching sessions.
+PICK_DIR_ONLY=0
+case "${1:-}" in
+    --pick-dir|-p) PICK_DIR_ONLY=1 ;;
+esac
+
 INSIDE_ZELLIJ="${ZELLIJ:-}"
 CURRENT_SESSION="${ZELLIJ_SESSION_NAME:-}"
 
@@ -46,9 +53,10 @@ truncate_session_name() {
 }
 
 # Prevent multiple overlapping sessionize pickers (use a lockfile instead of
-# slow IPC via list-panes).
+# slow IPC via list-panes). Only relevant when triggered via the zellij Run
+# keybind, not when invoked synchronously by fish (e.g. cdg).
 LOCKFILE="${TMPDIR:-/tmp}/sessionize.lock"
-if [ -n "$INSIDE_ZELLIJ" ]; then
+if [ -n "$INSIDE_ZELLIJ" ] && [ "$PICK_DIR_ONLY" = 0 ]; then
     if ! mkdir "$LOCKFILE" 2>/dev/null; then
         exit 0
     fi
@@ -107,7 +115,8 @@ else
 fi
 SESSIONS=""
 CURRENT_SESSION_LINE=""
-if [ -n "$ACTIVE_SESSION_NAMES" ]; then
+# In --pick-dir mode, skip session entries — they don't map to a directory.
+if [ -n "$ACTIVE_SESSION_NAMES" ] && [ "$PICK_DIR_ONLY" = 0 ]; then
     while IFS= read -r session; do
         [ -n "$session" ] || continue
         if [ "$session" = "$CURRENT_SESSION" ]; then
@@ -184,7 +193,9 @@ esac
 SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$SCRIPT_PATH")" && pwd)
 PREVIEW_HELPER="$SCRIPT_DIR/.zellij_sessionize_preview"
 PREVIEW_CMD="sh $PREVIEW_HELPER {}"
-RESULT=$(printf "%s\n" "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="Session: " --print-query --expect=ctrl-n --preview="$PREVIEW_CMD" --preview-window=right:70%:wrap --bind=ctrl-/:toggle-preview --ansi)
+FZF_PROMPT="Session: "
+[ "$PICK_DIR_ONLY" = 1 ] && FZF_PROMPT="Cd: "
+RESULT=$(printf "%s\n" "$ALL_OPTIONS" | grep -v '^$' | fzf --prompt="$FZF_PROMPT" --print-query --expect=ctrl-n --preview="$PREVIEW_CMD" --preview-window=right:70%:wrap --bind=ctrl-/:toggle-preview --ansi)
 
 if [ -z "$RESULT" ]; then
     exit 0
@@ -201,6 +212,29 @@ SELECTION=""
 } <<EOF
 $RESULT
 EOF
+
+# In --pick-dir mode, resolve the selection to a directory and print it.
+# Bookmarks have a path baked in; bare entries are directory paths; query +
+# Ctrl+N has no directory (silent no-op).
+if [ "$PICK_DIR_ONLY" = 1 ]; then
+    [ "$KEY" = "ctrl-n" ] && exit 0
+    [ -z "$SELECTION" ] && exit 0
+    case "$SELECTION" in
+    *" [bookmark]")
+        SELECTION_NO_TAG=${SELECTION% \[bookmark\]}
+        BOOKMARK_DIR=${SELECTION_NO_TAG#* :: }
+        if [ -n "$BOOKMARK_DIR" ] && [ -d "$BOOKMARK_DIR" ]; then
+            printf '%s\n' "$BOOKMARK_DIR"
+        fi
+        ;;
+    *)
+        if [ -d "$SELECTION" ]; then
+            printf '%s\n' "$SELECTION"
+        fi
+        ;;
+    esac
+    exit 0
+fi
 
 # If Ctrl+N was pressed or no selection was made, create new session with query name
 if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
