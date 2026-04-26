@@ -1,4 +1,4 @@
-model = "gpt-5.4"
+model = "gpt-5.5"
 "hide_gpt-5.1-codex-max_migration_prompt" = true
 model_reasoning_effort = "medium"
 
@@ -6,6 +6,7 @@ web_search_request = true
 
 notify = ["sh", "~/.codex/hooks/notify_bridge"]
 personality = "pragmatic"
+service_tier = "fast"
 
 [projects."/Users/phajas/dotfiles"]
 trust_level = "trusted"
@@ -13,3 +14,6 @@ trust_level = "trusted"
 [notice.model_migrations]
 "gpt-5.2-codex" = "gpt-5.3-codex"
 "gpt-5.3-codex" = "gpt-5.4"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 4
