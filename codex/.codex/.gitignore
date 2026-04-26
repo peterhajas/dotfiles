@@ -18,6 +18,7 @@ vendor_imports
 cache
 .tip
 logs*
+installation_id
 
 # maybe?
 settings.json
