@@ -179,6 +179,10 @@ local locationObserver = nil
 
 -- Initialize the flux module
 function flux.init()
+    hs.hotkey.bind({"ctrl", "alt", "shift", "cmd"}, "f", function()
+        fluxAdvance()
+    end)
+
     -- Set up screen watcher to update when screens change.
     -- Delay the re-apply so a freshly-connected display has finished
     -- settling before we push gamma (otherwise macOS overwrites it).
