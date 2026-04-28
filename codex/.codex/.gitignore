@@ -19,6 +19,9 @@ cache
 .tip
 logs*
 installation_id
+ambient-suggestions
+.codex-global-state.json.bak
+
 
 # maybe?
 settings.json
