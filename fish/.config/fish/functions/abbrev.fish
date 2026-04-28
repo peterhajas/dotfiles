@@ -43,6 +43,9 @@ function abbrev -d "Install fish abbreviations"
     abbr y 'ytd "'
 
     # util
+    ## kill coding agents and node processes
+    abbr killdev 'pkill claude; pkill codex; pkill opencode; pkill node; pkill npm'
+
     ## sync music to lighthouse
     ## listen to current lighthouse stream
     abbr music mpv "http://beacon:3689/stream.mp3"
