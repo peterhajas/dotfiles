@@ -18,11 +18,7 @@
 	cmd = nvim -d $LOCAL $REMOTE $MERGED -c '$wincmd w' -c 'wincmd J'
 [push]
 	default = matching
-[init]
-	templatedir = ~/.git_template
 [alias]
-	ctags = !.git/hooks/ctags
-
     st = status
 
     # hah!

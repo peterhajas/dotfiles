@@ -5,7 +5,6 @@ brew install vim
 brew install stow
 brew install tmux
 brew install reattach-to-user-namespace
-brew install ctags --HEAD
 brew install hg
 brew install lighttpd
 brew install wget

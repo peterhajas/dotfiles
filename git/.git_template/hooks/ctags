@@ -1,7 +1,0 @@
-#!/bin/sh
-set -e
-PATH="/usr/local/bin:$PATH"
-trap "rm -f .git/tags.$$" EXIT
-ctags --langmap=ObjectiveC:.m.h --tag-relative -Rf.git/tags.$$ --exclude=.git --languages=-javascript,sql
-mv .git/tags.$$ .git/tags
-
