@@ -218,10 +218,16 @@ function M.get(tiddler_name)
   return table.concat(lines, "\n")
 end
 
--- Replace tiddler content (content must be in tw cat format with title: field)
+-- Replace tiddler content (content must be in tw cat format with title: field).
+-- Pass tiddler_name as the original title so a title change in `content` renames
+-- (removing the old tiddler) instead of leaving an orphaned duplicate.
 function M.replace(tiddler_name, content)
   local wiki_path = M.config.wiki_path
-  local cmd = build_tw_cmd("replace")
+  local args = "replace"
+  if tiddler_name and tiddler_name ~= "" then
+    args = string.format("replace --from %s", vim.fn.shellescape(tiddler_name))
+  end
+  local cmd = build_tw_cmd(args)
 
   -- Pass content via stdin
   local output = vim.fn.system(cmd, content)
@@ -232,6 +238,23 @@ function M.replace(tiddler_name, content)
   end
 
   -- Invalidate cache after successful write
+  invalidate_cache(wiki_path)
+  return true
+end
+
+-- Rename a tiddler title (preserves fields and text)
+function M.rename(old_title, new_title)
+  local wiki_path = M.config.wiki_path
+  local cmd = build_tw_cmd(string.format("mv %s %s",
+    vim.fn.shellescape(old_title),
+    vim.fn.shellescape(new_title)))
+  local output = vim.fn.system(cmd)
+
+  if vim.v.shell_error ~= 0 then
+    vim.notify("Failed to rename tiddler: " .. output, vim.log.levels.ERROR)
+    return false
+  end
+
   invalidate_cache(wiki_path)
   return true
 end

@@ -69,6 +69,22 @@ function M.open(tiddler_name)
   vim.opt_local.foldcolumn = "0"
 end
 
+-- Parse the title field from cat-format frontmatter (lines before first blank
+-- line or first non-`key: value` line).
+local function parse_title_from_content(content)
+  local lines = vim.split(content, "\n", { plain = true })
+  for _, line in ipairs(lines) do
+    if line:match("^%s*$") or not line:find(":") then
+      return nil
+    end
+    local title = line:match("^title:%s*(.-)%s*$")
+    if title then
+      return title
+    end
+  end
+  return nil
+end
+
 -- Strip the modified field from frontmatter if unchanged from original,
 -- so tw replace will auto-generate a new timestamp.
 local function strip_unchanged_modified(content, original_modified)
@@ -139,12 +155,20 @@ function M.save(bufnr)
     return false
   end
 
-  -- Save via tw replace
+  -- Save via tw replace (passes original tiddler_name so a title change in
+  -- the frontmatter renames rather than creating an orphaned duplicate).
   local success = tw_wrapper.replace(tiddler_name, content)
 
   if success then
+    local new_title = parse_title_from_content(content) or tiddler_name
+    if new_title ~= tiddler_name then
+      local new_bufname = "tw://" .. new_title
+      vim.api.nvim_buf_set_name(bufnr, new_bufname)
+      tiddler_name = new_title
+    end
     -- Update stored original_modified so subsequent saves also get fresh timestamps
     if buf_info then
+      buf_info.name = tiddler_name
       local updated = tw_wrapper.get_tiddler_object(tiddler_name)
       buf_info.original_modified = updated and updated.modified or nil
     end

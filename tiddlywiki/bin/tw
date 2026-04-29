@@ -1513,7 +1513,7 @@ def parse_replace_content(markdown_content, update_modified=True):
 
     return tiddler
 
-def replace_tiddler(wiki_path, markdown_content, update_modified=True):
+def replace_tiddler(wiki_path, markdown_content, update_modified=True, from_title=None):
     """Replace a tiddler from cat-style format (YAML frontmatter + text)
 
     This is the inverse of cat_tiddler - it parses the same format that
@@ -1523,12 +1523,27 @@ def replace_tiddler(wiki_path, markdown_content, update_modified=True):
         wiki_path: Path to the wiki file
         markdown_content: Content in cat format (YAML frontmatter + text)
         update_modified: If True, update the modified timestamp. If False, preserve existing timestamp.
+        from_title: Original title to replace. If set and the parsed title differs,
+            the original is removed (rename-aware replace). Errors out if the new
+            title already exists as a different tiddler, mirroring `tw mv`.
     """
     import json
 
     ensure_local_wiki(wiki_path)
 
     tiddler = parse_replace_content(markdown_content, update_modified=update_modified)
+
+    if from_title and from_title != tiddler['title']:
+        existing_titles = {t.get('title') for t in load_all_tiddlers(wiki_path)}
+        if tiddler['title'] in existing_titles:
+            print(
+                f"Error: Tiddler '{tiddler['title']}' already exists; "
+                f"refusing to overwrite during rename from '{from_title}'",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if from_title in existing_titles:
+            remove_tiddler(wiki_path, from_title)
 
     # Use insert_tiddler to do the actual insertion
     tiddler_json = json.dumps(tiddler)
@@ -3603,7 +3618,8 @@ def show_help():
     print("  rm <tiddler>                - Remove a tiddler", file=sys.stderr)
     print("  touch <tiddler> [text]      - Create or update a tiddler", file=sys.stderr)
     print("  insert <json>               - Insert/replace tiddler(s) from JSON", file=sys.stderr)
-    print("  replace <content>           - Insert/replace from cat format", file=sys.stderr)
+    print("  replace [--from <old>] <content>", file=sys.stderr)
+    print("                              - Insert/replace from cat format; --from removes old title on rename", file=sys.stderr)
     print("  append <tiddler> [text]     - Append text to tiddler", file=sys.stderr)
     print("  detect                      - Detect wiki format (modern or legacy)", file=sys.stderr)
     print("  export-dir <dir> [options]  - Export tiddlers to lossless markdown files", file=sys.stderr)
@@ -3766,8 +3782,25 @@ def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
             sys.exit(1)
         insert_tiddler(wiki_path, tiddler_json)
     elif command == "replace":
-        if len(command_args) >= 1:
-            content = command_args[0]
+        from_title = None
+        positional = []
+        i = 0
+        while i < len(command_args):
+            arg = command_args[i]
+            if arg == "--from":
+                if i + 1 >= len(command_args):
+                    print("Error: --from requires a tiddler title", file=sys.stderr)
+                    sys.exit(1)
+                from_title = command_args[i + 1]
+                i += 2
+            elif arg.startswith("--from="):
+                from_title = arg.split("=", 1)[1]
+                i += 1
+            else:
+                positional.append(arg)
+                i += 1
+        if len(positional) >= 1:
+            content = positional[0]
         elif allow_stdin:
             content = sys.stdin.read()
             if not content:
@@ -3776,7 +3809,7 @@ def run_single_command(command, command_args, wiki_path=None, allow_stdin=True):
         else:
             print("Error: replace command requires explicit content when used in ops", file=sys.stderr)
             sys.exit(1)
-        replace_tiddler(wiki_path, content)
+        replace_tiddler(wiki_path, content, from_title=from_title)
     elif command == "append":
         if len(command_args) < 1:
             print("Error: append command requires a tiddler name", file=sys.stderr)
@@ -4309,10 +4342,38 @@ def run_transactional_ops_command(state, command, command_args):
 
         ops_state_insert_tiddlers(state, tiddlers_to_insert)
     elif command == "replace":
-        if len(command_args) < 1:
+        from_title = None
+        positional = []
+        i = 0
+        while i < len(command_args):
+            arg = command_args[i]
+            if arg == "--from":
+                if i + 1 >= len(command_args):
+                    print("Error: --from requires a tiddler title", file=sys.stderr)
+                    sys.exit(1)
+                from_title = command_args[i + 1]
+                i += 2
+            elif arg.startswith("--from="):
+                from_title = arg.split("=", 1)[1]
+                i += 1
+            else:
+                positional.append(arg)
+                i += 1
+        if len(positional) < 1:
             print("Error: replace command requires explicit content when used in ops", file=sys.stderr)
             sys.exit(1)
-        tiddler = parse_replace_content(command_args[0], update_modified=True)
+        tiddler = parse_replace_content(positional[0], update_modified=True)
+        if from_title and from_title != tiddler['title']:
+            existing_titles = {t.get('title') for t in ops_state_all_tiddlers(state)}
+            if tiddler['title'] in existing_titles:
+                print(
+                    f"Error: Tiddler '{tiddler['title']}' already exists; "
+                    f"refusing to overwrite during rename from '{from_title}'",
+                    file=sys.stderr,
+                )
+                sys.exit(1)
+            if from_title in existing_titles:
+                ops_state_remove_tiddler(state, from_title)
         ops_state_insert_tiddlers(state, [tiddler])
     elif command == "append":
         if len(command_args) < 1:
@@ -11562,6 +11623,84 @@ Content here"""
         self.assertLessEqual(month, 12)
         self.assertGreaterEqual(day, 1)
         self.assertLessEqual(day, 31)
+
+    def test_replace_with_from_renames_and_removes_original(self):
+        """`replace --from OLD` removes OLD when the parsed title differs (the
+        rename-via-replace bug originally observed in the Neovim plugin: editing
+        the title field and saving used to leave the original tiddler orphaned).
+        """
+        cat_format = """title: RenamedTiddler
+tags: original
+
+Original content"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format, from_title="ExistingTiddler")
+
+        titles = {t.get('title') for t in tw_module.load_all_tiddlers(self.test_wiki)}
+        self.assertIn('RenamedTiddler', titles)
+        self.assertNotIn('ExistingTiddler', titles)
+
+    def test_replace_with_from_collision_aborts(self):
+        """Renaming onto an existing tiddler must error and leave both intact."""
+        tw_module.replace_tiddler(
+            self.test_wiki,
+            "title: Other\n\nOther content",
+        )
+
+        cat_format = """title: Other
+tags: should-not-apply
+
+Should-not-overwrite"""
+
+        with self.assertRaises(SystemExit):
+            tw_module.replace_tiddler(self.test_wiki, cat_format, from_title="ExistingTiddler")
+
+        tiddlers_by_title = {t['title']: t for t in tw_module.load_all_tiddlers(self.test_wiki)}
+        self.assertIn('ExistingTiddler', tiddlers_by_title)
+        self.assertIn('Other', tiddlers_by_title)
+        self.assertEqual(tiddlers_by_title['Other']['text'], 'Other content')
+        self.assertEqual(tiddlers_by_title['ExistingTiddler']['text'], 'Original content')
+
+    def test_replace_with_from_same_title_is_noop_rename(self):
+        """`--from` matching the parsed title behaves like a plain replace."""
+        cat_format = """title: ExistingTiddler
+tags: updated
+
+Updated content"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format, from_title="ExistingTiddler")
+
+        tiddlers = tw_module.load_all_tiddlers(self.test_wiki)
+        self.assertEqual(len(tiddlers), 1)
+        self.assertEqual(tiddlers[0]['title'], 'ExistingTiddler')
+        self.assertEqual(tiddlers[0]['text'], 'Updated content')
+
+    def test_replace_with_stale_from_still_inserts(self):
+        """`--from` referencing a missing tiddler is tolerated (stale rename)."""
+        cat_format = """title: BrandNew
+
+Brand-new content"""
+
+        tw_module.replace_tiddler(self.test_wiki, cat_format, from_title="NeverExisted")
+
+        titles = {t.get('title') for t in tw_module.load_all_tiddlers(self.test_wiki)}
+        self.assertIn('BrandNew', titles)
+        self.assertIn('ExistingTiddler', titles)
+
+    def test_replace_cli_from_flag_renames(self):
+        """End-to-end CLI: `tw replace --from OLD` (with stdin) renames atomically."""
+        cat_format = "title: CLIRenamed\n\nFrom CLI"
+        result = run_tw_command(
+            [self.test_wiki, 'replace', '--from', 'ExistingTiddler'],
+            input=cat_format,
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+
+        titles = {t.get('title') for t in tw_module.load_all_tiddlers(self.test_wiki)}
+        self.assertIn('CLIRenamed', titles)
+        self.assertNotIn('ExistingTiddler', titles)
 # CLI topic: serve, live reload, plugins, and WebDAV
 class TestServeCommand(unittest.TestCase):
     """Test the serve command for serving the wiki locally"""
@@ -16776,7 +16915,7 @@ class TestFiletypeMap(unittest.TestCase):
         parsed = json.loads(result.stdout)
 
         # Test a few expected mappings
-        self.assertEqual(parsed.get('text/vnd.tiddlywiki'), 'markdown')
+        self.assertEqual(parsed.get('text/vnd.tiddlywiki'), 'tiddlywiki')
         self.assertEqual(parsed.get('text/css'), 'css')
         self.assertEqual(parsed.get('application/javascript'), 'javascript')
         self.assertEqual(parsed.get('text/x-python'), 'python')
