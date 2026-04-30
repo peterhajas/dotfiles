@@ -1,7 +1,3 @@
-# Variables used below
-set ledgerBuild ~/src/ledger_utils/ledger_build.py
-set ledgerFile /tmp/peter.ledger
-
 function sync_music -d "Sync Music"
     rsync -avvz --delete ~/Music/peter beacon:/mnt/media/music/
 end
@@ -52,14 +48,6 @@ function abbrev -d "Install fish abbreviations"
 
     ## grabs radio and syncs
     abbr radio '~/Music/peter/_radio/grab.sh && sync_music'
-
-    ## ledger
-    abbr ledg 'open "http://127.0.0.1:5000" && $ledgerBuild && hledger-web -f $ledgerFile --serve'
-    abbr ledgb '$ledgerBuild && hledger -f $ledgerFile balance'
-    abbr ledgr '$ledgerBuild && hledger -f $ledgerFile register'
-    abbr ledgv '$ledgerBuild && nvim $ledgerFile'
-    abbr ledgl '$ledgerBuild && less $ledgerFile'
-    abbr ledgd '$ledgerBuild && rsync /tmp/peter.ledger beacon:services/hledger/data/hledger.journal'
 
     ## yabai
     abbr yr "yabai --stop-service && yabai --start-service && skhd --stop-service && skhd --start-service"
