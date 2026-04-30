@@ -62,6 +62,9 @@ function abbrev -d "Install fish abbreviations"
     ## pass
     abbr p pass
 
+    ## dotfiles
+    abbr d "cd ~/dotfiles"
+
     ## wiki
     abbr w "cd ~/phajas-wiki"
     abbr ww "tw ~/phajas-wiki/phajas-wiki.html "
