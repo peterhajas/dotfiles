@@ -2,7 +2,6 @@
 
 brew install caskroom/cask/brew-cask
 brew cask install macvim
-brew cask install vlc
 brew cask install audacity
 brew cask install sketch
 brew cask install xquartz
