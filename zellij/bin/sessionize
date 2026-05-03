@@ -91,6 +91,49 @@ resolve_dir() {
     fi
 }
 
+# Recency tracking — most recently picked entries bubble to the top of the
+# picker. Keys are session name, bookmark name, or directory path (whichever
+# the option's display line resolves to in sort_by_recency below).
+RECENT_FILE="${TMPDIR:-/tmp}/sessionize_recent"
+RECENT_MAX=200
+
+record_recent() {
+    key="$1"
+    [ -n "$key" ] || return 0
+    tmp=$(mktemp "${RECENT_FILE}.XXXXXX") 2>/dev/null || return 0
+    {
+        printf '%s\n' "$key"
+        [ -f "$RECENT_FILE" ] && grep -vxF -- "$key" "$RECENT_FILE" 2>/dev/null
+    } | awk -v max="$RECENT_MAX" 'NR <= max' > "$tmp"
+    mv "$tmp" "$RECENT_FILE" 2>/dev/null || rm -f "$tmp"
+}
+
+sort_by_recency() {
+    if [ ! -s "$RECENT_FILE" ]; then
+        cat
+        return
+    fi
+    awk -v recent="$RECENT_FILE" '
+        BEGIN {
+            rank = 0
+            while ((getline line < recent) > 0) {
+                rank++
+                if (!(line in ranks)) ranks[line] = rank
+            }
+            close(recent)
+        }
+        {
+            line = $0
+            key = line
+            if (sub(/ \[active session\]$/, "", key)) {}
+            else if (sub(/ \[current session\]$/, "", key)) {}
+            else if (sub(/ \[bookmark\]$/, "", key)) { sub(/ :: .*$/, "", key) }
+            r = (key in ranks) ? ranks[key] : 999999
+            printf "%06d\t%06d\t%s\n", r, NR, line
+        }
+    ' | sort -k1,1n -k2,2n | cut -f3-
+}
+
 start_new_session() {
     session_name="$1"
     layout="$2"
@@ -175,11 +218,12 @@ for search_dir in $SEARCH_DIRS; do
     fi
 done
 
-# Combine sessions (first) and directories. Current session last.
-ALL_OPTIONS="$SESSIONS
-$BOOKMARK_OPTIONS
-$DIRS
-$CURRENT_SESSION_LINE"
+# Combine sessions, bookmarks, and directories, sorted by recency. The
+# current-session line stays pinned to the bottom so fzf doesn't default
+# to selecting it.
+SORTABLE_OPTIONS=$(printf "%s\n%s\n%s\n" "$SESSIONS" "$BOOKMARK_OPTIONS" "$DIRS" | grep -v '^$' | sort_by_recency)
+ALL_OPTIONS="${SORTABLE_OPTIONS}
+${CURRENT_SESSION_LINE}"
 
 SCRIPT_PATH="$0"
 case "$SCRIPT_PATH" in
@@ -222,13 +266,16 @@ if [ "$PICK_DIR_ONLY" = 1 ]; then
     case "$SELECTION" in
     *" [bookmark]")
         SELECTION_NO_TAG=${SELECTION% \[bookmark\]}
+        BOOKMARK_NAME=${SELECTION_NO_TAG%% :: *}
         BOOKMARK_DIR=${SELECTION_NO_TAG#* :: }
         if [ -n "$BOOKMARK_DIR" ] && [ -d "$BOOKMARK_DIR" ]; then
+            record_recent "$BOOKMARK_NAME"
             printf '%s\n' "$BOOKMARK_DIR"
         fi
         ;;
     *)
         if [ -d "$SELECTION" ]; then
+            record_recent "$SELECTION"
             printf '%s\n' "$SELECTION"
         fi
         ;;
@@ -243,6 +290,7 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
         exit 0
     fi
     SESSION_NAME=$(truncate_session_name "$SESSION_NAME")
+    record_recent "$SESSION_NAME"
     LAYOUT=$(get_layout "$SESSION_NAME")
     SESSION_CWD=$(pwd)
 
@@ -270,6 +318,7 @@ case "$SELECTION" in
 *" [active session]"|*" [current session]")
     SESSION_NAME=${SELECTION% \[active session\]}
     SESSION_NAME=${SESSION_NAME% \[current session\]}
+    record_recent "$SESSION_NAME"
     if [ -n "$INSIDE_ZELLIJ" ]; then
         zellij action switch-session "$SESSION_NAME"
     else
@@ -292,6 +341,7 @@ case "$SELECTION" in
         exit 0
     fi
     SESSION_NAME=$(truncate_session_name "$SESSION_NAME")
+    record_recent "$SESSION_NAME"
 
     if [ -z "$BOOKMARK_DIR" ] || [ ! -d "$BOOKMARK_DIR" ]; then
         BOOKMARK_DIR="$HOME"
@@ -321,6 +371,8 @@ esac
 DIR="$SELECTION"
 SESSION_NAME=${DIR##*/}
 SESSION_NAME=$(truncate_session_name "$SESSION_NAME")
+record_recent "$DIR"
+record_recent "$SESSION_NAME"
 
 # Check if session exists
 if session_exists "$SESSION_NAME"; then
