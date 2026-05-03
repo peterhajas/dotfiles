@@ -20,13 +20,10 @@ local journalOffsetActive = false
 
 local wikiDirectory = os.getenv("HOME") .. "/phajas-wiki/"
 WikiPath = wikiDirectory .. "phajas-wiki.html"
-local hudStylesheetPath = os.getenv("HOME") .. "/dotfiles/userscripts/colorscheme.css"
 local cachedWikiContents = ""
-local cachedHudStylesheet = ""
 local wikiStates = {}
 local quickOpenPreviewHelpTitle = "$:/plugins/phajas/hud/QuickOpenPreviewHelp"
 local wikiContentsDirty = true
-local hudStylesheetDirty = true
 local loadingHUDHTML = [[
 <!doctype html>
 <html>
@@ -107,14 +104,6 @@ local function updateWikiState(wikiState)
             text = tiddler,
         },
     }
-    if cachedHudStylesheet ~= "" then
-        table.insert(tiddlers, {
-            title = "$:/plugins/phajas/hud/ColorschemeStylesheet",
-            type = "text/css",
-            tags = "$:/tags/Stylesheet",
-            text = cachedHudStylesheet,
-        })
-    end
     local tiddlerStore = [[<script class="tiddlywiki-tiddler-store" type="application/json">]]
         .. hs.json.encode(tiddlers)
         .. [[</script>]]
@@ -136,15 +125,6 @@ local function buildHUDHTML(currentHUDTitle, previewHelpText)
         table.insert(tiddlers, {
             title = quickOpenPreviewHelpTitle,
             text = previewHelpText,
-        })
-    end
-
-    if cachedHudStylesheet ~= "" then
-        table.insert(tiddlers, {
-            title = "$:/plugins/phajas/hud/ColorschemeStylesheet",
-            type = "text/css",
-            tags = "$:/tags/Stylesheet",
-            text = cachedHudStylesheet,
         })
     end
 
@@ -172,17 +152,6 @@ local function update()
             setNeedsUpdate()
         end
         wikiContentsDirty = false
-    end
-
-    if hudStylesheetDirty then
-        local stylesheetContents = readFile(hudStylesheetPath) or ""
-        -- Remove background override for HUD to preserve transparent/custom backgrounds
-        stylesheetContents = stylesheetContents:gsub("background: var%(%-%-cs%-bg%) !important;", "")
-        if stylesheetContents ~= cachedHudStylesheet then
-            cachedHudStylesheet = stylesheetContents
-            setNeedsUpdate()
-        end
-        hudStylesheetDirty = false
     end
 
     updateAllIfNeeded()
@@ -330,7 +299,6 @@ local function caffeinateCallback(event)
         end
     elseif event == hs.caffeinate.watcher.screensDidUnlock then
         wikiContentsDirty = true
-        hudStylesheetDirty = true
         setNeedsUpdate()
         update()
     end
@@ -360,21 +328,9 @@ end
 -- This is load-bearring and I don't know why
 function UPDATEWIKI()
     wikiContentsDirty = true
-    hudStylesheetDirty = true
     setNeedsUpdate()
     update()
     layout()
-end
-
-local function registerColorsWatcher()
-    local ok, colors = pcall(require, "colors")
-    if ok and colors and colors.onColorsChanged then
-        colors.onColorsChanged(function()
-            hudStylesheetDirty = true
-            setNeedsUpdate()
-            update()
-        end)
-    end
 end
 
 local function setupWebView()
@@ -417,5 +373,4 @@ local function startWikiServer()
 end
 
 startWikiServer()
-registerColorsWatcher()
 setupWebView()
