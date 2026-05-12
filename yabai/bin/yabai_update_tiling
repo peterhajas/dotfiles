@@ -42,9 +42,8 @@ def query_yabai_config(key: str, default: int) -> int:
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, ValueError):
         return default
 
-# Padding configuration - query from yabai and environment
+# Padding configuration from environment
 EDGE_PADDING = int(os.environ.get('YABAI_EDGE_PADDING', '14'))
-PADDING = query_yabai_config('window_gap', 20)
 # Reserved area for TiddlyWiki HUD. In 3-display mode, this is on the far left
 # of the rightmost display. In other modes, on the right of the center display.
 DEFAULT_WIDGET_PADDING_PX = 192
@@ -1386,6 +1385,8 @@ def main() -> None:
     if not primary_display and displays:
         primary_display = displays[0]
 
+    commands_before_special_windows = len(executor.executed_commands)
+
     if journal_windows and primary_display:
         for win in journal_windows:
             win_id = win.get("id")
@@ -1394,8 +1395,10 @@ def main() -> None:
     # Auto-bucketing removed: windows stay where user places them
     # Position-based bucketing happens in the layout sections below
 
-    # Refresh windows after special moves
-    windows = provider.query_windows() or []
+    # Refresh windows only if special-window commands may have changed state.
+    # A full yabai window query is relatively expensive on the hot path.
+    if len(executor.executed_commands) != commands_before_special_windows:
+        windows = provider.query_windows() or []
     windows_by_space = build_eligible_windows_by_space(windows, provider, executor)
 
     # 5-bucket workspace layout
