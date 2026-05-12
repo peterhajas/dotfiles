@@ -24,14 +24,7 @@ keybinds clear-defaults=true {
         bind "s" { NewPane "stacked"; SwitchToMode "normal"; }
         bind "w" { ToggleFloatingPanes; SwitchToMode "normal"; }
         bind "z" { TogglePaneFrames; SwitchToMode "normal"; }
-        bind "=" {
-            Run "sh" "-lc" "zellij_next_swap_layout_visible_order" {
-                floating true
-                close_on_exit true
-                hold_on_close false
-            }
-            SwitchToMode "normal"
-        }
+        bind "=" { NextSwapLayout; SwitchToMode "normal"; }
         bind "g" {
             Run "sh" "-lc" "zellij_grid" {
                 floating true
