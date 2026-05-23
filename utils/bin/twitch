@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 DEBUG=""
 case "${1:-}" in
@@ -19,24 +19,36 @@ debug "twitch: start"
 channels=$(tiddlywiki_render "Live Stream Subscriptions")
 debug "twitch: loaded channels"
 
-# Check each channel in parallel (10 at a time) and output only live ones
-echo "$channels" | xargs -P 0 -I {} sh -c '
-  channel="$1"
-  if [ -n "$DEBUG" ]; then
-    printf "%s twitch: checking %s\n" "$(date "+%Y-%m-%d %H:%M:%S")" "$channel" >&2
-  fi
+twitch_urls=$(echo "$channels" | awk -F/ 'tolower($3) ~ /(^|\.)twitch\.tv$/')
+kick_urls=$(echo "$channels"   | awk -F/ 'tolower($3) ~ /(^|\.)kick\.com$/')
 
-  yt-dlp --skip-download "$channel" >/dev/null 2>&1
-  rc=$?
-  if [ $rc -eq 0 ]; then
-    if [ -n "$DEBUG" ]; then
-      printf "%s twitch: live %s\n" "$(date "+%Y-%m-%d %H:%M:%S")" "$channel" >&2
+live_twitch=""
+if [ -n "$twitch_urls" ]; then
+  logins=$(echo "$twitch_urls" | awk -F/ '{print tolower($NF)}')
+  payload=$(echo "$logins" | jq -R '{query: "{user(login:\"\(.)\"){stream{id}}}"}' | jq -cs '.')
+  debug "twitch: querying GQL ($(echo "$logins" | wc -l | tr -d ' ') channels)"
+  response=$(curl -s -X POST https://gql.twitch.tv/gql \
+    -H "Client-ID: kimne78kx3ncx6brgo4mv6wki5h1ko" \
+    -H "Content-Type: application/json" \
+    -d "$payload")
+  debug "twitch: GQL responded"
+  live_twitch=$(paste \
+    <(echo "$twitch_urls") \
+    <(echo "$response" | jq -r '.[].data.user.stream | if . then "1" else "0" end') \
+    | awk -F'\t' '$2=="1"{print $1}')
+fi
+
+live_kick=""
+if [ -n "$kick_urls" ]; then
+  debug "kick: checking $(echo "$kick_urls" | wc -l | tr -d ' ') channels"
+  live_kick=$(echo "$kick_urls" | xargs -P 0 -I {} bash -c '
+    url=$1
+    name=${url##*/}
+    if curl -s "https://kick.com/api/v2/channels/$name" | jq -e ".livestream != null" >/dev/null 2>&1; then
+      echo "$url"
     fi
-    echo "$channel"
-  else
-    if [ -n "$DEBUG" ]; then
-      printf "%s twitch: offline %s (exit %s)\n" "$(date "+%Y-%m-%d %H:%M:%S")" "$channel" "$rc" >&2
-    fi
-  fi
-' _ "{}" | fzf_mpv
+  ' _ "{}")
+fi
+
+{ [ -n "$live_twitch" ] && echo "$live_twitch"; [ -n "$live_kick" ] && echo "$live_kick"; } | fzf_mpv
 debug "twitch: done"
