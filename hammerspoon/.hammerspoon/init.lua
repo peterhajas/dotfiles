@@ -33,6 +33,7 @@ local flux = require "flux"
 local iphone_mirroring = require "iphone_mirroring"
 local tiddlywiki_quickopen = require "tiddlywiki_quickopen"
 local controller = require "controller"
+dictation = require "dictation"
 local streamdeck = nil
 
 profileStop('imports')

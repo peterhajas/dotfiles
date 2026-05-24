@@ -265,9 +265,11 @@ local function streamdeck_button(deck, buttonID, pressed)
     -- Grab its actions
     local click = buttonForID['onClick'] or function() end
     local hold = buttonForID['onLongPress'] or function() end
+    local press = buttonForID['onPress'] or function() end
 
     -- Dispatch
     if pressed then
+        press(context)
         updateStreamdeckButton(buttonID, true)
         buttonForID['_holdTimer'] = hs.timer.new(0.3, function()
             hold(true)

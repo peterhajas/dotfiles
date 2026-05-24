@@ -16,6 +16,7 @@ require "streamdeck.function_keys"
 require "streamdeck.shortcuts"
 require "streamdeck.shelf"
 require "streamdeck.soundboard"
+require "streamdeck.dictation"
 
 local M = {}
 
@@ -41,6 +42,7 @@ M.initialButtonState = {
         shelfButtonForShelfWithID("b"),
         shelfButtonForShelfWithID("c"),
         soundboardButton(),
+        dictationButton(),
     }
 }
 
