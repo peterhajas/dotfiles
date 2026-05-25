@@ -14,15 +14,36 @@ kanata|$HOME/.config/kanata
 sysmon|$HOME
 "
 
+# Walk up from this script's parent looking for the zellij client process
+# that started us. Used to avoid killing ourselves in kill_existing_attach_processes
+# — argv on a client doesn't get rewritten by `switch-session`, so a client
+# originally launched as `zellij attach foo` still matches pgrep for "foo"
+# even after it has switched away.
+get_self_zellij_pid() {
+    p=$PPID
+    i=0
+    while [ -n "$p" ] && [ "$p" -gt 1 ] && [ "$i" -lt 20 ]; do
+        cmd=$(ps -o comm= -p "$p" 2>/dev/null | tr -d ' ')
+        case "$cmd" in
+            *zellij*) printf '%s' "$p"; return 0 ;;
+        esac
+        p=$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')
+        i=$((i + 1))
+    done
+    return 1
+}
+
 # Function to kill any existing "zellij attach SESSION_NAME" processes
 kill_existing_attach_processes() {
     session_name="$1"
     # Kill any zellij clients already attached to this session (tmux-style "attach -d").
     # Match common argv forms like "zellij attach NAME" or "zellij a NAME".
     pids=$(pgrep -f "zellij (attach|a) $session_name" 2>/dev/null || true)
-    if [ -n "$pids" ]; then
-        echo "$pids" | xargs kill -9 2>/dev/null || true
-    fi
+    [ -n "$pids" ] || return 0
+    for pid in $pids; do
+        [ -n "$SELF_ZELLIJ_PID" ] && [ "$pid" = "$SELF_ZELLIJ_PID" ] && continue
+        kill -9 "$pid" 2>/dev/null || true
+    done
 }
 
 # --pick-dir: skip all session manipulation, just print the chosen directory.
@@ -34,6 +55,8 @@ esac
 
 INSIDE_ZELLIJ="${ZELLIJ:-}"
 CURRENT_SESSION="${ZELLIJ_SESSION_NAME:-}"
+SELF_ZELLIJ_PID=""
+[ -n "$INSIDE_ZELLIJ" ] && SELF_ZELLIJ_PID=$(get_self_zellij_pid || true)
 
 # Zellij creates a unix-domain socket at $TMPDIR/zellij-<uid>/contract_version_1/<session>.
 # On macOS sockaddr_un.sun_path is 104 bytes — overflowing it makes the
@@ -297,6 +320,7 @@ if [ "$KEY" = "ctrl-n" ] || [ -z "$SELECTION" ]; then
     # Check if session already exists
     if session_exists "$SESSION_NAME"; then
         if [ -n "$INSIDE_ZELLIJ" ]; then
+            kill_existing_attach_processes "$SESSION_NAME"
             zellij action switch-session "$SESSION_NAME"
         else
             kill_existing_attach_processes "$SESSION_NAME"
@@ -320,6 +344,7 @@ case "$SELECTION" in
     SESSION_NAME=${SESSION_NAME% \[current session\]}
     record_recent "$SESSION_NAME"
     if [ -n "$INSIDE_ZELLIJ" ]; then
+        kill_existing_attach_processes "$SESSION_NAME"
         zellij action switch-session "$SESSION_NAME"
     else
         kill_existing_attach_processes "$SESSION_NAME"
@@ -349,6 +374,7 @@ case "$SELECTION" in
 
     if session_exists "$SESSION_NAME"; then
         if [ -n "$INSIDE_ZELLIJ" ]; then
+            kill_existing_attach_processes "$SESSION_NAME"
             zellij action switch-session "$SESSION_NAME"
         else
             kill_existing_attach_processes "$SESSION_NAME"
@@ -377,6 +403,7 @@ record_recent "$SESSION_NAME"
 # Check if session exists
 if session_exists "$SESSION_NAME"; then
     if [ -n "$INSIDE_ZELLIJ" ]; then
+        kill_existing_attach_processes "$SESSION_NAME"
         zellij action switch-session "$SESSION_NAME"
     else
         kill_existing_attach_processes "$SESSION_NAME"
