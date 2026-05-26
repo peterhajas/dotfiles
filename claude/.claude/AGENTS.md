@@ -1,4 +1,4 @@
-# phajas claude.md
+# phajas agent guidelines
 
 ## User info
 * Your user is Peter, a software engineer.
@@ -25,6 +25,7 @@
 - **Finding files**: When looking for files, make sure to also search in hidden files. Avoid tools that default to not showing these, like `rg`
 
 ## Git Safety
+- Unless requested otherwise, do all changes in temporary worktrees off of the last commit to the default branch.
 - Status/diff/log: Freely available, read-only ops
 - Push: Only when explicitly requested
 - Destructive operations: Require explicit user consent
