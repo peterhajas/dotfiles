@@ -204,6 +204,219 @@ EMBEDDED_SCENARIOS: Dict[str, Dict[str, Any]] = {
         ],
         "rules": [],
     },
+    # Synthetic four-display regression using deliberately normalized dimensions:
+    # a landscape display offset below the main row is classified as a separate
+    # Y bucket and never assigned to a 5-bucket position.
+    "orphan-landscape-plus-three-displays": {
+        "displays": [
+            {
+                "id": 1,
+                "uuid": "main-display-uuid",
+                "index": 1,
+                "frame": {"x": 0.0, "y": 0.0, "w": 3000.0, "h": 1800.0},
+                "spaces": [1],
+            },
+            {
+                "id": 4,
+                "uuid": "orphan-display-uuid",
+                "index": 4,
+                "frame": {"x": -2200.0, "y": 600.0, "w": 1200.0, "h": 800.0},
+                "spaces": [4],
+            },
+            {
+                "id": 2,
+                "uuid": "left-vert-uuid",
+                "index": 2,
+                "frame": {"x": -1000.0, "y": 0.0, "w": 1000.0, "h": 1600.0},
+                "spaces": [2],
+            },
+            {
+                "id": 3,
+                "uuid": "right-vert-uuid",
+                "index": 3,
+                "frame": {"x": 3000.0, "y": 0.0, "w": 1000.0, "h": 1600.0},
+                "spaces": [3],
+            },
+        ],
+        "spaces": [
+            {
+                "id": 1,
+                "uuid": "space-uuid-1",
+                "index": 1,
+                "label": "",
+                "type": "bsp",
+                "display": 1,
+                "windows": [101, 102],
+                "has-focus": True,
+                "is-visible": True,
+                "is-native-fullscreen": False,
+                "layout": "float",
+                "top_padding": 0,
+                "bottom_padding": 0,
+                "left_padding": 0,
+                "right_padding": 0,
+            },
+            {
+                "id": 2,
+                "uuid": "space-uuid-2",
+                "index": 2,
+                "label": "",
+                "type": "bsp",
+                "display": 2,
+                "windows": [201],
+                "has-focus": False,
+                "is-visible": True,
+                "is-native-fullscreen": False,
+                "layout": "float",
+                "top_padding": 0,
+                "bottom_padding": 0,
+                "left_padding": 0,
+                "right_padding": 0,
+            },
+            {
+                "id": 3,
+                "uuid": "space-uuid-3",
+                "index": 3,
+                "label": "",
+                "type": "bsp",
+                "display": 3,
+                "windows": [301],
+                "has-focus": False,
+                "is-visible": True,
+                "is-native-fullscreen": False,
+                "layout": "float",
+                "top_padding": 0,
+                "bottom_padding": 0,
+                "left_padding": 0,
+                "right_padding": 0,
+            },
+            {
+                "id": 4,
+                "uuid": "space-uuid-4",
+                "index": 4,
+                "label": "",
+                "type": "bsp",
+                "display": 4,
+                "windows": [401, 402, 403],
+                "has-focus": False,
+                "is-visible": True,
+                "is-native-fullscreen": False,
+                "layout": "float",
+                "top_padding": 0,
+                "bottom_padding": 0,
+                "left_padding": 0,
+                "right_padding": 0,
+            },
+        ],
+        "windows": [
+            {
+                "id": 101,
+                "pid": 1001,
+                "app": "App",
+                "title": "main-1",
+                "frame": {"x": 0.0, "y": 0.0, "w": 1500.0, "h": 1800.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 1,
+                "space": 1,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 102,
+                "pid": 1002,
+                "app": "App",
+                "title": "main-2",
+                "frame": {"x": 1500.0, "y": 0.0, "w": 1500.0, "h": 1800.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 1,
+                "space": 1,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 201,
+                "pid": 2001,
+                "app": "App",
+                "title": "side-1",
+                "frame": {"x": -1000.0, "y": 0.0, "w": 1000.0, "h": 1600.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 2,
+                "space": 2,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 301,
+                "pid": 3001,
+                "app": "App",
+                "title": "side-2",
+                "frame": {"x": 3000.0, "y": 0.0, "w": 1000.0, "h": 1600.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 3,
+                "space": 3,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 401,
+                "pid": 4001,
+                "app": "App",
+                "title": "orphan-1",
+                "frame": {"x": -2200.0, "y": 600.0, "w": 400.0, "h": 800.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 4,
+                "space": 4,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 402,
+                "pid": 4002,
+                "app": "App",
+                "title": "orphan-2",
+                "frame": {"x": -1800.0, "y": 600.0, "w": 400.0, "h": 800.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 4,
+                "space": 4,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+            {
+                "id": 403,
+                "pid": 4003,
+                "app": "App",
+                "title": "orphan-3",
+                "frame": {"x": -1400.0, "y": 600.0, "w": 400.0, "h": 800.0},
+                "role": "AXWindow",
+                "subrole": "AXStandardWindow",
+                "display": 4,
+                "space": 4,
+                "level": 0,
+                "is-visible": True,
+                "minimized": 0,
+                "floating": 0,
+            },
+        ],
+        "rules": [],
+    },
 }
 
 
@@ -1821,6 +2034,179 @@ class TestSingleDisplayStandardTiling(unittest.TestCase):
         self.assertIn("2:100:0:1:100:1", grid_commands[1])
 
 
+class TestOrphanDisplayInFiveBucketMode(unittest.TestCase):
+    """Tests for tiling on displays not covered by 5-bucket assignment.
+
+    A display sitting outside the main horizontal row (per `get_main_horizontal_row`)
+    is excluded from the bucket map. Without the orphan-display branch in main(),
+    its windows would never be tiled.
+    """
+
+    def _run_script_against_scenario(self, scenario_data):
+        """Run the actual script with --test-data and return parsed dry-run commands.
+
+        Returns a tuple of (all_commands, grids_by_window_id).
+        """
+        import subprocess
+        import tempfile
+
+        fd, fixture_path = tempfile.mkstemp(suffix=".json", prefix="orphan_test_")
+        with os.fdopen(fd, "w") as f:
+            json.dump(scenario_data, f)
+        self.addCleanup(lambda: os.path.exists(fixture_path) and os.unlink(fixture_path))
+
+        env = os.environ.copy()
+        env["YABAI_UPDATE_TILING_SKIP_LOCK"] = "1"
+        result = subprocess.run(
+            [str(script_path), "--test-data", fixture_path, "--verbose"],
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=10,
+        )
+        self.assertEqual(
+            result.returncode, 0,
+            f"Script exited with {result.returncode}.\nstderr: {result.stderr}"
+        )
+
+        commands: List[List[str]] = []
+        for line in result.stdout.splitlines():
+            if not line.startswith("[DRY-RUN] "):
+                continue
+            commands.append(line[len("[DRY-RUN] "):].split())
+
+        grids: Dict[int, str] = {}
+        for cmd in commands:
+            if "--grid" in cmd:
+                try:
+                    grids[int(cmd[3])] = cmd[5]
+                except (IndexError, ValueError):
+                    continue
+
+        return commands, grids, result.stdout
+
+    def test_orphan_landscape_display_gets_tiled(self):
+        """A display outside the main row should be tiled in 5-bucket mode."""
+        _, grids, _ = self._run_script_against_scenario(
+            EMBEDDED_SCENARIOS["orphan-landscape-plus-three-displays"]
+        )
+        for win_id in (401, 402, 403):
+            self.assertIn(win_id, grids, f"Orphan window {win_id} should be tiled")
+
+    def test_orphan_landscape_display_tiles_horizontally(self):
+        """A landscape orphan display should tile horizontally."""
+        _, grids, _ = self._run_script_against_scenario(
+            EMBEDDED_SCENARIOS["orphan-landscape-plus-three-displays"]
+        )
+        # Horizontal tiling: rows=1, each window has its own column slice.
+        # Sorted-by-id order is 401, 402, 403 → columns 0, ~34, ~67.
+        self.assertEqual(grids.get(401), "1:100:0:0:34:1")
+        self.assertEqual(grids.get(402), "1:100:34:0:33:1")
+        self.assertEqual(grids.get(403), "1:100:67:0:33:1")
+
+    def test_bucketed_displays_unchanged_when_orphan_present(self):
+        """Side vertical displays should still tile vertically in their far_* buckets."""
+        _, grids, _ = self._run_script_against_scenario(
+            EMBEDDED_SCENARIOS["orphan-landscape-plus-three-displays"]
+        )
+        # Display 2 is the only window in the far_left bucket.
+        # → vertical tiling, single window spans full bucket: "1:100:0:0:<span>:1".
+        self.assertIn(201, grids)
+        self.assertTrue(
+            grids[201].startswith("1:100:0:0:"),
+            f"Left-vert window 201 grid was {grids[201]!r}"
+        )
+        # Display 3 (right vertical) is in far_right bucket with widget cutout on its left.
+        self.assertIn(301, grids)
+
+    def test_orphan_display_only_runs_in_five_bucket_mode(self):
+        """When 5-bucket mode is not triggered, the orphan branch is a no-op
+        (standard mode below already handles all displays)."""
+        # Workspace < 5000 and widest display < 5000 → not 5-bucket.
+        scenario = {
+            "displays": [
+                {"id": 1, "index": 1, "frame": {"x": 0, "y": 0, "w": 1920, "h": 1080}, "spaces": [1]},
+                {"id": 2, "index": 2, "frame": {"x": 1920, "y": 200, "w": 1440, "h": 900}, "spaces": [2]},
+            ],
+            "spaces": [
+                {"index": 1, "display": 1, "layout": "float",
+                 "top_padding": 0, "bottom_padding": 0, "left_padding": 0, "right_padding": 0,
+                 "is-visible": True},
+                {"index": 2, "display": 2, "layout": "float",
+                 "top_padding": 0, "bottom_padding": 0, "left_padding": 0, "right_padding": 0,
+                 "is-visible": True},
+            ],
+            "windows": [
+                {"id": 100, "app": "App", "display": 1, "space": 1,
+                 "frame": {"x": 0, "y": 0, "w": 100, "h": 100},
+                 "role": "AXWindow", "subrole": "AXStandardWindow",
+                 "level": 0, "is-visible": True, "minimized": 0, "floating": 0},
+                {"id": 200, "app": "App", "display": 2, "space": 2,
+                 "frame": {"x": 0, "y": 0, "w": 100, "h": 100},
+                 "role": "AXWindow", "subrole": "AXStandardWindow",
+                 "level": 0, "is-visible": True, "minimized": 0, "floating": 0},
+            ],
+            "rules": [],
+        }
+        _, grids, stdout = self._run_script_against_scenario(scenario)
+        # Both displays should be tiled by the standard-mode branch; orphan
+        # branch should not log activity since use_five_buckets is False.
+        self.assertIn(100, grids)
+        self.assertIn(200, grids)
+        self.assertNotIn("applying standard tiling to non-bucket displays", stdout)
+
+    def test_orphan_branch_announces_displays_in_verbose_log(self):
+        """Verbose output should name which displays are being tiled by the orphan branch."""
+        _, _, stdout = self._run_script_against_scenario(
+            EMBEDDED_SCENARIOS["orphan-landscape-plus-three-displays"]
+        )
+        self.assertIn("applying standard tiling to non-bucket displays", stdout)
+        self.assertIn("[4]", stdout)  # display index 4 is the orphan
+
+    def test_orphan_display_excluded_from_bucket_map(self):
+        """Sanity check: bucket_display_map should still ignore the orphan display."""
+        scenario = EMBEDDED_SCENARIOS["orphan-landscape-plus-three-displays"]
+        bucket_map = yut.bucket_display_map(scenario["displays"])
+        # Orphan display 4 must NOT be assigned to any bucket
+        self.assertNotIn(4, bucket_map.values(),
+                         f"Display 4 should not be in bucket map; got {bucket_map}")
+        # The 3 main-row displays still cover all 5 buckets
+        self.assertEqual(bucket_map.get("far_left"), 2)
+        self.assertEqual(bucket_map.get("far_right"), 3)
+        self.assertEqual(bucket_map.get("center"), 1)
+
+    def test_apply_standard_tiling_with_bucket_exclusion_skips_bucketed_displays(self):
+        """apply_standard_tiling called with bucket displays excluded should only
+        emit grid commands for the orphan display."""
+        scenario = EMBEDDED_SCENARIOS["orphan-landscape-plus-three-displays"]
+        provider = yut.MockYabaiProvider(scenario)
+        executor = yut.YabaiCommandExecutor(dry_run=True)
+        yut.MANAGE_OFF_RULES = []
+        yut.MANAGE_OFF_APPS = set()
+
+        # Simulate the exclude set the main loop now builds
+        bucket_map = yut.bucket_display_map(scenario["displays"])
+        bucket_display_indices = {d for d in bucket_map.values() if d is not None}
+
+        yut.apply_standard_tiling(
+            scenario["spaces"],
+            scenario["windows"],
+            scenario["displays"],
+            provider,
+            executor,
+            exclude_displays=bucket_display_indices,
+        )
+
+        grid_commands = [c for c in executor.executed_commands if "--grid" in c]
+        # All 3 orphan-display windows should be tiled
+        self.assertEqual(len(grid_commands), 3,
+                         f"Expected 3 grid commands for orphan display, got {len(grid_commands)}: "
+                         f"{grid_commands}")
+        # And none should target windows on the bucketed displays
+        tiled_ids = {int(c[3]) for c in grid_commands}
+        self.assertEqual(tiled_ids, {401, 402, 403})
+
+
 class TestScenarioIntegration(unittest.TestCase):
     """Integration tests using test scenarios."""
 
@@ -2566,6 +2952,7 @@ def run_tests():
     suite.addTests(loader.loadTestsFromTestCase(TestUltrawideBucketTiling))
     suite.addTests(loader.loadTestsFromTestCase(TestPaddingConfiguration))
     suite.addTests(loader.loadTestsFromTestCase(TestLockAndDebounce))
+    suite.addTests(loader.loadTestsFromTestCase(TestOrphanDisplayInFiveBucketMode))
     suite.addTests(loader.loadTestsFromTestCase(TestScenarioIntegration))
 
     # Run tests

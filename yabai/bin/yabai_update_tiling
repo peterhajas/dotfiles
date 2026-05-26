@@ -1469,6 +1469,24 @@ def main() -> None:
                     horizontal=horizontal,
                 )
 
+    # In 5-bucket mode, apply standard tiling to any displays not covered by buckets
+    # (e.g., a display that sits outside the main horizontal row).
+    if use_five_buckets and display_to_buckets:
+        bucket_display_indices = set(display_to_buckets.keys())
+        unbucketed = [d for d in displays if d.get("index") not in bucket_display_indices]
+        if unbucketed:
+            log(f"5-bucket mode: applying standard tiling to non-bucket displays: "
+                f"{[d.get('index') for d in unbucketed]}")
+            apply_standard_tiling(
+                spaces,
+                windows,
+                displays,
+                provider,
+                executor,
+                exclude_displays=bucket_display_indices,
+                windows_by_space=windows_by_space,
+            )
+
     # 25/50/25 tiling for legacy ultrawide
     if not use_five_buckets and ultra_index is not None:
         ultra_frame = ultra_display.get("frame", {})
