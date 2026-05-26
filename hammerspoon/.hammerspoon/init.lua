@@ -34,6 +34,7 @@ local iphone_mirroring = require "iphone_mirroring"
 local tiddlywiki_quickopen = require "tiddlywiki_quickopen"
 local controller = require "controller"
 dictation = require "dictation"
+window_focus = require "window_focus"
 local streamdeck = nil
 
 profileStop('imports')
