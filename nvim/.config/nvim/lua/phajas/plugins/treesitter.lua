@@ -30,7 +30,6 @@ require'nvim-treesitter.configs'.setup {
         "query",
         "requirements",
         "sql",
-        "swift",
         "tmux",
         "toml",
         "typescript",

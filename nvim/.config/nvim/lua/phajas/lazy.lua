@@ -88,6 +88,11 @@ local plugins = {
         dependencies = { "nvim-treesitter/nvim-treesitter" },
     },
 
+    -- Swift highlighting/indent (pure Vimscript; no tree-sitter CLI/compiler needed)
+    { "keith/swift.vim",
+        ft = "swift",
+    },
+
     -- LSP Support
     { "neovim/nvim-lspconfig",
         event = { "BufReadPre", "BufNewFile" },
