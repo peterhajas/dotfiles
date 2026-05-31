@@ -16,6 +16,9 @@ local log = hs.logger.new('dictation', 'debug')
 local DICTATION_HOTKEY_MODS = { "cmd", "shift" }
 local DICTATION_HOTKEY_KEY = "t"
 local STOP_PATTERN = "Stop Dictation"
+local rightShiftPushToTalkTap = nil
+local rightShiftDown = false
+local rightShiftStartedDictation = false
 
 local function frontApp()
     return hs.application.frontmostApplication()
@@ -48,6 +51,43 @@ end
 
 function dictation.stop()
     sendDictationHotkey()
+end
+
+function dictation.init()
+    if rightShiftPushToTalkTap then
+        rightShiftPushToTalkTap:stop()
+    end
+
+    rightShiftPushToTalkTap = hs.eventtap.new({
+        hs.eventtap.event.types.flagsChanged,
+    }, function(event)
+        local flags = event:getFlags()
+        local isRightShiftDown = flags.rightShift == true
+
+        if isRightShiftDown and not rightShiftDown then
+            rightShiftDown = true
+            rightShiftStartedDictation = not dictation.isDictating()
+
+            if rightShiftStartedDictation then
+                dictation.start()
+            end
+
+            return true
+        elseif rightShiftDown and not isRightShiftDown then
+            rightShiftDown = false
+
+            if rightShiftStartedDictation then
+                rightShiftStartedDictation = false
+                dictation.stop()
+            end
+
+            return true
+        end
+
+        return false
+    end)
+
+    rightShiftPushToTalkTap:start()
 end
 
 return dictation

@@ -212,6 +212,7 @@ youtubedl.init()
 iphone_mirroring.init()
 tiddlywiki_quickopen.init()
 controller.init()
+dictation.init()
 
 local function subscribeNtfyTopicsFromTiddlyWiki()
     local topicsRaw = TiddlyWikiRender("ntfy topics")
