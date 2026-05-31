@@ -16,6 +16,8 @@ local log = hs.logger.new('dictation', 'debug')
 local DICTATION_HOTKEY_MODS = { "cmd", "shift" }
 local DICTATION_HOTKEY_KEY = "t"
 local STOP_PATTERN = "Stop Dictation"
+local STOP_DELAY_SECONDS = 0.15
+local RIGHT_SHIFT_KEYCODE = hs.keycodes.map.rightshift or 60
 local rightShiftPushToTalkTap = nil
 local rightShiftDown = false
 local rightShiftStartedDictation = false
@@ -62,7 +64,12 @@ function dictation.init()
         hs.eventtap.event.types.flagsChanged,
     }, function(event)
         local flags = event:getFlags()
-        local isRightShiftDown = flags.rightShift == true
+        local keycode = event:getProperty(hs.eventtap.event.properties.keyboardEventKeycode)
+        if keycode ~= RIGHT_SHIFT_KEYCODE then
+            return false
+        end
+
+        local isRightShiftDown = flags.shift == true
 
         if isRightShiftDown and not rightShiftDown then
             rightShiftDown = true
@@ -78,7 +85,9 @@ function dictation.init()
 
             if rightShiftStartedDictation then
                 rightShiftStartedDictation = false
-                dictation.stop()
+                hs.timer.doAfter(STOP_DELAY_SECONDS, function()
+                    dictation.stop()
+                end)
             end
 
             return true
