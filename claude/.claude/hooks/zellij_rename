@@ -41,20 +41,20 @@ fi
 case "$hook_event" in
     SessionStart)       tab_name="🚀" ;;
     SessionEnd)         tab_name="👋"; rm -f "$TAB_ID_FILE" ;;
-    UserPromptSubmit)   tab_name="⚡" ;;
+    UserPromptSubmit)   tab_name="💬" ;;
     Stop)               tab_name="😴" ;;
     Notification)       tab_name="😴" ;;
-    PostToolUse)        tab_name="⚡" ;;
+    PostToolUse)        tab_name="✅" ;;
     PreToolUse)
         case "$tool_name" in
             Bash)
                 cmd=$(echo "$tool_input" | jq -r '.command // ""' 2>/dev/null)
                 [ ${#cmd} -gt 30 ] && cmd="${cmd:0:27}..."
-                tab_name="⚙️ $cmd"
+                tab_name="🔧 $cmd"
                 ;;
             Write|Edit)
                 path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
-                tab_name="✏️ $(basename "$path" 2>/dev/null)"
+                tab_name="📝 $(basename "$path" 2>/dev/null)"
                 ;;
             Read)
                 path=$(echo "$tool_input" | jq -r '.file_path // ""' 2>/dev/null)
@@ -66,10 +66,10 @@ case "$hook_event" in
                 tab_name="🔍 $pattern"
                 ;;
             Agent)      tab_name="🤖" ;;
-            *)          tab_name="⚙️" ;;
+            *)          tab_name="🔧" ;;
         esac
         ;;
-    *)                  tab_name="⚙️" ;;
+    *)                  tab_name="🔧" ;;
 esac
 
 # Rename the tab
