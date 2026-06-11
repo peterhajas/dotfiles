@@ -1,5 +1,10 @@
 local config = require("phajas.config")
 
+local context_disabled_filetypes = {
+    bash = true,
+    sh = true,
+}
+
 require'nvim-treesitter.configs'.setup {
     -- A list of parser names, or "all" (the five listed parsers should always be installed)
     ensure_installed = {
@@ -74,4 +79,7 @@ require'nvim-treesitter.configs'.setup {
 
 require('treesitter-context').setup({
     enable = true, -- Enable this plugin (Can be enabled/disabled later via commands)
+    on_attach = function(bufnr)
+        return not context_disabled_filetypes[vim.bo[bufnr].filetype]
+    end,
 })
