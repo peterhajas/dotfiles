@@ -1,0 +1,49 @@
+#!/bin/sh
+# Zellij pane color hook for Codex.
+# Sets pane background to red while Codex is idle or waiting for approval.
+
+[ -z "$ZELLIJ_SESSION_NAME" ] && exit 0
+[ -z "$ZELLIJ_PANE_ID" ] && exit 0
+
+PANE_TARGET="terminal_${ZELLIJ_PANE_ID}"
+
+get_idle_color() {
+    appearance="$(defaults read -g AppleInterfaceStyle 2>/dev/null || true)"
+    if [ "$appearance" = "Dark" ]; then
+        printf '%s\n' "#3a0000"
+    else
+        printf '%s\n' "#ffe0e0"
+    fi
+}
+
+set_idle_color() {
+    bg="$(get_idle_color)"
+    zellij action set-pane-color --pane-id "$PANE_TARGET" --bg "$bg" >/dev/null 2>&1
+}
+
+reset_color() {
+    zellij action set-pane-color --pane-id "$PANE_TARGET" --reset >/dev/null 2>&1
+}
+
+refresh_pane_view() {
+    zellij action scroll-to-bottom --pane-id "$PANE_TARGET" >/dev/null 2>&1
+}
+
+input="$(cat)"
+
+hook_event=""
+if command -v jq >/dev/null 2>&1; then
+    hook_event="$(printf '%s' "$input" | jq -r '.hook_event_name // ""' 2>/dev/null)"
+fi
+
+case "$hook_event" in
+    Stop|PermissionRequest)
+        set_idle_color
+        ;;
+    UserPromptSubmit|SessionStart|PreToolUse|PostToolUse)
+        reset_color
+        refresh_pane_view
+        ;;
+esac
+
+exit 0
